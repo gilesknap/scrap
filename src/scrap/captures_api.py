@@ -1,6 +1,7 @@
-"""The HTTP routes for a capture's photos: sending them to Claude again (reprocess),
-and a photo's drawing: the current one, its versions, saving a scene from the editor
-and restoring an old version. Registered by app.create_app (add_routes)."""
+"""The HTTP routes for a capture's photos and files: sending them to Claude again
+(reprocess; a file is read again, locally), a PDF's read text, and a photo's drawing:
+the current one, its versions, saving a scene from the editor and restoring
+an old version. Registered by app.create_app (add_routes)."""
 
 import json
 import logging
@@ -13,10 +14,11 @@ from pydantic import BaseModel
 
 from . import drawing, ingest
 from .api_models import Restore, Text
-from .store import SURROGATE, InvalidError, Store, TooLargeError
+from .store import SURROGATE, InvalidError, NotFoundError, Store, TooLargeError
 from .uploads import author, too_large
 
 SCENE_REQUEST = 8 * 2**20  # a 5 MB scene, plus the files map it may carry (dropped)
+FILE_TEXT = 20_000  # characters of a PDF's text the page view shows (search has it all)
 
 
 WARNED: set[int] = set()  # the unencodable rows already logged
@@ -60,6 +62,28 @@ def add_routes(app: FastAPI, store: Store) -> None:
 
     def photo(cid: str, sha: str) -> tuple[str, str]:
         return cid.upper(), sha.lower()
+
+    @app.get("/api/captures/{cid}/files/{sha}/text")
+    def file_text(cid: str, sha: str) -> dict[str, Any]:
+        """The text scrap read from a capture's PDF, for search (no model): {text,
+        truncated}, its first FILE_TEXT characters; text null if none was read (a scan,
+        not read yet, or failed). 404 for a file that is not a PDF of that capture, or a
+        capture whose page is in the trash. The page view's file card, folded until
+        opened: a text file's own link opens its text."""
+        cid, sha = photo(cid, sha)
+        with store.connect() as conn:
+            found = conn.execute(
+                "SELECT 1 FROM capture_blob cb JOIN capture c ON c.id = cb.capture_id"
+                " JOIN page p ON p.id = c.page_id JOIN blob b ON b.sha256 = cb.sha256"
+                " WHERE cb.capture_id = ? AND cb.sha256 = ? AND p.deleted_at IS NULL"
+                " AND lower(trim(substr(b.mime, 1, instr(b.mime || ';', ';') - 1)))"
+                " = 'application/pdf'",
+                (cid, sha),
+            ).fetchone()
+        if found is None:
+            raise NotFoundError(f"{cid}/{sha}")
+        text, cut = store.file_text(cid, sha, FILE_TEXT)
+        return {"text": text, "truncated": cut}
 
     # The drawing endpoints answer with Drawing (a JSONResponse): a scene is JSON from
     # the editor, passed through as stored, not a model for FastAPI to check again.

@@ -29,6 +29,9 @@ Jump to: [install](#install-it-on-android), [capture](#capture), [share](#share-
 
 Installing is what puts scrap in the Android **share sheet**.
 
+The app's text follows the phone's **Font size** (Settings, Display), in the installed app as in
+a Chrome tab (Chrome 146 or later), never going below its usual 17 px.
+
 scrap has no login of its own: anyone who can reach its address can use the app, so reach it only
 over your tailnet or behind a proxy that authenticates (see [](../reference/api.md)).
 
@@ -154,6 +157,20 @@ stateDiagram-v2
   cannot be stored goes straight to the server (`POST /share`, see [](../reference/api.md)), or
   shows a page saying it was not saved if there is no connection either.
 - **Tabs.** Two open tabs take turns (Web Locks), so a capture is never uploaded twice at once.
+
+(text-size)=
+### Text size
+
+Settings → **Text size** sets how big scrap's text is on this device. **Phone**, the default,
+follows the phone's font size (Android's, or an iPhone's Text Size), never smaller than scrap's
+usual 17 px. **80%**, **90%**, **100%**, **115%** or **130%** set scrap's own size instead, 17 px
+times it, whatever the phone's font size is: smaller than the phone's if scrap looks too big.
+Everything sized from the text follows it (buttons, chips, the editor). The choice is kept on
+this device and applies at once.
+
+If scrap looks much bigger in the installed app than in a Chrome tab or another app, check
+Chrome's own zoom: Chrome, Settings, Accessibility, **Page zoom** (and Site settings, **Zoom**,
+for scrap's address). It applies on top of the font size.
 
 (smaller-photos)=
 ### Smaller photos
@@ -489,14 +506,17 @@ scrap and try again*.
   stands for; a token you delete or change is no photo any more. Claude reading a photo never
   changes the text.
 - The page shows each photo where its line is, as a server-made preview (HEIC works), with no
-  caption. Tap for the viewer. A file the text links to (the composer puts them there) is a row
-  where its line is; files it does not show (PDFs) are rows below the text: the name
-  (tap to open the file), a PDF's page count once read, and **Download**. scrap reads a PDF's
-  text itself (no model), so search finds it. A page made from a PDF or text file then gets a
-  title, tags and a summary from Claude, which is sent the start of that text (not with
-  `SCRAP_FILE_ENRICH=ask`: then press **Ask Claude**). A scan, a password-protected or
-  unreadable PDF, or one over 30 MB is kept and listed but not searchable: its row says *Text
-  couldn't be read; not searchable*.
+  caption. Tap for the viewer. A file the text links to on a line of its own is a row where
+  its line is (one linked mid-sentence is a link there, and a row below the text too); a file
+  the text does not show is a row below the text: the name: tap to open the file, and save it
+  from there, as a photo is saved from its viewer. Under a PDF's or text file's row is its card, *What's in the file*, as a photo
+  has one: while it waits or is being read, where that is up to; once read, its page count and
+  whether search finds it, and for a PDF the **Text read from it**, folded; **Retry** if reading
+  failed, **Regenerate** to read it again. scrap reads the text itself (no model), so search
+  finds it. A page made from a PDF or text file then gets a title, tags and a summary from
+  Claude, which is sent the start of that text (not with `SCRAP_FILE_ENRICH=ask`: then press
+  **Ask Claude**). A scan, a password-protected or unreadable PDF, or one over 30 MB is kept
+  and listed but not searchable: its card says *Text couldn't be read; not searchable*.
 - **Viewer.** Full screen, file name top left, fitted to the screen. Pinch or double-tap to zoom,
   drag to pan, swipe (or arrows) for other photos. **Fit**, **100%**, **Download** and **Share**
   are along the bottom; the cross at top right, or Back, closes. **Share** asks **Link** (the
@@ -510,14 +530,18 @@ scrap and try again*.
   the top, clear of the keyboard. Tags and a todo's due date are folded into one line each. It
   opens the text where you were reading the page (at its top if you had not scrolled past the
   title).
-- **Camera**, **Gallery** and **File** under the text (the Add photo buttons) add photos to the end of the page as a capture
-  of their own: Claude reads them and search finds what it read, but they never change the page's
-  kind, title or tags. A topic page has no Add photo. They upload at once, apart from Save, and
-  their tokens join the editor text (if the page changed elsewhere meanwhile, Save shows the
-  conflict). Offline they wait on the phone (listed as *1 photo for* the page, or *2 files for* it).
-  Photos too big to send together go one by one; one over the limit alone is refused. **File**
-  takes PDFs, text and Markdown files: they are listed below the text, not put in it, and read for
-  search.
+- **Camera**, **Gallery** and **File** under the text work as the composer's: each photo or
+  file picked is a token where the cursor is (`⟦image 3⟧`, `⟦file 2: minutes.pdf⟧`), a paragraph
+  of its own, with a chip under the text box; type between them freely, and **✕** on a chip takes
+  its token out. Nothing is uploaded until **Save**, which sends the files with the edit (photos
+  made smaller first, as the composer's are): the server puts each one's embed or link where its
+  token is, all in one revision, and Claude reads the photos as any capture's. A file whose token
+  you deleted is not sent. Saving needs the network (offline, **Save** says so and keeps
+  everything, the draft too, to try again); if the page changed elsewhere meanwhile, **Save**
+  shows the conflict and nothing is uploaded. **File** takes PDFs, text and Markdown files. A
+  topic page has no Camera, Gallery or File. They never change the page's kind, title or tags.
+  The three stay on one line; on a narrow phone at a large text size each has its icon over its
+  word.
 - **Lists.** Enter on a bullet (`- `), numbered (`1. `) or task (`- [ ] `) line starts the next
   item; Enter on an empty item ends the list. Five keys above the keyboard act on the line or
   selection: **Task**, **Bullet**, **Number** (each a plain line again if all are already),

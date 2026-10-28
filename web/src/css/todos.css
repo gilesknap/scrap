@@ -203,7 +203,8 @@
 :is(.claude, .enrich) .ingest > button:not(.link) {
   margin-inline-start: auto;
 }
-.photo-panel > .claude {
+.photo-panel > .claude,
+.file-panel > .claude {
   margin-top: var(--s-3);
 }
 .claude .claude-text {

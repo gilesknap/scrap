@@ -1,7 +1,7 @@
 // File (#380): Gallery takes photos only (so a phone opens its photo picker for it), and File
 // takes PDFs, text and Markdown, on the capture screen, in the
-// composer and in the page editor's Add photo. A picked file is a chip with its name in the
-// composer (not a broken image), and a waiting file is a file in Capture's queue, not a photo.
+// composer and in the page editor. A picked file is a chip with its name in the composer and
+// the page editor (not a broken image).
 import { expect, type Page, test } from "@playwright/test";
 
 const ulid = () => {
@@ -97,50 +97,33 @@ test("a PDF and a .md picked with File: chips in the composer, files on the page
   await expect(page.locator(".filerow", { hasText: "reading.md" })).toBeVisible();
 });
 
-test("Add photo's File adds a .md and a text file below the page's text", async ({ page }) => {
+test("the editor's File puts a .md and a text file in the text; Save adds them", async ({
+  page,
+}) => {
   const ref = await notePage(page, "Shopping\nfor the week");
   await page.goto(`/p/${ref.slug}`);
   await page.getByRole("button", { name: "Edit" }).click();
+  await page.getByLabel("Body").press("Control+End");
   await (await choose(page, ADD, "File")).chooser.setFiles([MD, TXT]);
-  await expect(page.getByText("Files added to the end of the page")).toBeVisible();
-  await expect.poll(async () => (await read(page, ref.page_id)).captures.length).toBe(2);
+  await expect(page.getByLabel("Body")).toHaveValue(
+    "Shopping\nfor the week\n\n⟦file 1: reading.md⟧\n\n⟦file 2: list.txt⟧\n\n",
+  );
+  await page.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(page.locator(".editor")).toBeHidden();
   const added = await read(page, ref.page_id);
-  expect(added.rev).toBe(1); // not put in the text
+  expect(added.rev).toBe(2);
   expect(added.captures[1].kind).toBe("file");
   expect(added.captures[1].blobs.map((b) => [b.filename, b.mime])).toEqual([
     ["reading.md", "text/markdown"],
     ["list.txt", "text/plain"],
   ]);
-  await expect(page.getByLabel("Body")).toHaveValue("Shopping\nfor the week");
-  await page.getByRole("button", { name: "Cancel" }).click();
   await page.reload();
   await expect(page.locator(".filerow")).toHaveCount(2);
-});
-
-test("offline, a file waiting for its page is a file in Capture's queue, not a photo", async ({
-  page,
-  context,
-}) => {
-  const ref = await notePage(page, "Committee");
-  await page.goto("/");
-  // Offline, Capture comes from the service worker's cache: wait until it has the page
-  await page.waitForFunction(async () => {
-    await navigator.serviceWorker.ready;
-    return !!navigator.serviceWorker.controller;
-  });
-  await page.goto(`/p/${ref.slug}`);
+  await expect(page.locator(".originals .filerow")).toHaveCount(0); // in place, not below
+  // A text file's card has no text fold: its own link opens it
+  await expect(page.locator(".file-panel")).toHaveCount(2);
+  await expect(page.locator(".file-panel .claude-text")).toHaveCount(0);
+  // In Edit again, each a token with a chip
   await page.getByRole("button", { name: "Edit" }).click();
-  await context.setOffline(true);
-  await (await choose(page, ADD, "File")).chooser.setFiles([PDF]);
-  await expect(page.getByText("File kept on the phone")).toBeVisible();
-  await page.getByRole("button", { name: "Cancel" }).click();
-  await page.goto("/");
-  const row = page.locator(".pending li");
-  await expect(row).toHaveCount(1);
-  await expect(row.locator("strong")).toHaveText("1 file for Committee");
-  await expect(row.locator("img")).toHaveCount(0);
-  await expect(row.locator('.noimg path[d="M15 3.5v4h4"]')).toHaveCount(1); // the file icon
-  await context.setOffline(false);
-  await expect.poll(async () => (await read(page, ref.page_id)).captures.length).toBe(2);
-  await expect(row).toHaveCount(0);
+  await expect(page.locator(".editor .embeds .embed")).toHaveText(["reading.md", "list.txt"]);
 });

@@ -204,9 +204,6 @@
     white-space: normal;
     overflow-wrap: break-word;
   }
-  .bar .add {
-    flex-basis: 100%;
-  }
   .chips label {
     font-size: var(--t-xs);
     line-height: var(--lh-tight);

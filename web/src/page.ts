@@ -101,7 +101,7 @@ export async function page(key: string, signal: AbortSignal): Promise<Node> {
       if (!signal.aborted) schedule(shown); // offline for now: try again later
     }
   };
-  // Photos added to it (the editor's Add photo, uploaded now or later): shown, and read
+  // Photos added to it (an older build's Add photo, still queued on the phone): shown, and read
   const added = (e: Event) => (e as CustomEvent<Page>).detail.id === p.id;
   addEventListener(ADDED, (e) => added(e) && void refresh(), { signal });
   const schedule = (p: Page) => {

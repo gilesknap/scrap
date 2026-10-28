@@ -1,6 +1,10 @@
 /* ---- Base ---- */
 :root {
   font: 17px / var(--lh) var(--font);
+  /* The phone's font size (Android), through the text-scale meta tag (index.html): its
+     default text, 16 px times the phone's scale, as scrap's 17 px is to 16. A browser without
+     the tag keeps 17 px */
+  font-size: calc(17px * env(preferred-text-scale, 1));
 }
 /* iPhone: the root follows the phone's text size (Larger Text too), which only reaches a page
    through the system body font; at the default setting it is 17 px. The shorthand also sets the

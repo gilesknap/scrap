@@ -22,7 +22,7 @@ vi.mock("../src/fresh", () => ({ DRAFT: "d", recover: () => {} }));
 vi.mock("../src/lists", () => ({ pageList: () => null, pendingList: () => null }));
 vi.mock("../src/icons", () => ({ icon: () => "", kindIcon: () => "note" }));
 const { FILES, picker } = await import("../src/capture");
-const { photoAdder } = await import("../src/addphoto");
+const { adders } = await import("../src/adders");
 
 beforeEach(() => {
   inputs = [];
@@ -41,7 +41,7 @@ it("takes photos only, unless told otherwise", () => {
 it("gives the editor's Camera and Gallery photos only, and File PDFs, text and Markdown", () => {
   // .md and .txt by name too: a phone's Markdown file often has no type
   expect(FILES).toBe("application/pdf,text/plain,text/markdown,.md,.txt");
-  photoAdder({ id: "P1", title: "Board" });
+  adders({} as HTMLTextAreaElement, {} as Parameters<typeof adders>[1]);
   expect(inputs.map((i) => i.accept)).toEqual(["image/*", "image/*", FILES]);
   expect(inputs.map((i) => i.multiple)).toEqual([false, true, true]);
 });
