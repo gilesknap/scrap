@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Claude ingest &#8212; scrap 0.18.1.dev2+g92d534035 documentation</title>
+    <title>Claude ingest &#8212; scrap 0.18.1.dev3+g780e1bf8a documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=13f0dfbb"></script>
+    <script src="../_static/documentation_options.js?v=adaa15d8"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -1307,25 +1307,23 @@ hand at any time. One SQL test says which capture is the page’s first
 every other test of what a page is (who made it, whether enrich or ingest maintains it, its
 write-up, what automation may change, whether it takes photos) are in <code class="docutils literal notranslate"><span class="pre">store/roles.py</span></code>: see
 <a class="reference internal" href="llm-calls.html#page-roles"><span class="std std-ref">Page roles</span></a> for the table of them.</p>
-<p><strong>Photos added to a page.</strong> The page editor’s <strong>Add photo</strong> (camera, gallery or file) adds photos
-to a page that exists (not a topic page: its synthesis is its write-up, which a board photo would
-replace), as a photo capture of its own (<code class="docutils literal notranslate"><span class="pre">POST</span> <span class="pre">/api/pages/{id}/captures</span></code>, images, PDFs and text
-or Markdown files, <code class="docutils literal notranslate"><span class="pre">Store.add_photos</span></code>; its <strong>File</strong> button offers PDFs, text and Markdown, which
-are listed below the text and are read for search only: <a class="reference internal" href="#ingest-files"><span class="std std-ref">Files: read locally, for search</span></a>; files alone make a
-file capture, and a batch with an image stays a photo capture): its images are stored, each new one’s embed goes to the end of the text as
-it is now, as one text revision (not a save: it queues no enrich, which would run before the
-photos are read), and they are queued and read as any capture’s photos are. No
-revision is checked: appending loses nothing, so a photo that waited on the phone while the page
-changed goes onto the newer text. Following the rule above, their reading sets no title, tags
-or kind and writes no task boxes (<a class="reference internal" href="#ingest-actions"><span class="std std-ref">A list of actions becomes task boxes</span></a>), and a page made as text stays
-enrich’s, so its saves still queue enrich (<a class="reference internal" href="#ingest-enrich"><span class="std std-ref">Enrich: text pages and links</span></a>). Once the photos are read, a
-board page gets a new write-up; a page whose first photos these are gets its related call
-then, and any other the nightly related pass. The page’s images are in the order the server
-received their captures, so the added ones come after the page’s own. The PWA queues the upload
-like a capture, so it waits on the phone while offline. The reply says which revision the
-embeds went onto (<code class="docutils literal notranslate"><span class="pre">appended_on</span></code>): an editor still open on that revision takes them into its own
-text and moves on to the new revision, so its <strong>Save</strong> is no conflict; otherwise <strong>Save</strong> shows
-the conflict, as for any change made elsewhere.</p>
+<p><strong>Photos added to a page.</strong> The page editor’s <strong>Camera</strong>, <strong>Gallery</strong> and <strong>File</strong> add photos
+and files to a page that exists (not a topic page: its synthesis is its write-up, which a board
+photo would replace) as the composer’s do: each is a token in the text until <strong>Save</strong>, which
+sends them with the edit (<code class="docutils literal notranslate"><span class="pre">PATCH</span> <span class="pre">/api/pages/{id}</span></code> as multipart, images, PDFs and text or Markdown
+files). In the transaction that writes the revision they become a capture of their own
+(<code class="docutils literal notranslate"><span class="pre">store.photos.attach</span></code>): a photo capture if any is an image, else a file capture, and each token
+becomes its file’s embed or link. The edit is a save like any other (it queues enrich as one
+does), and a stale <code class="docutils literal notranslate"><span class="pre">base_rev</span></code> records no file. The photos are queued and read as any capture’s
+photos are, and a PDF or text file is read for search only (<a class="reference internal" href="#ingest-files"><span class="std std-ref">Files: read locally, for search</span></a>). Following the
+rule above, their reading sets no title, tags or kind and writes no task boxes
+(<a class="reference internal" href="#ingest-actions"><span class="std std-ref">A list of actions becomes task boxes</span></a>), and a page made as text stays enrich’s, so its saves still queue enrich
+(<a class="reference internal" href="#ingest-enrich"><span class="std std-ref">Enrich: text pages and links</span></a>). Once the photos are read, a board page gets a new write-up; a page whose
+first photos these are gets its related call then, and any other the nightly related pass. The
+page’s images are in the order the server received their captures, so the added ones come
+after the page’s own. <code class="docutils literal notranslate"><span class="pre">POST</span> <span class="pre">/api/pages/{id}/captures</span></code> (<code class="docutils literal notranslate"><span class="pre">Store.add_photos</span></code>), which appends each
+new image’s embed to the end of the text with no revision checked and lists a file below it,
+still takes an older build’s Add photo that waited on a phone, and any other client’s.</p>
 </section>
 </section>
 <section id="excalidraw-in-the-pwa">

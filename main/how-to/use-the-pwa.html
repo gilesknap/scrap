@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Capture from your phone (the PWA) &#8212; scrap 0.18.1.dev2+g92d534035 documentation</title>
+    <title>Capture from your phone (the PWA) &#8212; scrap 0.18.1.dev3+g780e1bf8a documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=13f0dfbb"></script>
+    <script src="../_static/documentation_options.js?v=adaa15d8"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -893,6 +893,8 @@ or the Tailscale operator or an ingress in <a class="reference internal" href="d
 <li><p>Open scrap from its icon. It opens on the capture screen, in its own window.</p></li>
 </ol>
 <p>Installing is what puts scrap in the Android <strong>share sheet</strong>.</p>
+<p>The app’s text follows the phone’s <strong>Font size</strong> (Settings, Display), in the installed app as in
+a Chrome tab (Chrome 146 or later), never going below its usual 17 px.</p>
 <p>scrap has no login of its own: anyone who can reach its address can use the app, so reach it only
 over your tailnet or behind a proxy that authenticates (see <a class="reference internal" href="../reference/api.html"><span class="std std-doc">HTTP API and CLI</span></a>).</p>
 </section>
@@ -1506,14 +1508,17 @@ order taken. <strong>Edit</strong> shows each own photo or file as a token (<cod
 stands for; a token you delete or change is no photo any more. Claude reading a photo never
 changes the text.</p></li>
 <li><p>The page shows each photo where its line is, as a server-made preview (HEIC works), with no
-caption. Tap for the viewer. A file the text links to (the composer puts them there) is a row
-where its line is; files it does not show (PDFs) are rows below the text: the name
-(tap to open the file), a PDF’s page count once read, and <strong>Download</strong>. scrap reads a PDF’s
-text itself (no model), so search finds it. A page made from a PDF or text file then gets a
-title, tags and a summary from Claude, which is sent the start of that text (not with
-<code class="docutils literal notranslate"><span class="pre">SCRAP_FILE_ENRICH=ask</span></code>: then press <strong>Ask Claude</strong>). A scan, a password-protected or
-unreadable PDF, or one over 30 MB is kept and listed but not searchable: its row says <em>Text
-couldn’t be read; not searchable</em>.</p></li>
+caption. Tap for the viewer. A file the text links to on a line of its own is a row where
+its line is (one linked mid-sentence is a link there, and a row below the text too); a file
+the text does not show is a row below the text: the name: tap to open the file, and save it
+from there, as a photo is saved from its viewer. Under a PDF’s or text file’s row is its card, <em>What’s in the file</em>, as a photo
+has one: while it waits or is being read, where that is up to; once read, its page count and
+whether search finds it, and for a PDF the <strong>Text read from it</strong>, folded; <strong>Retry</strong> if reading
+failed, <strong>Regenerate</strong> to read it again. scrap reads the text itself (no model), so search
+finds it. A page made from a PDF or text file then gets a title, tags and a summary from
+Claude, which is sent the start of that text (not with <code class="docutils literal notranslate"><span class="pre">SCRAP_FILE_ENRICH=ask</span></code>: then press
+<strong>Ask Claude</strong>). A scan, a password-protected or unreadable PDF, or one over 30 MB is kept
+and listed but not searchable: its card says <em>Text couldn’t be read; not searchable</em>.</p></li>
 <li><p><strong>Viewer.</strong> Full screen, file name top left, fitted to the screen. Pinch or double-tap to zoom,
 drag to pan, swipe (or arrows) for other photos. <strong>Fit</strong>, <strong>100%</strong>, <strong>Download</strong> and <strong>Share</strong>
 are along the bottom; the cross at top right, or Back, closes. <strong>Share</strong> asks <strong>Link</strong> (the
@@ -1530,14 +1535,18 @@ offers <strong>Share</strong> again.</p></li>
 the top, clear of the keyboard. Tags and a todo’s due date are folded into one line each. It
 opens the text where you were reading the page (at its top if you had not scrolled past the
 title).</p></li>
-<li><p><strong>Camera</strong>, <strong>Gallery</strong> and <strong>File</strong> under the text (the Add photo buttons) add photos to the end of the page as a capture
-of their own: Claude reads them and search finds what it read, but they never change the page’s
-kind, title or tags. A topic page has no Add photo. They upload at once, apart from Save, and
-their tokens join the editor text (if the page changed elsewhere meanwhile, Save shows the
-conflict). Offline they wait on the phone (listed as <em>1 photo for</em> the page, or <em>2 files for</em> it).
-Photos too big to send together go one by one; one over the limit alone is refused. <strong>File</strong>
-takes PDFs, text and Markdown files: they are listed below the text, not put in it, and read for
-search.</p></li>
+<li><p><strong>Camera</strong>, <strong>Gallery</strong> and <strong>File</strong> under the text work as the composer’s: each photo or
+file picked is a token where the cursor is (<code class="docutils literal notranslate"><span class="pre">⟦image</span> <span class="pre">3⟧</span></code>, <code class="docutils literal notranslate"><span class="pre">⟦file</span> <span class="pre">2:</span> <span class="pre">minutes.pdf⟧</span></code>), a paragraph
+of its own, with a chip under the text box; type between them freely, and <strong>✕</strong> on a chip takes
+its token out. Nothing is uploaded until <strong>Save</strong>, which sends the files with the edit (photos
+made smaller first, as the composer’s are): the server puts each one’s embed or link where its
+token is, all in one revision, and Claude reads the photos as any capture’s. A file whose token
+you deleted is not sent. Saving needs the network (offline, <strong>Save</strong> says so and keeps
+everything, the draft too, to try again); if the page changed elsewhere meanwhile, <strong>Save</strong>
+shows the conflict and nothing is uploaded. <strong>File</strong> takes PDFs, text and Markdown files. A
+topic page has no Camera, Gallery or File. They never change the page’s kind, title or tags.
+The three stay on one line; on a narrow phone at a large text size each has its icon over its
+word.</p></li>
 <li><p><strong>Lists.</strong> Enter on a bullet (<code class="docutils literal notranslate"><span class="pre">-</span> </code>), numbered (<code class="docutils literal notranslate"><span class="pre">1.</span> </code>) or task (<code class="docutils literal notranslate"><span class="pre">-</span> <span class="pre">[</span> <span class="pre">]</span> </code>) line starts the next
 item; Enter on an empty item ends the list. Five keys above the keyboard act on the line or
 selection: <strong>Task</strong>, <strong>Bullet</strong>, <strong>Number</strong> (each a plain line again if all are already),
