@@ -29,8 +29,9 @@ Jump to: [install](#install-it-on-android), [capture](#capture), [share](#share-
 
 Installing is what puts scrap in the Android **share sheet**.
 
-The app's text follows the phone's **Font size** (Settings, Display), in the installed app as in
-a Chrome tab (Chrome 146 or later), never going below its usual 17 px.
+The app's text is sized like a web page's, so Chrome's zoom enlarges it. To follow the phone's
+**Font size** instead, or to make scrap smaller or bigger than other sites, see
+[Text size](#text-size).
 
 scrap has no login of its own: anyone who can reach its address can use the app, so reach it only
 over your tailnet or behind a proxy that authenticates (see [](../reference/api.md)).
@@ -161,12 +162,12 @@ stateDiagram-v2
 (text-size)=
 ### Text size
 
-Settings → **Text size** sets how big scrap's text is on this device. **Phone**, the default,
-follows the phone's font size (Android's, or an iPhone's Text Size), never smaller than scrap's
-usual 17 px. **80%**, **90%**, **100%**, **115%** or **130%** set scrap's own size instead, 17 px
-times it, whatever the phone's font size is: smaller than the phone's if scrap looks too big.
-Everything sized from the text follows it (buttons, chips, the editor). The choice is kept on
-this device and applies at once.
+Settings → **Text size** sets how big scrap's text is on this device. **100%**, the default, is
+scrap's usual 17 px, sized as a web page is, so Chrome's zoom enlarges it as it does every other
+site. **80%**, **90%**, **115%** and **130%** are 17 px times that. **Phone** follows the phone's
+font size instead (Android's Font size, or an iPhone's Text Size and Larger Text), never smaller
+than 17 px. Everything sized from the text follows it (buttons, chips, the editor). The choice is
+kept on this device, applies at once, and is applied again whenever the app starts or comes back.
 
 If scrap looks much bigger in the installed app than in a Chrome tab or another app, check
 Chrome's own zoom: Chrome, Settings, Accessibility, **Page zoom** (and Site settings, **Zoom**,
@@ -725,9 +726,10 @@ these limits:
   `POST /api/captures` ([](../reference/api.md)) can stand in.
 - **Storage eviction.** iOS may evict a home-screen app's storage after weeks of non-use, dropping
   anything queued; open it once a connection is back.
-- **Text size.** The app follows the iPhone's **Text Size** and **Larger Text**, keeping its own
-  font and line spacing and never going below its usual 17 px. At the largest sizes kind rows wrap
-  and the nav grows; a page's toolbar may wrap **Delete** onto a second row.
+- **Text size.** With Settings → Text size → **Phone**, the app follows the iPhone's **Text Size**
+  and **Larger Text**, keeping its own font and line spacing and never going below its usual
+  17 px. At the largest sizes kind rows wrap and the nav grows; a page's toolbar may wrap
+  **Delete** onto a second row.
 
 ## Updates
 

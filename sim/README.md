@@ -120,6 +120,28 @@ python3 sim/files.py --static > /path/to/static-files.json
 A first publish of a new artifact also needs an `icon` and, for Feedback, the `db`
 capability (load the `artifact-capabilities` skill first).
 
+## Phone test copies
+
+The artifact runs inside the Claude app's viewer, which is not Chrome: it has no Chrome zoom,
+no install, and its own text scaling. For anything that depends on the real phone (text size,
+zoom, the installed app, restarts, storage), put a test copy on GitHub Pages instead:
+
+```sh
+sim/phone.sh textsize          # build this checkout, publish https://gilesknap.github.io/scrap/textsize/
+sim/phone.sh --delete textsize # remove it when the question is settled
+```
+
+It is the same sim build (the fake server in the page, the sample pages), turned back into a
+standalone page: the document skeleton restored, a manifest and a pass-through service worker
+(`phone/test-sw.js`) so Chrome offers **Install**, and `phone/probe.js`, a yellow line at the
+bottom left showing the root text size, the kept text size, the zoom (`dpr`), the width and
+whether it runs installed or in a tab. It is live a minute or two after the push. The owner
+opens it in Chrome, installs it ("scrap test NAME" on the home screen) and tries it as he uses
+scrap. Each copy is its own folder on the `gh-pages` branch, beside the docs (whose deploy keeps
+other files), so several can exist at once; delete each when done. The cloud session can't
+fetch the page to check it: test it locally first (serve a `gh-pages` checkout with
+`python3 -m http.server` and use the `shots` helpers), then ask the owner.
+
 ## Mock data for a new design
 
 The sample pages are `fixtures/dump.json`, frozen. A design that needs more (many tags,

@@ -54,12 +54,11 @@ for people is `docs/how-to/work-with-claude.md`.
    390 px, 100 % and 130 % text, light and dark, and look at every shot before
    showing it. Ask the owner only real choices (AskUserQuestion, recommended
    option first).
-2. **Answer device questions on the device.** When the answer depends on the
-   owner's phone (what the browser or an installed app does), don't guess:
-   publish a throwaway probe page to the `gh-pages` branch under a folder of its
-   own (it serves at `https://gilesknap.github.io/scrap/<folder>/`, HTTPS, so
-   it can be installed as an app; the docs deploy keeps other files), have the
-   owner read its numbers, then delete the folder.
+2. **Answer device questions on the device.** The sim artifact runs in the Claude app's
+   viewer, not Chrome, so it can't show the phone's zoom, the installed app or restarts. When
+   a bug or a design depends on the owner's phone, publish the branch as an installable test
+   copy with `sim/phone.sh NAME` (the `sim` skill), have him try it and send back the readout,
+   and delete it after. Don't wait for a release to find out.
 3. **First cut.** On a new branch off `origin/main`, `design/<slug>`: the code,
    tests and docs you are confident of, usually by a subagent with a full brief.
    Run only the fast checks (below). Never the full e2e suite here: it is slow

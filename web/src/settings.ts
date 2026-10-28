@@ -105,17 +105,11 @@ export function settings() {
       "div",
       { className: "fields" },
       h("h3", { className: "label" }, "Text size"),
-      choice(
-        "text",
-        "Text size",
-        String(textSize() ?? "phone"),
-        [["phone", "Phone"], ...SIZES],
-        (v) => setTextSize(v === "phone" ? null : Number(v)),
-      ),
+      choice("text", "Text size", textSize(), SIZES, setTextSize),
       h(
         "p",
         { className: "hint" },
-        "Phone follows the phone's font size. A percentage sets scrap's own size instead, whatever the phone's is.",
+        "100% is scrap's usual size, like a web page: the browser's zoom enlarges it too. Phone follows the phone's font size instead.",
       ),
       h("h3", { className: "label" }, "App theme"),
       choice(

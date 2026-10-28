@@ -1,6 +1,6 @@
 ---
 name: sim
-description: "Build, check and publish scrap's design sim (the real PWA on a fake in-browser API, published as a claude.ai artifact the owner opens on his phone), and probe the owner's phone with throwaway test pages. Use when designing or mocking a UI change, when asked for the sim or to publish it, or when a design question depends on the phone."
+description: "Build, check and publish scrap's design sim (the real PWA on a fake in-browser API, published as a claude.ai artifact), and put installable test copies of a branch on GitHub Pages for the owner's real phone. Use when designing or mocking a UI change, when asked for the sim, or when a bug or design depends on the real phone (text size, zoom, the installed app, restarts) and a release would be too slow."
 ---
 
 # The design sim
@@ -38,25 +38,24 @@ What the sim can't show: server behaviour (saves, search ranking, ingest), file
 pickers and the camera inside the artifact, and the installed app's own quirks.
 Say so when a design depends on them, and put the check in the handoff.
 
-## Probe the phone
+## Test on the real phone (phone test copies)
 
-When the answer depends on the owner's real phone (what Chrome, Android or the
-installed app does: text size, zoom, the keyboard, install behaviour), measure
-it instead of guessing:
+The sim artifact runs inside the Claude app's viewer, not Chrome: no Chrome zoom, no install,
+different text scaling. So it can look right while the installed app looks wrong (2026-10-28:
+Chrome's 125–133 % zoom on top of the phone's font scale made the real app far bigger than the
+sim). Whenever a problem or a design depends on the phone itself (text size, zoom, the
+installed app, restarts, storage, the keyboard), don't wait for a release:
 
-1. Write a tiny static page that prints the numbers in question live (refresh
-   every second), with a manifest, icons and a pass-through service worker if it
-   must be installable. Make variants side by side (with and without the thing
-   being tested) with a link between them.
-2. Publish it as its own folder on the `gh-pages` branch of gilesknap/scrap
-   (clone `-b gh-pages --depth 1`, add the folder, push). It serves at
-   `https://gilesknap.github.io/scrap/<folder>/` over HTTPS within a minute or
-   two; the docs deploy uses `keep_files`, so it survives. The cloud session
-   can't fetch it to check: ask the owner.
-3. Give the owner exact steps (in a Chrome tab, then installed) and exactly
-   which numbers to send back.
-4. Delete the folder when the question is settled.
+1. Build the branch into a test copy on GitHub Pages: `sim/phone.sh NAME` (see
+   `sim/README.md`, "Phone test copies"). It is the sim, installable, with a yellow readout of
+   the root size, the kept text size, `dpr`, width and installed/tab.
+2. Test it locally first (serve a `gh-pages` checkout, run the steps with Playwright, a
+   persistent profile for restarts); the cloud session can't fetch github.io.
+3. Give the owner the link and exact steps: open in Chrome, install, what to do (pick, swipe
+   away, reopen), and which readout values to send back.
+4. `sim/phone.sh --delete NAME` once the question is settled.
 
-Example: `textscale-test/` showed that Android's font size reaches neither a
-Chrome tab nor the installed app without `<meta name="text-scale"
-content="scale">`, and reaches both with it.
+For a question that isn't about scrap's own code (what Chrome or Android does at all), a tiny
+static probe page in its own `gh-pages` folder does the same job (e.g. `textscale-test/`
+showed that Android's font size reaches a page only with `<meta name="text-scale"
+content="scale">`).
