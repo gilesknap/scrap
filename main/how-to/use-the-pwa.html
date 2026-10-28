@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Capture from your phone (the PWA) &#8212; scrap 0.17.1.dev4+gc31af1cca documentation</title>
+    <title>Capture from your phone (the PWA) &#8212; scrap 0.17.1.dev5+gef1f89588 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=d7e7e078"></script>
+    <script src="../_static/documentation_options.js?v=6fd937de"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -1097,7 +1097,7 @@ searches, remembered folds or offline size check.</p>
 <td><p>Search results and the Todos screen</p></td>
 </tr>
 <tr class="row-even"><td><p>Saving a capture (queued)</p></td>
-<td><p>Changing tags, kind, due date or snooze</p></td>
+<td><p>Changing tags, kind or due date</p></td>
 </tr>
 <tr class="row-odd"><td><p>Sharing into scrap</p></td>
 <td><p>Ticking a task box on a page</p></td>
@@ -1139,7 +1139,7 @@ no pager. An unknown address shows <em>Not found</em>.</p></li>
 <li><p><strong>Kind display.</strong> A list row shows the kind by icon (checklist for a todo, bookmark for Later). A
 page shows it under the title as the kind’s icon and word in bold (<em>Todo</em>, <em>Later</em>, <em>Note</em>),
 then the rest of its meta line in grey: a Later’s medium and verb (<em>TV · to watch</em>), a status
-other than open (<em>in progress</em>, <em>done</em>), a snooze and the task count. Its dates come after.</p></li>
+other than open (<em>in progress</em>, <em>done</em>) and the task count. Its dates come after.</p></li>
 <li><p><strong>Pager.</strong> A page opened from a list or search shows its place at the right of the top bar
 (<em>3 of 23</em>) with <strong>∧</strong> previous and <strong>∨</strong> next. Swipe left for next, right for previous, or use
 the arrows. Swipes start away from the screen edges, and are ignored on sideways-scrolling text,
@@ -1201,14 +1201,16 @@ a result, or a few seconds with results), only on this phone.</p></li>
 <li><p><strong>Kinds.</strong> A row under the box: <strong>All</strong>, <strong>Notes</strong>, <strong>Todos</strong>, <strong>Later</strong>, <strong>Boards</strong>, <strong>Docs</strong>.
 One tap writes <code class="docutils literal notranslate"><span class="pre">kind:</span></code> into the query; a second tap (or <strong>All</strong>) shows every kind again.</p></li>
 <li><p><strong>Clear.</strong> A <strong>✕</strong> at the end of the box goes back to every page, newest first.</p></li>
-<li><p><strong>Filters.</strong> The slider button turns amber while the panel is open (it shows no count). Each
-active filter is a chip with a ✕ in a row of its own under the kinds (<em>#home</em>, <em>past month</em>,
-<em>A–Z</em>), above the results header with the count of pages found. The panel’s headings sit above
-their chips, which wrap: <strong>Tags</strong> (type to see matching tags among the results, or tap a top tag),
-<strong>Order</strong> (<strong>Best match</strong>/<strong>Last edited</strong>, <strong>Newest</strong>, <strong>Oldest</strong>, <strong>A–Z</strong>, and for todos <strong>Due
-soonest</strong> and <strong>Priority</strong>) and <strong>When</strong> (<strong>1w</strong>, <strong>1m</strong>, <strong>1y</strong>, <strong>Dates…</strong>, and <strong>By created
-date</strong> once a range is on). Each tap applies at once; a second tap removes it. <strong>Clear filters</strong>
-keeps the words.</p></li>
+<li><p><strong>Filters.</strong> The slider button’s icon turns amber while the panel is open, and a small amber
+dot on it says filters are on (it shows no count). Each active filter is a chip with a ✕ in a
+row of its own under the kinds (<em>#home</em>, <em>past month</em>, <em>A–Z</em>), above the results header with
+the count of pages found. The panel’s rows: <strong>Tags</strong> (type to see matching tags among the
+results, or tap a top tag; before any search, the tags most pages were given), <strong>When</strong> (<strong>1w</strong>,
+<strong>1m</strong>, <strong>1y</strong>, <strong>Dates…</strong>, and <strong>By created date</strong> once a range is on), and <strong>Arrange</strong>, one
+line saying the order and grouping (<em>Last edited · None</em>): tap it for <strong>Order</strong> (<strong>Best
+match</strong>/<strong>Last edited</strong>, <strong>Newest</strong>, <strong>Oldest</strong>, <strong>A–Z</strong>, and for todos <strong>Due soonest</strong> and
+<strong>Priority</strong>) and <strong>Group</strong>; it stays open or folded as you leave it. Each tap applies at once;
+a second tap removes it. <strong>Clear filters</strong> keeps the words.</p></li>
 <li><p><strong>Paging.</strong> 100 pages at first, <strong>Show more</strong> adds 100. The newest-first list stops at 500 pages
 and a search at 1000 results: narrow with filters or dates, or reverse the order
 (<code class="docutils literal notranslate"><span class="pre">-sort:created</span></code>) to go further. That is the screen’s reach, not a storage limit.</p></li>
@@ -1238,43 +1240,40 @@ first; the full grammar is in <a class="reference internal" href="../reference/a
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">is:open</span></code>, <code class="docutils literal notranslate"><span class="pre">is:in_progress</span></code>, <code class="docutils literal notranslate"><span class="pre">is:done</span></code>, <code class="docutils literal notranslate"><span class="pre">is:cancelled</span></code></p></td>
 <td><p>A todo’s or Later page’s status</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">is:snoozed</span></code></p></td>
-<td><p>Open todos snoozed till later</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">is:claude</span></code>, <code class="docutils literal notranslate"><span class="pre">is:claude-edited</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">is:claude</span></code>, <code class="docutils literal notranslate"><span class="pre">is:claude-edited</span></code></p></td>
 <td><p>Pages Claude wrote over MCP; pages whose text Claude changed over MCP</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">is:personal</span></code>, <code class="docutils literal notranslate"><span class="pre">is:work</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">is:personal</span></code>, <code class="docutils literal notranslate"><span class="pre">is:work</span></code></p></td>
 <td><p>The page’s <code class="docutils literal notranslate"><span class="pre">personal</span></code> flag, set by an import (<a class="reference internal" href="import-a-vault.html"><span class="std std-doc">Import a Thoth vault</span></a>); the app cannot set it</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">is:topic</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">is:topic</span></code></p></td>
 <td><p>Claude’s topic pages</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">has:image</span></code>, <code class="docutils literal notranslate"><span class="pre">has:drawing</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">has:image</span></code>, <code class="docutils literal notranslate"><span class="pre">has:drawing</span></code></p></td>
 <td><p>Pages with an image file; with a drawing made from a photo</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">image:photo</span></code>, <code class="docutils literal notranslate"><span class="pre">image:whiteboard</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">image:photo</span></code>, <code class="docutils literal notranslate"><span class="pre">image:whiteboard</span></code></p></td>
 <td><p>What Claude took the photo for</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">due:today</span></code>, <code class="docutils literal notranslate"><span class="pre">due:&lt;today</span></code>, <code class="docutils literal notranslate"><span class="pre">due:&gt;today</span></code>, <code class="docutils literal notranslate"><span class="pre">due:2026-11-01</span></code>, <code class="docutils literal notranslate"><span class="pre">due:&lt;=7d</span></code> (a week on; <code class="docutils literal notranslate"><span class="pre">2w</span></code>, <code class="docutils literal notranslate"><span class="pre">1m</span></code>, <code class="docutils literal notranslate"><span class="pre">1y</span></code>) (also <code class="docutils literal notranslate"><span class="pre">&lt;=</span></code>, <code class="docutils literal notranslate"><span class="pre">&gt;=</span></code>), <code class="docutils literal notranslate"><span class="pre">due:none</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">due:today</span></code>, <code class="docutils literal notranslate"><span class="pre">due:&lt;today</span></code>, <code class="docutils literal notranslate"><span class="pre">due:&gt;today</span></code>, <code class="docutils literal notranslate"><span class="pre">due:2026-11-01</span></code>, <code class="docutils literal notranslate"><span class="pre">due:&lt;=7d</span></code> (a week on; <code class="docutils literal notranslate"><span class="pre">2w</span></code>, <code class="docutils literal notranslate"><span class="pre">1m</span></code>, <code class="docutils literal notranslate"><span class="pre">1y</span></code>) (also <code class="docutils literal notranslate"><span class="pre">&lt;=</span></code>, <code class="docutils literal notranslate"><span class="pre">&gt;=</span></code>), <code class="docutils literal notranslate"><span class="pre">due:none</span></code></p></td>
 <td><p>A todo’s due day</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">priority:high</span></code> (<code class="docutils literal notranslate"><span class="pre">medium</span></code>, <code class="docutils literal notranslate"><span class="pre">low</span></code>, <code class="docutils literal notranslate"><span class="pre">none</span></code>)</p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">priority:high</span></code> (<code class="docutils literal notranslate"><span class="pre">medium</span></code>, <code class="docutils literal notranslate"><span class="pre">low</span></code>, <code class="docutils literal notranslate"><span class="pre">none</span></code>)</p></td>
 <td><p>A todo’s priority</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">media:book</span></code> (<code class="docutils literal notranslate"><span class="pre">article</span></code>, <code class="docutils literal notranslate"><span class="pre">film</span></code>, <code class="docutils literal notranslate"><span class="pre">tv</span></code>, <code class="docutils literal notranslate"><span class="pre">video</span></code>, <code class="docutils literal notranslate"><span class="pre">podcast</span></code>, <code class="docutils literal notranslate"><span class="pre">music</span></code>, <code class="docutils literal notranslate"><span class="pre">game</span></code>)</p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">media:book</span></code> (<code class="docutils literal notranslate"><span class="pre">article</span></code>, <code class="docutils literal notranslate"><span class="pre">film</span></code>, <code class="docutils literal notranslate"><span class="pre">tv</span></code>, <code class="docutils literal notranslate"><span class="pre">video</span></code>, <code class="docutils literal notranslate"><span class="pre">podcast</span></code>, <code class="docutils literal notranslate"><span class="pre">music</span></code>, <code class="docutils literal notranslate"><span class="pre">game</span></code>)</p></td>
 <td><p>A Later page’s type</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">later:read</span></code> (<code class="docutils literal notranslate"><span class="pre">watch</span></code>, <code class="docutils literal notranslate"><span class="pre">listen</span></code>, <code class="docutils literal notranslate"><span class="pre">play</span></code>)</p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">later:read</span></code> (<code class="docutils literal notranslate"><span class="pre">watch</span></code>, <code class="docutils literal notranslate"><span class="pre">listen</span></code>, <code class="docutils literal notranslate"><span class="pre">play</span></code>)</p></td>
 <td><p>What a Later page is for</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">group:letter</span></code> (<code class="docutils literal notranslate"><span class="pre">tag</span></code>, <code class="docutils literal notranslate"><span class="pre">type</span></code>, <code class="docutils literal notranslate"><span class="pre">now</span></code>, <code class="docutils literal notranslate"><span class="pre">due</span></code>, <code class="docutils literal notranslate"><span class="pre">area</span></code>, <code class="docutils literal notranslate"><span class="pre">none</span></code>)</p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">group:letter</span></code> (<code class="docutils literal notranslate"><span class="pre">tag</span></code>, <code class="docutils literal notranslate"><span class="pre">type</span></code>, <code class="docutils literal notranslate"><span class="pre">now</span></code>, <code class="docutils literal notranslate"><span class="pre">due</span></code>, <code class="docutils literal notranslate"><span class="pre">area</span></code>, <code class="docutils literal notranslate"><span class="pre">none</span></code>)</p></td>
 <td><p>Group the results in sections. <strong>Group</strong> writes it; Later’s own is type, Todos’ is Now, topics’ (<code class="docutils literal notranslate"><span class="pre">is:topic</span></code>) is area</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">after:1w</span></code>, <code class="docutils literal notranslate"><span class="pre">before:2026-03-01</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">after:1w</span></code>, <code class="docutils literal notranslate"><span class="pre">before:2026-03-01</span></code></p></td>
 <td><p>Last edited; dates are UTC days, both ends included; a time ago is <code class="docutils literal notranslate"><span class="pre">Nd</span></code>, <code class="docutils literal notranslate"><span class="pre">Nw</span></code>, <code class="docutils literal notranslate"><span class="pre">Nm</span></code>, <code class="docutils literal notranslate"><span class="pre">Ny</span></code>, N up to 100. Add <code class="docutils literal notranslate"><span class="pre">date:created</span></code> to use the creation date (the only <code class="docutils literal notranslate"><span class="pre">date:</span></code> value; others are ignored)</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">sort:title</span></code>, <code class="docutils literal notranslate"><span class="pre">sort:created</span></code>, <code class="docutils literal notranslate"><span class="pre">sort:updated</span></code>, <code class="docutils literal notranslate"><span class="pre">sort:due</span></code>, <code class="docutils literal notranslate"><span class="pre">sort:priority</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">sort:title</span></code>, <code class="docutils literal notranslate"><span class="pre">sort:created</span></code>, <code class="docutils literal notranslate"><span class="pre">sort:updated</span></code>, <code class="docutils literal notranslate"><span class="pre">sort:due</span></code>, <code class="docutils literal notranslate"><span class="pre">sort:priority</span></code></p></td>
 <td><p>Order (A-Z; newest; last edited; soonest due; high first). <code class="docutils literal notranslate"><span class="pre">-sort:</span></code> reverses. <strong>Order</strong> writes the commonest</p></td>
 </tr>
 </tbody>
@@ -1312,7 +1311,7 @@ there: a check that keeps finding a page you are happy with is the check to chan
 <td><p>No tags (topic pages and gc’s Orphaned assets pages aside)</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">is:stale</span></code></p></td>
-<td><p>An open todo not edited (text, title, kind or tags) for 60 days, not snoozed and not due today or later</p></td>
+<td><p>An open todo not edited (text, title, kind or tags) for 60 days, not due today or later</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">is:duplicate</span></code></p></td>
 <td><p>A photo or file shared with another page (not in the trash, not an Orphaned assets page; a photo whose embed you deleted from a page no longer counts for it)</p></td>
@@ -1334,15 +1333,18 @@ their own (<a class="reference internal" href="../reference/scheduled-jobs.html"
 <h2>Tags<a class="headerlink" href="#tags" title="Link to this heading">#</a></h2>
 <ul class="simple">
 <li><p><strong>On a page.</strong> Tags are in a row of chips under the title and its meta lines, wrapping if there
-are many. A chip shows the last part of the tag (<code class="docutils literal notranslate"><span class="pre">#project-management</span></code> for <code class="docutils literal notranslate"><span class="pre">kind/project-management</span></code>, with more of the path when two tags on the page end the same); tap it to search for the whole tag. A tag Claude added has a ✦ before its name. Past two rows the rest wait behind a <strong>+N</strong> chip (<strong>Show N more tags</strong>) that shows them in place. The <strong>+</strong> after the last tag
-(<strong>Change tags</strong>; <strong>+ Tag</strong> when the page has none) edits them in place: tap a tag’s ✕ to remove it; type one and press Enter or a comma to add it, or tap one
-of the tags offered under the box (the six most used, or those in use that match what you type);
-then <strong>Save</strong>. Text still in the box when you save counts too. Needs the server.</p></li>
+are many. A chip shows the whole tag (<code class="docutils literal notranslate"><span class="pre">#kind/project-management</span></code>; a long one wraps inside its
+chip after a <code class="docutils literal notranslate"><span class="pre">/</span></code>); tap it to search for that tag. A tag Claude added has a ✦ before its name.
+Past two rows the rest wait behind a <strong>+N</strong> chip (<strong>Show N more tags</strong>) that shows them in
+place; a <strong>−</strong> chip at the end (<strong>Show fewer tags</strong>) folds them again. The row is for reading:
+tags are changed with <strong>Edit</strong>.</p></li>
+<li><p><strong>Changing them.</strong> <strong>Edit</strong> (or a row swiped right), then its <strong>Tags</strong> line: tap a tag’s ✕ to
+remove it; type one and press Enter or a comma to add it, or tap one of the tags offered under
+the box (the six most used, or those in use that match what you type); then <strong>Save</strong> at the top.
+Text still in the box when you save counts too. The composer has the same <strong>Tags</strong> line.
+Changing tags is not a text revision and does not move the page up the list.</p></li>
 <li><p><strong>Rules.</strong> Lower case, no leading <code class="docutils literal notranslate"><span class="pre">#</span></code>, at most 64 characters each and 64 per page (the box says
 when one is too long), as the importer keeps them.</p></li>
-<li><p><strong>Edit and composer.</strong> <strong>Edit</strong> (or a row swiped right) has the same box in its <strong>Tags</strong> line and
-saves tags with the text; so does the composer. Changing tags is not a revision and does not
-move the page up the list.</p></li>
 <li><p><strong>Finding by tag.</strong> Use the Filters panel’s <strong>Tags</strong> row (before any search it covers every tag
 in use).</p></li>
 </ul>
@@ -1359,10 +1361,10 @@ only toggles open and done: <strong>in progress</strong> and <strong>cancelled</
 <code class="docutils literal notranslate"><span class="pre">status</span></code>, see <a class="reference internal" href="../reference/api.html"><span class="std std-doc">HTTP API and CLI</span></a>) or by Claude over MCP (<a class="reference internal" href="../reference/mcp.html"><span class="std std-doc">MCP server</span></a>), and the
 app shows them.</p></li>
 <li><p><strong>Due date and priority.</strong> A todo may have a due date and a priority (high, medium, low). A
-page shows them in its first chip, before the tags (<em>3 Nov · high</em>, or <strong>Add due date</strong>): tap it to
-pick a date (<strong>Today</strong>, <strong>Tomorrow</strong>, <strong>Next week</strong>, <strong>Pick a date…</strong> for any other day, <strong>No
-date</strong> clears), and a priority, then <strong>Save</strong>: while the form is open, <strong>Cancel</strong> and <strong>Save</strong>
-take the place of the page’s buttons at the bottom. <strong>Edit</strong> has the same two. Rows show them; a todo due before today and not done says
+page shows them in its first chip, before the tags (<em>3 Nov · high</em>, or <strong>Add due date</strong>): tap it
+to open <strong>Edit</strong> at its <strong>Due</strong> line, open, where you pick a date (<strong>Today</strong>, <strong>Tomorrow</strong>,
+<strong>Next week</strong>, <strong>Pick a date…</strong> for any other day, <strong>No date</strong> clears) and a priority, then
+<strong>Save</strong> at the top (<strong>Cancel</strong> beside it). Rows show them; a todo due before today and not done says
 <em>overdue</em> in red (that one word, the only red on the page). They belong to todos only: a page made a note keeps them, hidden. Neither is a
 revision nor moves the page. Today is your phone’s day on rows and pages, the server’s for <code class="docutils literal notranslate"><span class="pre">due:</span></code>
 searches.</p></li>
@@ -1373,12 +1375,8 @@ and Doc never change. Boxes in code do not count. Rows and pages say how many ar
 5</em>). Ticking the last box marks it done; while every box is ticked, unticking one or adding an
 unticked one reopens it. A todo marked done by hand stays done. <strong>Mark done</strong> ticks no box; a
 cancelled todo is left as it is.</p></li>
-<li><p><strong>Snooze.</strong> On a page, tap the line under the tags, then the folded <strong>Snooze</strong> line, and pick
-<strong>Tomorrow</strong>, <strong>Next week</strong> or <strong>Pick a date…</strong> (<strong>Not snoozed</strong> wakes it), then <strong>Save</strong>. A snooze later than the due date asks
-whether the due date moves too: <strong>Move due date</strong> or <strong>Keep due date</strong>. Until that day it is
-out of <strong>Now</strong>, <strong>Upcoming</strong> and the badge (Now says <em>1 snoozed</em> at the end of its count line;
-tap it for <code class="docutils literal notranslate"><span class="pre">kind:todo</span> <span class="pre">is:snoozed</span> <span class="pre">sort:due</span></code>). <strong>All</strong> shows it as <em>snoozed till 3 Nov</em>. It returns by itself
-on its day. Only open todos are hidden by a snooze.</p></li>
+<li><p><strong>Putting one off.</strong> Move its due date (tap its due chip, then <strong>Tomorrow</strong>,
+<strong>Next week</strong> or <strong>Pick a date…</strong>, and <strong>Save</strong>). Every open todo shows in <strong>Now</strong>.</p></li>
 <li><p><strong>Refine.</strong> At the end of the Todos count line, <strong>Refine in Search</strong> (a filter icon) opens the
 same view in Search, with its query filled in, to narrow it further.</p></li>
 <li><p><strong>The Todos screen</strong> (<code class="docutils literal notranslate"><span class="pre">/todos</span></code>) has a switch, an icon over each word:</p>

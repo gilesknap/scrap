@@ -57,7 +57,6 @@ the tool arguments are in [](../../reference/mcp.md); the user's view is in
 | `is:personal`, `is:work` | `personal` field true / not true |
 | `is:claude`, `is:claude-edited` | Pages whose `made_by` is `claude` (written over MCP); text changed over MCP after the first revision |
 | `is:topic` | Claude's topic pages |
-| `is:snoozed` | An open todo snoozed past today |
 | `has:image`, `has:drawing` | An image capture; a current drawing. Other `has:` values match nothing |
 | `image:K` | A photo Claude described as kind `K` (`photo`, `whiteboard`, `handwriting`, `diagram`, `screenshot`, `document`, `other`) |
 | `after:D`, `before:D` | Last edited on or after / before `D`: a UTC date `YYYY-MM-DD` or a time ago (`1d`, `2w`, `1m` = 30 days, `1y` = 365, up to `100`). With `date:created`, creation date instead |
@@ -68,8 +67,7 @@ the tool arguments are in [](../../reference/mcp.md); the user's view is in
 | `group:G` | Not a condition: puts results in sections (`letter`, `tag`, `type`, `now`, `due`, `area`) on the server, so paging never splits one ([](../decisions/0031-search-orders-by-section-on-the-server.md)). Pins are saved searches and pages kept on the `pinned` page ([](../decisions/0032-pins-are-a-page-of-links.md)) |
 | Health checks | `is:orphan`, `is:untagged`, `is:stale`, `is:duplicate`, `has:dangling`, `is:outdated` (below) |
 
-"Today" is the server's local day, so set `TZ` (default UTC in the image) for `due:today` and
-`is:snoozed`. The web app only mirrors this syntax to add and remove tokens
+"Today" is the server's local day, so set `TZ` (default UTC in the image) for `due:today`. The web app only mirrors this syntax to add and remove tokens
 (`web/src/terms.ts`, `filters.ts`); parsing and matching stay on the server.
 
 ## The index lifecycle
@@ -135,7 +133,7 @@ flowchart LR
 | --- | --- |
 | `is:orphan` | No page link either way (text, current write-up, related pick, topic and source); not a `scrap gc` review page |
 | `is:untagged` | No tags; not a topic or gc review page |
-| `is:stale` | An open todo, not snoozed, not due today or later, unchanged for 60 days (`STALE_DAYS`) |
+| `is:stale` | An open todo, not due today or later, unchanged for 60 days (`STALE_DAYS`) |
 | `is:duplicate` | A file of one of its captures is also another page's |
 | `has:dangling` | A page link in its text to no page or one in the trash |
 | `is:outdated` | A board's write-up older than its inputs or of an older prompt version, or linking a page that is in the trash or gone, unless the owner restored it |
