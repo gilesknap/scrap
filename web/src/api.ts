@@ -217,10 +217,10 @@ export function send(
   stallMs = 60_000,
 ): Promise<{ status: number; detail?: string }> {
   const { id, text, url, kind, hint, source, created_at, tags, due, priority, files } = item;
-  const { page } = item; // photos for a page that exists: its own address
+  const { page, place } = item; // photos for a page that exists: its own address
   const fields = page
     ? { id, source, created_at }
-    : { id, text, url, kind, hint, source, created_at, tags, due, priority };
+    : { id, text, url, kind, hint, source, created_at, tags, due, priority, place };
   let body: string | FormData = JSON.stringify(fields);
   if (files.length || page) {
     body = new FormData(); // its text fields go as CRLF; the server makes them LF

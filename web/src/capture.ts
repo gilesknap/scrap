@@ -6,6 +6,7 @@ import { drafts } from "./db";
 import { DRAFT, recover } from "./fresh";
 import { icon, kindIcon } from "./icons";
 import { pageList, pendingList } from "./lists";
+import { says } from "./says";
 import { h, toast } from "./ui";
 
 // The composer is a chunk of its own (composer.ts), with the editor
@@ -79,10 +80,6 @@ export async function capture(): Promise<Node> {
     const d = await drafts.get<Draft>(DRAFT).catch(() => undefined);
     row.hidden = !d;
     if (!d) return;
-    const line = d.text
-      .trim()
-      .split("\n")[0]
-      .replace(/^[-*#>\s]*(\[.\]\s*)?/, "");
     const n = d.files.length;
     const discard = async () => {
       await drafts.del(DRAFT).catch(() => {});
@@ -94,7 +91,7 @@ export async function capture(): Promise<Node> {
         "button",
         { type: "button", onclick: () => void compose([], true) },
         icon(n ? "image" : kindIcon(d.kind ?? d.hint)),
-        h("span", {}, "Draft: ", line || (n ? `${n} photo${n > 1 ? "s" : ""}` : "Untitled")),
+        h("span", {}, "Draft: ", says(d.text, d.files) || "Untitled"),
       ),
       h(
         "button",

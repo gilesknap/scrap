@@ -34,7 +34,9 @@ from .constants import (
     PRIORITY_NAMES,
     SURROGATE,
     TODO,
+    UPLOAD_TOKEN,
     WIKI_LINK,
+    BlobRef,
     Value,
 )
 from .errors import InvalidError
@@ -139,6 +141,40 @@ def embeds(blobs: list[tuple[str, str, int, str | None]], text: str) -> list[str
         for sha in images
         if f"](/api/blobs/{sha}" not in text
     ]
+
+
+def placed(text: str, blobs: list[BlobRef]) -> str:
+    """text with each token for one of blobs (UPLOAD_TOKEN, blobs in the order they
+    were sent) replaced by that file's embed: an image's
+    ![](/api/blobs/<sha>/preview?size=2048), another file's [name](/api/blobs/<sha>)
+    link. A token for no upload stays as typed.
+
+    >>> blobs = [("a" * 64, "image/jpeg", 1, "x.jpg"),
+    ...          ("b" * 64, "application/pdf", 1, "a [1].pdf")]
+    >>> placed("⟦image 1⟧, ⟦file 2: a.pdf⟧ ⟦image 3⟧", blobs)  # doctest: +ELLIPSIS
+    '![](/api/blobs/aaa...a/preview?size=2048), [a 1.pdf](/api/...b) ⟦image 3⟧'
+    """
+
+    def embed(m: re.Match[str]) -> str:
+        n = int(m[1])
+        if n > len(blobs):
+            return m[0]
+        sha, mime, _, name = blobs[n - 1]
+        if mime.startswith("image/"):
+            return f"![](/api/blobs/{sha}/preview?size=2048)"
+        name = re.sub(r"[\[\]\\]", "", name or "")  # no bracket, nor one escaped
+        label = " ".join(CONTROL.sub(" ", name).split())
+        link = f"[{label or 'file'}](/api/blobs/{sha})"
+        # after a "!" (Look!⟦file 1⟧) the link would read as an image: a space between
+        return f" {link}" if m.start() and text[m.start() - 1] == "!" else link
+
+    return UPLOAD_TOKEN.sub(embed, text)
+
+
+def untokened(text: str, uploads: int) -> str:
+    """text without its tokens for its uploads (UPLOAD_TOKEN, the first uploads of
+    them): the words a capture has of its own, for its title."""
+    return UPLOAD_TOKEN.sub(lambda m: "" if int(m[1]) <= uploads else m[0], text)
 
 
 def checked_query(query: str) -> Query:

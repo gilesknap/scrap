@@ -5,7 +5,8 @@ Date: 2026-10-20 (#48, #57, #78, #103)
 ## Status
 
 Accepted; amended by [](0030-trash-purged-after-n-days.md): captures, and their files, are now
-purged with their page once it has been in the trash for N days
+purged with their page once it has been in the trash for N days; amended by #403: a capture's text
+may place its own uploads (below)
 
 ## Context
 
@@ -18,6 +19,12 @@ and shared, so deleting one safely is harder than deleting a row.
   per image. From then on the text is the user's: ingest never edits it. A line of images becomes
   figures (viewer, Download, Ask Claude); images elsewhere stay inline. Files not embedded (PDFs,
   older pages) are listed under the text. Export points text at the exported files.
+- Amended (#403): a capture's text may place its own uploads with tokens, `⟦image N⟧` or
+  `⟦file N⟧` (N the upload's place in the request), when the request asks (`place=1`, the
+  composer's; other clients' text is never read for tokens). The server puts that upload's embed there, or
+  for a PDF or text file a `[name](/api/blobs/<sha>)` link (its row is then drawn in place, not
+  listed under the text). Uploads with no token are added as before. The phone cannot write the
+  address itself: a photo's bytes, and so its SHA-256, are final only once it is queued.
 - The editor warns on Save when an embed of a stored file is removed, naming how many other pages
   still show it.
 - `scrap gc` deletes only files nothing refers to: not any page's text (the trash's too, found by

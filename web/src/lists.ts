@@ -4,6 +4,7 @@ import { api, previewUrl, type Summary } from "./api";
 import { queue, view } from "./app";
 import { tapBuild } from "./debug";
 import { icon, kindIcon } from "./icons";
+import { holds, says } from "./says";
 import { chipOf, dueOf } from "./status";
 import { swipeRows, trail } from "./swipe";
 import { blobImg, empty, h, problem, settle, whenShort } from "./ui";
@@ -79,19 +80,18 @@ export async function pendingList(): Promise<Node> {
     "ul",
     { className: "list pending" },
     ...items.map((i) => {
-      const image = i.files.find((f) => f.blob.type.startsWith("image/"));
-      const title = // files alone (a PDF, a .md, #380): not called a photo
-        (i.page && `${image ? "Photo" : "File"} for ${i.to || "a page"}`) ||
-        i.text?.split("\n")[0] ||
-        i.url ||
-        i.files[0]?.name ||
+      const image = i.files.find((f) => f.blob.type.startsWith("image/"))?.blob;
+      // Said as Capture's draft row says it (says.ts): "Trip · 2 photos, 1 file"
+      const title =
+        (i.page && `${holds(i.files)} for ${i.to || "a page"}`) ||
+        says(i.text || i.url, i.files) ||
         "capture";
       const lost = i.error === "connection lost" && !navigator.onLine; // as now, not as it failed
       const why = lost ? "offline" : (i.error ?? (navigator.onLine ? "uploading" : "offline"));
       const state = i.failed ? `not saved: ${why}` : `waiting to upload (${why})`;
       const actions = i.failed && bar?.(i);
       const kind = i.kind ?? (!image && i.files[0] ? "file" : i.hint); // a file's icon
-      const r = row(image?.blob ?? null, title, state, actions || "", undefined, kind);
+      const r = row(image ?? null, title, state, actions || "", undefined, kind);
       if (i.failed) r.className = "failed";
       return r;
     }),

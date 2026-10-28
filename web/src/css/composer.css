@@ -285,70 +285,6 @@ button.more {
   color: var(--accent-ink);
 }
 
-/* Photo strip */
-.thumbs {
-  display: flex;
-  gap: var(--s-2);
-  overflow-x: auto;
-  padding-top: var(--s-1);
-}
-.thumbs:empty {
-  display: none;
-}
-.thumb {
-  position: relative;
-  flex: none;
-}
-.thumbs img {
-  display: block;
-  width: 84px;
-  height: 84px;
-  object-fit: cover;
-  border-radius: var(--r-md);
-  background: var(--sunk);
-}
-/* A picked file (File: a PDF, a .md): its icon and name in a photo's square, under its ✕ */
-.thumb .file {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 2px;
-  width: 84px;
-  height: 84px;
-  padding: var(--s-1);
-  border-radius: var(--r-md);
-  background: var(--sunk);
-  color: var(--ink-2);
-  font-size: var(--t-xs);
-  line-height: var(--lh-tight);
-  text-align: center;
-  overflow: hidden;
-  overflow-wrap: anywhere;
-}
-.thumb button {
-  position: absolute;
-  top: 4px;
-  inset-inline-end: 4px;
-  min-height: 0;
-  width: 30px;
-  height: 30px;
-  padding: 0;
-  border: none;
-  border-radius: 50%;
-  background: var(--overlay);
-  color: var(--on-overlay);
-}
-.thumb button::after {
-  content: ""; /* a 48 px target */
-  position: absolute;
-  inset: -9px;
-}
-.thumb .i {
-  width: 16px;
-  height: 16px;
-  stroke-width: 2.4;
-}
 /* Add photo's Camera and Gallery, in the page editor and the composer: each label on one line.
    They share the row while both fit, else the row wraps and each takes a line of its own,
    rather than a word a line inside a button twice as tall (large text sizes) */
@@ -356,7 +292,7 @@ button.more {
   flex: 1 1 auto;
   white-space: nowrap;
 }
-/* The page editor's embeds (editor.ts embedded()): a chip each for the token that stands for
+/* The editor's and the composer's embeds (editor.ts embedded()): a chip each for the token that stands for
    it in the text, on one line under the fields that scrolls sideways, never taller. Its own
    item in the editor's column, so it stays in sight above the keys while the fields scroll.
    Not while the text is previewed */

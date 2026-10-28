@@ -1,11 +1,13 @@
 // The composer: a new capture's text, photos, kind and tags, in the editor. A chunk of its own with
-// the editor (loaded when it opens; the service worker keeps it for offline use).
+// the editor (loaded when it opens; the service worker keeps it for offline use). Its photos and
+// files are tokens in the text with a chip each, as the page editor's embeds are (pending.ts).
 import { overLimit, uploadLimit } from "./api";
 import { queue } from "./app";
 import { FILES, picker } from "./capture";
 import { drafts } from "./db";
 import {
   editor,
+  embedded,
   fold,
   kindPicker,
   suggested,
@@ -17,12 +19,13 @@ import {
   toSend,
 } from "./editor";
 import { DRAFT, FRESH, promote, recover } from "./fresh";
-import { icon } from "./icons";
 import { embedBytes, tooLong } from "./pagecap";
-import { type Capture, split } from "./queue";
+import { offTokens, pend, placeAt, placed, wire } from "./pending";
+import type { Capture } from "./queue";
 import { refused } from "./refused";
+import { split } from "./split";
 import { tagProblem } from "./tagedit";
-import { blobImg, clearToasts, h, toast } from "./ui";
+import { clearToasts, h, toast } from "./ui";
 
 export interface Draft {
   text: string;
@@ -32,6 +35,7 @@ export interface Draft {
   tags?: string[];
   todo?: { due: string | null; priority: string | null }; // while the kind is Todo
   files: File[]; // IndexedDB keeps them, so photos survive a killed app too
+  tokens?: string[]; // each file's token in text (#403); none in older builds' drafts
 }
 
 /** What the text box asks for, by kind. */
@@ -54,10 +58,13 @@ export async function compose(picked: File[], as?: string, resume = false, given
   // A fresh one beside a kept draft is saved under a key of its own, and takes the kept one's
   // place only if left by Back with something in it (Undo puts the older one back)
   const hold = !resume && !!stored;
-  const files = [...(kept?.files ?? []), ...picked];
   const text = h("textarea", { rows: 5, value: kept?.text ?? "" });
-  // The kind: Note unless chosen (a bare URL suggests Later). Photos have none: ingest
-  // decides, and the page's editor can change it.
+  // Its photos and files: a token each in the text, with a chip under it (pending.ts)
+  const em = embedded(text);
+  const pending = () => em.list().filter((e) => e.blob);
+  const inText = () => placed(text.value, pending()); // those still in the text
+  // The kind: Note unless chosen (a bare URL suggests Later); with photos too, as the page's
+  // editor has it (left as Note, ingest decides from the first photo).
   const kind = kindPicker(
     as ?? kept?.kind ?? (kept?.hint || "note"),
     !!as || (kept?.picked ?? !!kept?.hint),
@@ -70,52 +77,31 @@ export async function compose(picked: File[], as?: string, resume = false, given
   const start = kept?.tags ?? given;
   const tags = tagField(start, () => ed.keep());
   // A todo's due date (Today, Tomorrow, Next week or a date) and priority, as on its page:
-  // shown while the kind is Todo (photos have no kind here, so none with them)
+  // shown while the kind is Todo
   const todo = todoField(kept?.todo?.due ?? null, kept?.todo?.priority ?? null);
   // Folded into a line each, under the text: the text stays the hero
   const tagLine = fold("Tags", tags.el, () => tagsSay(tags.value()), "tag");
   const todoLine = fold("Due", todo.el, () => todoSays(todo.value()), "due");
   const showTodo = () => {
-    todoLine.el.hidden = kind.value() !== "todo" || files.length > 0;
-    text.placeholder = files.length ? "Caption (optional)" : (ASK[kind.value()] ?? "Note or link");
+    todoLine.el.hidden = kind.value() !== "todo";
+    text.placeholder = ASK[kind.value()] ?? "Note or link";
   };
   kind.el.addEventListener("change", showTodo);
+  showTodo();
   const todoNow = () => (todoLine.el.hidden ? null : todo.value());
   const dated = () => !!todoNow()?.due || !!todoNow()?.priority;
-  const thumbs = h("div", { className: "thumbs" });
-  const isImage = (f: File) => f.type.startsWith("image/"); // else a file: a PDF, a .md
-  // One capture, many photos (or files): add from the camera (one at a time), the gallery or File.
-  const add = (more: File[]) => {
-    files.push(...more);
-    showThumbs();
-    ed.keep();
-  };
-  const showThumbs = () => {
-    kind.el.hidden = files.length > 0;
-    showTodo();
-    thumbs.replaceChildren(
-      ...files.map((f, i) =>
-        h(
-          "span",
-          { className: "thumb" },
-          // A file (a PDF, a .md) is a chip with its name: no picture to show
-          isImage(f) ? blobImg(f, f.name) : h("span", { className: "file" }, icon("file"), f.name),
-          h(
-            "button",
-            {
-              type: "button",
-              "aria-label": isImage(f) ? `Remove photo ${i + 1}` : `Remove ${f.name}`,
-              onclick: () => {
-                files.splice(i, 1);
-                showThumbs();
-                ed.keep();
-              },
-            },
-            icon("close"),
-          ),
-        ),
-      ),
-    );
+  // One capture, many photos (or files): from the camera (one at a time), the gallery or File,
+  // each a token where the caret is, a paragraph of its own
+  const add = (more: File[], at = text.selectionStart, to = text.selectionEnd) => {
+    const tokens = more.map((f) => {
+      const e = pend(f, em.list(), text.value);
+      em.add(e);
+      return e.token;
+    });
+    const c = placeAt(text.value, ...offTokens(text.value, at, to), tokens);
+    text.setRangeText(c.insert, c.from, c.to);
+    text.setSelectionRange(c.start, c.end);
+    text.dispatchEvent(new Event("input", { bubbles: true })); // its chips, and the draft kept
   };
   const adders = h(
     "div",
@@ -124,28 +110,38 @@ export async function compose(picked: File[], as?: string, resume = false, given
     picker("Gallery", false, add, "add"),
     picker("File", false, add, "add", FILES),
   );
-  showThumbs();
+  // A draft's: each file with its token; one with none in the text (an older build's draft,
+  // a caption and photos) gets one at the end, as the server would have put it
+  const lost: File[] = [];
+  kept?.files.forEach((f, i) => {
+    const token = kept.tokens?.[i];
+    if (token && text.value.includes(token)) em.add(pend(f, [], "", token));
+    else lost.push(f);
+  });
+  const end = text.value.length;
+  if (lost.length || picked.length) add([...lost, ...picked], end, end);
+  em.show();
   const ed = editor({
     text,
     // As in a page's editor: the kind, then its due date and tags, each folded to a line, then
-    // the text; the photos and more under it
+    // the text; Camera, Gallery and File under it, and the photos' and files' chips in sight
+    read: em.value,
     before: [kind.el, todoLine.el, tagLine.el],
-    after: [thumbs, adders],
+    after: [adders],
+    foot: em.chips,
     key: hold ? FRESH : DRAFT,
     draft: (): Draft => ({
-      text: text.value,
+      text: em.value(),
       kind: kind.value(),
       picked: kind.picked(),
       tags: tags.value(),
       ...(dated() && { todo: todo.value() }),
-      files,
+      files: inText().map((e) => e.blob as File),
+      tokens: inText().map((e) => e.token),
     }),
     // (the tags it opened with are no change: a search's New, closed at once, keeps nothing)
     dirty: () =>
-      !!text.value.trim() ||
-      files.length > 0 ||
-      tags.value().join("\n") !== (kept ? "" : given.join("\n")) ||
-      dated(),
+      !!text.value.trim() || tags.value().join("\n") !== (kept ? "" : given.join("\n")) || dated(),
     restored: !!kept,
     left: () => {
       // Its row is on Capture: elsewhere (Todos), say where
@@ -156,12 +152,11 @@ export async function compose(picked: File[], as?: string, resume = false, given
       );
     },
     ondiscard: () => {
-      text.value = "";
-      files.length = 0;
+      em.set("");
       kind.reset("note");
       tags.reset([]);
       todo.reset(null, null);
-      showThumbs();
+      showTodo();
       tagLine.refresh();
       todoLine.refresh();
     },
@@ -174,9 +169,10 @@ export async function compose(picked: File[], as?: string, resume = false, given
   };
   const mb = (n: number) => `${(n / 2 ** 20).toFixed(1)} MB`;
   const store = async (separately: boolean) => {
-    const body = tidy(text.value);
-    if (!body && !files.length) return text.focus();
-    const long = tooLong(body, embedBytes(files));
+    // Each file's token as the server reads it, and the files in their tokens' order
+    const { text: body, files } = wire(tidy(em.value()), pending());
+    if (!body) return text.focus();
+    const long = tooLong(body, embedBytes(files, body));
     if (long) return toast(long, "", undefined, 8000); // kept in the composer to shorten
     const tagged = tags.value();
     // The server's tag limits too: a capture it refuses would sit in the queue, unfixable.
@@ -184,12 +180,13 @@ export async function compose(picked: File[], as?: string, resume = false, given
     if (bad) return toast(`${bad} Fix the tags to save.`, "", undefined, 10000);
     const capture: Capture = {
       text: body || undefined,
-      kind: files.length ? undefined : toSend(kind.value(), kind.picked(), "note"),
+      kind: toSend(kind.value(), kind.picked(), "note"),
       tags: tagged.length ? tagged : undefined,
       due: todoNow()?.due ?? undefined,
       priority: todoNow()?.priority ?? undefined,
       source: "pwa",
       files: files.map((f) => ({ name: f.name, blob: f })),
+      ...(files.length && { place: "1" as const }), // its tokens are its files' places (#403)
     };
     // Check the server's limit now: a capture it refuses could only be split or discarded.
     const size = files.reduce((n, f) => n + f.size, 0);
@@ -220,5 +217,5 @@ export async function compose(picked: File[], as?: string, resume = false, given
       refused(ids);
     } else if (location.pathname !== "/") toast("Saved on the phone: uploads when online");
   };
-  if (!files.length) text.focus();
+  if (!pending().length) text.focus();
 }

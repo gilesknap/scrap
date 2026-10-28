@@ -1,5 +1,6 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { expect, type Page, test } from "@playwright/test";
+import { caption } from "./panel";
 
 // The top bar's Back shows only in an iPhone's home-screen app (navigator.standalone), which
 // has no Back of its own; tests here use it, so they run as one
@@ -104,13 +105,13 @@ const photo = (mb: number) => ({
   buffer: Buffer.alloc(mb * 2 ** 20, 1),
 });
 
-async function pick(page: Page, mb: number, caption: string) {
+async function pick(page: Page, mb: number, text: string) {
   const [chooser] = await Promise.all([
     page.waitForEvent("filechooser"),
     page.getByText("Gallery").click(),
   ]);
   await chooser.setFiles(photo(mb));
-  await page.getByPlaceholder("Caption (optional)").fill(caption);
+  await caption(page, text);
   await page.getByRole("button", { name: "Save" }).click();
 }
 
@@ -153,8 +154,8 @@ test("a capture the phone cannot store stays in the composer", async ({
   });
   await pick(page, 3, "my caption");
   await expect(page.getByText(/Not saved: the phone refused to store it/)).toBeVisible();
-  await expect(page.getByPlaceholder("Caption (optional)")).toHaveValue("my caption");
-  await expect(page.locator(".thumbs img")).toHaveCount(1);
+  await expect(page.locator(".editor textarea")).toHaveValue("my caption\n\n⟦image 1⟧\n\n");
+  await expect(page.locator(".editor .embeds .embed")).toHaveCount(1);
 });
 
 test("a share the phone cannot store goes to the server, or says so", async ({
@@ -213,14 +214,14 @@ test("several photos make one capture", async ({ page }) => {
   ]);
   expect(gallery.isMultiple()).toBe(true);
   await gallery.setFiles([png("a.png", 1), png("b.png", 2), png("c.png", 3)]);
-  await page.getByRole("button", { name: "Remove photo 2" }).click();
+  await page.getByRole("button", { name: "Remove image 2" }).click();
   const [camera] = await Promise.all([
     page.waitForEvent("filechooser"),
     page.locator(".editor").getByRole("button", { name: "Camera" }).click(),
   ]);
   expect(camera.isMultiple()).toBe(false);
   await camera.setFiles(png("d.png", 4));
-  await expect(page.locator(".thumb img")).toHaveCount(3);
+  await expect(page.locator(".editor .embeds .embed")).toHaveCount(3);
   // The composer's camera is a real camera input, separate from the gallery picker.
   const cam = camera.element();
   const gal = gallery.element();
@@ -234,20 +235,21 @@ test("several photos make one capture", async ({ page }) => {
     page.waitForEvent("filechooser"),
     page.locator(".editor").getByRole("button", { name: "Camera" }).click(),
   ]);
-  await again.setFiles(png("d.png", 4)); // a second shot appends
-  await expect(page.locator(".thumb img")).toHaveCount(4);
-  await page.getByPlaceholder("Caption (optional)").fill("three photos");
+  await again.setFiles(png("d.png", 4)); // a second shot, after the first
+  await expect(page.locator(".editor .embeds .embed")).toHaveCount(4);
+  await caption(page, "three photos");
   await page.getByRole("button", { name: "Save" }).click();
   const search = async () => (await page.request.get("/api/search?q=three+photos")).json();
   await expect.poll(search).toHaveLength(1); // uploaded
   const [hit] = await search();
   const saved = await (await page.request.get(`/api/pages/${hit.slug}`)).json();
   expect(saved.captures).toHaveLength(1);
+  // In the text's order (#403): the shots went where the caret was, where photo 2 had been
   expect(saved.captures[0].blobs.map((b: { filename: string }) => b.filename)).toEqual([
     "a.png",
+    "d.png",
+    "d.png",
     "c.png",
-    "d.png",
-    "d.png",
   ]);
 });
 
@@ -269,10 +271,10 @@ test("photos over the upload limit are saved separately, or split after a 413", 
     page.getByText("Gallery").click(),
   ]);
   await chooser.setFiles([png("one.png"), png("two.png")]);
-  await page.getByPlaceholder("Caption (optional)").fill("limit test");
+  await caption(page, "limit test");
   await page.getByRole("button", { name: "Save" }).click();
   await expect(page.getByText("1.4 MB of files is over the server's 1.0 MB limit")).toBeVisible();
-  await expect(page.locator(".thumb img")).toHaveCount(2); // nothing lost
+  await expect(page.locator(".editor .embeds .embed")).toHaveCount(2); // nothing lost
   await page.getByRole("button", { name: "Save separately" }).click();
   await expect.poll(async () => (await pages()).length).toBe(1); // the text goes with the first
   await expect
@@ -292,7 +294,7 @@ test("photos over the upload limit are saved separately, or split after a 413", 
     page.getByText("Gallery").click(),
   ]);
   await again.setFiles([png("three.png"), png("four.png")]);
-  await page.getByPlaceholder("Caption (optional)").fill("split after refusal");
+  await caption(page, "split after refusal");
   await page.getByRole("button", { name: "Save" }).click();
   await expect(page.locator("#queue")).toHaveText("1 failed");
   await page.getByRole("button", { name: "Split and retry" }).click();
@@ -302,6 +304,10 @@ test("photos over the upload limit are saved separately, or split after a 413", 
   expect(first.captures[0].blobs.map((b: { filename: string }) => b.filename)).toEqual([
     "three.png",
   ]);
+  // Its text with its own photo where its token was, and no stray token for the other (#403)
+  expect(first.body).toMatch(
+    /^split after refusal\n\n!\[\]\(\/api\/blobs\/[0-9a-f]{64}\/preview\?size=2048\)$/,
+  );
 });
 
 test("a missing page says so", async ({ page }) => {
@@ -322,17 +328,17 @@ test("a slow upload finishes; a stalled one is dropped and retried", async ({ pa
       downloadThroughput: -1,
       uploadThroughput: bytesPerSecond,
     });
-  const save = async (caption: string) => {
+  const save = async (text: string) => {
     const [chooser] = await Promise.all([
       page.waitForEvent("filechooser"),
       page.getByText("Gallery").click(),
     ]);
     await chooser.setFiles({
-      name: `${caption}.png`,
+      name: `${text}.png`,
       mimeType: "image/png",
       buffer: Buffer.alloc(600 * 1024, 5),
     });
-    await page.getByPlaceholder("Caption (optional)").fill(caption);
+    await caption(page, text);
     await page.getByRole("button", { name: "Save", exact: true }).click();
   };
   const found = async (q: string) =>

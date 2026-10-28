@@ -13,6 +13,8 @@ import { icon } from "./icons";
 
 const IMAGE = /^\/api\/blobs\/([0-9a-f]{64})(\/preview\?size=(480|2048))?$/;
 const EXTERNAL = /^(https?:\/\/|mailto:)/i;
+// A link to one of this server's files (a PDF, a .md) where the text puts it (#403)
+const FILE = /^\/api\/blobs\/([0-9a-f]{64})(\?download=1)?$/;
 const PAGE = /^\/p\/[a-z0-9-]+$/;
 // The app's own screens a link may open in place: Capture, Search (with its query), Todos, Topics
 const SCREEN = /^\/(search|todos|topics)?$/;
@@ -171,6 +173,11 @@ function inline(children: Token[], state: StateCore): Token[] {
         // A page here written as a full address (as a model writes one): opened in the app, as
         // [[slug]] is, not in a new window (in the phone's app, one with no Back to this page)
         t.attrSet("href", here);
+      } else if (FILE.test(href)) {
+        // opened as a file row's is; the page's figures make one on a line of its own a row
+        t.attrSet("target", "_blank");
+        t.attrSet("rel", "noopener");
+        t.attrSet("data-sha", href.slice(11, 75));
       } else if (EXTERNAL.test(href)) {
         t.attrSet("target", "_blank");
         t.attrSet("rel", "noopener noreferrer");

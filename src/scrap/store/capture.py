@@ -1,6 +1,7 @@
 """Capturing pages: a new capture, an imported page, text appended to Claude's."""
 
 import json
+import re
 import sqlite3
 from datetime import datetime
 from typing import Any
@@ -32,8 +33,10 @@ from .helpers import (
     fields_for,
     new_ulid,
     now,
+    placed,
     todo_columns,
     too_big,
+    untokened,
 )
 from .indexing import debounce, enrich_on, queue_enrich
 from .roles import by_claude, by_ingest, made_by_source, should_enrich
@@ -93,11 +96,19 @@ class CaptureMixin(Core):
         if not isinstance(tags, list) or not all(isinstance(t, str) for t in tags):
             raise InvalidError("tags must be a list of strings")
         tags = clean_tags(tags)  # as an edit's
-        # Its first line without a heading's #s ("# Trip notes" is titled Trip notes)
-        first = text.splitlines()[0] if text else ""
-        title = (HEADING.sub("", first).strip() or first)[:200] if text else url
+        # Its first line without a heading's #s ("# Trip notes" is titled Trip notes),
+        # and without the tokens that place its files (helpers.placed), if it asks for
+        # them (place: the composer's): text of tokens alone is no text, so ingest
+        # titles the page as for photos with none
+        place = data.get("place") in ("1", True) and bool(mimes)
+        words = untokened(text, len(mimes) if place else 0) if text else ""
+        words = re.sub(r"\A(?:[ \t]*\n)+", "", words).rstrip()  # as _text keeps it
+        first = words.splitlines()[0] if words else ""
+        title = (HEADING.sub("", first).strip() or first)[:200] if words else url
         return {
-            "id": cid, "kind": what, "text": text, "url": url, "source": source,
+            "id": cid, "kind": what, "text": text if words else None, "url": url,
+            "place": place,
+            "source": source,
             "created_at": created, "page_kind": kind, "fields": fields_for(kind, url),
             **todo,
             "title": title or when.strftime("%Y-%m-%d %H:%M"),
@@ -114,12 +125,18 @@ class CaptureMixin(Core):
     ) -> tuple[dict[str, str], bool]:
         """Save a prepared capture as a new page, with these tags (else the
         capture's own, if any). Returns its reference and whether it is new. blobs
-        are (sha256, mime, size, filename), already in files/: stored images first,
-        each group in the order sent, so the first file (which ingest reads the
-        page's title, tags and kind from) is an image whenever there is one (#380).
+        are (sha256, mime, size, filename), already in files/, in the order sent:
+        if the capture asks (place), each token in its text for one of them is its
+        embed (helpers.placed). They
+        are stored images first, each group in the order sent, so the first file
+        (which ingest reads the page's title, tags and kind from) is an image whenever
+        there is one (#380).
         """
+        uploads = blobs if c.get("place") else []
+        body = placed(c["body"], uploads)
+        text = c["text"] and placed(c["text"], uploads)
         blobs = sorted(blobs, key=lambda b: not b[1].startswith("image/"))
-        cid, title, body, kind = c["id"], c["title"], c["body"], c["page_kind"]
+        cid, title, kind = c["id"], c["title"], c["page_kind"]
         tags = c.get("tags") if tags is None else tags
         body = check_page("\n\n".join(x for x in (body, *embeds(blobs, body)) if x))
         stamp = now()
@@ -150,7 +167,7 @@ class CaptureMixin(Core):
             )  # fmt: skip
             conn.execute(
                 "INSERT INTO capture VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                (cid, c["kind"], c["text"], c["url"], c["source"], author,
+                (cid, c["kind"], text, c["url"], c["source"], author,
                  c["created_at"], stamp, page_id),
             )  # fmt: skip
             conn.executemany(

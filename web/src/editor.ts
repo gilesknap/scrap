@@ -12,7 +12,7 @@
 // offline use, but screens that never edit don't load it.
 import { previewUrl } from "./api";
 import { drafts } from "./db";
-import { expand, found, tokenise } from "./embeds";
+import { type Embed, expand, found, tokenise } from "./embeds";
 import { type Icon, icon } from "./icons";
 import { KINDS } from "./kinds";
 import {
@@ -27,7 +27,7 @@ import {
   outdent,
 } from "./listedit";
 import { NOT_KEPT, stash } from "./stash";
-import { h, previewer, saveKey, toast } from "./ui";
+import { blobImg, h, previewer, saveKey, toast } from "./ui";
 
 export { suggested, tidy, toSend } from "./kinds";
 export { mergeTags, same, tagField } from "./tagedit";
@@ -104,18 +104,40 @@ const KEYS: Key[] = [
 /** The text box's embeds of stored files as tokens (embeds.ts), with a chip each in a row
  * (chips: the editor's foot, under its fields): a thumbnail and its name; tapped, its token is
  * selected (to cut and paste elsewhere), and its ✕ takes the token out. value() is the text as Markdown, the embeds put back: read the
- * text through it, never text.value. */
+ * text through it, never text.value. add(): one more, a file still on the phone (the
+ * composer's, pending.ts), its thumbnail its own bytes; list(): them all. */
 export function embedded(text: HTMLTextAreaElement) {
-  // A preview that won't come (not a photo the server can draw, offline): the file icon
-  const thumb = (sha: string) => {
-    const img = h("img", { src: previewUrl(sha, 480), alt: "" });
-    img.onerror = () => img.replaceWith(icon("file"));
+  // Each chip's thumbnail made once (a phone's photo is big to draw on every keystroke). A
+  // preview that won't come (not a photo the server can draw, offline): the file icon
+  const thumbs = new Map<Embed, Element>();
+  const make = (e: Embed, keep: boolean) => {
+    const img = e.blob ? blobImg(e.blob) : h("img", { src: previewUrl(e.sha, 480), alt: "" });
+    img.onerror = () => {
+      if (e.blob) URL.revokeObjectURL(img.src); // as blobImg's own, which this replaces
+      const file = icon("file");
+      if (keep) thumbs.set(e, file); // the icon from now on, not the broken image again
+      img.replaceWith(file);
+    };
     return img;
   };
-  let embeds: ReturnType<typeof tokenise>["embeds"] = [];
+  // drawn: those with a chip already in this pass; a token twice gets a second picture (one
+  // element can't be in two chips), or a copy of its icon
+  const thumb = (e: Embed, drawn: Set<Embed>) => {
+    let el = thumbs.get(e);
+    if (drawn.has(e))
+      return el && !(el instanceof HTMLImageElement) ? el.cloneNode(true) : make(e, false);
+    drawn.add(e);
+    if (!el) {
+      el = make(e, true);
+      thumbs.set(e, el);
+    }
+    return el;
+  };
+  let embeds: Embed[] = [];
   // A tap keeps the keyboard as it is, as the editor's keys do
   const chips = h("div", { className: "embeds", onpointerdown: (e: Event) => e.preventDefault() });
   const show = () => {
+    const drawn = new Set<Embed>();
     chips.replaceChildren(
       ...found(text.value, embeds).map(({ embed: e, at }) => {
         const what = `${e.image ? "image" : "file"} ${e.n}`;
@@ -141,7 +163,7 @@ export function embedded(text: HTMLTextAreaElement) {
           h(
             "button",
             { type: "button", className: "pick", title: e.token, onclick: pick },
-            e.image ? thumb(e.sha) : icon("file"),
+            e.image ? thumb(e, drawn) : icon("file"),
             h("span", { dir: "auto" }, e.label),
           ),
           h(
@@ -159,7 +181,14 @@ export function embedded(text: HTMLTextAreaElement) {
   };
   text.addEventListener("input", show);
   set(text.value);
-  return { chips, value: () => expand(text.value, embeds), set };
+  return {
+    chips,
+    value: () => expand(text.value, embeds),
+    set,
+    add: (e: Embed) => embeds.push(e),
+    list: () => embeds,
+    show,
+  };
 }
 
 /** The kind control: a segmented radio group. suggest() picks a kind until the user picks

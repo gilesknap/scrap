@@ -159,7 +159,7 @@ test("a photo and a PDF picked together: the photo in the text, the PDF a row", 
     { name: "board.png", mimeType: "image/png", buffer: PNG },
     { name: "report.pdf", mimeType: "application/pdf", buffer: pdf([`${word} report`]) },
   ]);
-  await expect(page.getByText("Photo and file added to the end of the page")).toBeVisible();
+  await expect(page.getByText("1 photo, 1 file added to the end of the page")).toBeVisible();
   // The photo's embed goes into the open editor's text, as Add photo's always has; not the PDF
   const body = page.getByLabel("Body");
   await expect(body).toHaveValue("Site visit\nnotes\n\n⟦image 1⟧");

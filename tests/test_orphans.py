@@ -281,6 +281,27 @@ def test_a_file_that_is_not_an_image_is_linked(client, store):
     assert f"[a draft .pdf](/api/blobs/{sha})" in body
 
 
+def test_a_file_placed_by_its_capture_and_unlinked_later_is_gathered(client, store):
+    """#403: a PDF the composer placed in the text (its link, by a token) and later
+    deleted from it is an orphan, as an image whose embed was deleted (#303)."""
+    r = client.post(
+        "/api/captures",
+        data={"id": new_ulid(), "text": "Minutes ⟦file 1⟧", "place": "1"},
+        files=[("file", ("m.pdf", b"%PDF-1.4 placed", "application/pdf"))],
+    )
+    sha = hashlib.sha256(b"%PDF-1.4 placed").hexdigest()
+    ref = r.json()
+    page = client.get(f"/api/pages/{ref['page_id']}").json()
+    assert page["body"] == f"Minutes [m.pdf](/api/blobs/{sha})"
+    assert edit(client, ref["page_id"], "Minutes")["removed"] == [sha]
+    age(store)
+    assert gc.collect(store, delete=True).orphans == 1
+    [row] = orphan_pages(client)
+    body = client.get(f"/api/pages/{row['id']}").json()["body"]
+    assert f"[m.pdf](/api/blobs/{sha})" in body
+    assert store.blob_path(sha).is_file()
+
+
 def test_a_full_page_continues_on_a_new_one(client, store, monkeypatch):
     unembed(client, store, "First", b"first")
     gc.collect(store, delete=True)

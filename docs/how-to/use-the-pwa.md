@@ -64,27 +64,32 @@ flowchart LR
 
 - **Kind.** A row of chips above the text sets the page's kind: **Note** (default), **Todo**,
   **Later** (to read, watch or listen to), **Board** (whiteboard) or **Doc**. A link on its own
-  picks **Later** until you pick something else. Photos skip the choice: Claude reads them, and
-  makes a whiteboard or document a page of that kind. A kind you choose is kept; Claude never
+  picks **Later** until you pick something else. With photos, left as **Note**, Claude reads them
+  and makes a whiteboard or document a page of that kind. A kind you choose is kept; Claude never
   changes it. You can change it later in the editor and nothing is lost (status, due date and
   summary stay, so changing back restores the page).
-- **Todo.** With kind **Todo** (and no photos) the composer adds **Due** (**Today**,
+- **Todo.** With kind **Todo** (photos and files too) the composer adds **Due** (**Today**,
   **Tomorrow**, **Next week** or **Pick a date…**) and **Priority**, and asks *What needs doing?*.
 - **Folded lines.** Due and Tags are each one line above the text (**Due** *24 Oct · high*,
   **Tags** *2 · #home #garden*); tap to open, tap again to fold.
 - **Photos and files.** **Camera** and **Gallery** add more photos (to a note too), and **File**
-  PDFs, text and Markdown files, each shown as its name; the cross on a thumbnail removes one. All
-  of them and the text become one capture and one page. A file's text is read for search.
+  PDFs, text and Markdown files. Each goes in the text where the cursor is, as a token
+  (`⟦image 1⟧`, `⟦file 1: minutes.pdf⟧`) on a line of its own, with a chip under the text box, as
+  in **Edit**: tap a chip to select its token (cut and paste it to move the photo), or **✕** to
+  remove it. Deleting a token removes its photo or file too (also from the draft: one cut to
+  move it is kept once pasted back). All of them and the text become one
+  capture and one page, each photo or file where its token was. A file's text is read for search.
 - **Upload limit.** Photos and files together over the server's limit (50 MB,
   `SCRAP_MAX_UPLOAD_MB`; the app learns it from `/healthz`, so this works offline) make Save say
-  so: remove some, or **Save separately** (one capture per photo or file, text on the first). A
-  proxy may have a lower limit.
+  so: remove some, or **Save separately** (one capture per photo or file, the text, the kind and
+  a todo's due date on the first, with only that one's token). A proxy may have a lower limit.
 - **Tags.** The **Tags** line opens a tags box as on a page ([Tags](#tags)). The page is made with
   its tags, so search finds it at once, also when saved offline. Your tags on a photo are kept and
   Claude's join them on its first read (a later Regenerate adds tags only to a page with none).
   Saved separately, every photo's page gets the tags.
 - **Drafts.** Leave the composer with the phone's Back and what you typed is kept as a **draft**:
-  a row over the buttons (*Draft:* and its first line). Tap it to carry on, or **✕** to discard
+  a row over the buttons (*Draft:*, its first line and what it holds: *Trip · 2 photos, 1 file*,
+  as a waiting upload's row says it). Tap it to carry on, or **✕** to discard
   (with **Undo**). The buttons and **New todo** always start fresh and replace an older draft,
   with **Undo** to put it back. One draft at a time. It is also kept as you type, so a closed or
   killed app brings it back.
@@ -485,7 +490,8 @@ scrap and try again*.
   stands for; a token you delete or change is no photo any more. Claude reading a photo never
   changes the text.
 - The page shows each photo where its line is, as a server-made preview (HEIC works), with no
-  caption. Tap for the viewer. Files it does not show (PDFs) are rows below the text: the name
+  caption. Tap for the viewer. A file the text links to (the composer puts them there) is a row
+  where its line is; files it does not show (PDFs) are rows below the text: the name
   (tap to open the file), a PDF's page count once read, and **Download**. scrap reads a PDF's
   text itself (no model), so search finds it. A page made from a PDF or text file then gets a
   title, tags and a summary from Claude, which is sent the start of that text (not with
@@ -509,7 +515,7 @@ scrap and try again*.
   of their own: Claude reads them and search finds what it read, but they never change the page's
   kind, title or tags. A topic page has no Add photo. They upload at once, apart from Save, and
   their tokens join the editor text (if the page changed elsewhere meanwhile, Save shows the
-  conflict). Offline they wait on the phone (listed as *Photo for* the page, or *File for* it).
+  conflict). Offline they wait on the phone (listed as *1 photo for* the page, or *2 files for* it).
   Photos too big to send together go one by one; one over the limit alone is refused. **File**
   takes PDFs, text and Markdown files: they are listed below the text, not put in it, and read for
   search.
