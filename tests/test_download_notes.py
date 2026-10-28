@@ -202,8 +202,8 @@ def test_a_busy_decoder_is_a_503_to_retry(client, monkeypatch):
     from scrap import backup as module
     from scrap.preview import BusyError
 
-    ref = client.post("/api/captures", data={"id": new_ulid()},
-                      files=[("file", ("a.jpg", photo(False), "image/jpeg"))]).json()  # fmt: skip
+    files = [("file", ("a.jpg", photo(False), "image/jpeg"))]
+    ref = client.post("/api/captures", data={"id": new_ulid()}, files=files).json()
 
     def busy(*args):
         raise BusyError()
