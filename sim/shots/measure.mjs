@@ -6,7 +6,7 @@
 // computed font-size, in CSS px: to check that an icon sits on its text's centre line,
 // or that two controls are the same height. --click clicks a button or link with that
 // name first (in order, for example --click Edit --click Tags); --text 130 sets the root
-// font-size to 22.1px as the app's 130% setting does.
+// font-size to 22.1px, as the phone's font size at 130% does.
 import { createRequire } from "node:module";
 
 const require = createRequire(new URL("../../web/package.json", import.meta.url));

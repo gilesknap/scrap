@@ -6,7 +6,7 @@
 // or "/search?q=tag:person group:letter" (a leading # is optional). Options:
 //   --width 308,320,390    viewport widths in CSS px (default 390; height 844)
 //   --text 100,130         text size: 130 sets the root font-size to 22.1px, as the
-//                          app's 130% setting does (default 100)
+//                          phone's font size at 130% does (default 100)
 //   --scheme light,dark    colour scheme (default light)
 //   --out DIR              where the PNGs go (default sim/out-shots), named
 //                          <route>-<width>-<text>-<scheme>.png

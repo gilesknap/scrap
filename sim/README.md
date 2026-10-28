@@ -78,7 +78,8 @@ node sim/shots/sizes.mjs
 node sim/shots/measure.mjs --click Edit --click Tags /p/book-the-mot ".editor .facet.on" ".editor .facet.on svg"
 ```
 
-130% text is the app's setting, which makes the root font-size 22.1px; the scripts set
+130% text stands for the owner's phone: Android's font size at about 1.3, which the app
+follows (17 px times the phone's scale), so a root font-size of 22.1px; the scripts set
 that directly. Each script's options are in its header comment.
 
 ## Publish to the artifact
