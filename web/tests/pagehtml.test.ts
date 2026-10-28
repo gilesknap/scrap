@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { htmlName, inline, type N, pageHtml, photos } from "../src/pagehtml";
+import { htmlName, inline, type N, pageHtml, photos, prose, textOf } from "../src/pagehtml";
 
 type Attrs = Record<string, string>;
 const t = (data: string): N => ({ nodeType: 3, nodeName: "#text", data, childNodes: [] });
@@ -169,5 +169,41 @@ describe("the page's own parts", () => {
       10,
     );
     expect(asked).toHaveLength(1);
+  });
+});
+
+describe("text that holds Markdown (#427)", () => {
+  const card = e(
+    "section",
+    { class: "enrich claude" },
+    e("p", { class: "summary" }, "A **bold** summary\n\n- one"),
+    e("div", { class: "bar tools" }, e("p", { class: "summary" }, "in a control")),
+  );
+
+  it("finds the summary and a body shown as typed, not those in a control", () => {
+    const raw = e("div", { class: "body raw" }, "# Hi");
+    const page = e("article", {}, raw, card);
+    expect(prose(page)).toHaveLength(2);
+    expect(prose(page)[0]).toBe(raw);
+    expect(prose(card).map((n) => textOf(n))).toEqual(["A **bold** summary\n\n- one"]);
+  });
+
+  it("reads a section's text with its line breaks", () => {
+    expect(textOf(e("p", {}, "a", e("br"), "b"))).toBe("a\nb");
+  });
+
+  it("writes what a section's Markdown makes, with no raw marks and no paragraph in a paragraph", () => {
+    const [summary] = prose(card);
+    const made = e(
+      "div",
+      {},
+      e("p", {}, "A ", e("strong", {}, "bold"), " summary"),
+      e("ul", {}, e("li", {}, "one")),
+    );
+    const html = pageHtml(card, "T", none, new Map([[summary, made]]));
+    expect(html).toContain(
+      '<div class="summary"><p>A <strong>bold</strong> summary</p><ul><li>one</li></ul></div>',
+    );
+    expect(html).not.toMatch(/\*\*|<p[^>]*><p/);
   });
 });

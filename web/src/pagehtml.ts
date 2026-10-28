@@ -67,6 +67,28 @@ export function photos(root: N): N[] {
   return out;
 }
 
+/** The page's plain-text sections that hold Markdown: Claude's summary (a paragraph in the app,
+ * as typed), and a body shown as typed while the renderer was not loaded. */
+export function prose(root: N): N[] {
+  const out: N[] = [];
+  const walk = (n: N) => {
+    if (!el(n) || control(n)) return;
+    const cls = ` ${attr(n, "class") ?? ""} `;
+    if (
+      (tag(n) === "p" && cls.includes(" summary ")) ||
+      (tag(n) === "div" && cls.includes(" raw "))
+    )
+      out.push(n);
+    else kids(n).forEach(walk);
+  };
+  walk(root);
+  return out;
+}
+
+/** What a section's text is (the lines the page shows, links as their words). */
+export const textOf = (n: N): string =>
+  n.nodeType === TEXT ? (n.data ?? "") : tag(n) === "br" ? "\n" : kids(n).map(textOf).join("");
+
 const previewOf = (src: string) =>
   `${src.replace(/[?#].*/, "").replace(/\/preview$/, "")}/preview?size=${PREVIEW}`;
 
@@ -106,13 +128,16 @@ export async function inline(
 /** The photo's name for the file: its alt text, else a plain word. */
 const named = (n: N) => (attr(n, "alt") || "").trim() || "photo";
 
-function render(n: N, shown: Map<N, string | null>): string {
+/** A section that was text, as the elements its Markdown makes (by node, from prose()). */
+type Swaps = Map<N, N>;
+
+function render(n: N, shown: Map<N, string | null>, swaps: Swaps = new Map()): string {
   if (n.nodeType === TEXT) return esc(n.data ?? "");
   if (!el(n) || control(n)) return "";
   const t = tag(n);
   const inner = () =>
-    kids(n)
-      .map((k) => render(k, shown))
+    kids(swaps.get(n) ?? n)
+      .map((k) => render(k, shown, swaps))
       .join("");
   if (t === "input") {
     // A task box (render.ts): its state as text, as the page shows it
@@ -148,7 +173,9 @@ function render(n: N, shown: Map<N, string | null>): string {
   // <details> stays open: a file has nothing to tap
   const opens = t === "details" ? " open" : "";
   if (["br", "hr"].includes(t)) return `<${t}>`;
-  return `<${t}${open}${spans}${opens}>${inner()}</${t}>`;
+  // (a paragraph holding Markdown becomes a div: its own paragraphs go inside)
+  const out = t === "p" && swaps.has(n) ? "div" : t;
+  return `<${out}${open}${spans}${opens}>${inner()}</${out}>`;
 }
 
 // Light, plain, prints well; no web fonts, nothing fetched
@@ -161,12 +188,17 @@ table{border-collapse:collapse}td,th{border:1px solid #ccc;padding:.25rem .5rem}
 @media print{body{max-width:none;margin:0}a{color:inherit}details>summary{break-after:avoid}img{break-inside:avoid}}`;
 
 /** The page's view as one HTML file's text. */
-export function pageHtml(root: N, title: string, shown: Map<N, string | null>): string {
+export function pageHtml(
+  root: N,
+  title: string,
+  shown: Map<N, string | null>,
+  swaps: Swaps = new Map(),
+): string {
   return `<!doctype html>\n<html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src data:; style-src 'unsafe-inline'">
 <title>${esc(title)}</title><style>${STYLE}</style></head>
-<body>${render(root, shown)}</body></html>\n`;
+<body>${render(root, shown, swaps)}</body></html>\n`;
 }
 
 /** A file name for the page's HTML. */
@@ -185,5 +217,18 @@ export async function makeHtml(root: HTMLElement, title: string, fetcher = fetch
     return r.ok ? r.blob() : null;
   };
   const shown = await inline(photos(root), get);
-  return new File([pageHtml(root, title, shown)], htmlName(title), { type: "text/html" });
+  // Text sections that hold Markdown (Claude's summary) are rendered here, by the app's own
+  // renderer, whatever state the screen's DOM is in: raw text would be a file of **marks**
+  const swaps: Swaps = new Map();
+  const texts = prose(root);
+  if (texts.length) {
+    const md = await import("./render").catch(() => null);
+    if (!md) throw new Error("the page can't be made offline until scrap is reloaded");
+    for (const n of texts) {
+      const box = document.createElement("div");
+      box.innerHTML = md.markdown(textOf(n));
+      swaps.set(n, box);
+    }
+  }
+  return new File([pageHtml(root, title, shown, swaps)], htmlName(title), { type: "text/html" });
 }
