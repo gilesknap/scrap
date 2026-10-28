@@ -315,6 +315,13 @@ if (import.meta.env.PROD && "serviceWorker" in navigator) {
 }
 
 watchScroll();
+// ?debug=1 or ?debug=0 in the address turns the panel on or off: the build line's five taps
+// need a build line, which a phone without the service worker's cache doesn't show
+const asked = new URLSearchParams(location.search).get("debug");
+if (asked === "1" || asked === "0") {
+  kept(KEY, asked);
+  history.replaceState(history.state, "", location.pathname + location.hash);
+}
 if (kept(KEY) === "1") void import("./debugpanel").then((m) => m.debugPanel());
 void render();
 void showQueue();
