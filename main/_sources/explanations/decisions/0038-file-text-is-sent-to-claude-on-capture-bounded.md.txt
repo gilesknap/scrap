@@ -60,6 +60,16 @@ go to Claude whole on capture. Prompt injection from a stranger's PDF was alread
   toggle (environment only).
 - No schema change: `capture` is an existing enrich job reason.
 
+## Amendment (#418): mask, do not skip
+
+The "looks sensitive" skip stays rejected, but sending is now refined by masking at the outbound
+seam: `claude.complete()` replaces secret-shaped text (provider keys, `Bearer` tokens, labelled
+`password`, `token`, `secret` and `api_key` assignments (also `.env` and JSON forms), PEM private-key blocks) with `[REDACTED]` in `system` and
+`messages`, for both backends. The page is still sent; only the secret is not. Stored text is
+verbatim and photo pixels are untouched. Hex and base64 run rules are left out (they mangle SHAs,
+digests, URLs and slugs). A bare password in prose still leaks; `SCRAP_FILE_ENRICH=ask` remains
+the control.
+
 ## Consequences
 
 - A shared text-layer PDF or text file is titled, tagged, summarised and related with no manual

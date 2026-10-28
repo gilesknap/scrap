@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>What Claude is asked, per page &#8212; scrap 0.17.1.dev9+g6560eddc0 documentation</title>
+    <title>What Claude is asked, per page &#8212; scrap 0.17.1.dev10+gdcf060530 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=cbafb28d"></script>
+    <script src="../_static/documentation_options.js?v=fe23e306"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -990,6 +990,13 @@ summary, the first 2,000 characters of its text, 3,000 of its images’ text, 3,
 text on Ask and 1,500 on that first reading, and 2,000 of its write-up) and an index of up to 150 candidates. The candidates are the pages
 sharing the most tags, then a full-text search (local) for 24 of the page’s words: title, tags and
 summary first, then its images’ text, their descriptions, its own text, and last its files’ text.
+Secrets are masked in everything sent as text, the system prompt included, on both backends
+(<code class="docutils literal notranslate"><span class="pre">mask.py</span></code>, called once in <code class="docutils literal notranslate"><span class="pre">claude.complete</span></code>): provider keys (<code class="docutils literal notranslate"><span class="pre">sk-</span></code>, <code class="docutils literal notranslate"><span class="pre">sk-ant-</span></code>, <code class="docutils literal notranslate"><span class="pre">ghp_</span></code>, <code class="docutils literal notranslate"><span class="pre">xoxb-</span></code>,
+<code class="docutils literal notranslate"><span class="pre">xapp-</span></code>, AWS <code class="docutils literal notranslate"><span class="pre">AKIA</span></code>), <code class="docutils literal notranslate"><span class="pre">Bearer</span></code> tokens, <code class="docutils literal notranslate"><span class="pre">password</span></code>, <code class="docutils literal notranslate"><span class="pre">token</span></code>, <code class="docutils literal notranslate"><span class="pre">secret</span></code> and <code class="docutils literal notranslate"><span class="pre">api_key</span></code> assignments and
+PEM private-key blocks become <code class="docutils literal notranslate"><span class="pre">[REDACTED]</span></code>. There is no hex or base64 rule, so git SHAs, digests,
+URLs and slugs go as they are. What is stored is unchanged and photos go as pixels, so a secret
+only in an image is not masked, and a plain-text password still leaks (<code class="docutils literal notranslate"><span class="pre">SCRAP_FILE_ENRICH=ask</span></code>
+keeps files’ text back).
 Data is quoted in <code class="docutils literal notranslate"><span class="pre">&lt;page&gt;</span></code>, <code class="docutils literal notranslate"><span class="pre">&lt;images&gt;</span></code>, <code class="docutils literal notranslate"><span class="pre">&lt;files&gt;</span></code> and <code class="docutils literal notranslate"><span class="pre">&lt;fetched&gt;</span></code> blocks, and any such tag inside
 the data has its <code class="docutils literal notranslate"><span class="pre">&lt;</span></code> sent as
 <code class="docutils literal notranslate"><span class="pre">&amp;lt;</span></code>, so the data cannot end its block. A photo page usually has no enrich summary (Ask can add
