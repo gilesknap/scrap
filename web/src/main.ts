@@ -210,12 +210,25 @@ async function render() {
   restoreScroll(controller.signal);
 }
 
+/** In Android's home-screen app (as installed from Chrome), not a browser tab. */
+const android = () =>
+  /Android/.test(navigator.userAgent) && matchMedia("(display-mode: standalone)").matches;
+
 // Every page, tag and list is a real link (long-press or Ctrl-click opens it in a new tab):
 // a plain tap on one routes here instead of loading the app again.
 document.addEventListener("click", (e) => {
   const a = (e.target as Element).closest("a");
-  if (!a || !plain(e) || a.origin !== location.origin || a.target || a.hasAttribute("download"))
+  if (!a || !plain(e) || a.origin !== location.origin || a.hasAttribute("download")) return;
+  if (a.target) {
+    // A file opens in a new window, but in Android's home-screen app that window has no Back
+    // to this page: the back gesture closed the app (#443). There it opens in this window, a
+    // step Back returns from. Elsewhere (a tab, a computer, an iPhone) the new window is right.
+    if (a.pathname.startsWith("/api/blobs/") && android()) {
+      e.preventDefault();
+      location.assign(a.href);
+    }
     return;
+  }
   if (a.pathname.startsWith("/api/") || a.pathname === "/share") return;
   e.preventDefault();
   if (a.hash && a.pathname === location.pathname && a.search === location.search) {

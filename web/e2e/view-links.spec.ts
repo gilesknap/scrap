@@ -91,3 +91,50 @@ test("opened cold on B: Back and Delete go where Back names, staying in the app"
   await expect(page).toHaveURL(/\/todos$/);
   await expect(page.getByText("Page deleted")).toBeVisible();
 });
+
+/** A page with a file (as the page shows one: a row that opens it in a new window). */
+async function withFile(page: Page) {
+  const form = new FormData();
+  form.append("id", ulid());
+  form.append("text", `File page ${ulid().slice(-6)}`);
+  form.append("file", new Blob(["Plain words"], { type: "text/plain" }), "words.txt");
+  const ref = (await (await page.request.post("/api/captures", { multipart: form })).json()) as {
+    slug: string;
+  };
+  await page.goto(`/p/${ref.slug}`);
+  return ref;
+}
+
+test("Android's home-screen app: a file opens in place, and the phone's Back returns (#443)", async ({
+  page,
+}) => {
+  // As Chrome installs it on Android (the Pixel 7's user agent): display-mode standalone
+  await page.addInitScript(() => {
+    const real = window.matchMedia.bind(window);
+    window.matchMedia = (q: string) =>
+      q.includes("display-mode: standalone")
+        ? ({ ...real(q), matches: true } as MediaQueryList)
+        : real(q);
+  });
+  const ref = await withFile(page);
+  const link = page.locator(".page a.file").first();
+  await expect(link).toHaveAttribute("target", "_blank"); // a new window elsewhere
+  const pages = page.context().pages().length;
+  await link.click();
+  await expect(page).toHaveURL(/\/api\/blobs\/[0-9a-f]{64}$/);
+  await expect(page.locator("body")).toContainText("Plain words");
+  expect(page.context().pages().length).toBe(pages); // not a new window
+  await page.goBack(); // the phone's Back gesture
+  await expect(page).toHaveURL(`/p/${ref.slug}`);
+  await expect(page.locator(".page a.file").first()).toBeVisible();
+});
+
+test("in a browser tab a file still opens in a new tab", async ({ page }) => {
+  const ref = await withFile(page);
+  const [popup] = await Promise.all([
+    page.waitForEvent("popup"),
+    page.locator(".page a.file").first().click(),
+  ]);
+  await expect(popup).toHaveURL(/\/api\/blobs\/[0-9a-f]{64}$/);
+  await expect(page).toHaveURL(`/p/${ref.slug}`);
+});
