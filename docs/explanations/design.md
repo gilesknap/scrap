@@ -135,11 +135,11 @@ sequenceDiagram
 ```
 
 Every capture kind (note, link, photo, file) gets its own page; what goes in the body and title is
-tabled on [Capture, files and import](architecture/capture-and-files.md).
+tabled on [Capture, files and backup](architecture/capture-and-files.md).
 
 Ingest is a fixed pipeline with no search-then-decide loop. Merging and cross-linking pages is done
 by hand or through MCP `write`. Details are in
-[Capture, files and import](architecture/capture-and-files.md) and
+[Capture, files and backup](architecture/capture-and-files.md) and
 [Job queue and Claude features](architecture/claude-pipeline.md).
 
 ## Page map
@@ -148,7 +148,7 @@ by hand or through MCP `write`. Details are in
 | --- | --- |
 | [Scope and stack](overview.md) | What scrap is and is not; the tools it uses. |
 | [Data model and storage](architecture/data-model.md) | Tables, page identity, kinds, revisions, migrations. |
-| [Capture, files and import](architecture/capture-and-files.md) | Capture routes, blobs, images in text, `scrap gc`, Thoth import. |
+| [Capture, files and backup](architecture/capture-and-files.md) | Capture routes, blobs, images in text, `scrap gc`, backup and export. |
 | [Job queue and Claude features](architecture/claude-pipeline.md) | Jobs, pausing, enrich, write-ups, topics, budget. |
 | [Search](architecture/search.md) | FTS5 index, query syntax, filters. |
 | [MCP server and access](architecture/mcp-and-access.md) | Tools, revisions over MCP, bearer token, security. |

@@ -1,4 +1,4 @@
-# Capture, files and import
+# Capture, files and backup
 
 Capture never waits: a phone saves to its own queue first, the server saves a file and a few rows,
 and everything slow (Claude, previews) happens later. Files are kept by content hash, shown by
@@ -169,14 +169,11 @@ flowchart LR
   a completed backup (integrity checked, `COMPLETE` marker written) is under 26 hours old. See
   [](deployment.md).
 
-## Import, backup and export
-
-Everything moves through the `Store`, so revisions and the search index stay consistent.
+## Backup, restore and export
 
 ```mermaid
 flowchart LR
-    v["Vault dir"]:::user --> rd["reading"] --> m["model: Plan, Page"] --> l["linker"] --> p["pipeline.run"] --> s[("Store")]:::store
-    s -- "scrap backup" --> b[("Backup dir + COMPLETE")]:::store
+    s[("Store")]:::store -- "scrap backup" --> b[("Backup dir + COMPLETE")]:::store
     b -- "scrap restore" --> s
     s -- "scrap export" --> x["Markdown + files"]:::user
     classDef store fill:#e8f1ff,stroke:#4a7bd0
