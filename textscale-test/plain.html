@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<title>WITHOUT opt-in</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg">
+<style>
+  body { font-family: system-ui, sans-serif; margin: 16px; background: #161411; color: #f2ede4; }
+  pre { font-size: 0.9rem; background: #2a2622; padding: 12px; border-radius: 10px; white-space: pre-wrap; }
+  a { color: #f0ac4a; font-size: 1rem; }
+  .sample { font-size: 1rem; }
+</style>
+</head>
+<body>
+<h1 style="font-size:1.4rem">WITHOUT opt-in</h1>
+<p class="sample">This line is 1rem. Move Android's font size slider and watch it and the numbers.</p>
+<pre id="out"></pre>
+<p><a href="index.html">Switch to: with opt-in</a></p>
+<script src="probe.js"></script>
+<script>if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js");</script>
+</body>
+</html>
