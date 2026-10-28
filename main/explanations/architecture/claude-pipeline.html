@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Job queue and Claude features &#8212; scrap 0.17.1.dev7+g90113b73b documentation</title>
+    <title>Job queue and Claude features &#8212; scrap 0.17.1.dev8+g6898a9822 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../../_static/documentation_options.js?v=770471ae"></script>
+    <script src="../../_static/documentation_options.js?v=4c327fd6"></script>
     <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -820,6 +820,7 @@ window.runMermaid = runMermaid;</script>
 <li class="toctree-l2"><a class="reference internal" href="../decisions/0036-todo-values-in-a-side-table.html">36. A todo’s due date, priority and snooze are in a table of their own</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../decisions/0037-one-baseline-schema-for-1-0.html">37. One baseline schema for 1.0</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../decisions/0038-file-text-is-sent-to-claude-on-capture-bounded.html">38. File text is sent to Claude on capture, bounded</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../decisions/0039-generated-content-keeps-only-its-current-version.html">39. Generated content keeps only its current version</a></li>
 </ul>
 </details></li>
 <li class="toctree-l1 current active has-children"><a class="reference internal" href="../design.html">Architecture</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
@@ -982,13 +983,13 @@ result lands in a derived table.</p>
 <td><p><code class="docutils literal notranslate"><span class="pre">enrich_job</span></code> <code class="docutils literal notranslate"><span class="pre">writeup</span></code></p></td>
 <td><p>A board page whose photos are all read, <em>Ask Claude</em> (<code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">enrich</span> <span class="pre">--writeups</span></code> calls Claude in its own process)</p></td>
 <td><p>Vision model with the board photos</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">writeup</span></code> version</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">writeup</span></code> row of the page</p></td>
 </tr>
 <tr class="row-even"><td><p>Topic</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">enrich_job</span></code> <code class="docutils literal notranslate"><span class="pre">topic</span></code></p></td>
 <td><p>The weekly topics pass</p></td>
 <td><p>Vision model</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">writeup</span></code> version of a topic page</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">writeup</span></code> row of a topic page</p></td>
 </tr>
 </tbody>
 </table>
@@ -1104,11 +1105,11 @@ usage and cost.</p></li>
 <p>Derived rows sit beside the page and the owner’s text is not written by Claude; the page body stays
 the human’s.</p>
 <ul class="simple">
-<li><p><strong><code class="docutils literal notranslate"><span class="pre">derived</span></code></strong> (per capture, photo and kind): immutable rows with <code class="docutils literal notranslate"><span class="pre">version</span></code>, <code class="docutils literal notranslate"><span class="pre">producer</span></code> (the model
-id, or <code class="docutils literal notranslate"><span class="pre">human</span></code>) and <code class="docutils literal notranslate"><span class="pre">superseded_at</span></code>. A new current version supersedes the last by trigger. Kinds
+<li><p><strong><code class="docutils literal notranslate"><span class="pre">derived</span></code></strong> (per capture, photo and kind): rows with <code class="docutils literal notranslate"><span class="pre">version</span></code>, <code class="docutils literal notranslate"><span class="pre">producer</span></code> (the model
+id, or <code class="docutils literal notranslate"><span class="pre">human</span></code>) and <code class="docutils literal notranslate"><span class="pre">superseded_at</span></code>. A drawing (<code class="docutils literal notranslate"><span class="pre">excalidraw</span></code>) keeps every version: a new current one supersedes the last by trigger. A reading (<code class="docutils literal notranslate"><span class="pre">ocr</span></code>, <code class="docutils literal notranslate"><span class="pre">description</span></code>) keeps only its current row: the next one deletes it first (<a class="reference internal" href="../decisions/0039-generated-content-keeps-only-its-current-version.html"><span class="std std-doc">ADR 39</span></a>). Kinds
 are <code class="docutils literal notranslate"><span class="pre">ocr</span></code>, <code class="docutils literal notranslate"><span class="pre">description</span></code>, <code class="docutils literal notranslate"><span class="pre">summary</span></code>, <code class="docutils literal notranslate"><span class="pre">fetched</span></code> and <code class="docutils literal notranslate"><span class="pre">excalidraw</span></code>. A PDF’s or text file’s text is also an <code class="docutils literal notranslate"><span class="pre">ocr</span></code> version, read by scrap itself with no model run (<a class="reference internal" href="../decisions/0035-files-are-read-locally-for-search.html"><span class="std std-doc">35. Files are read locally, for search</span></a>).</p></li>
-<li><p><strong><code class="docutils literal notranslate"><span class="pre">writeup</span></code></strong> (per page, for boards and topics): versions with <code class="docutils literal notranslate"><span class="pre">prompt_version</span></code>, the owner’s
-<code class="docutils literal notranslate"><span class="pre">guidance</span></code> and <code class="docutils literal notranslate"><span class="pre">restored_from</span></code>. <em>Regenerate</em> inserts a new version; <em>Restore</em> copies an old one.
+<li><p><strong><code class="docutils literal notranslate"><span class="pre">writeup</span></code></strong> (per page, for boards and topics): one row with <code class="docutils literal notranslate"><span class="pre">prompt_version</span></code> and the owner’s
+<code class="docutils literal notranslate"><span class="pre">guidance</span></code> it was written with. <em>Regenerate</em> replaces it; there is no history to restore.
 Nobody edits a write-up.</p></li>
 <li><p><strong><code class="docutils literal notranslate"><span class="pre">enrichment</span></code>, <code class="docutils literal notranslate"><span class="pre">model_tag</span></code>, <code class="docutils literal notranslate"><span class="pre">related</span></code></strong>: one summary per page, Claude’s tags marked apart from the
 owner’s (the owner can turn one off), and ranked related pages. These are replaced by the next
@@ -1136,7 +1137,7 @@ Claude from their own process, one page at a time, under the same pause and budg
 <code class="docutils literal notranslate"><span class="pre">claude.complete()</span></code> never retries.</p></li>
 <li><p>A pause never costs a job a failure; a charged failure dies on the third.</p></li>
 <li><p>Photo, text and topic spend share one daily budget.</p></li>
-<li><p>Claude’s output is stored apart from the owner’s text and can be regenerated or restored.</p></li>
+<li><p>Claude’s output is stored apart from the owner’s text and can be regenerated.</p></li>
 <li><p>A page in the trash is not claimed.</p></li>
 </ul>
 </section>

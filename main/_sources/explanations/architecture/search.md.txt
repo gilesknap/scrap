@@ -103,7 +103,7 @@ flowchart TD
   write-up or a topic's synthesis. Control
   characters become spaces, since snippets mark hits with `\x02` and `\x03`.
 - **Photo text.** What ingest read (description, OCR) is its own chunk, made by a trigger when the
-  `derived` row is inserted and removed when it is superseded. It fills only the text column. A
+  `derived` row is inserted and removed when that row goes (a reading is deleted when a newer one replaces it; a drawing version when it is superseded). It fills only the text column. A
   PDF's or text file's text, which scrap reads itself ({ref}`ingest-files`), is such a chunk too.
 - **Disposable.** There is no `reindex` command. `index_all` rebuilds every page's own chunk,
   trash included (undo brings a page back); a migration that changes what is indexed calls it, as
@@ -136,7 +136,7 @@ flowchart LR
 | `is:stale` | An open todo, not due today or later, unchanged for 60 days (`STALE_DAYS`) |
 | `is:duplicate` | A file of one of its captures is also another page's |
 | `has:dangling` | A page link in its text to no page or one in the trash |
-| `is:outdated` | A board's write-up older than its inputs or of an older prompt version, or linking a page that is in the trash or gone, unless the owner restored it |
+| `is:outdated` | A board's write-up older than its inputs or of an older prompt version, or linking a page that is in the trash or gone |
 
 Related pages and a topic's synthesis have outdated definitions in the same module, but they are
 not findings: the nightly related pass and weekly topics pass refresh them

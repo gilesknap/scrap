@@ -7,7 +7,9 @@ Date: 2026-10-25 (#261, migration 13)
 Accepted. Builds on [](0027-claude-write-ups-of-boards-apart-from-the-text.md) (a versioned
 write-up kept apart from the text) and [](0020-text-enrichment.md) (the enrich queue, related
 pages). Stage 3 of the #104 roadmap ("Claude-written derived pages"), part of scrap as an LLM wiki
-with a strict human/LLM split (#263).
+with a strict human/LLM split (#263). Partly superseded by
+[](0039-generated-content-keeps-only-its-current-version.md): a synthesis keeps only its current
+version, so there is no Restore.
 
 ## Context
 

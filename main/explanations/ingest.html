@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Claude ingest &#8212; scrap 0.17.1.dev7+g90113b73b documentation</title>
+    <title>Claude ingest &#8212; scrap 0.17.1.dev8+g6898a9822 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=770471ae"></script>
+    <script src="../_static/documentation_options.js?v=4c327fd6"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -820,6 +820,7 @@ window.runMermaid = runMermaid;</script>
 <li class="toctree-l2"><a class="reference internal" href="decisions/0036-todo-values-in-a-side-table.html">36. A todo’s due date, priority and snooze are in a table of their own</a></li>
 <li class="toctree-l2"><a class="reference internal" href="decisions/0037-one-baseline-schema-for-1-0.html">37. One baseline schema for 1.0</a></li>
 <li class="toctree-l2"><a class="reference internal" href="decisions/0038-file-text-is-sent-to-claude-on-capture-bounded.html">38. File text is sent to Claude on capture, bounded</a></li>
+<li class="toctree-l2"><a class="reference internal" href="decisions/0039-generated-content-keeps-only-its-current-version.html">39. Generated content keeps only its current version</a></li>
 </ul>
 </details></li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="design.html">Architecture</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
@@ -1262,9 +1263,11 @@ it, and Claude’s own additions (summary, tags, related pages, a board’s writ
 <h2>Derived results and versions<a class="headerlink" href="#derived-results-and-versions" title="Link to this heading">#</a></h2>
 <p>The baseline’s <code class="docutils literal notranslate"><span class="pre">derived</span></code> table, which holds results as versions:</p>
 <ul class="simple">
-<li><p>One current row (<code class="docutils literal notranslate"><span class="pre">superseded_at</span> <span class="pre">IS</span> <span class="pre">NULL</span></code>, a partial unique index) per <code class="docutils literal notranslate"><span class="pre">(capture,</span> <span class="pre">photo,</span> <span class="pre">kind)</span></code>;
-inserting one supersedes the old (a trigger). Rows never change otherwise (more triggers);
-<strong>Restore</strong> inserts a copy.</p></li>
+<li><p>One current row (<code class="docutils literal notranslate"><span class="pre">superseded_at</span> <span class="pre">IS</span> <span class="pre">NULL</span></code>, a partial unique index) per <code class="docutils literal notranslate"><span class="pre">(capture,</span> <span class="pre">photo,</span> <span class="pre">kind)</span></code>.
+A drawing (<code class="docutils literal notranslate"><span class="pre">excalidraw</span></code>) keeps its versions: inserting one supersedes the old (a trigger), rows
+never change otherwise (more triggers), and <strong>Restore</strong> inserts a copy. A reading (<code class="docutils literal notranslate"><span class="pre">ocr</span></code>,
+<code class="docutils literal notranslate"><span class="pre">description</span></code>) keeps only the current one (<a class="reference internal" href="decisions/0039-generated-content-keeps-only-its-current-version.html"><span class="std std-doc">ADR 39</span></a>):
+<code class="docutils literal notranslate"><span class="pre">put_derived</span></code> deletes the old row, and its chunk and search entry, before it inserts the new.</p></li>
 <li><p><strong>Kinds.</strong> <code class="docutils literal notranslate"><span class="pre">ocr</span></code>, <code class="docutils literal notranslate"><span class="pre">description</span></code> (its <code class="docutils literal notranslate"><span class="pre">data</span></code> keeps the image kind) and <code class="docutils literal notranslate"><span class="pre">excalidraw</span></code> (<code class="docutils literal notranslate"><span class="pre">data</span></code> is
 <code class="docutils literal notranslate"><span class="pre">{&quot;format&quot;:</span> <span class="pre">&quot;skeleton&quot;</span> <span class="pre">|</span> <span class="pre">&quot;scene&quot;,</span> <span class="pre">&quot;width&quot;,</span> <span class="pre">&quot;height&quot;,</span> <span class="pre">&quot;elements&quot;}</span></code>). The table also allows
 <code class="docutils literal notranslate"><span class="pre">summary</span></code> and <code class="docutils literal notranslate"><span class="pre">fetched</span></code>; enrichment keeps those in <code class="docutils literal notranslate"><span class="pre">enrichment</span></code> instead.</p></li>
@@ -1272,7 +1275,7 @@ inserting one supersedes the old (a trigger). Rows never change otherwise (more 
 human drawing stores its drawing already superseded unless the user confirmed. The
 confirmation is kept on a job already queued or running (the worker reads it as it finishes),
 so it is never lost.</p></li>
-<li><p><strong>Restore</strong> copies the version’s producer, run, author and text; its <code class="docutils literal notranslate"><span class="pre">data</span></code> adds
+<li><p><strong>Restore</strong> (of a drawing) copies the version’s producer, run, author and text; its <code class="docutils literal notranslate"><span class="pre">data</span></code> adds
 <code class="docutils literal notranslate"><span class="pre">restored_from</span></code> and <code class="docutils literal notranslate"><span class="pre">restored_by</span></code>, so the history can say so.</p></li>
 </ul>
 <p><strong>Page fields</strong> come from the first photo of the page’s first capture (photos added later set
@@ -1766,7 +1769,7 @@ the page’s text.</p>
     W-&gt;&gt;CL: board photos (at most 4), text, page, guidance, candidate index
     CL--&gt;&gt;W: summary, text with [[n]] citations
     W-&gt;&gt;W: [[n]] to [[slug]], strip every other link
-    W-&gt;&gt;DB: new writeup version, current
+    W-&gt;&gt;DB: write-up replaces the last
     W-&gt;&gt;DB: queue related (sees the write-up)
     </pre><ul class="simple">
 <li><p><strong>Which pages.</strong> A board page: one with an image whose current reading says <code class="docutils literal notranslate"><span class="pre">whiteboard</span></code> or
@@ -1810,10 +1813,9 @@ there, one in the trash, or anything outside scrap. The PWA also shows any link 
 words unless it goes to a page the server lists as one the write-up links (<code class="docutils literal notranslate"><span class="pre">links</span></code>).</p></li>
 <li><p><strong>Output, checked.</strong> <code class="docutils literal notranslate"><span class="pre">summary</span></code>: one line, at most 600 characters; <code class="docutils literal notranslate"><span class="pre">text</span></code>: Markdown without
 control characters, at most 20,000 characters, not empty (else the run is invalid and retried).</p></li>
-<li><p><strong>Stored apart from the text</strong> (migration 12): each write-up is a new version in <code class="docutils literal notranslate"><span class="pre">writeup</span></code>
-(<code class="docutils literal notranslate"><span class="pre">producer</span></code>, <code class="docutils literal notranslate"><span class="pre">run_id</span></code>, <code class="docutils literal notranslate"><span class="pre">prompt_version</span></code>, <code class="docutils literal notranslate"><span class="pre">summary</span></code>, <code class="docutils literal notranslate"><span class="pre">text</span></code>, the <code class="docutils literal notranslate"><span class="pre">guidance</span></code> used), one current,
-older ones kept and never changed. Restore (<code class="docutils literal notranslate"><span class="pre">POST</span> <span class="pre">/api/pages/{id}/writeup/restore</span></code>) makes an
-old one current again as a copy, as drawings do. It is not in page revisions, and nobody edits
+<li><p><strong>Stored apart from the text</strong> (migration 12): (migration 12; one row a page since migration 19) each write-up replaces the last in <code class="docutils literal notranslate"><span class="pre">writeup</span></code>
+(<code class="docutils literal notranslate"><span class="pre">producer</span></code>, <code class="docutils literal notranslate"><span class="pre">run_id</span></code>, <code class="docutils literal notranslate"><span class="pre">prompt_version</span></code>, <code class="docutils literal notranslate"><span class="pre">summary</span></code>, <code class="docutils literal notranslate"><span class="pre">text</span></code>, the <code class="docutils literal notranslate"><span class="pre">guidance</span></code> used): no
+older ones are kept (<a class="reference internal" href="decisions/0039-generated-content-keeps-only-its-current-version.html"><span class="std std-doc">ADR 39</span></a>). It is not in page revisions, and nobody edits
 it.</p></li>
 <li><p><strong>Guidance.</strong> The owner may leave a note for the next write-up (<code class="docutils literal notranslate"><span class="pre">PUT</span> <span class="pre">/api/pages/{id}/writeup/guidance</span></code>, at most 2,000 characters, kept in <code class="docutils literal notranslate"><span class="pre">writeup_guidance</span></code>), such
 as “focus on the data flow; ‘Enc’ means encoder”. The next write-up is given it, and keeps a
@@ -1833,7 +1835,7 @@ $0.20 a board at Opus prices, counted in the daily budget.</p></li>
 what several pages say about one recurring thing (a tool, a project, a concept). It is a real
 page, a Doc, marked as a topic in the <code class="docutils literal notranslate"><span class="pre">topic</span></code> table; its body is the owner’s notes
 on the topic (empty at first) and Claude never writes there. Claude’s synthesis of its sources is
-its write-up (<a class="reference internal" href="#ingest-writeup"><span class="std std-ref">Write-ups of boards</span></a>): versions, guidance, Regenerate and Restore work the same.</p>
+its write-up (<a class="reference internal" href="#ingest-writeup"><span class="std std-ref">Write-ups of boards</span></a>): guidance and Regenerate work the same.</p>
 <pre  class="mermaid">
         sequenceDiagram
     participant T as Weekly timer
@@ -1848,7 +1850,7 @@ its write-up (<a class="reference internal" href="#ingest-writeup"><span class="
     T-&gt;&gt;DB: queue a synthesis for each topic due
     W-&gt;&gt;CL: synthesis: sources (at most 40), notes, guidance
     CL--&gt;&gt;W: summary, text with [[n]] citations
-    W-&gt;&gt;DB: new writeup version on the topic page
+    W-&gt;&gt;DB: synthesis replaces the last on the topic page
     </pre><ul class="simple">
 <li><p><strong>Discovery</strong> (<code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">enrich</span> <span class="pre">--topics</span></code>, weekly, beside the related pass). One call,
 <code class="docutils literal notranslate"><span class="pre">SCRAP_VISION_MODEL</span></code>, effort <code class="docutils literal notranslate"><span class="pre">medium</span></code>, <code class="docutils literal notranslate"><span class="pre">max_tokens</span></code> 16000, structured output (<code class="docutils literal notranslate"><span class="pre">new</span></code>, <code class="docutils literal notranslate"><span class="pre">add</span></code>). The
@@ -1871,8 +1873,7 @@ own last change (its title or notes), a source added or excluded, or a source’
 trash, summary, write-up or photo reading. Taking a source out queues one at once; so does
 Regenerate (<code class="docutils literal notranslate"><span class="pre">POST</span> <span class="pre">/api/pages/{id}/writeup</span></code>) and Ask Claude on the topic page (which
 makes no enrich call: a topic page’s text is never read as text, so Claude never touches it).
-A synthesis restored by the owner is not regenerated for a new prompt version, and a source
-brought back from the trash makes its topics due. A pass stopped at a pause or the budget
+A source brought back from the trash makes its topics due. A pass stopped at a pause or the budget
 queues none. One Opus call
 (as the write-up’s) sees each source in a <code class="docutils literal notranslate"><span class="pre">&lt;source&gt;</span></code> block, numbered (at most 40, first added
 first): its title, kind and tags, then its summary, Claude’s write-up of it, what was read from
