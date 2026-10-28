@@ -1,6 +1,11 @@
+# Leave only untracked files out of the build context. setuptools_scm reads the
+# version from .git inside the build, so a tracked file left out here looks deleted,
+# marks the tree dirty and versions a release as the next dev build (#449).
 web/node_modules
 web/test-results
 web/playwright-report
 src/scrap/static
 .venv
-sim
+sim/out
+sim/.host
+sim/out-shots
