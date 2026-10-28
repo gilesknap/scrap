@@ -7,9 +7,19 @@ import json
 from contextlib import closing
 
 import pytest
+from fastapi.testclient import TestClient
 from PIL import Image
 
-from scrap.store import ConflictError, Store, connect, new_ulid
+from scrap.app import create_app
+from scrap.store import (
+    ConflictError,
+    Store,
+    connect,
+    new_ulid,
+    now,
+    topics,
+    transaction,
+)
 
 
 def jpeg(colour="red") -> bytes:
@@ -156,3 +166,28 @@ def test_json_edits_are_checked_as_before(client):
     assert r.status_code == 422  # base_rev is needed
     r = client.patch(f"/api/pages/{p['id']}", json={"tags": ["a"]})
     assert r.status_code == 200 and r.json()["tags"] == ["a"]
+
+
+def test_an_edit_over_the_upload_limit_is_413_and_stores_nothing(tmp_path, monkeypatch):
+    monkeypatch.setenv("SCRAP_MAX_UPLOAD_MB", "0.001")  # 1048 bytes
+    client = TestClient(create_app(tmp_path))
+    p = page_of(client)
+    big = ("big.pdf", b"%PDF-1.4 " + b"x" * 4096, "application/pdf")
+    r = patch(client, p["id"], {"base_rev": p["rev"], "body": "x ⟦file 1⟧"}, big)
+    assert r.status_code == 413
+    assert r.json()["detail"].endswith("MB upload limit")
+    page = client.get(f"/api/pages/{p['id']}").json()
+    assert (page["rev"], len(page["captures"])) == (p["rev"], 1)
+    assert not [f for f in (tmp_path / "files").rglob("*") if f.is_file()]
+
+
+def test_a_topic_page_takes_no_files_with_its_edit(client, tmp_path):
+    store = Store(tmp_path / "data")
+    with closing(connect(store.db)) as conn, transaction(conn):
+        page_id = topics.create(conn, "Queues", "queues", "queues", "me", now())
+    edit = {"base_rev": 1, "body": "x ⟦file 1⟧"}
+    r = patch(client, "queues", edit, ("a.pdf", PDF, "application/pdf"))
+    assert r.status_code == 422
+    assert r.json()["detail"] == "Files can't be added to a topic page"
+    page = client.get(f"/api/pages/{page_id}").json()
+    assert (page["rev"], page["captures"]) == (1, [])
