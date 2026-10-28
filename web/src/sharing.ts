@@ -114,7 +114,14 @@ export async function sharePageFile(href: string, title: string, saved: (f: File
   if (!canShareFile("page.zip", "application/zip")) return saved(await fetchFile(href));
   const file = await fetchFile(`${href}?photos=preview`);
   if (!canShareFile(file.name, file.type)) return saved(file); // Markdown, as a plain download has it
-  await shareFiles(title, [file], "Page ready");
+  try {
+    await shareFiles(title, [file], "Page ready");
+  } catch (err) {
+    // Chrome refuses a zip with NotAllowedError although canShare said yes: save it instead
+    if ((err as Error).name !== "NotAllowedError" || file.type !== "application/zip") throw err;
+    saved(await fetchFile(href));
+    toast("This phone can't share a zip; saved it instead");
+  }
 }
 
 /** Share the page as it is shown, as one HTML file (pagehtml.ts): where this phone can't share
