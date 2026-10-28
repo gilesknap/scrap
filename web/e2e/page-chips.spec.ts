@@ -166,10 +166,9 @@ test("at 390 px and 130% text, tags fold to two rows, +N shows the rest in place
 test("a focused tag that folds away on a narrower screen hands focus to +N", async ({ page }) => {
   await page.setViewportSize({ width: 1000, height: 800 });
   const a = word();
-  // Short names: all three fit on one row at 1000 px in any font (the glyph widths differ
-  // between machines, so a test that needs "just fits" passes here and not on CI, #421), and
-  // two do not fit beside each other at 320 px
-  const tags = ["alpha", "bravo", "delta"].map((n, i) => `t${i}${a}/${n}`);
+  // Three tags: they fit two rows at 1000 px in any font (glyph widths differ between machines,
+  // and five that only just fit passed here but not on CI, #421), and take three at 320 px
+  const tags = ["alpha-centauri", "bravo-charlie", "delta-foxtrot"].map((n, i) => `t${i}${a}/${n}`);
   const p = await make(page, tags);
   await page.goto(`/p/${p.slug}`);
   await large(page);
