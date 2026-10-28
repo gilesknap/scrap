@@ -58,7 +58,9 @@ from .helpers import (
 )
 from .indexing import (
     enrich_on,
+    file_enrich,
     model_summary,
+    queue_after_file,
     queue_after_read,
     queue_enrich,
     queue_related,
@@ -117,10 +119,12 @@ __all__ = [
     "BASELINE",
     "latest",
     "enrich_on",
+    "file_enrich",
     "model_summary",
     "queue_enrich",
     "queue_related",
     "queue_related_on_read",
+    "queue_after_file",
     "queue_after_read",
     "queue_writeup",
     "queue_topic",

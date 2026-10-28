@@ -16,6 +16,7 @@ from ..store import (
     PAGE_KINDS,
     Store,
     enrich_on,
+    file_enrich,
     now,
     queue_after_read,
     transaction,
@@ -59,6 +60,7 @@ class Worker:
         # Text pages (enrich/), when there is no photo to read
         self.enricher = Enricher(store, self.call, self.budget, fetcher)
         self.enrich = enrich_on()
+        file_enrich()  # a bad SCRAP_FILE_ENRICH stops the start, not a file's job
         self._after_file = False  # the last job was a file's: enrich gets a turn
         self._wake, self._stop = threading.Event(), threading.Event()
         self._thread = threading.Thread(target=self.run, name="ingest", daemon=True)

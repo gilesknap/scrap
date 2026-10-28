@@ -22,6 +22,7 @@ from ..store import (
     MAX_TAGS,
     Store,
     fields_for,
+    file_enrich,
     now,
     queue_related,
     roles,
@@ -30,10 +31,14 @@ from ..store import (
 from .checking import checked, record
 from .constants import (
     ASKED_SUMMARY,
+    AUTO_FILES,
+    AUTO_RELATED_FILES,
     CLAIM,
     FILE_TITLE_CAS,
+    MAX_FILES,
     MAX_NEW_TAGS,
     MAX_TITLE,
+    RELATED_FILES,
     SAVE_REREAD,
     SCHEMA,
     SHORT,
@@ -249,12 +254,22 @@ class Enricher:
             ).fetchone()
             link = link and link[0]
             images = page_images(conn, page_id)
-            # A file's text goes to Claude only when the owner asks (ADR 35, #378)
+            # A file's text goes to Claude on Ask (ADR 35, #378), and once, less of
+            # it, on a file page's own reading: the capture job file ingest queues
+            # with SCRAP_FILE_ENRICH auto, as no other reaches it (NOT_BY_INGEST)
             asked = job["reason"] == "ask"
+            auto = job["reason"] == "capture" and roles.file_first(conn, page_id)
+            sent = asked or auto  # the files' text is sent
             files = page_files(conn, page_id)
             filed = bool(file_text(files))  # it has some: a re-reading keeps Ask's
-            files = files if asked else []
-            untitled = asked and bool(
+            files = files if sent else []
+            if auto and (file_enrich() != "auto" or len(file_text(files)) < SHORT):
+                with transaction(conn):  # set to ask since, or too little: no call
+                    conn.execute(
+                        "UPDATE enrich_job SET state = 'done' WHERE id = ?", (jid,)
+                    )
+                return
+            untitled = sent and bool(
                 conn.execute(UNTITLED_FILE, {"page": page_id}).fetchone()
             )
             vocab = {t for t, _ in vocabulary(conn)}
@@ -276,7 +291,9 @@ class Enricher:
         # a page made from a file, with no title of its own: one from its text (#378)
         want_title = not link and untitled and bool(read)
         args = (page, tags, link, got, failed, want_summary)
-        extra = {"images": images, "files": files, "want_title": want_title}
+        most = MAX_FILES if asked else AUTO_FILES
+        extra = {"images": images, "files": files, "want_title": want_title,
+                 "files_most": most}  # fmt: skip
         messages = page_message(*args, **extra)
         stored = page_message(*args, False, **extra)
         model, effort = claude.text_model()
@@ -304,7 +321,8 @@ class Enricher:
         except claude.CallError as error:
             self.failed(jid, run_id, error)
             return
-        if not self.succeeded(job, run_id, done, out, link, got, filed and not asked):
+        keep = filed and not sent
+        if not self.succeeded(job, run_id, done, out, link, got, keep, sent):
             return
         items = [(i["text"], i["done"]) for i in out["items"]]
         # never from a file's text (a stranger's, maybe invisible in the PDF: ADR 35)
@@ -313,13 +331,17 @@ class Enricher:
         ):
             # as the page was read: an edit since wins (a revision of Claude's own)
             actions.append(self.store, page_id, page["rev"], items)
-        if job["reason"] == "ask":  # Ask Claude: a board's write-up, related pages too
+        if sent:  # Ask Claude: a board's write-up, related pages too; a file page's
+            # own reading: its first related call (ADR 38), sent less of its files
             # A retry (related failed) does not write it up again: done in this job
             error = (
                 None
-                if self._written(jid)
+                if not asked or self._written(jid)
                 else write_up(self.store, self.call, page_id, jid)
-            ) or relate(self.store, self.call, page_id, jid, files=True)
+            ) or relate(
+                self.store, self.call, page_id, jid, True,
+                RELATED_FILES if asked else AUTO_RELATED_FILES,
+            )  # fmt: skip
             if error is not None:
                 self._job_failed(jid, error)
                 return
@@ -381,11 +403,13 @@ class Enricher:
         link: str | None,
         got: fetch.Fetched | None,
         keep_summary: bool = False,
+        relates: bool = False,
     ) -> bool:
         """Apply what Claude added; whether the job is still this worker's (else it
-        was given back at shutdown, and runs again). An Ask's job is finished by the
-        caller, after its related pages. keep_summary: a re-reading of a page with
-        files' text, which only Ask sends, keeps a summary an Ask made (#378)."""
+        was given back at shutdown, and runs again). relates: an Ask's job, or a file
+        page's own reading (ADR 38), is finished by the caller, after its related
+        pages. keep_summary: a re-reading of a page with files' text that was not sent
+        it keeps a summary an Ask made (#378)."""
         jid, page_id = job["id"], job["page_id"]
         producer = done.served_model
         with self.store.connect() as conn, transaction(conn):
@@ -407,7 +431,7 @@ class Enricher:
                 )
                 self._tags(conn, page_id, out["tags"], producer, stamp,
                            first or job["reason"] != "save")  # fmt: skip
-                if first and job["reason"] != "ask":  # Ask picks them itself
+                if first and not relates:  # Ask picks them itself
                     queue_related(conn, page_id)  # its first reading: related next
                 source, source_title = got and got.url, got and got.title or None
                 if (
@@ -460,10 +484,10 @@ class Enricher:
                         FILE_TITLE_CAS, {"title": out["title"], "page": page_id}
                     )
                 self.store.reindex(conn, page_id)
-            elif job["reason"] == "ask":
+            elif relates:
                 self._done(conn, jid)  # trashed: nothing to relate
                 return False
-            if job["reason"] != "ask":
+            if not relates:
                 self._done(conn, jid)
             return True
 

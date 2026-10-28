@@ -148,9 +148,11 @@ def related_message(
     images: Sequence[Image] = (),
     writeup: str = "",
     files: Sequence[File] = (),
+    files_most: int = RELATED_FILES,
 ) -> list[dict]:
     """The related call's user turn: the page in brief, with the start of what was
-    read from its images and files and of its write-up, if it has one."""
+    read from its images and files (files_most characters: less unasked, ADR 38) and
+    of its write-up, if it has one."""
     up = writeup.strip()
     up = up if len(up) <= RELATED_WRITEUP else up[: RELATED_WRITEUP - 1] + "…"
     text = "\n".join([
@@ -163,7 +165,7 @@ def related_message(
         quoted(plain(page["body"]).strip()[:RELATED_BODY]) or "(empty)",
         "</page>",
         *image_lines(images, RELATED_IMAGES),
-        *file_lines(files, RELATED_FILES),
+        *file_lines(files, files_most),
         *(["Start of Claude's write-up of it:", "<writeup>", quoted(up), "</writeup>"]
           if up else []),
     ])  # fmt: skip
@@ -181,13 +183,15 @@ def page_message(
     images: Sequence[Image] = (),
     files: Sequence[File] = (),
     want_title: bool = False,
+    files_most: int = MAX_FILES,
 ) -> list[dict[str, Any]]:
     """The user turn: the page (title, kind, tags, its text, what was read from its
     images and files) and for a link what was fetched. keep_text False puts a
     placeholder for the fetched text (as stored: a read keeps its link and summary
     only); what was read from its images and files is stored in full, as its own
     text is. want_title: a page made from a file, with no title of its own, asks for
-    one (FILE_UNTITLED)."""
+    one (FILE_UNTITLED). files_most: the characters of its files' text sent (less
+    unasked than on Ask, ADR 38)."""
     body = quoted(plain(page["body"]).strip()[:MAX_BODY])
     parts = [
         f"Kind: {page['kind']}",
@@ -198,7 +202,7 @@ def page_message(
         body or "(empty)",
         "</page>",
         *image_lines(images, MAX_IMAGES),
-        *file_lines(files, MAX_FILES),
+        *file_lines(files, files_most),
     ]
     if link:
         parts += ["", f"This page is a saved link: {quoted(link)}"]

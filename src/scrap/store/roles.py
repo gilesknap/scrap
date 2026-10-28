@@ -12,7 +12,8 @@ docs/explanations/llm-calls.md (Page roles) matches it row for row:
   page scrap gc made), stored in page.made_by when the page is made (migration 16
   backfilled it from the page's captures and the topic table); and whether Claude has
   edited its text since (a text revision from source mcp);
-- maintainer: enrich (on capture and save) or ingest (photo ingest; enrich on Ask only);
+- maintainer: enrich (on capture and save) or ingest (photo ingest; enrich on Ask
+  only, but once when a file page's files are read, with SCRAP_FILE_ENRICH auto);
 - write-up: board, topic or none;
 - what automation may change: the title (until the first edit), the kind (while
   nobody filed it) and the tags, from the first capture only;
@@ -153,6 +154,21 @@ ENRICHED = (
     + ") AND "
     + NOT_BY_INGEST
 )
+
+
+# A page p made by a file capture (its first: a PDF or text file sent with no photo).
+# With SCRAP_FILE_ENRICH auto, enrich reads it once, sent its files' text, when its
+# first capture's files are read (ADR 38); otherwise on Ask only, as a photo page.
+FILE_FIRST = (
+    "coalesce((SELECT c.kind FROM capture c WHERE c.id = "
+    + FIRST_CAPTURE.format(page="{p}.id")
+    + "), '') = 'file'"
+)
+
+
+def file_first(conn: sqlite3.Connection, page_id: str) -> bool:
+    """Whether a page's first capture is a file capture (FILE_FIRST)."""
+    return _one(conn, FILE_FIRST, page_id)
 
 
 def by_ingest(capture_kind: str) -> bool:

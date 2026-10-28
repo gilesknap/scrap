@@ -9,7 +9,7 @@ from .. import claude
 from ..ingest import PAUSES, notify, pause, resume, spent_today
 from ..store import Store, model_summary, now, transaction, writeups
 from .checking import checked_related, record
-from .constants import RELATED_SCHEMA, STALE
+from .constants import RELATED_FILES, RELATED_SCHEMA, STALE
 from .finding import CANDIDATES
 from .prompts import page_files, page_images, related_message, related_prompt
 from .types import Call
@@ -21,12 +21,14 @@ def relate(
     page_id: str,
     job_id: int | None = None,
     files: bool = False,
+    files_most: int = RELATED_FILES,
 ) -> claude.CallError | None:
     """One related call for a page: Claude picks from its candidates (CANDIDATES) and
     the picks replace its related rows. files: the start of what was read from its
-    files is sent too (on Ask only: a file's text goes to Claude when the owner asks,
-    ADR 35). The run is recorded either way; a failure is returned for the caller to
-    act on (pause, charge or carry on). None: done, or the page is in the trash.
+    files is sent too, files_most characters (on Ask, ADR 35; and on a file page's own
+    reading, with SCRAP_FILE_ENRICH auto, ADR 38: never by the nightly pass). The run
+    is recorded either way; a failure is returned for the caller to act on (pause,
+    charge or carry on). None: done, or the page is in the trash.
     Related shows both ways: a page picked is shown the picker."""
     with store.connect() as conn:
         page = conn.execute(
@@ -44,7 +46,7 @@ def relate(
         up = writeups.shown(conn, page_id)
     system, version = related_prompt(pages)
     messages = related_message(
-        page, tags, summary, images, up["text"] if up else "", read_from
+        page, tags, summary, images, up["text"] if up else "", read_from, files_most
     )
     model, effort = claude.text_model()
     request = {
