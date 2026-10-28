@@ -4,6 +4,7 @@
 import { kept } from "./api";
 import { go } from "./app";
 import { getShrink, setShrink } from "./downscale";
+import { applyText, TEXT_KEY, textSize } from "./textsize";
 import {
   APP_KEY,
   type AppPref,
@@ -103,6 +104,27 @@ export function settings() {
     h(
       "div",
       { className: "fields" },
+      h("h3", { className: "label" }, "Text size"),
+      choice(
+        "text",
+        "Text size",
+        String(textSize()),
+        [
+          ["1", "Default"],
+          ["1.15", "115%"],
+          ["1.3", "130%"],
+          ["1.5", "150%"],
+        ],
+        (v) => {
+          kept(TEXT_KEY, v === "1" ? null : v);
+          applyText();
+        },
+      ),
+      h(
+        "p",
+        { className: "hint" },
+        "Android doesn't give an installed app the phone's font size, so choose it here. Default follows an iPhone's text size.",
+      ),
       h("h3", { className: "label" }, "App theme"),
       choice(
         "theme",

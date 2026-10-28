@@ -13,6 +13,7 @@ import { whenSlow } from "./slow";
 import { today } from "./status";
 import { trailOf } from "./swipe";
 import { KIND_ROW } from "./terms";
+import { applyText } from "./textsize";
 import { clearToasts, h, placeToasts, problem, toast } from "./ui";
 
 const todos = () => import("./todos").then((m) => m.todos(pageRow)); // a lazy chunk
@@ -273,18 +274,12 @@ function dueSoon() {
 }
 addEventListener("scrap:wrote", dueSoon);
 
-// iPhone's text size sets the root (css/base.css), but never under scrap's 17 px: measured again
-// when the app comes back, the setting may have changed meanwhile
-const root = document.documentElement.style;
-const floor = () => {
-  root.fontSize = "";
-  if (parseFloat(getComputedStyle(document.documentElement).fontSize) < 17) root.fontSize = "17px";
-};
-floor();
+// The root font size: Settings' text size, else iPhone's (css/base.css), never under 17 px
+applyText();
 
 // No Background Sync guarantee on Android: flush on open, on reconnect and when shown.
 const flush = () => {
-  floor();
+  applyText();
   void queue.nudge(); // now, not when its backoff says: the user is here
   dueSoon();
   void learnLimit(); // the server's upload limit, kept for offline checks
