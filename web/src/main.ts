@@ -273,8 +273,9 @@ function dueSoon() {
 }
 addEventListener("scrap:wrote", dueSoon);
 
-// iPhone's text size sets the root (css/base.css), but never under scrap's 17 px: measured again
-// when the app comes back, the setting may have changed meanwhile
+// iPhone's text size, or Android's font size (text-scale), sets the root (css/base.css), but
+// never under scrap's 17 px: measured again when the app comes back, the setting may have
+// changed meanwhile
 const root = document.documentElement.style;
 const floor = () => {
   root.fontSize = "";

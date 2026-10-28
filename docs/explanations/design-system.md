@@ -147,7 +147,10 @@ Presses, edges and washes that need a translucent tint mix a token with `transpa
 
 Type: the system UI face (Roboto on Android; `--font`: `system-ui, -apple-system, "Segoe UI",
 Roboto, sans-serif`, and `--mono` for code: `ui-monospace, "SF Mono", Menlo, Consolas,
-monospace`); a 17 px root, so a `rem` is 17 px and `--t-xs` (0.75rem) is 12.75 px. On iPhone the root follows the
+monospace`); a 17 px root, so a `rem` is 17 px and `--t-xs` (0.75rem) is 12.75 px. On Android the
+root follows the phone's font size: `index.html` opts in with `<meta name="text-scale"
+content="scale">` (Chrome 146+; Chrome's page zoom for the font size doesn't reach an installed
+app) and the root is `calc(17px * env(preferred-text-scale, 1))`, so 22.1 px at 130 %. On iPhone the root follows the
 phone's text size, Larger Text too (`font: -apple-system-body`, applied only where
 `-webkit-touch-callout` exists, so iOS and not a Mac), with scrap's own family and line height
 set again after it; a small check in `main.ts` keeps it from going under 17 px (the smaller

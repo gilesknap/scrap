@@ -29,6 +29,9 @@ Jump to: [install](#install-it-on-android), [capture](#capture), [share](#share-
 
 Installing is what puts scrap in the Android **share sheet**.
 
+The app's text follows the phone's **Font size** (Settings, Display), in the installed app as in
+a Chrome tab (Chrome 146 or later), never going below its usual 17 px.
+
 scrap has no login of its own: anyone who can reach its address can use the app, so reach it only
 over your tailnet or behind a proxy that authenticates (see [](../reference/api.md)).
 
