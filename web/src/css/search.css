@@ -136,12 +136,30 @@
   background: transparent;
   color: var(--ink-2);
 }
-/* Open: only its icon says so, in --accent-ink (the active icon), nothing drawn around it, so
-   the box keeps its one clean edge at any text size; filters on: a small --accent dot on the
-   icon's corner, ringed in the box's --surface (no count: the chips under the kinds say them).
-   Its whole 48 px width is the target */
+/* Open: a 36 px disc behind the icon, --accent-soft with a 2 px --accent-ink ring (a shape and a
+   fill, not hue alone), the icon in --accent-ink; the disc is fixed in size so the box keeps its
+   one clean edge at any text size. Filters on: a small --accent dot on the icon's corner,
+   ringed in the box's --surface (no count: the chips under the kinds say them). Its whole 48 px
+   width is the target */
+.field-search .ffield {
+  isolation: isolate;
+}
 .field-search .ffield[aria-expanded="true"] {
   color: var(--accent-ink);
+}
+.field-search .ffield[aria-expanded="true"]::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  top: 50%;
+  inset-inline-start: 50%;
+  width: 36px;
+  height: 36px;
+  translate: -50% -50%;
+  box-sizing: border-box;
+  border: 2px solid var(--accent-ink);
+  border-radius: var(--r-pill);
+  background: var(--accent-soft);
 }
 .field-search .ffield:active {
   transform: none;
