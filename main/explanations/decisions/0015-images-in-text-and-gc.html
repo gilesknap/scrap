@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>15. Images are embedded in the page text; scrap gc is conservative &#8212; scrap 0.17.1.dev5+gef1f89588 documentation</title>
+    <title>15. Images are embedded in the page text; scrap gc is conservative &#8212; scrap 0.17.1.dev6+gaf4455a36 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../../_static/documentation_options.js?v=6fd937de"></script>
+    <script src="../../_static/documentation_options.js?v=650c8cfa"></script>
     <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -547,7 +547,8 @@
 <section id="status">
 <h2>Status<a class="headerlink" href="#status" title="Link to this heading">#</a></h2>
 <p>Accepted; amended by <a class="reference internal" href="0030-trash-purged-after-n-days.html"><span class="std std-doc">30. The trash is purged after N days</span></a>: captures, and their files, are now
-purged with their page once it has been in the trash for N days</p>
+purged with their page once it has been in the trash for N days; amended by #403: a capture’s text
+may place its own uploads (below)</p>
 </section>
 <section id="context">
 <h2>Context<a class="headerlink" href="#context" title="Link to this heading">#</a></h2>
@@ -561,6 +562,12 @@ and shared, so deleting one safely is harder than deleting a row.</p>
 per image. From then on the text is the user’s: ingest never edits it. A line of images becomes
 figures (viewer, Download, Ask Claude); images elsewhere stay inline. Files not embedded (PDFs,
 older pages) are listed under the text. Export points text at the exported files.</p></li>
+<li><p>Amended (#403): a capture’s text may place its own uploads with tokens, <code class="docutils literal notranslate"><span class="pre">⟦image</span> <span class="pre">N⟧</span></code> or
+<code class="docutils literal notranslate"><span class="pre">⟦file</span> <span class="pre">N⟧</span></code> (N the upload’s place in the request), when the request asks (<code class="docutils literal notranslate"><span class="pre">place=1</span></code>, the
+composer’s; other clients’ text is never read for tokens). The server puts that upload’s embed there, or
+for a PDF or text file a <code class="docutils literal notranslate"><span class="pre">[name](/api/blobs/&lt;sha&gt;)</span></code> link (its row is then drawn in place, not
+listed under the text). Uploads with no token are added as before. The phone cannot write the
+address itself: a photo’s bytes, and so its SHA-256, are final only once it is queued.</p></li>
 <li><p>The editor warns on Save when an embed of a stored file is removed, naming how many other pages
 still show it.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">gc</span></code> deletes only files nothing refers to: not any page’s text (the trash’s too, found by
