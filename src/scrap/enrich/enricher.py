@@ -22,33 +22,27 @@ from ..store import (
     MAX_TAGS,
     Store,
     fields_for,
-    file_enrich,
     now,
     queue_related,
     roles,
     transaction,
 )
+from .auto_files import files_sent
 from .checking import checked, record
 from .constants import (
     ASKED_SUMMARY,
-    AUTO_FILES,
-    AUTO_RELATED_FILES,
     CLAIM,
     FILE_TITLE_CAS,
-    MAX_FILES,
     MAX_NEW_TAGS,
     MAX_TITLE,
-    RELATED_FILES,
     SAVE_REREAD,
     SCHEMA,
     SHORT,
     TITLE_CAS,
-    UNTITLED_FILE,
 )
 from .media import site_media
 from .prompts import (
     file_text,
-    page_files,
     page_images,
     page_message,
     system_prompt,
@@ -237,10 +231,7 @@ class Enricher:
                 (page_id,),
             ).fetchone()
             if page is None:  # trashed meanwhile: nothing to do
-                with transaction(conn):
-                    conn.execute(
-                        "UPDATE enrich_job SET state = 'done' WHERE id = ?", (jid,)
-                    )
+                self._skip(conn, jid)
                 return
             tags = [
                 r[0] for r in conn.execute(
@@ -254,24 +245,12 @@ class Enricher:
             ).fetchone()
             link = link and link[0]
             images = page_images(conn, page_id)
-            # A file's text goes to Claude on Ask (ADR 35, #378), and once, less of
-            # it, on a file page's own reading: the capture job file ingest queues
-            # with SCRAP_FILE_ENRICH auto, as no other reaches it (NOT_BY_INGEST)
-            asked = job["reason"] == "ask"
-            auto = job["reason"] == "capture" and roles.file_first(conn, page_id)
-            sent = asked or auto  # the files' text is sent
-            files = page_files(conn, page_id)
-            filed = bool(file_text(files))  # it has some: a re-reading keeps Ask's
-            files = files if sent else []
-            if auto and (file_enrich() != "auto" or len(file_text(files)) < SHORT):
-                with transaction(conn):  # set to ask since, or too little: no call
-                    conn.execute(
-                        "UPDATE enrich_job SET state = 'done' WHERE id = ?", (jid,)
-                    )
+            # A file's text goes to Claude on Ask, less on a file page's own reading
+            asked, sending = job["reason"] == "ask", files_sent(conn, job, page_id)
+            if sending is None:  # a file page's reading with nothing to send
+                self._skip(conn, jid)
                 return
-            untitled = sent and bool(
-                conn.execute(UNTITLED_FILE, {"page": page_id}).fetchone()
-            )
+            files, sent, untitled = sending.files, sending.sent, sending.untitled
             vocab = {t for t, _ in vocabulary(conn)}
             system, version = system_prompt(conn)
         got, failed = None, None
@@ -291,9 +270,8 @@ class Enricher:
         # a page made from a file, with no title of its own: one from its text (#378)
         want_title = not link and untitled and bool(read)
         args = (page, tags, link, got, failed, want_summary)
-        most = MAX_FILES if asked else AUTO_FILES
         extra = {"images": images, "files": files, "want_title": want_title,
-                 "files_most": most}  # fmt: skip
+                 "files_most": sending.most}  # fmt: skip
         messages = page_message(*args, **extra)
         stored = page_message(*args, False, **extra)
         model, effort = claude.text_model()
@@ -321,8 +299,7 @@ class Enricher:
         except claude.CallError as error:
             self.failed(jid, run_id, error)
             return
-        keep = filed and not sent
-        if not self.succeeded(job, run_id, done, out, link, got, keep, sent):
+        if not self.succeeded(job, run_id, done, out, link, got, sending.keep, sent):
             return
         items = [(i["text"], i["done"]) for i in out["items"]]
         # never from a file's text (a stranger's, maybe invisible in the PDF: ADR 35)
@@ -331,22 +308,23 @@ class Enricher:
         ):
             # as the page was read: an edit since wins (a revision of Claude's own)
             actions.append(self.store, page_id, page["rev"], items)
-        if sent:  # Ask Claude: a board's write-up, related pages too; a file page's
-            # own reading: its first related call (ADR 38), sent less of its files
-            # A retry (related failed) does not write it up again: done in this job
+        if sent:  # Ask: a board's write-up, related pages too; a file page's reading:
+            # related. A retry (related failed) does not write it up again
             error = (
                 None
                 if not asked or self._written(jid)
                 else write_up(self.store, self.call, page_id, jid)
-            ) or relate(
-                self.store, self.call, page_id, jid, True,
-                RELATED_FILES if asked else AUTO_RELATED_FILES,
-            )  # fmt: skip
+            ) or relate(self.store, self.call, page_id, jid, True, sending.related_most)
             if error is not None:
                 self._job_failed(jid, error)
                 return
         with self.store.connect() as conn, transaction(conn):
             self._done(conn, jid)
+
+    def _skip(self, conn: sqlite3.Connection, jid: int) -> None:
+        """A job finished with no call (its page trashed, or nothing to send)."""
+        with transaction(conn):
+            conn.execute("UPDATE enrich_job SET state = 'done' WHERE id = ?", (jid,))
 
     def _written(self, jid: int) -> bool:
         """Whether this job has made a write-up already (an earlier try of it)."""
@@ -406,10 +384,9 @@ class Enricher:
         relates: bool = False,
     ) -> bool:
         """Apply what Claude added; whether the job is still this worker's (else it
-        was given back at shutdown, and runs again). relates: an Ask's job, or a file
-        page's own reading (ADR 38), is finished by the caller, after its related
-        pages. keep_summary: a re-reading of a page with files' text that was not sent
-        it keeps a summary an Ask made (#378)."""
+        was given back at shutdown, and runs again). relates: the caller finishes the
+        job, after its related pages (Ask, a file page's reading). keep_summary: a
+        re-reading not sent its files' text keeps a summary an Ask made (#378)."""
         jid, page_id = job["id"], job["page_id"]
         producer = done.served_model
         with self.store.connect() as conn, transaction(conn):

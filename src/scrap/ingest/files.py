@@ -175,7 +175,7 @@ def process(store: Store, job: sqlite3.Row, mime: str) -> None:
             elif _running(conn, job["id"]):
                 charge(conn, job["id"], cls, now(), message)
             # the capture's other files may have been read: its page's enrich
-            queue_after_file(conn, job["capture_id"])
+            queue_after_file(conn, job["capture_id"], job["id"])
 
 
 def _running(conn: sqlite3.Connection, job_id: int) -> bool:
@@ -220,4 +220,4 @@ def _process(store: Store, job: sqlite3.Row, mime: str) -> None:
             " WHERE id = ?",
             (stamp, jid),
         )
-        queue_after_file(conn, cid)  # a file page read: its enrich (ADR 38)
+        queue_after_file(conn, cid, jid)  # a file page read: its enrich (ADR 38)

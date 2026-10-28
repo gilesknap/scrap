@@ -204,8 +204,10 @@ over MCP: `read` gives its text.
   200 characters were read from them and the page has no enrichment yet. That job, not the
   file's, waits out a pause and the budget. A file that cannot be read (dead) sends nothing of
   its own, though the capture's other files' text still goes; a scan or a short text is not
-  sent. A file read before this, or with `ask`, is not sent later unless a **Reprocess** reads
-  it again on a page with no enrichment.
+  sent. Only the capture's own file jobs count (`job.created_at` is its `received_at`): a
+  **Reprocess** or **Retry** reads a file again but never sends it, so a file read before this,
+  with `ask`, or after a failure, is sent only by **Ask Claude** (no backfill). The job makes no
+  call if another job (an Ask) enriched the page meanwhile, or the setting has become `ask`.
 
 (ingest-call)=
 ## The Claude call
@@ -1036,6 +1038,7 @@ and pauses at the budget each day.
 | `/healthz` returns 503 | The ingest thread has died | Read the logs and restart |
 | A note or link is never tagged | `SCRAP_ENRICH=off`, ingest off, the page is still inside the debounce, or photo jobs are queued ahead of it (text runs only when no photo job is ready) | Check the settings and `GET /api/ingest`; **Ask Claude** queues it now, but still behind ready photos |
 | A saved link has no summary or a poor title | The page could not be fetched or the site blocked scrap, so Claude had only the address and the user's text; the PWA does not show this | Read the reason ({ref}`ingest-inspect`, and the table in {ref}`ingest-fetch`); **Ask Claude** fetches the link again |
+| A PDF or text file page never gets a summary | `SCRAP_FILE_ENRICH=ask`; ingest or enrich off; under 200 characters read; a scan (no text layer) or a file that could not be read; the file was added to a page that existed (not its first capture); an import; the page was made before this was added, or its file read with `ask` on; or the file was read only by a **Reprocess** or **Retry** | **Ask Claude** on the page |
 | `scrap enrich --related` prints a note and does nothing | Ingest or enrich is off, or `ANTHROPIC_API_KEY` is not in the command's environment | Run it in the container (`podman exec scrap ...`) |
 
 ## Risks

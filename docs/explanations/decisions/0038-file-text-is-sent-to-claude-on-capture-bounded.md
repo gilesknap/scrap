@@ -29,8 +29,13 @@ go to Claude whole on capture. Prompt injection from a stranger's PDF was alread
   photo, `roles.FILE_FIRST`), not an import, the page has no enrichment yet and at least 200
   characters were read from that capture's files, the page gets an enrich job (reason `capture`).
   A file added later to any page queues nothing, so a typed page with a PDF added behaves as
-  before. Only new reads trigger it: a file read before this change, or while the setting was
-  `ask`, stays Ask only (no backfill).
+  before. Only the capture's own file jobs trigger it (those made with it, in its transaction:
+  `job.created_at` is the capture's `received_at`; a charged failure retried is the same job).
+  A job **Reprocess** or **Retry** queues later never does, so a file read before this change,
+  or while the setting was `ask`, or that failed and was retried, stays Ask only (no backfill).
+- **Once.** The job makes no call when the page has an enrichment another job made (an Ask that
+  ran meanwhile wins and is not sent again), when the setting has become `ask`, or when under 200
+  characters are left to send.
 - **What is sent.** Text, never the file: at most the first 4,000 characters of the page's files'
   text to enrich and 1,500 to its first related call, which runs in the same job (Ask keeps its
   8,000 and 3,000). The limits are constants (`enrich.AUTO_FILES`, `enrich.AUTO_RELATED_FILES`).
@@ -64,5 +69,11 @@ go to Claude whole on capture. Prompt injection from a stranger's PDF was alread
 - A long document is summarised from its first 4,000 characters (about three pages); Ask reads
   twice as much.
 - A scan, a password-protected, corrupt or over-30 MB file is not read, so nothing is sent: it
-  stays dead with its reason and **Reprocess**. **Reprocess** of a file on a page that has no
-  enrichment yet counts as a new read, so with `auto` it then queues the page's enrich.
+  stays dead with its reason and **Reprocess**. A Reprocess that then reads it sends nothing:
+  **Ask Claude** does.
+- If its related call fails with a charged error, the retry sends the enrich call (with the same
+  4,000 characters) again before related, as Ask's retry does.
+- Known limitation: one enrich job is queued per page, and a write-up queued at the same time
+  takes over a queued file page reading (or keeps its place against one), so that page gets no
+  automatic summary; **Ask Claude** gives one. It needs a photo read as a board added to a file
+  page while its files are being read.

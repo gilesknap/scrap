@@ -11,7 +11,7 @@ import pytest
 
 from scrap import enrich, ingest
 from scrap.ingest import FAR, files
-from scrap.store import Store, connect, new_ulid
+from scrap.store import Store, connect, new_ulid, queue_enrich, transaction
 from test_enrich import Fake, answer, capture, run_all, user_turn, worker
 from test_enrich_files import READ, attach, by_schema, files_block
 from test_files import encrypted, pdf
@@ -323,3 +323,82 @@ def test_a_capture_with_one_unreadable_file_is_sent_the_others(store):
     assert [s for s, _ in file_jobs(store)] == ["dead", "done"]
     assert "File 2 (b.pdf)" in files_block(user_turn(by_schema(fake, enrich.SCHEMA)[0]))
     assert store.page(page_id)["title"] == "Larch cladding"
+
+
+def reprocess(store, page_id) -> None:
+    capture_id = store.page(page_id)["captures"][0]["id"]
+    assert ingest.reprocess(store, capture_id, None, False)["queued"] == 1
+
+
+@pytest.mark.parametrize("mode", ["ask", "auto"])
+def test_reprocess_of_a_file_page_read_before_sends_nothing(store, monkeypatch, mode):
+    """No backfill: a Reprocess reads the file again, but only a capture's own job
+    sends it (Ask covers the rest)."""
+    monkeypatch.setenv("SCRAP_FILE_ENRICH", "ask")
+    page_id = attach(store, READ.encode(), "text/plain", "a.txt")
+    run_all(worker(store, Fake(GUIDE)))
+    monkeypatch.setenv("SCRAP_FILE_ENRICH", mode)
+    reprocess(store, page_id)
+    fake = Fake(GUIDE)
+    run_all(worker(store, fake))
+    assert [s for s, _ in file_jobs(store)] == ["done", "done"]
+    assert fake.calls == [] and enrich_jobs(store) == []
+
+
+def test_a_retry_of_a_failed_file_sends_nothing(store, monkeypatch):
+    real = files.read
+
+    def unreadable(path, kind):
+        raise files.FileError("content", "the PDF could not be read")
+
+    monkeypatch.setattr(files, "read", unreadable)
+    page_id = attach(store, pdf(READ), "application/pdf", "a.pdf")
+    run_all(worker(store, Fake(GUIDE)))
+    assert file_jobs(store) == [("dead", "content: the PDF could not be read")]
+    monkeypatch.setattr(files, "read", real)
+    reprocess(store, page_id)  # the Retry: now it reads
+    fake = Fake(GUIDE)
+    run_all(worker(store, fake))
+    assert [s for s, _ in file_jobs(store)] == ["dead", "done"]
+    assert fake.calls == [] and enrich_jobs(store) == []
+
+
+def test_a_retried_reading_keeps_the_unasked_limits(store):
+    attach(store, ("cladding " * 60_000).encode(), "text/plain", "x.txt")
+    failed = []
+
+    def out(system, messages):
+        if "## Other pages" in system and not failed:
+            failed.append(1)
+            return {"nope": 1}  # invalid: the job is retried at once
+        return GUIDE
+
+    fake = Fake(out)
+    run_all(worker(store, fake))
+    enriches = by_schema(fake, enrich.SCHEMA)
+    related = by_schema(fake, enrich.RELATED_SCHEMA)
+    assert len(enriches) == 2 and len(related) == 2  # the retry reads it again
+    assert {len(files_block(user_turn(c))) for c in enriches} == {enrich.AUTO_FILES}
+    assert {len(files_block(user_turn(c))) for c in related} == {
+        enrich.AUTO_RELATED_FILES
+    }
+    assert enrich_jobs(store) == [("capture", "done")]
+
+
+def test_a_page_enriched_meanwhile_is_not_sent_again(store, monkeypatch):
+    """An Ask that ran first (its job made the page's enrichment) wins: the file
+    page's own reading, queued too, makes no call."""
+    monkeypatch.setenv("SCRAP_FILE_ENRICH", "ask")
+    page_id = attach(store, READ.encode(), "text/plain", "a.txt")
+    run_all(worker(store, Fake(GUIDE)))
+    enrich.ask(store, page_id)
+    run_all(worker(store, Fake(answer(["diy"], "Asked.", "Asked title"))))
+    monkeypatch.setenv("SCRAP_FILE_ENRICH", "auto")
+    with closing(connect(store.db)) as conn, transaction(conn):
+        queue_enrich(conn, page_id, "capture")
+    fake = Fake(GUIDE)
+    run_all(worker(store, fake))
+    assert fake.calls == []
+    assert enrich_jobs(store)[-1] == ("capture", "done")
+    page = store.page(page_id)
+    assert (page["title"], page["enrich"]["summary"]) == ("Asked title", "Asked.")
