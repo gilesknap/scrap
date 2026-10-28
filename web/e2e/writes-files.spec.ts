@@ -106,7 +106,8 @@ test("the editor's File puts PDFs in the text, each a row with its card", async 
     const link = row(page, f.name).locator("a.file");
     await expect(link).toHaveAttribute("href", /^\/api\/blobs\/[0-9a-f]{64}$/);
     await expect(link).toHaveAttribute("target", "_blank");
-    await expect(row(page, f.name).getByRole("link", { name: "Download" })).toBeVisible();
+    // The file's own link opens it, and the viewer saves it: no Download under the row
+    await expect(row(page, f.name).getByRole("link", { name: "Download" })).toHaveCount(0);
     await expect(card(page, f.name).locator(".state")).toHaveText("Waiting to be read");
   }
   await expect(page.locator(".file-panel .did")).toHaveCount(0);
@@ -117,7 +118,10 @@ test("the editor's File puts PDFs in the text, each a row with its card", async 
   const args = ["run", "--locked", "python", "web/e2e/readfiles.py", data, ref.page_id];
   expect(execFileSync("uv", args, { cwd: "..", encoding: "utf8" }).trim()).toBe("3");
   await page.reload();
-  await expect(page.locator(".file-panel .state")).toHaveCount(0);
+  // Only the failed read keeps its state pill, with the Retry beside it
+  await expect(page.locator(".file-panel .state")).toHaveCount(1);
+  await expect(card(page, "broken.pdf").locator(".state")).toContainText("Couldn't read it");
+  await expect(card(page, "broken.pdf").getByRole("button", { name: "Retry" })).toBeVisible();
   await expect(card(page, "minutes.pdf").locator(".did")).toHaveText("2 pages · Searchable");
   const unread = "Text couldn't be read; not searchable";
   await expect(card(page, "blank.pdf").locator(".did")).toHaveText(`1 page · ${unread}`);
