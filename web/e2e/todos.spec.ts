@@ -472,6 +472,9 @@ test("Pick a date… says the chosen day and is the selected chip", async ({ pag
   await expect(pick).toHaveAttribute("aria-pressed", "true");
   await expect(due.getByRole("button", { name: "Today" })).toHaveAttribute("aria-pressed", "false");
   await page.locator(".editor > .bar").getByRole("button", { name: "Save" }).click();
+  // Saved once the editor closes: it goes only when the server has answered the save. (The
+  // page's Edit shows under the open editor all along, so it says nothing of the save.)
+  await expect(page.locator(".editor")).toHaveCount(0);
   await expect(page.locator(".page > .tools").getByRole("button", { name: "Edit" })).toBeVisible();
   expect((await (await page.request.get(`/api/pages/${t.page_id}`)).json()).due).toBe(chosen);
 });
