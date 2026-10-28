@@ -27,12 +27,12 @@
     ], "order": ["over", "today", "tomorrow", "week2", "week", "later", "none", "closed"]},
     {"group": "now", "pages": [
       {"title": "open", "kind": "todo"},
-      {"title": "asleep", "kind": "todo", "snoozed_until": "2026-10-30"},
+      {"title": "asleep", "kind": "todo"},
       {"title": "high", "kind": "todo", "priority": "high"},
       {"title": "closed", "kind": "todo", "fields": {"status": "cancelled"}},
       {"title": "today", "kind": "todo", "due": "2026-10-21"},
       {"title": "over", "kind": "todo", "due": "2026-10-02"},
-      {"title": "woke", "kind": "todo", "snoozed_until": "2026-10-21"}
-    ], "order": ["over", "today", "high", "open", "woke", "asleep", "closed"]}
+      {"title": "woke", "kind": "todo"}
+    ], "order": ["over", "today", "high", "open", "asleep", "woke", "closed"]}
   ]
 }

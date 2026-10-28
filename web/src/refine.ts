@@ -8,12 +8,12 @@
 // All of it only edits the query's text (tag:tech, is:personal), so it can be typed too, and
 // Back, a reload or a link keep it. In the app chunk of its own (search.ts loads it with the
 // screen; the service worker keeps it offline).
-import { api } from "./api";
+import { api, kept } from "./api";
 import { checkName } from "./checks";
 import { day, unsorted } from "./filters";
 import { icon } from "./icons";
 import { actions, offerNew } from "./searchacts";
-import { fullLabel } from "./taglabel";
+import { tagLabel } from "./taglabel";
 import { matching } from "./tagname";
 import { offerRow } from "./tagpick";
 import { MEDIA, removing, withGroup } from "./termedit";
@@ -51,6 +51,8 @@ const chip = (label: Node | string, n: number | null, onclick: () => void, on = 
     n === null ? icon("close") : n >= 0 && h("small", {}, String(n)),
   );
 
+const ARRANGE = "scrap.fold.arrange"; // the Filters panel's Arrange, open or folded
+
 const NONE: Facets = {
   total: 0,
   kinds: [],
@@ -74,7 +76,8 @@ const shown = (q: string, n: number) => {
 
 let open = false; // the panel, open or folded: kept while the app is (the next search too)
 let typed = ""; // what is in its tag box, kept as the panel is drawn again
-let allTags: Promise<[string, number][]> | null = null; // every tag in use, asked once
+// every tag in use, asked once: [tag, pages under it, pages with that very tag]
+let allTags: Promise<[string, number, number][]> | null = null;
 let inResults: { q: string; tags: Promise<[string, number][]> } | null = null; // a search's
 
 // Orders: [sort: as typed, label]; "" is the default (best match, or newest edit first)
@@ -116,7 +119,6 @@ const grouped = (q: string) => {
 // is: values in words: the rest are statuses, said as they are ("done", "in progress")
 const IS: Record<string, string> = {
   claude: "Written by Claude",
-  snoozed: "snoozed",
   topic: "topics",
 };
 
@@ -170,6 +172,7 @@ export async function refine(
   button.setAttribute("aria-label", n ? `Filters, ${n} on` : "Filters");
   button.setAttribute("aria-controls", "fpanel");
   button.setAttribute("aria-expanded", String(open));
+  button.classList.toggle("on", n > 0); // a dot on its icon: filters are on
   button.onclick = () => {
     open = !open;
     panel.hidden = !open;
@@ -188,11 +191,9 @@ export async function refine(
     );
   // The filters on, as chips on a row of their own under the kinds, wrapping (none: no row):
   // each says what it is ("#home", "past month") and a tap takes it off
-  // A tag filter in full ("#tech/epics/thoth"): what the search is about, and only one or two,
-  // so not shortened as the Tags row's offers are; it breaks after a "/" when it must
+  // A tag filter in full ("#tech/epics/thoth"), as everywhere: it breaks after a "/" when it must
   const chips = on.map((a) => {
-    const said =
-      a.key === "tag" ? h("span", {}, a.neg ? "not " : "", fullLabel(a.value)) : label(a);
+    const said = a.key === "tag" ? h("span", {}, a.neg ? "not " : "", tagLabel(a.value)) : label(a);
     const b = chip(said, null, () => apply((now) => removing(now, a.token)), true);
     b.setAttribute("aria-label", `Remove ${label(a)}`);
     b.dataset.k = `off:${a.token}`;
@@ -233,11 +234,12 @@ function rows(q: string, f: Facets, apply: (edit: Edit) => void): HTMLElement[] 
     b.dataset.k = label;
     return b;
   };
-  // A row: its heading above, its chips under it, wrapping (nothing scrolls out of sight)
+  // A row: its heading, its chips on the same line after it, wrapping (nothing scrolls out of
+  // sight)
   const row = (label: string, ...kids: (Node | false | null)[]) =>
     h(
       "div",
-      { className: "frow", role: "group", "aria-label": label },
+      { className: "frow inline", role: "group", "aria-label": label },
       h("span", { className: "flabel" }, label),
       h("div", { className: "opts" }, ...kids),
     );
@@ -255,6 +257,7 @@ function rows(q: string, f: Facets, apply: (edit: Edit) => void): HTMLElement[] 
   const asked = f.active.filter((a) => a.key === "tag" && !a.neg).map((a) => a.value);
   const box = h("input", {
     type: "text",
+    className: "chipfield",
     value: typed,
     placeholder: "Add a tag",
     "aria-label": "Add a tag filter",
@@ -279,17 +282,13 @@ function rows(q: string, f: Facets, apply: (edit: Edit) => void): HTMLElement[] 
     // Only tags that narrow what is found: with a search, those of its results (each on some
     // of them, not all), with how many; before one, every tag in use
     // Asked for only when needed (a failure is not kept: the next try asks again)
-    const source = (): Promise<[string, number][]> => {
-      if (!q) {
-        allTags ??= api<[string, number, number][]>("tags").then(
-          (all) => all.map(([t, n]) => [t, n] as [string, number]),
-          () => {
-            allTags = null;
-            return [];
-          },
-        );
-        return allTags;
-      }
+    const every = () =>
+      (allTags ??= api<[string, number, number][]>("tags").catch(() => {
+        allTags = null;
+        return [];
+      }));
+    const source = async (): Promise<[string, number][]> => {
+      if (!q) return (await every()).map(([t, n]) => [t, n]);
       if (inResults?.q !== q) {
         const ask = {
           q,
@@ -307,11 +306,18 @@ function rows(q: string, f: Facets, apply: (edit: Edit) => void): HTMLElement[] 
     };
     let list: [string, number][];
     // Nothing typed: the results' top tags (the facets already here); with no search yet,
-    // the most used of all. Typed: every tag of the results (top=1000), fetched only now.
-    // At most 8, those of them that fit in two rows (tagpick.ts)
+    // the tags most pages were given, in full (kind/reference, not the parent kind, which
+    // narrows little), counted by the pages with that very tag. Typed: every tag of the
+    // results (top=1000), fetched only now. At most 8, those of them that fit in two rows
+    // (tagpick.ts)
     if (!want)
       list = (
-        q ? f.tags : (await source()).filter(([t]) => !t.includes("/")).sort((a, b) => b[1] - a[1])
+        q
+          ? f.tags
+          : (await every())
+              .filter((r) => r[2] > 0)
+              .sort((a, b) => b[2] - a[2])
+              .map(([t, , n]): [string, number] => [t, n])
       ).slice(0, 8);
     else {
       const all = (await source()).filter(([t]) => !asked.includes(t));
@@ -321,7 +327,6 @@ function rows(q: string, f: Facets, apply: (edit: Edit) => void): HTMLElement[] 
     offers.el.setAttribute("aria-label", want ? "Matching tags" : "Tags in these results");
     // None to offer: say why, rather than an empty row
     offers.show(list, "Filter by", (t) => addTag(t), {
-      also: asked,
       note: list.length
         ? undefined
         : want
@@ -438,15 +443,33 @@ function rows(q: string, f: Facets, apply: (edit: Edit) => void): HTMLElement[] 
       return b;
     });
 
-  // Tags and When choose what is found; Arrange, how it is laid out: Order and Group, each
-  // with its sub-label on its line (no Arrange heading over them: the panel stays short
-  // enough for the results to show under it at a large text size)
-  const arrange = h(
-    "div",
-    { className: "frow", role: "group", "aria-label": "Arrange" },
-    line("Order", ...orders),
-    line("Group", ...groups),
+  // Tags and When choose what is found; Arrange, how it is laid out, is folded to one line
+  // saying what is chosen ("Arrange · Last edited · None"), so the panel stays short enough for
+  // the results to show under it at a large text size; open, Order and Group, each with its
+  // sub-label on its line. Folded or open as last left, on this device
+  const chosen = (bs: HTMLElement[]) =>
+    bs.find((b) => b.getAttribute("aria-pressed") === "true")?.textContent ?? "";
+  const says = [chosen(orders), chosen(groups)].filter(Boolean).join(" · ");
+  const head = h(
+    "summary",
+    {},
+    h("span", { className: "flabel" }, "Arrange"),
+    h("span", { className: "says" }, says),
   );
+  head.dataset.k = "arrange";
+  const arrange = h(
+    "details",
+    { className: "frow farrange", open: kept(ARRANGE) === "open" },
+    head,
+    h(
+      "div",
+      { role: "group", "aria-label": "Arrange" },
+      line("Order", ...orders),
+      line("Group", ...groups),
+    ),
+  );
+  // Remembered as it is tapped, not on toggle (a redraw in between would lose it)
+  head.onclick = () => kept(ARRANGE, arrange.open ? null : "open");
   return [
     tags,
     row(

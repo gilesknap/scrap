@@ -24,6 +24,7 @@ const api = async (page: Page, id: string) =>
   (await (await page.request.get(`/api/pages/${id}`)).json()) as {
     due: string | null;
     priority: string | null;
+    rev: number;
   };
 const hits = (page: Page) => page.locator(".list li a strong");
 const rowOf = (page: Page, title: string) => page.locator(".list li").filter({ hasText: title });
@@ -90,29 +91,36 @@ test("a todo search: its orders in Filters, and due: typed (no due views there)"
   expect(await box.inputValue()).toBe("numbat kind:todo due:>today -is:done");
 });
 
-test("due date and priority are set and cleared on a todo's page", async ({ page }) => {
+/** The page editor's top bar: its Cancel and Save. */
+const bar = (page: Page) => page.locator(".editor > .bar");
+
+test("the due chip opens the editor at its Due fold, where they are set and cleared", async ({
+  page,
+}) => {
   await page.goto(`/p/${made.none.slug}`);
   const line = page.locator(".page .tags .duechip");
   await expect(line).toHaveText("medium");
+  const rev = (await api(page, made.none.page_id)).rev;
   await line.click();
   const due = page.getByLabel("Due", { exact: true });
   // Focus on the due chip pressed (none set: No date); the date field is Pick a date…'s
   await expect(page.getByRole("button", { name: "No date" })).toBeFocused();
   await due.fill(day(-1));
   await page.getByRole("combobox", { name: "Priority" }).selectOption("high");
-  await page.getByRole("button", { name: "Save" }).click();
+  await bar(page).getByRole("button", { name: "Save" }).click();
+  await expect(page.locator(".editor")).toHaveCount(0);
   await expect(line).toHaveText(/^overdue .+ · high$/);
-  await expect(line).toBeFocused(); // back where it was
-  expect(await api(page, made.none.page_id)).toMatchObject({ due: day(-1), priority: "high" });
+  // Only its due date and priority changed: no new text revision
+  expect(await api(page, made.none.page_id)).toMatchObject({ due: day(-1), priority: "high", rev });
   await line.click();
   await page.getByRole("button", { name: "No date" }).click();
   await page.getByRole("combobox", { name: "Priority" }).selectOption("");
-  await page.getByRole("button", { name: "Save" }).click();
+  await bar(page).getByRole("button", { name: "Save" }).click();
   await expect(line).toHaveText("Add due date");
   expect(await api(page, made.none.page_id)).toMatchObject({ due: null, priority: null });
   await line.click();
-  await page.getByRole("button", { name: "Cancel" }).click();
-  await expect(line).toBeFocused();
+  await bar(page).getByRole("button", { name: "Cancel" }).click();
+  await expect(page.locator(".editor")).toHaveCount(0);
   // Not a todo: no due chip
   const note = await page.request.post("/api/captures", {
     data: { id: "01E2ETDNTE".padEnd(26, "0"), text: "Numbat note" },
@@ -152,13 +160,13 @@ test("Today, Tomorrow and Next week set the due date in one tap; Pick a date… 
   await expect(due).toHaveValue("");
   await expect.poll(pressed).toEqual(["No date"]);
   await chips.getByRole("button", { name: "Today" }).click();
-  await page.getByRole("button", { name: "Save" }).click();
+  await bar(page).getByRole("button", { name: "Save" }).click();
   await expect(line).toHaveText("today");
   expect(await api(page, made.soon.page_id)).toMatchObject({ due: day(0) });
   // Opened again on today: Today pressed
   await line.click();
   await expect.poll(pressed).toEqual(["Today"]);
-  await page.getByRole("button", { name: "Cancel" }).click();
+  await bar(page).getByRole("button", { name: "Cancel" }).click();
   await page.request.patch(`/api/pages/${made.soon.page_id}`, { data: { due: day(5) } });
 });
 
@@ -222,6 +230,8 @@ test("the todo views meet AA contrast, in both themes", async ({ page }) => {
       .getByRole("button", { name: "Today" })
       .click();
     expect(await page.evaluate(lowContrast, ""), `${colorScheme} form`).toEqual([]);
+    page.once("dialog", (d) => d.accept()); // (Today changed it: discard)
+    await bar(page).getByRole("button", { name: "Cancel" }).click();
     await page.goto(`/p/${made.done.slug}`);
     await expect(page.locator(".page .duechip")).toBeVisible();
     expect(await page.evaluate(lowContrast, ""), `${colorScheme} done page`).toEqual([]);

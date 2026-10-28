@@ -39,8 +39,6 @@ const busy = (p: Page) =>
   );
 const ingestOf = (p: Page) => JSON.stringify(p.captures.map((c) => c.blobs.map((b) => b.ingest)));
 
-const JSON_TYPE = { "Content-Type": "application/json" };
-
 /** The text as the page shows it: its first line left blank when it only says the title
  * again (a short todo's text, or a "# Heading" that became the title), so it isn't said
  * twice. Blank, not cut: task boxes are found by their line (tasks.ts), so lines keep their
@@ -132,13 +130,6 @@ export async function page(key: string, signal: AbortSignal): Promise<Node> {
     ]);
   };
   await load(p);
-  // Its tags being edited in place: kept as they are (what is typed, chips taken off) when
-  // the page is drawn again meanwhile, e.g. a photo's reading state changing
-  let tagForm: HTMLFormElement | null = null;
-  let todoForm: HTMLFormElement | null = null; // its due date and priority, likewise
-  // While a form is open, its Cancel and Save are the action row (the latest form's, when both
-  // are): always in view, however tall the form
-  let acts: HTMLElement[][] = [];
   const show = (p: Page) => {
     shown = p;
     drawn++;
@@ -158,16 +149,15 @@ export async function page(key: string, signal: AbortSignal): Promise<Node> {
         () => {},
       );
     const files = figs ? figs.figures(body, p, queue, () => void refresh()) : links(p);
-    const typing = !!tagForm?.contains(document.activeElement);
     const saved = download(`/api/pages/${p.id}/download`); // the page as a file
     const menus = "showPopover" in HTMLElement.prototype; // Share's menu can hold Download
     root.replaceChildren(
       h("h1", { dir: "auto" }, p.title),
       // What it is and when, one quiet line or two; then one row of chips: a todo's due chip
-      // (opens the due editor, under the row) and its tags (each a search; + changes them)
+      // (a tap opens the editor at its Due fold) and its tags (each a search). Read only: its
+      // tags and due date are changed in the editor (Edit)
       ...headLines(p),
-      tagForm ?? chipRow(p, { tags: tagEdit, due: (e) => void todoEdit(e), dueOpen: !!todoForm }),
-      todoForm ?? "",
+      chipRow(p, () => void edit(p, false, true)) ?? "",
       // The header's end: one hairline between it and the body
       h("hr", { className: "headend", "aria-hidden": "true" }),
       body,
@@ -189,12 +179,11 @@ export async function page(key: string, signal: AbortSignal): Promise<Node> {
       // One Claude card for the page, at its end: its summary, a board's write-up, related pages
       enr?.enrichPanel(p, show, wr?.writeupParts(p, show) ?? null) ?? "",
       h("div", { className: "originals" }, ...files),
-      h("div", { className: "bar tools" }, ...(acts.at(-1) ?? tools(p, saved, menus))),
+      h("div", { className: "bar tools" }, ...tools(p, saved, menus)),
     );
-    if (typing) tagForm?.querySelector("input")?.focus();
   };
 
-  // The page's actions, while no form is open
+  // The page's actions
   const tools = (p: Page, saved: HTMLElement, menus: boolean) => [
     // A todo or a Later leads with Mark done (the page's hero), or Reopen once done or
     // cancelled
@@ -225,93 +214,12 @@ export async function page(key: string, signal: AbortSignal): Promise<Node> {
   ];
 
   // The editor, with its draft if one was kept: a chunk of its own (pageedit.ts, with editor.ts)
-  // row: from a list's row (not where the view is read)
-  async function edit(p: Page, row = false) {
+  // row: from a list's row (not where the view is read); due: from the due chip, its Due fold
+  // open and focused
+  async function edit(p: Page, row = false, due = false) {
     const mod = await import("./pageedit").catch(() => null);
     if (!mod) return toast("Can't open the editor: reload scrap and try again");
-    await mod.edit(p, load, show, row);
-  }
-
-  // Its tags edited in place of their line: no new revision (a chunk of its own)
-  async function tagEdit(e: Event) {
-    const line = (e.currentTarget as HTMLElement).closest(".tags") as HTMLElement;
-    const mod = await import("./tagedit").catch(() => null);
-    if (!mod) return toast("Can't edit tags offline");
-    const p = shown; // as it is now
-    const field = mod.tagField(p.tags, undefined, p.model_tags);
-    // Its Cancel and Save are the action row's while it is open; Save is the form's (its form
-    // attribute), so Enter still sends it
-    const save = h("button", { type: "submit", className: "primary" }, icon("done"), "Save");
-    save.setAttribute("form", "tagform");
-    const cancel = h("button", { onclick: () => close(shown) }, icon("close"), "Cancel");
-    for (const b of [cancel, save])
-      b.addEventListener("keydown", (e) => {
-        if (e.key === "Escape") close(shown); // from the action row too
-      });
-    const mine = [cancel, save];
-    // Closed (saved or not): the page as it is now, focus back on its Tags button
-    const close = (to: Page) => {
-      tagForm = null;
-      acts = acts.filter((a) => a !== mine);
-      show(to);
-      root.querySelector<HTMLElement>(".tags .add")?.focus();
-    };
-    const form = h(
-      "form",
-      {
-        id: "tagform",
-        className: "tagform",
-        onkeydown: (e: KeyboardEvent) => {
-          if (e.key === "Escape") close(shown);
-        },
-        onsubmit: (e: Event) => {
-          e.preventDefault();
-          save.disabled = true;
-          api<Page>(`pages/${p.id}`, {
-            method: "PATCH",
-            headers: JSON_TYPE,
-            // What it was shown: a tag Claude adds meanwhile is kept, not taken off
-            body: JSON.stringify({ tags: field.value(), tags_shown: p.tags }),
-          }).then(close, (err) => {
-            save.disabled = false;
-            toast(`Not saved: ${why(err)}`);
-          });
-        },
-      },
-      field.el,
-    );
-    tagForm = form;
-    acts.push(mine);
-    // The due chip stays (it is not a tag); the tags and + give way to the form under the row
-    const chip = line.querySelector(".duechip");
-    if (chip) {
-      for (const c of [...line.children]) if (c !== chip) c.remove();
-      line.after(form);
-    } else line.replaceWith(form);
-    root.querySelector(":scope > .tools")?.replaceChildren(...mine);
-    field.input.focus();
-  }
-
-  // A todo's due date and priority, changed in place of their line: no new revision
-  async function todoEdit(e: Event) {
-    const chip = e.currentTarget as HTMLElement;
-    const row = chip.parentElement as HTMLElement;
-    const mod = await import("./todoedit").catch(() => null);
-    if (!mod) return toast("Can't change it offline");
-    // Saved: the page as saved; cancelled: as it is now (it may have changed meanwhile)
-    const due = mod.todoForm(shown, (to) => {
-      todoForm = null;
-      acts = acts.filter((a) => a !== due.acts);
-      show(to ?? shown);
-      // The chip may be gone (a closed todo saved with no date or priority): then the +
-      root.querySelector<HTMLElement>(".tags > .duechip, .tags .add")?.focus();
-    });
-    todoForm = due.form;
-    acts.push(due.acts);
-    chip.remove(); // under the row, in the chip's place
-    row.after(due.form);
-    root.querySelector(":scope > .tools")?.replaceChildren(...due.acts);
-    due.focus();
+    await mod.edit(p, load, show, row, due);
   }
 
   // Ticked off (or not): its status only, no new revision

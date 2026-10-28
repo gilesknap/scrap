@@ -18,7 +18,6 @@ const page = (
   tags,
   due: null,
   priority: null,
-  snoozed_until: null,
   updated_at: at,
 });
 const said = (s: { label: string; items: { title: string }[] }[]) =>
@@ -103,7 +102,7 @@ describe("sections", () => {
     // all done: the fold is open, not one closed line
     expect(sections("type", [list[3]])[0]).toMatchObject({ fold: true, open: true });
   });
-  it("by Now: the Todos screen's sections, snoozed, then Done", () => {
+  it("by Now: the Todos screen's sections, then Done", () => {
     const todo = (title: string, extra: object) => ({
       ...page(title, "todo", { status: "open" }),
       ...extra,
@@ -111,13 +110,11 @@ describe("sections", () => {
     const list = [
       todo("late", { due: "2026-10-01" }),
       todo("rest", {}),
-      todo("asleep", { snoozed_until: "2026-11-01" }),
       { ...todo("did", {}), fields: { status: "done" } },
     ];
     expect(said(sections("now", list, { today: T }))).toEqual([
       "Overdue: late",
       "Open: rest",
-      "Snoozed: asleep",
       "Done: did",
     ]);
   });

@@ -60,7 +60,7 @@ export function tagField(
         draw(top.el.contains(document.activeElement) ? at : -1);
         onchange();
       },
-      { focus, back: input, also: tags },
+      { focus, back: input },
     );
   };
   // [tag, pages under it, pages with that very tag]
@@ -76,6 +76,7 @@ export function tagField(
     .catch(() => {}); // offline: no suggestions, typing still works
   const input = h("input", {
     type: "text",
+    className: "chipfield",
     placeholder: "Add a tag",
     "aria-label": "Add a tag",
     autocapitalize: "none",
@@ -100,7 +101,6 @@ export function tagField(
           onchange();
         },
         claude,
-        offered(),
       ),
     );
   };

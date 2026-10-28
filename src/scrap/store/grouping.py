@@ -58,16 +58,14 @@ def _rank(priority: str | None) -> str:
 
 def now_key(
     kind: str, fields: str, due: str | None, priority: str | None,
-    snoozed_until: str | None, updated_at: str, today: str, ranked: int,
+    updated_at: str, today: str, ranked: int,
 ) -> str:  # fmt: skip
     """A page's place in Now (now.ts): Overdue, Today, High priority (dated or not,
-    soonest due first), then Open; Snoozed; then Done. A dated todo never ranks below an
+    soonest due first), then Open; then Done. A dated todo never ranks below an
     undated one of its priority. ranked: each section in now.ts's own order, else the
     caller's."""
     if _closed(kind, fields):
         return LAST
-    if snoozed_until and snoozed_until > today:
-        return "4"
     section = (
         0 if due and due < today
         else 1 if due == today
@@ -104,7 +102,7 @@ def due_key(kind: str, fields: str, due: str | None, today: str) -> str:
 
 FUNCTIONS: dict[str, Any] = {
     "grp_letter": (1, letter), "grp_type": (2, type_key), "grp_sub": (2, sub_tag),
-    "grp_now": (8, now_key), "grp_due": (4, due_key),
+    "grp_now": (7, now_key), "grp_due": (4, due_key),
 }  # fmt: skip
 
 
@@ -135,8 +133,7 @@ def order(q: Query) -> tuple[str, list[Any]]:
             return f"grp_type({cols}), ", []
         case "now":
             return (
-                f"grp_now({cols}, {col('due')}, {col('priority')},"
-                f" {col('snoozed_until')}, p.updated_at,"
+                f"grp_now({cols}, {col('due')}, {col('priority')}, p.updated_at,"
                 " ?, ?), ",
                 [today, ranked],
             )

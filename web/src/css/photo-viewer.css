@@ -282,10 +282,10 @@
 .list .due.closed {
   color: var(--ink-3);
 }
-/* A todo's due date, priority and (on its page) snooze: each part under a small uppercase
+/* A todo's due date and priority: each part under a small uppercase
    heading (.flabel, as the Filters panel's rows), every row on one left edge: one wrapping row
    of chips (Today, Tomorrow, Next week, Pick a date…, No date; the one set pressed, as in the
-   Filters panel), the native date field hidden under Pick a date…; Snooze folded to one line */
+   Filters panel), the native date field hidden under Pick a date… */
 .todoedit {
   display: flex;
   flex-direction: column;
@@ -298,28 +298,19 @@
 .todoedit .flabel:not(:first-child) {
   margin-top: var(--s-2);
 }
-.todoedit :is(input, select) {
-  min-height: 48px;
+.todoedit input:not(.vh) {
+  min-height: var(--tap); /* the date field, where its picker can't be opened */
 }
+/* Priority: a native select drawn as the chips are (.chipfield: 32 px in a 48 px target) */
 .todoedit select {
-  padding: 0 var(--s-3);
-  border: 1px solid var(--line-strong);
-  border-radius: var(--r-md);
-  background: var(--surface);
+  min-width: 10em;
+  background-color: var(--surface);
   color: var(--ink);
-  font: inherit;
-}
-.todoedit select:focus {
-  outline: 2px solid var(--accent-ink);
-  outline-offset: -1px;
 }
 .todoedit .soon {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
-}
-.todoedit .soon .facet {
-  padding-inline: 10px;
+  gap: 0 6px;
 }
 /* Pick a date…: the date field under it, out of sight but named (its picker opens from the
    chip, and drops from here); shown beside it where the picker can't be opened */
@@ -327,7 +318,7 @@
   position: relative;
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 0 6px;
 }
 .todoedit input.vh {
   position: absolute;
@@ -341,42 +332,8 @@
   opacity: 0;
   pointer-events: none;
 }
-/* Snooze, folded to one quiet line: its heading, then what it is ("till 29 Oct", or none), a
-   chevron at its end (down folded, up open); open, its chips under it */
-.todoedit .snooze {
-  margin-top: var(--s-1);
-}
-.todoedit .snooze > summary {
-  display: flex;
-  align-items: center;
-  gap: var(--s-2);
-  min-height: var(--tap);
-  cursor: pointer;
-  list-style: none;
-}
-.todoedit .snooze > summary::-webkit-details-marker {
-  display: none;
-}
-.todoedit .snooze .says {
-  color: var(--ink-2);
-  font-size: var(--t-sm);
-}
-.todoedit .snooze > summary::after {
-  content: "";
-  width: 7px;
-  height: 7px;
-  margin: 0 var(--s-1) 3px;
-  border: solid var(--ink-2);
-  border-width: 0 2px 2px 0;
-  rotate: 45deg;
-  transition: rotate var(--d-1) var(--ease);
-}
-.todoedit .snooze[open] > summary::after {
-  margin-bottom: -3px;
-  rotate: -135deg;
-}
 .todoedit .facet[aria-pressed="true"] {
-  border-color: transparent;
-  background: var(--accent-soft);
+  box-shadow: none;
+  background-color: var(--accent-soft);
   font-weight: 600;
 }

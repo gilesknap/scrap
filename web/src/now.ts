@@ -2,9 +2,9 @@
 // run it. Days are YYYY-MM-DD on this device's calendar (status.ts today()).
 import type { Summary } from "./api";
 import { dueMeets, duesIn } from "./dues";
-import { snoozed, statusOf } from "./status";
+import { statusOf } from "./status";
 
-type Todo = Pick<Summary, "kind" | "fields" | "due" | "priority" | "updated_at" | "snoozed_until">;
+type Todo = Pick<Summary, "kind" | "fields" | "due" | "priority" | "updated_at">;
 
 /** Not done or cancelled (open, in progress). */
 export const isOpen = (t: Todo) =>
@@ -26,10 +26,7 @@ const by =
     return 0;
   };
 
-/** To do now: open and not snoozed (snoozed ones come back on their day). */
-export const toDo = (t: Todo, today: string) => isOpen(t) && !snoozed(t, today);
-
-/** Now: the open todos (not snoozed) in groups, each in its order: Overdue (oldest due first), Today, High
+/** Now: the open todos in groups, each in its order: Overdue (oldest due first), Today, High
  * priority, dated or not (soonest due first), then the rest, Open (by priority, then due, then last
  * edited). A date is a promise: a dated todo never ranks below an undated one of its priority. Empty
  * groups are left out. */
@@ -40,7 +37,7 @@ export function now<T extends Todo>(list: T[], today: string): [string, T[]][] {
     ["High priority", []],
     ["Open", []], // not "Later": that is a kind
   ];
-  for (const t of list.filter((t) => toDo(t, today))) {
+  for (const t of list.filter(isOpen)) {
     const late = t.due && t.due < today;
     groups[late ? 0 : t.due === today ? 1 : t.priority === "high" ? 2 : 3][1].push(t);
   }
@@ -61,9 +58,9 @@ export const AHEAD = 7; // Upcoming: from tomorrow to this many days away
 /** Upcoming as a search: the Todos screen's view, which upcoming() reads its due: from. */
 export const UPCOMING = `kind:todo due:>today due:<=${AHEAD}d sort:due`;
 
-/** Upcoming: the open todos (not snoozed) due from tomorrow to a week away (UPCOMING's due:
+/** Upcoming: the open todos due from tomorrow to a week away (UPCOMING's due:
  * terms), soonest first. */
 export const upcoming = <T extends Todo>(list: T[], today: string) =>
   list
-    .filter((t) => toDo(t, today) && duesIn(UPCOMING).every((v) => dueMeets(v, t.due, today)))
+    .filter((t) => isOpen(t) && duesIn(UPCOMING).every((v) => dueMeets(v, t.due, today)))
     .sort(by(due, rank, recent));

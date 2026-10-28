@@ -199,7 +199,7 @@ The app opens without a connection. Anything that reads from or writes to the se
 | --- | --- |
 | Opening the app, the capture screen, the badge | Opening any page |
 | The composer, with photos and tags, and its drafts | Search results and the Todos screen |
-| Saving a capture (queued) | Changing tags, kind, due date or snooze |
+| Saving a capture (queued) | Changing tags, kind or due date |
 | Sharing into scrap | Ticking a task box on a page |
 | The editor on a page already open, and its drafts; recent searches | Saving an edit (the draft is kept); drawings; Mermaid (shown as code) |
 | Waiting items: retry, discard, split | Claude's summary and related pages, the pager and swipes |
@@ -229,7 +229,7 @@ The app opens without a connection. Anything that reads from or writes to the se
 - **Kind display.** A list row shows the kind by icon (checklist for a todo, bookmark for Later). A
   page shows it under the title as the kind's icon and word in bold (*Todo*, *Later*, *Note*),
   then the rest of its meta line in grey: a Later's medium and verb (*TV · to watch*), a status
-  other than open (*in progress*, *done*), a snooze and the task count. Its dates come after.
+  other than open (*in progress*, *done*) and the task count. Its dates come after.
 - **Pager.** A page opened from a list or search shows its place at the right of the top bar
   (*3 of 23*) with **∧** previous and **∨** next. Swipe left for next, right for previous, or use
   the arrows. Swipes start away from the screen edges, and are ignored on sideways-scrolling text,
@@ -276,14 +276,16 @@ repeats the title. Search needs the server.
 - **Kinds.** A row under the box: **All**, **Notes**, **Todos**, **Later**, **Boards**, **Docs**.
   One tap writes `kind:` into the query; a second tap (or **All**) shows every kind again.
 - **Clear.** A **✕** at the end of the box goes back to every page, newest first.
-- **Filters.** The slider button turns amber while the panel is open (it shows no count). Each
-  active filter is a chip with a ✕ in a row of its own under the kinds (*#home*, *past month*,
-  *A–Z*), above the results header with the count of pages found. The panel's headings sit above
-  their chips, which wrap: **Tags** (type to see matching tags among the results, or tap a top tag),
-  **Order** (**Best match**/**Last edited**, **Newest**, **Oldest**, **A–Z**, and for todos **Due
-  soonest** and **Priority**) and **When** (**1w**, **1m**, **1y**, **Dates…**, and **By created
-  date** once a range is on). Each tap applies at once; a second tap removes it. **Clear filters**
-  keeps the words.
+- **Filters.** The slider button's icon turns amber while the panel is open, and a small amber
+  dot on it says filters are on (it shows no count). Each active filter is a chip with a ✕ in a
+  row of its own under the kinds (*#home*, *past month*, *A–Z*), above the results header with
+  the count of pages found. The panel's rows: **Tags** (type to see matching tags among the
+  results, or tap a top tag; before any search, the tags most pages were given), **When** (**1w**,
+  **1m**, **1y**, **Dates…**, and **By created date** once a range is on), and **Arrange**, one
+  line saying the order and grouping (*Last edited · None*): tap it for **Order** (**Best
+  match**/**Last edited**, **Newest**, **Oldest**, **A–Z**, and for todos **Due soonest** and
+  **Priority**) and **Group**; it stays open or folded as you leave it. Each tap applies at once;
+  a second tap removes it. **Clear filters** keeps the words.
 - **Paging.** 100 pages at first, **Show more** adds 100. The newest-first list stops at 500 pages
   and a search at 1000 results: narrow with filters or dates, or reverse the order
   (`-sort:created`) to go further. That is the screen's reach, not a storage limit.
@@ -348,15 +350,18 @@ their own ([](../reference/scheduled-jobs.md)).
 ## Tags
 
 - **On a page.** Tags are in a row of chips under the title and its meta lines, wrapping if there
-  are many. A chip shows the last part of the tag (`#project-management` for `kind/project-management`, with more of the path when two tags on the page end the same); tap it to search for the whole tag. A tag Claude added has a ✦ before its name. Past two rows the rest wait behind a **+N** chip (**Show N more tags**) that shows them in place. The **+** after the last tag
-  (**Change tags**; **+ Tag** when the page has none) edits them in place: tap a tag's ✕ to remove it; type one and press Enter or a comma to add it, or tap one
-  of the tags offered under the box (the six most used, or those in use that match what you type);
-  then **Save**. Text still in the box when you save counts too. Needs the server.
+  are many. A chip shows the whole tag (`#kind/project-management`; a long one wraps inside its
+  chip after a `/`); tap it to search for that tag. A tag Claude added has a ✦ before its name.
+  Past two rows the rest wait behind a **+N** chip (**Show N more tags**) that shows them in
+  place; a **−** chip at the end (**Show fewer tags**) folds them again. The row is for reading:
+  tags are changed with **Edit**.
+- **Changing them.** **Edit** (or a row swiped right), then its **Tags** line: tap a tag's ✕ to
+  remove it; type one and press Enter or a comma to add it, or tap one of the tags offered under
+  the box (the six most used, or those in use that match what you type); then **Save** at the top.
+  Text still in the box when you save counts too. The composer has the same **Tags** line.
+  Changing tags is not a text revision and does not move the page up the list.
 - **Rules.** Lower case, no leading `#`, at most 64 characters each and 64 per page (the box says
   when one is too long), as the importer keeps them.
-- **Edit and composer.** **Edit** (or a row swiped right) has the same box in its **Tags** line and
-  saves tags with the text; so does the composer. Changing tags is not a revision and does not
-  move the page up the list.
 - **Finding by tag.** Use the Filters panel's **Tags** row (before any search it covers every tag
   in use).
 
@@ -371,10 +376,10 @@ their own ([](../reference/scheduled-jobs.md)).
   `status`, see [](../reference/api.md)) or by Claude over MCP ([](../reference/mcp.md)), and the
   app shows them.
 - **Due date and priority.** A todo may have a due date and a priority (high, medium, low). A
-  page shows them in its first chip, before the tags (*3 Nov · high*, or **Add due date**): tap it to
-  pick a date (**Today**, **Tomorrow**, **Next week**, **Pick a date…** for any other day, **No
-  date** clears), and a priority, then **Save**: while the form is open, **Cancel** and **Save**
-  take the place of the page's buttons at the bottom. **Edit** has the same two. Rows show them; a todo due before today and not done says
+  page shows them in its first chip, before the tags (*3 Nov · high*, or **Add due date**): tap it
+  to open **Edit** at its **Due** line, open, where you pick a date (**Today**, **Tomorrow**,
+  **Next week**, **Pick a date…** for any other day, **No date** clears) and a priority, then
+  **Save** at the top (**Cancel** beside it). Rows show them; a todo due before today and not done says
   *overdue* in red (that one word, the only red on the page). They belong to todos only: a page made a note keeps them, hidden. Neither is a
   revision nor moves the page. Today is your phone's day on rows and pages, the server's for `due:`
   searches.
@@ -385,12 +390,8 @@ their own ([](../reference/scheduled-jobs.md)).
   5*). Ticking the last box marks it done; while every box is ticked, unticking one or adding an
   unticked one reopens it. A todo marked done by hand stays done. **Mark done** ticks no box; a
   cancelled todo is left as it is.
-- **Snooze.** On a page, tap the line under the tags, then the folded **Snooze** line, and pick
-  **Tomorrow**, **Next week** or **Pick a date…** (**Not snoozed** wakes it), then **Save**. A snooze later than the due date asks
-  whether the due date moves too: **Move due date** or **Keep due date**. Until that day it is
-  out of **Now**, **Upcoming** and the badge (Now says *1 snoozed* at the end of its count line;
-  tap it for `kind:todo is:snoozed sort:due`). **All** shows it as *snoozed till 3 Nov*. It returns by itself
-  on its day. Only open todos are hidden by a snooze.
+- **Putting one off.** Move its due date (tap its due chip, then **Tomorrow**,
+  **Next week** or **Pick a date…**, and **Save**). Every open todo shows in **Now**.
 - **Refine.** At the end of the Todos count line, **Refine in Search** (a filter icon) opens the
   same view in Search, with its query filled in, to narrow it further.
 - **The Todos screen** (`/todos`) has a switch, an icon over each word:

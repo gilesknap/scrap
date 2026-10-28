@@ -1,5 +1,5 @@
-// A page in the editor (page.ts's Edit): its text, title, kind, tags and a todo's due date
-// and priority, with the draft kept on the phone, and a conflict shown if it changed
+// A page in the editor (page.ts's Edit, and its due chip): its text, title, kind, a todo's due
+// date and priority, and its tags, with the draft kept on the phone, and a conflict shown if it changed
 // elsewhere meanwhile. A chunk of its own with editor.ts, kept offline (vite.config.ts).
 import { adopt, photoAdder, takesPhotos } from "./addphoto";
 import { ADDED, ApiError, api, type Page } from "./api";
@@ -44,6 +44,7 @@ export async function edit(
   load: (p: Page) => Promise<void>,
   show: (p: Page) => void,
   row = false, // from a list's row: no view read
+  due = false, // from the page's due chip: its Due fold open and focused
 ) {
   // An unsaved edit comes back, on the revision it was made on: if the page has changed
   // since, saving it shows the conflict rather than overwriting.
@@ -91,7 +92,8 @@ export async function edit(
   const mediaWas = mediaNow(p.fields);
   const later = laterField(kept?.media ?? mediaWas);
   const retyped = () => kind.value() === "consume" && later.value() !== mediaWas;
-  // Folded into a line each, under the title: the text stays the hero
+  // Folded into a line each, under the title: the text stays the hero (Due, then Tags, as in
+  // the composer)
   const tagLine = fold("Tags", tags.el, () => tagsSay(tags.value()), "tag");
   const todoLine = fold("Due", todo.el, () => todoSays(todo.value()), "due");
   const laterLine = fold("Type", later.el, () => mediaSays(later.value()), "later");
@@ -118,7 +120,8 @@ export async function edit(
           ...textPart(textual, base, body()),
           ...(title.value !== p.title && { title: title.value }),
           kind: toSend(kind.value(), kind.picked(), p.kind),
-          ...(retagged() && { tags: tags.value() }),
+          // (with the tags it started from: one Claude adds meanwhile is kept, not taken off)
+          ...(retagged() && { tags: tags.value(), tags_shown: tagsFrom }),
           ...(redated() && todoNow()),
           ...(retyped() && { fields: mediaFields(later.value()) }),
         }),
@@ -181,7 +184,7 @@ export async function edit(
   const ed = editor({
     text,
     read: body,
-    before: [kind.el, title, tagLine.el, todoLine.el, laterLine.el],
+    before: [kind.el, title, todoLine.el, tagLine.el, laterLine.el],
     after: [...(takesPhotos(p) ? [photoAdder(p)] : []), conflict],
     foot: embeds.chips,
     key,
@@ -241,6 +244,12 @@ export async function edit(
     ed.keep();
   };
   addEventListener(ADDED, adopted);
+  // From the due chip: its Due fold open, focus on the due chip pressed (no keyboard)
+  if (due && !todoLine.el.hidden) {
+    todoLine.el.open = true;
+    todoLine.refresh();
+    return (todo.first() ?? todoLine.el.querySelector("summary"))?.focus();
+  }
   text.focus();
   // Where the page was being read (its top if not scrolled into its text); with no view (a
   // list's row), as the box opens. A draft kept with other text: as far down its text instead

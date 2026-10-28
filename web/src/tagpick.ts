@@ -2,27 +2,21 @@
 // composer's Tags fold) and Search's Filters → Tags (refine.ts). Chosen tags are filled chips
 // with a ✕; offered tags are outlined chips under the box, one tap each, that wrap to at most
 // two rows (measured: those that would start a third are left out, no "+N": typing narrows
-// them). Each says its short name (tagname.ts, as on a page's chip row: the last part, more of
-// the path only where two shown would clash, "…/" marking what is left out: taglabel.ts); the
-// full tag is in its tooltip and accessible name. Claude's are marked ✦, as on the page. Not
-// the whole path, however faint: at a large text size (130%) such a chip took a row of its own.
+// them). Each says its full path (taglabel.ts, as on a page's chip row), wrapping inside the
+// chip after a "/" when it is longer than the row. Claude's are marked ✦, as on the page.
 import { icon } from "./icons";
 import { tagLabel } from "./taglabel";
-import { tagNames } from "./tagname";
 import { h } from "./ui";
 
 const ROWS = 2;
 const DOUBLE = 400; // ms: a second tap on the offers sooner than this is a double tap, ignored
 
-/** The chosen tags as filled chips, each with a ✕ (remove): Claude's (in claude) marked ✦.
- * also: the tags offered beside them, whose names they are told apart from. */
+/** The chosen tags as filled chips, each with a ✕ (remove): Claude's (in claude) marked ✦. */
 export function chosenChips(
   tags: string[],
   remove: (t: string, e: Event) => void,
   claude: string[] = [],
-  also: string[] = [],
 ): HTMLElement[] {
-  const names = tagNames([...new Set([...tags, ...also])]);
   return tags.map((t) => {
     const ai = claude.includes(t);
     const said = `#${t}${ai ? ", added by Claude" : ""}`;
@@ -35,7 +29,7 @@ export function chosenChips(
         title: said,
         onclick: (e: Event) => remove(t, e),
       },
-      tagLabel(t, names.get(t)),
+      tagLabel(t),
       icon("close"),
     );
   });
@@ -45,13 +39,12 @@ export interface Offers {
   el: HTMLElement;
   /** Offer these ([tag, count], the count shown when given), verb naming each ("Add",
    * "Filter by"); pick is called on a tap. note: a line before them (why there are none).
-   * focus: the chip to focus once drawn (the one now in its place, else the last, else back).
-   * also: the chosen tags shown beside them, whose names they are told apart from. */
+   * focus: the chip to focus once drawn (the one now in its place, else the last, else back). */
   show(
     list: [string, number?][],
     verb: string,
     pick: (t: string, e: Event) => void,
-    o?: { note?: string; focus?: number; back?: HTMLElement; also?: string[] },
+    o?: { note?: string; focus?: number; back?: HTMLElement },
   ): void;
 }
 
@@ -88,7 +81,6 @@ export function offerRow(label: string, lead?: HTMLElement): Offers {
   return {
     el,
     show(list, verb, pick, o = {}) {
-      const names = tagNames([...new Set([...list.map(([t]) => t), ...(o.also ?? [])])]);
       all = list.map(([t, n]) =>
         h(
           "button",
@@ -107,7 +99,7 @@ export function offerRow(label: string, lead?: HTMLElement): Offers {
               pick(t, e);
             },
           },
-          tagLabel(t, names.get(t)),
+          tagLabel(t),
           n !== undefined && h("small", {}, String(n)),
         ),
       );

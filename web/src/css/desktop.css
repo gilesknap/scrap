@@ -93,9 +93,7 @@
   .page > h1,
   .page > .meta,
   .page > .dates,
-  .page > .tags,
-  .page > .tagform,
-  .page > .todoedit {
+  .page > .tags {
     order: 0;
   }
   /* None on a computer: the action row under the header has its own hairline */
@@ -131,8 +129,8 @@
     background: var(--accent);
     filter: brightness(1.05);
   }
-  .page > .tools > :last-child:not([form]) {
-    margin-inline-start: auto; /* Delete, apart at the end (not a form's Save, beside Cancel) */
+  .page > .tools > :last-child {
+    margin-inline-start: auto; /* Delete, apart at the end */
   }
   .page > .tools .i {
     width: 20px;

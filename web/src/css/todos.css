@@ -119,8 +119,7 @@
   margin-bottom: var(--s-2); /* the card's gap before what follows (Topics, the folds) */
   background: none;
 }
-/* A question asked in place, with its answers (a photo's Reprocess, a snooze past the due
-   date) */
+/* A question asked in place, with its answers (a photo's Reprocess) */
 .choice {
   display: flex;
   flex-wrap: wrap;

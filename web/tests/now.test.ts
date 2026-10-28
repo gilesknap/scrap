@@ -62,17 +62,6 @@ it("lists open todos due from tomorrow to a week away, soonest first", () => {
   ]); // not "high later" (30 Nov), nor 8 days on
 });
 
-it("leaves snoozed todos out of Now and Upcoming until their day", () => {
-  const snoozing = [
-    { ...todo("asleep late", "2026-10-01", "high"), snoozed_until: "2026-10-25" },
-    { ...todo("asleep soon", "2026-10-23", null), snoozed_until: "2026-10-22" },
-    { ...todo("woken", "2026-10-02", null), snoozed_until: T }, // its day: back
-  ];
-  expect(titles(now(snoozing, T))).toEqual([["Overdue", ["woken"]]]);
-  expect(upcoming(snoozing, T)).toEqual([]);
-  expect(upcoming(snoozing, "2026-10-22").map((t) => t.title)).toEqual(["asleep soon"]);
-});
-
 it("counts days on the calendar, across months, years and clock changes", () => {
   expect(after("2026-10-21", 7)).toBe("2026-10-28");
   expect(after("2026-10-28", 7)).toBe("2026-11-04"); // the clocks go back on 25 Oct

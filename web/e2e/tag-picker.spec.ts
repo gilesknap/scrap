@@ -1,6 +1,6 @@
-// The tag picker (#394): one shared picker for Search's Tags, a page's tag editor and the
-// composer's Tags fold. Offered tags are outlined chips under the box in at most two rows,
-// each saying its short name ("#…/" before it where the path is left out); nothing scrolls.
+// The tag picker (#394): one shared picker for Search's Tags and the composer's and page
+// editor's Tags fold. Offered tags are outlined chips under the box in at most two rows, each
+// saying its tag's full path (a long one wraps inside its chip); nothing scrolls.
 import { expect, type Locator, type Page, test } from "@playwright/test";
 import { lowContrast } from "./contrast";
 import { filters, filtersButton, openFold } from "./panel";
@@ -102,43 +102,38 @@ test("the first result shows under the open Filters panel at 390 px, 130%", asyn
   await seed(page, w, 4);
   await page.goto(`/search?q=${w}`);
   await large(page);
-  await filters(page);
+  await filters(page, false); // Arrange folded, as it opens
   const nav = page.locator("nav");
   await expect(nav).toBeVisible();
   const navTop = (await nav.boundingBox())?.y as number;
   await expect(results(page).first()).toContainText(w);
   const first = (await results(page).first().boundingBox()) as { y: number };
-  expect(first.y).toBeLessThanOrEqual(navTop - 100); // well into view, not just its edge
+  expect(first.y).toBeLessThanOrEqual(navTop - 160); // well into view, not just its edge
   // With one (long) tag chosen the row's start still shows, at least a line above the nav (a long tag adds a wrapped chip row)
   await page.getByRole("button", { name: /^Filter by #topic0/ }).click();
   await expect(filtersButton(page)).toHaveAccessibleName("Filters, 1 on");
   await expect(results(page)).toHaveCount(1); // narrowed: drawn again
   const chosen = (await results(page).first().boundingBox()) as { y: number };
-  expect(chosen.y).toBeLessThanOrEqual(navTop - 24);
+  expect(chosen.y).toBeLessThanOrEqual(navTop - 100);
 });
 
-test("tags that clash are told apart by more of their path, and a shortened chip says …/", async ({
-  page,
-}) => {
+test("every chip says its tag's full path, never shortened", async ({ page }) => {
   const w = word();
   const [one, two] = await seed(page, w, 2);
   await make(page, w, [`c${w}/deep/unique-leaf-name`]);
   await page.goto(`/search?q=${w}`);
   const panel = await filters(page);
-  // Typing offers full tags (before it, only the results' top-level ones)
   await panel.getByRole("textbox", { name: "Add a tag filter" }).fill("ioc");
   const offers = panel.getByRole("group", { name: "Matching tags" });
-  // Both end in ioc: each says one more part, "epics/ioc" and "other/ioc", the path before cut
   const a = offers.getByRole("button", { name: `Filter by #${one}` });
   const b = offers.getByRole("button", { name: `Filter by #${two}` });
-  await expect(a).toHaveText(/^#…\/epics\/ioc\d*$/);
-  await expect(b).toHaveText(/^#…\/other\/ioc\d*$/);
-  await expect(a).toHaveAttribute("title", `#${one}`); // the full tag in the tooltip
-  // A tag that clashes with none says just its last part
+  await expect(a).toHaveText(new RegExp(`^#${one}\\d*$`)); // (and its count)
+  await expect(b).toHaveText(new RegExp(`^#${two}\\d*$`));
+  await expect(offers).not.toContainText("…/");
   await panel.getByRole("textbox", { name: "Add a tag filter" }).fill("unique-leaf");
   const solo = offers.getByRole("button", { name: `Filter by #c${w}/deep/unique-leaf-name` });
-  await expect(solo).toHaveText(/^#…\/unique-leaf-name\d*$/);
-  // Chosen, the Filters-on chip shows the full path
+  await expect(solo).toHaveText(new RegExp(`^#c${w}/deep/unique-leaf-name\\d*$`));
+  // Chosen, the Filters-on chip says it in full too
   await solo.click();
   const on = page.getByRole("group", { name: "Filters on" });
   await expect(on.getByRole("button", { name: `Remove #c${w}/deep/unique-leaf-name` })).toHaveText(
@@ -146,7 +141,7 @@ test("tags that clash are told apart by more of their path, and a shortened chip
   );
 });
 
-test("the page's tag editor and the composer offer short names in two rows, nothing scrolling", async ({
+test("the page editor's and the composer's Tags fold offer two rows, nothing scrolling", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
@@ -155,15 +150,17 @@ test("the page's tag editor and the composer offer short names in two rows, noth
   const { slug } = await make(page, `${w}x`, []);
   await page.goto(`/p/${slug}`);
   await large(page);
-  await page.getByRole("button", { name: "Add tags" }).click();
-  const editor = page.locator(".tagedit");
+  await page.locator(".page > .tools").getByRole("button", { name: "Edit" }).click();
+  await openFold(page.locator(".editor"), "Tags");
+  const editor = page.locator(".editor .tagedit");
   await editor.getByRole("textbox", { name: "Add a tag" }).fill(w);
   const offers = editor.getByRole("group", { name: "Matching tags" });
   await expect(offers.getByRole("button").first()).toBeVisible();
   await expect.poll(() => rowsOf(offers)).toBeLessThanOrEqual(2);
   expect(await scrollers(editor)).toEqual([]);
   await expect(offers.getByRole("button").first()).toHaveText(/^#/);
-  await page.getByRole("button", { name: "Cancel" }).click();
+  page.once("dialog", (d) => d.accept());
+  await page.locator(".editor > .bar").getByRole("button", { name: "Cancel" }).click();
   // The composer
   await page.goto("/");
   await page.getByRole("button", { name: "Note", exact: true }).click();
@@ -201,12 +198,14 @@ test("outlined offer chips and the picker's text meet contrast, in both themes",
       };
       return [...el.querySelectorAll("button")].map((b) => {
         const cs = getComputedStyle(b);
-        const [hi, lo] = [lum(rgb(cs.borderTopColor)), lum(behind(b))].sort((x, y) => y - x);
+        // The edge is an inset ring (box-shadow) inside a transparent 8 px border (a 32 px pill
+        // in a 48 px target), else the border
+        const edge = cs.boxShadow.match(/rgba?\([^)]*\)/)?.[0] ?? cs.borderTopColor;
+        const [hi, lo] = [lum(rgb(edge)), lum(behind(b))].sort((x, y) => y - x);
         const own = cs.backgroundColor;
         // (a chip with a fill of its own is judged against that)
         const fill = /rgba\(.*, 0\)|transparent/.test(own) ? null : lum(rgb(own));
-        const [h2, l2] =
-          fill === null ? [hi, lo] : [lum(rgb(cs.borderTopColor)), fill].sort((x, y) => y - x);
+        const [h2, l2] = fill === null ? [hi, lo] : [lum(rgb(edge)), fill].sort((x, y) => y - x);
         return (h2 + 0.05) / (l2 + 0.05);
       });
     });

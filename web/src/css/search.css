@@ -136,39 +136,52 @@
   background: transparent;
   color: var(--ink-2);
 }
-/* Open: a selected state, so amber-soft under an ink icon (no count on it: the chips say it) */
+/* Open: only its icon says so, in --accent-ink (the active icon), nothing drawn around it, so
+   the box keeps its one clean edge at any text size; filters on: a small --accent dot on the
+   icon's corner, ringed in the box's --surface (no count: the chips under the kinds say them).
+   Its whole 48 px width is the target */
 .field-search .ffield[aria-expanded="true"] {
+  color: var(--accent-ink);
+}
+.field-search .ffield:active {
+  transform: none;
+  background: transparent;
   color: var(--ink);
-  background: var(--accent-soft);
+}
+.field-search .ffield.on::after {
+  content: "";
+  position: absolute;
+  top: calc(50% - 14px);
+  inset-inline-start: 29px;
+  width: 9px;
+  height: 9px;
+  border: 2px solid var(--surface);
+  border-radius: var(--r-pill);
+  background: var(--accent);
 }
 /* The filters on: a row of their own under the kinds, wrapping (only while any are on) */
 .fon {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--s-2);
+  gap: 0 var(--s-2);
   margin: calc(-1 * var(--s-1)) 0 var(--s-1);
 }
 /* A tag filter says its full path: a long one wraps inside its chip, after a "/" (or anywhere,
    a part longer than the line), never wider than the screen; the ✕ stays at its end */
 .fon .facet {
   max-width: 100%;
-  padding-block: var(--s-1);
-  white-space: normal;
   text-align: start;
 }
 .fon .facet .i {
   flex: none;
 }
-.tl.full {
-  overflow-wrap: anywhere;
-}
 /* The Filters panel, under the box: each row's heading over its chips, which wrap */
 .fpanel {
   display: flex;
   flex-direction: column;
-  gap: var(--s-2); /* (s-3 until the tag picker: short, so the results show under it) */
+  gap: 0; /* its rows of 48 px targets have the air between their drawn pills already */
   margin: calc(-1 * var(--s-2)) 0 var(--s-4);
-  padding: var(--s-2) 0;
+  padding: var(--s-1) 0;
   border: 1px solid var(--line);
   border-radius: var(--r-lg);
   background: var(--surface);
@@ -180,7 +193,7 @@
 .frow {
   display: flex;
   flex-direction: column;
-  gap: var(--s-2);
+  gap: 0;
   padding-inline: var(--s-3);
 }
 .flabel {
@@ -193,7 +206,56 @@
 .frow .opts {
   display: flex;
   flex-wrap: wrap;
+  gap: 0 var(--s-2); /* the rows of 48 px targets touch: 16 px between the drawn pills */
+}
+/* When: its heading, then its chips on the same line when they fit (wrapping from the row's
+   left edge when they don't) */
+.frow.inline {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: var(--s-3);
+  row-gap: 0;
+}
+.frow.inline > .opts {
+  display: contents;
+}
+/* Arrange (Order and Group), folded to one quiet 48 px line: its
+   heading, what is chosen ("Last edited · None") in --ink-2, a chevron (down folded, up open);
+   open, Order and Group under it. Kept folded or open on the phone */
+.farrange > summary {
+  display: flex;
+  align-items: center;
   gap: var(--s-2);
+  min-height: var(--tap);
+  cursor: pointer;
+  list-style: none;
+}
+.farrange > summary::-webkit-details-marker {
+  display: none;
+}
+.farrange .says {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--ink-2);
+  font-size: var(--t-sm);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.farrange > summary::after {
+  content: "";
+  flex: none;
+  width: 7px;
+  height: 7px;
+  margin: 0 var(--s-1) 3px;
+  border: solid var(--ink-2);
+  border-width: 0 2px 2px 0;
+  rotate: 45deg;
+  transition: rotate var(--d-1) var(--ease);
+}
+.farrange[open] > summary::after {
+  margin-bottom: -3px;
+  rotate: -135deg;
 }
 /* Arrange's two parts, Order and Group: a small sub-label, then its chips on the same line,
    wrapping from the row's left edge (a line shorter than a label over them) */
@@ -201,7 +263,7 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--s-2);
+  gap: 0 var(--s-2);
 }
 .fsub .opts {
   display: contents; /* its chips flow on after the sub-label */
@@ -211,8 +273,8 @@
   font-size: var(--t-sm);
 }
 .fpanel .facet[aria-pressed="true"] {
-  border-color: transparent;
-  background: var(--accent-soft);
+  box-shadow: none;
+  background-color: var(--accent-soft);
   font-weight: 600;
 }
 /* Tags: its heading and the box, then what it offers after them, in one flow (two rows in
@@ -227,9 +289,6 @@
 .frow.ftags .tagline input {
   flex: 1;
   min-width: 0;
-  min-height: 44px;
-  padding-block: 0; /* as high as the chips beside it, at any text size */
-  border-radius: var(--r-pill);
 }
 /* Nothing to offer: why, in words that wrap */
 .offers .none {
@@ -249,7 +308,7 @@
 /* The results header, over the list: the count, then Pin and Copy link, two 48 px ghost
    icon buttons at its end; it takes some of the space around it, so it reads as one quiet line.
    The Todos and Topics screens draw their count line with it too: there, the actions are
-   Refine (the filter icon) and on Now a quiet "1 snoozed" text button */
+   Refine (the filter icon) */
 .rhead {
   display: flex;
   align-items: center;
@@ -272,11 +331,6 @@
   padding: 0;
   color: var(--ink-2);
 }
-.rhead .snoozed {
-  padding: 0 var(--s-3);
-  color: var(--ink-2);
-  font-size: var(--t-sm);
-}
 /* Pinned: the pin filled, on a 36 px amber-soft disc drawn inside the 48 px target */
 .rhead .act.on {
   border: 6px solid transparent;
@@ -285,33 +339,58 @@
   color: var(--ink);
 }
 
+/* One chip size app-wide: every chip (.facet: the tag picker's chosen and offered, the due
+   chips, the Filters panel's, the Filters on) is --t-sm text in a 32 px pill drawn
+   inside a 48 px target, as a page's own chip row (.tags): 8 px transparent borders above and
+   below, the fill clipped to the padding box and the edge an inset 1 px ring, so the rows of
+   targets touch (no row gap) and never overlap. The tag box and the Priority select beside
+   them are drawn the same (.chipfield) */
+.facet,
+.chipfield {
+  min-height: var(--tap);
+  border: 8px solid transparent;
+  border-inline-width: 0;
+  border-radius: var(--r-pill);
+  background-clip: padding-box;
+  box-shadow: inset 0 0 0 1px var(--line);
+  font-size: var(--t-sm);
+  line-height: var(--lh-tight);
+}
 .facet {
   flex: none;
   gap: 6px;
-  min-height: 44px;
-  padding: 0 var(--s-3);
-  border-radius: var(--r-pill);
-  font-size: var(--t-sm);
+  max-width: 100%;
+  padding: 0 0.6em; /* as a page's chips: with the text, so a larger size doesn't bloat it */
   white-space: nowrap;
 }
+/* A chip's long label (a tag's full path) wraps inside it after a "/", never wider than the
+   screen: the pill grows a line, its padding keeping the text off its edge */
+.facet:has(.tl) {
+  padding-block: 4px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.chipfield {
+  padding: 0 var(--s-3);
+  box-shadow: inset 0 0 0 1px var(--line-strong);
+}
+.chipfield:focus {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--accent-ink);
+}
 .facet small {
-  line-height: calc(var(--t-sm) * var(--lh)); /* the label's: on its baseline, not raised */
+  line-height: calc(var(--t-sm) * var(--lh-tight)); /* the label's: on its baseline, not raised */
   color: var(--ink-2);
   font-size: var(--t-xs);
 }
 .facet.on {
-  border-color: transparent;
-  background: var(--accent-soft);
+  box-shadow: none;
+  background-color: var(--accent-soft);
   font-weight: 600;
 }
 .facet.on .i {
   width: 16px;
   height: 16px;
-}
-/* A shortened tag's "…/" (taglabel.ts): what is left out of its path, quiet beside its name */
-.tl .more {
-  color: var(--ink-2);
-  font-weight: 400;
 }
 .range {
   display: flex;
@@ -340,10 +419,10 @@
   color: var(--ink-2);
   font-size: var(--t-xs);
 }
-/* A page's chips: its tags (each a search), + to change them, a todo's due chip. One size,
-   --t-sm, all quiet: a --sunk fill (the + a hairline). The row wraps; the last tag and + share
-   a box (.last) so + never sits alone on a line. Each is a 32 px pill drawn in a 48 px target
-   (8 px transparent borders above and below), so the rows of targets touch but never overlap */
+/* A page's chips, read only: a todo's due chip, then its tags (each a search). One size, --t-sm,
+   all quiet: a --sunk fill. The row wraps, at most two rows (chipfold.ts: + shows the rest, −
+   folds them again). Each is a 32 px pill drawn in a 48 px target (8 px transparent borders
+   above and below), so the rows of targets touch but never overlap: the .facet chips' size */
 .tags {
   display: flex;
   flex-wrap: wrap;
@@ -355,12 +434,6 @@
 .tags .tagset {
   display: flex;
   flex-wrap: wrap;
-  column-gap: 6px;
-  min-width: 0;
-  max-width: 100%;
-}
-.tags .last {
-  display: flex;
   column-gap: 6px;
   min-width: 0;
   max-width: 100%;
@@ -381,111 +454,61 @@
   color: var(--ink);
   font-size: var(--t-sm);
   font-weight: 400;
+  line-height: var(--lh-tight);
   text-decoration: none;
   white-space: nowrap;
+}
+/* A tag's full path, longer than the row: it wraps inside its chip after a "/" */
+.tags a {
+  padding-block: 4px;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 .tags :is(a, button) .i {
   width: 16px;
   height: 16px;
   color: var(--ink-2);
 }
-/* + : changes the tags. A 32 px ring drawn in a 48 px square target; with no tags, "+ Tag" */
-.tags .add {
-  position: relative;
-  width: var(--tap);
-  padding: 0;
-  background: transparent;
-}
-.tags .add.first {
-  width: auto;
-  gap: var(--s-1);
-  padding: 0 0.6em 0 0.5em;
-}
-/* Folded to two rows (chipfold.ts): the tags that don't fit, until +N shows them; +N, a short
-   word, takes a little less room, so it and + fit beside a long tag at a large text size */
+/* Folded to two rows (chipfold.ts): the tags that don't fit, until +N shows them; +N and −
+   are plain pills as the tags are (no ring: nothing that reads as "add"), semibold, at the end */
 .tags [hidden] {
   display: none;
 }
 .tags .morechips {
-  padding-inline: 0.45em;
-}
-/* Not even one tag fits beside +N and +: the first stays, cut with … to the room there is */
-.tags.cut,
-.tagset.cut {
-  flex-wrap: nowrap;
-}
-.cut > .last {
-  flex: none;
-}
-.tags a.cut {
-  flex: 0 1 auto;
-}
-.tags a.cut > span {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.tags .add::before {
-  content: "";
-  position: absolute;
-  inset: 0 8px;
-  border: 1px solid var(--line-strong);
-  border-radius: var(--r-pill);
-}
-.tags .add.first::before {
-  inset: 0;
-}
-.tags .add .i {
-  width: 18px;
-  height: 18px;
-}
-.tags .add.first .i {
-  width: 16px;
-  height: 16px;
+  min-width: var(--tap);
+  justify-content: center;
+  font-weight: 600;
 }
 .tags :is(a, button):active {
   background-color: var(--line);
 }
-/* Editing tags: chips (tap to remove) that wrap, then the box with suggestions */
+/* The tag editor (the composer's and page editor's Tags fold): chips (tap to remove) that
+   wrap, then the box with suggestions */
 .tagedit {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--s-2);
+  gap: 0 var(--s-2);
 }
 .tagchips {
   display: contents;
 }
 .tagedit input {
   flex: 1 1 10rem;
-  min-height: 44px;
 }
 /* The tag picker (tagpick.ts), in the tag editor and Filters → Tags: the chosen are filled
    (.facet.on), the offered outlined in --line-strong; they wrap, at most two rows (the script
    leaves out those that would start a third: nothing scrolls, nothing is cut in half) */
-.pick .facet {
-  max-width: 100%;
-}
-.pick .facet > span {
-  overflow: hidden;
-  text-overflow: ellipsis; /* a name longer than the row: cut, not wider than the screen */
-}
 .offers {
   display: flex;
   flex-basis: 100%;
   flex-wrap: wrap;
-  gap: var(--s-2);
+  gap: 0 var(--s-2);
 }
 .offers[hidden] {
   display: none;
 }
 .offers .facet {
-  border-color: var(--line-strong);
-}
-.tagform {
-  display: flex;
-  flex-direction: column;
-  gap: var(--s-2);
-  margin-bottom: var(--s-3);
+  box-shadow: inset 0 0 0 1px var(--line-strong);
 }
 
 /* A–Z: one card, each letter a slim divider row inside it, sticky under the top bar while its

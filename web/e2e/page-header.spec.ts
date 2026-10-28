@@ -1,5 +1,5 @@
 // A page's header (#334): the meta line (kind, then what else), the dates line, and one row of
-// chips (a todo's due chip first, the tags, the + that changes them). One line or two; one red
+// chips, read only (a todo's due chip first, a shortcut into the editor's Due fold; the tags). One line or two; one red
 // word; no dot ending a line; no sideways scroll on a phone; AA contrast in both themes.
 import { expect, type Page, test } from "@playwright/test";
 import { lowContrast } from "./contrast";
@@ -43,12 +43,12 @@ async function make(
   return got;
 }
 
-/** The page, once it has drawn its title and chip row, not only once the address
- * changed. (The chip row's + is what the tests reach for; waiting for the row keeps a slow first read from looking like a missing button.) */
+/** The page, once it has drawn its title and action row, not only once the address changed
+ * (a page with no tags and no due chip has no chip row). */
 async function open(page: Page, got: { slug: string }) {
   await page.goto(`/p/${got.slug}`);
   await expect(page.locator(".page > h1")).toBeVisible();
-  await expect(page.locator(".page .tags")).toBeVisible();
+  await expect(page.locator(".page > .tools")).toBeVisible();
 }
 
 /** The parts of a header line, as typed (its dots are drawn by CSS). */
@@ -77,18 +77,16 @@ test("a note, board or plain todo has one line; more to say makes two", async ({
   await expect(page.locator(".page > p.meta.dates")).toHaveCount(1);
   expect((await parts(page, ".meta"))[0]).toBe("Todo");
 
-  // A status other than open, a snooze, tasks: the meta line, then the dates line
+  // A status other than open, tasks: the meta line, then the dates line
   const busy = await make(page, `Header busy ${word()}\n\n- [x] one\n- [ ] two`, "todo", {
     fields: { status: "in_progress" },
-    snoozed_until: day(5),
   });
   await open(page, busy);
   await expect(page.locator(".page > p.meta:not(.dates)")).toHaveCount(1);
   await expect(page.locator(".page > p.dates:not(.meta)")).toHaveCount(1);
   const meta = await parts(page, ".meta");
   expect(meta.slice(0, 2)).toEqual(["Todo", "in progress"]);
-  expect(meta[2]).toMatch(/^snoozed till /);
-  expect(meta[3]).toBe("1 of 2");
+  expect(meta[2]).toBe("1 of 2");
   expect((await parts(page, ".dates"))[0]).toMatch(/^Created /);
   // The kind word leads, in ink and semibold, after its (decorative) icon
   const kind = page.locator(".page > .meta .kind");
@@ -109,7 +107,7 @@ test("a Later reads Kind · medium · verb, and its status once it is not open",
   await expect(page.locator(".page > .dates:not(.meta)")).toBeVisible();
 });
 
-test("the due chip is first and opens the due editor, focus back after", async ({ page }) => {
+test("the due chip is first and opens the editor at its Due fold", async ({ page }) => {
   const t = await make(page, `Header due ${word()}`, "todo", { due: day(3), priority: "high" });
   await page.request.patch(`/api/pages/${t.page_id}`, { data: { tags: ["hdrcar"] } });
   await open(page, t);
@@ -120,10 +118,13 @@ test("the due chip is first and opens the due editor, focus back after", async (
   const box = await chip.boundingBox();
   expect(box?.height).toBeGreaterThanOrEqual(47); // a 48 px target
   await chip.click();
-  await expect(page.locator(".todoedit")).toBeVisible();
-  await expect(chip).toHaveCount(0); // in its place
-  await page.getByRole("button", { name: "Cancel" }).click();
-  await expect(page.locator(".page .tags .duechip")).toBeFocused();
+  // The page editor, its Due fold open (the first fold), focus on the due chip pressed
+  const due = page.locator(".editor .fold", { hasText: "Due" });
+  await expect(due).toHaveAttribute("open", "");
+  await expect(page.locator(".editor .fold").first()).toContainText("Due");
+  await expect(due.locator('.soon [aria-pressed="true"]')).toBeFocused();
+  await page.locator(".editor > .bar").getByRole("button", { name: "Cancel" }).click();
+  await expect(page.locator(".editor")).toHaveCount(0);
   // An open todo with no due date offers one
   const bare = await make(page, `Header bare ${word()}`, "todo");
   await open(page, bare);
@@ -152,62 +153,20 @@ test("an overdue todo has exactly one red word", async ({ page }) => {
   expect(red).toEqual(["overdue"]);
 });
 
-test("a tag opens its search; + opens the tag editor and gives focus back", async ({ page }) => {
+test("a tag opens its search; the row has no editing in it", async ({ page }) => {
   const tag = `hdr${word()}`;
   const t = await make(page, `Header tags ${word()}`, "note", { tags: [tag, "car"] });
   await open(page, t);
   const row = page.locator(".page .tags");
+  await expect(row.getByRole("button")).toHaveCount(0); // no +: tags change in the editor
   await row.getByRole("link", { name: "Tag car" }).click();
   await expect(page).toHaveURL("/search?q=tag%3Acar");
-  await page.goBack();
-  const plus = row.getByRole("button", { name: "Change tags" });
-  // + sits straight after the last tag, in the same wrapper
-  await expect(row.locator(".last").locator("a, button")).toHaveCount(2);
-  await plus.click();
-  await expect(page.locator(".tagform")).toBeVisible();
-  await page.keyboard.press("Escape");
-  await expect(page.locator(".tagform")).toBeHidden();
-  await expect(page.locator(".page .tags .add")).toBeFocused();
 });
 
-test("the tag editor's and the write-up's .row are not the header's parts", async ({ page }) => {
-  const t = await make(page, `Header rows ${word()}`, "note", { tags: ["car"] });
-  await open(page, t);
-  await page.locator(".page .tags .add").click();
-  // Its Cancel and Save are the action row's while it is open
-  const save = page.locator(".page > .tools").getByRole("button", { name: "Save" });
-  await expect(save).toBeVisible();
-  const style = await save.evaluate((e) => {
-    const cs = getComputedStyle(e, "::before");
-    return [cs.content, getComputedStyle(e).marginInlineStart];
-  });
-  expect(style).toEqual(["none", "0px"]);
-});
-
-test("the due chip stays while tags are edited; closing the due editor keeps focus", async ({
-  page,
-}) => {
-  const t = await make(page, `Header both ${word()}`, "todo", { due: day(4), tags: ["car"] });
-  await open(page, t);
-  await page.locator(".page .tags .add").click();
-  await expect(page.locator(".tagform")).toBeVisible();
-  await expect(page.locator(".page .tags .duechip")).toBeVisible(); // not swept away
-  await page.keyboard.press("Escape");
-  await expect(page.locator(".page .tags .add")).toBeFocused();
-  // The due editor, cancelled: focus is back on its chip
-  await page.locator(".page .tags .duechip").click();
-  await page.getByRole("button", { name: "Cancel" }).click();
-  await expect(page.locator(".page .tags .duechip")).toBeFocused();
-});
-
-test("an untagged page offers + Tag, named Add tags", async ({ page }) => {
+test("an untagged note has no chip row", async ({ page }) => {
   const t = await make(page, `Header untagged ${word()}`, "note");
   await open(page, t);
-  const add = page.locator(".page .tags").getByRole("button", { name: "Add tags" });
-  await expect(add).toHaveText("Tag");
-  expect((await add.boundingBox())?.height).toBeGreaterThanOrEqual(47);
-  await add.click();
-  await expect(page.locator(".tagform")).toBeVisible();
+  await expect(page.locator(".page .tags")).toHaveCount(0);
 });
 
 /** Each visual line of a header line (".meta" or ".dates"), as geometry: its parts' edges, where
@@ -267,9 +226,9 @@ for (const width of [320, 360, 390, 430])
     }) => {
       const t = await make(page, `Header wrap ${word()}\n\n- [x] one\n- [ ] two`, "todo", {
         fields: { status: "in_progress" },
-        snoozed_until: day(9),
       });
-      await as(page, change);
+      // Edited a day later: the dates line says both, long enough to wrap at 320 px
+      await as(page, { ...change, updated_at: new Date(Date.now() + 86_400_000).toISOString() });
       await page.setViewportSize({ width, height: 700 });
       await open(page, t);
       await expect(page.locator(".page .meta .parts")).toBeVisible();
@@ -337,13 +296,12 @@ for (const width of [320, 360, 390, 430]) {
         due: day(-1),
         priority: "medium",
         fields: { status: "in_progress" },
-        snoozed_until: day(4),
         tags: ["alpha/beta/gamma/delta", "another-quite-long-tag", "car", "garden", "kitchen"],
       },
     );
     await page.setViewportSize({ width, height: 800 });
     await open(page, t);
-    await expect(page.locator(".page .tags .add")).toBeVisible();
+    await expect(page.locator(".page .tags")).toBeVisible();
     for (const colorScheme of ["light", "dark"] as const) {
       await page.emulateMedia({ colorScheme });
       const wide = await page.evaluate(() => {
@@ -370,7 +328,7 @@ test("the header has AA contrast in light and dark", async ({ page }) => {
     tags: ["hdrink", "car"],
   });
   await open(page, t);
-  await expect(page.locator(".page .tags .add")).toBeVisible();
+  await expect(page.locator(".page .tags")).toBeVisible();
   for (const colorScheme of ["light", "dark"] as const) {
     await page.emulateMedia({ colorScheme, reducedMotion: "reduce" });
     expect(await page.evaluate(lowContrast, ""), colorScheme).toEqual([]);

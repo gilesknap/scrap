@@ -16,7 +16,6 @@ describe("sections match the server's order", () => {
         fields: {},
         due: null,
         priority: null,
-        snoozed_until: null,
         updated_at: "2026-10-01T00:00:00Z",
         tags: [],
         ...p,

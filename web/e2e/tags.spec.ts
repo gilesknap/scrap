@@ -5,14 +5,6 @@ import { expect, test } from "@playwright/test";
 import { lowContrast } from "./contrast";
 import { filters, filtersButton, openFold } from "./panel";
 
-/** A photo whose reading failed (e2e/draw.py): its Retry draws the page again. */
-function failedPhoto(): { slug: string } {
-  const data = process.env.SCRAP_E2E_DATA as string;
-  const args = ["run", "--locked", "python", "web/e2e/draw.py", data, "failed"];
-  const out = execFileSync("uv", args, { cwd: "..", encoding: "utf8" });
-  return JSON.parse(out.trim().split("\n").pop() || "null");
-}
-
 let slugs: string[] = [];
 test.beforeAll(() => {
   const data = process.env.SCRAP_E2E_DATA as string;
@@ -25,7 +17,14 @@ type Page = import("@playwright/test").Page;
 type Locator = import("@playwright/test").Locator;
 const hits = (page: Page) => page.locator(".list li a strong");
 const openTags = (scope: Locator) => openFold(scope, "Tags");
-/** The tags a picker's row offers, in order: each chip says a short name, its tooltip the tag. */
+/** The page's editor (Edit), its Tags fold open: where a page's tags are changed. */
+async function editTags(page: Page) {
+  await page.locator(".page > .tools").getByRole("button", { name: "Edit" }).click();
+  const editor = page.locator(".editor");
+  await openTags(editor);
+  return editor;
+}
+/** The tags a picker's row offers, in order: each chip says the tag in full, its tooltip too. */
 const offeredTags = (row: Locator) =>
   row.getByRole("button").evaluateAll((bs) => bs.map((b) => b.getAttribute("title")));
 /** The row offers the first of want, in order: as many as fit in its two rows (one at least). */
@@ -75,7 +74,7 @@ test("a page's tag searches for it, children too", async ({ page }) => {
   await page.goto(`/p/${slugs[0]}`);
   // A row of chips under the header, most used tag first; each a 44 px target
   const row = page.locator(".page .tags");
-  await expect(row.getByRole("link")).toHaveText(["#…/garden", "#diy"]); // the last part, "…/" before it; the full tag is its name
+  await expect(row.getByRole("link")).toHaveText(["#zephyr/garden", "#diy"]); // the full path
   const [line, chip] = [await row.boundingBox(), await row.getByRole("link").first().boundingBox()];
   expect(chip?.height).toBeGreaterThanOrEqual(43.9); // sub-pixel layout
   expect(line?.height).toBeGreaterThanOrEqual((chip?.height ?? 0) - 0.1); // wraps; sub-pixel layout; no sideways scroll
@@ -159,31 +158,28 @@ test("a time range, from a preset or dates, by edit or creation date", async ({ 
   await expect(hits(page)).toHaveCount(2);
 });
 
-test("tags are edited on the page, and in the editor (a row's swipe opens it)", async ({
-  page,
-}) => {
+test("tags are edited in the editor, the page's chips read only", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" }); // the contrast check catches no fade midway
   const id = "01E2ETAGED17".padEnd(26, "0");
   const made = await page.request.post("/api/captures", { data: { id, text: "Tag me please" } });
   const { slug } = await made.json();
   await page.goto(`/p/${slug}`);
   const line = page.locator(".page .tags");
-  await line.getByRole("button", { name: "Add tags" }).click();
-  const box = page.getByRole("textbox", { name: "Add a tag" });
-  await expect(box).toBeFocused();
+  await expect(line).toHaveCount(0); // no tags, not a todo: no chip row, and nothing to tap
+  let editor = await editTags(page);
+  const box = editor.getByRole("textbox", { name: "Add a tag" });
   await box.fill("#Quokka Pen");
   await box.press("Enter");
   await box.fill("quokka/feed,");
-  await expect(page.getByRole("button", { name: "Remove #quokka pen" })).toBeVisible();
-  await page.getByRole("button", { name: "Remove #quokka pen" }).click();
+  await expect(editor.getByRole("button", { name: "Remove #quokka pen" })).toBeVisible();
+  await editor.getByRole("button", { name: "Remove #quokka pen" }).click();
   await box.fill("zebu"); // still in the box when saved: it counts
-  await page.getByRole("button", { name: "Save" }).click();
-  await expect(line.getByRole("link")).toHaveText(["#…/feed", "#zebu"]);
-  await expect(line.getByRole("button", { name: "Change tags" })).toBeVisible();
-  // In the editor: Cancel puts them back, Save sends them with the text
-  await page.locator(".page .tools").getByRole("button", { name: "Edit" }).click();
-  const editor = page.locator(".editor");
-  await openTags(editor); // folded to a line: "Tags 2 · #quokka/feed #zebu"
+  await editor.getByRole("button", { name: "Save" }).click();
+  await expect(editor).toBeHidden();
+  await expect(line.getByRole("link")).toHaveText(["#quokka/feed", "#zebu"]);
+  await expect(line.getByRole("button")).toHaveCount(0);
+  // Again: the fold says them; Save sends the change
+  editor = await editTags(page);
   await expect(editor.locator("details.fold > summary", { hasText: /^Tags/ })).toContainText(
     "2 · #quokka/feed #zebu",
   );
@@ -191,26 +187,28 @@ test("tags are edited on the page, and in the editor (a row's swipe opens it)", 
   await editor.getByRole("textbox", { name: "Add a tag" }).fill("quokka/water");
   await editor.getByRole("button", { name: "Save" }).click();
   await expect(editor).toBeHidden();
-  await expect(line.getByRole("link")).toHaveText(["#…/feed", "#…/water"]);
+  await expect(line.getByRole("link")).toHaveText(["#quokka/feed", "#quokka/water"]);
   await page.goto("/search?q=tag%3Aquokka");
   await expect(hits(page)).toHaveText(["Tag me please"]);
   // Suggestions: as typed, the tags in use that match, in our own row (no datalist menu)
   await page.goto(`/p/${slug}`);
-  await page.getByRole("button", { name: "Change tags" }).click();
-  await expect(page.locator(".tagedit datalist")).toHaveCount(0);
+  editor = await editTags(page);
+  await expect(editor.locator(".tagedit datalist")).toHaveCount(0);
   await box.fill("garden");
-  const matching = page.getByRole("group", { name: "Matching tags" });
+  const matching = editor.getByRole("group", { name: "Matching tags" });
   await expect(
     matching.getByRole("button", { name: "Add #zephyr/garden", exact: true }),
   ).toBeVisible();
   expect(await page.evaluate(lowContrast, ""), "tag editor").toEqual([]);
   await matching.getByRole("button", { name: "Add #zephyr/garden", exact: true }).click();
   await expect(box).toHaveValue(""); // what was typed is now that tag
-  await expect(page.getByRole("button", { name: "Remove #zephyr/garden" })).toBeVisible();
-  await page.getByRole("button", { name: "Cancel" }).click();
+  await expect(editor.getByRole("button", { name: "Remove #zephyr/garden" })).toBeVisible();
+  page.once("dialog", (d) => d.accept());
+  await editor.getByRole("button", { name: "Cancel" }).click();
+  await expect(editor).toBeHidden();
 });
 
-test("the most used tags are offered one tap each, on a page and in the composer", async ({
+test("the most used tags are offered one tap each, in the page editor and the composer", async ({
   page,
 }) => {
   const id = "01E2ETAGTP01".padEnd(26, "0");
@@ -242,8 +240,8 @@ test("the most used tags are offered one tap each, on a page and in the composer
       .map((t) => `#${t}`);
   };
   await page.goto(`/p/${slug}`);
-  await page.getByRole("button", { name: "Add tags" }).click();
-  const top = page.getByRole("group", { name: "Most used tags" });
+  const editor = await editTags(page);
+  const top = editor.getByRole("group", { name: "Most used tags" });
   const want = await expected([]);
   expect(want).toHaveLength(6);
   await offersFirst(top, want);
@@ -255,10 +253,9 @@ test("the most used tags are offered one tap each, on a page and in the composer
   await expect(page.getByRole("button", { name: `Remove ${first}`, exact: true })).toBeVisible();
   await offersFirst(top, await expected([first.slice(1)]));
   await expect(top.getByRole("button").first()).toBeFocused(); // the chip now in its place
-  await page.getByRole("button", { name: "Save" }).click();
-  await expect(page.locator(".page .tags").getByRole("link")).toHaveText([
-    first.includes("/") ? `#…/${first.split("/").at(-1)}` : first, // the last part, "…/" before it
-  ]);
+  await editor.getByRole("button", { name: "Save" }).click();
+  await expect(editor).toBeHidden();
+  await expect(page.locator(".page .tags").getByRole("link")).toHaveText([first]); // in full
   const saved = await (await page.request.get(`/api/pages/${page_id}`)).json();
   expect(saved.tags).toEqual([first.slice(1)]);
   // Off again: the other tests count that tag's pages
@@ -340,56 +337,18 @@ test("Order writes sort: into the query, and the results follow it", async ({ pa
   expect(await page.evaluate(lowContrast, ""), "order").toEqual([]);
 });
 
-test("the tag editor's Cancel and Save are the page's action row", async ({ page }) => {
+test("the page's action row is always its own: no in-place tag editor", async ({ page }) => {
   const made = await page.request.post("/api/captures", {
     data: { id: "01E2ETAGRW1".padEnd(26, "0"), text: "Tag row please" },
   });
-  const { slug } = await made.json();
+  const { slug, page_id } = await made.json();
+  await page.request.patch(`/api/pages/${page_id}`, { data: { tags: ["rowtag"] } });
   await page.goto(`/p/${slug}`);
   const buttons = page.locator(".page > .tools").getByRole("button");
   await expect(buttons).toHaveText(["Edit", "Delete"]);
-  await page.getByRole("button", { name: "Add tags" }).click();
-  await expect(buttons).toHaveText(["Cancel", "Save"]);
-  await expect(
-    page.locator(".tagform").getByRole("button", { name: /^(Save|Cancel)$/ }),
-  ).toHaveCount(0);
-  await expect(buttons.last()).toBeInViewport({ ratio: 1 });
-  await page.getByRole("textbox", { name: "Add a tag" }).fill("rowtag");
-  await buttons.last().click();
-  await expect(buttons).toHaveText(["Edit", "Delete"]);
   await expect(page.locator(".page .tags").getByRole("link")).toHaveText(["#rowtag"]);
-  await page.getByRole("button", { name: "Change tags" }).click();
-  await expect(buttons).toHaveText(["Cancel", "Save"]);
-  await buttons.first().click();
-  await expect(buttons).toHaveText(["Edit", "Delete"]);
-});
-
-test("an open tag edit survives the page being drawn again; Cancel and Escape close it", async ({
-  page,
-}) => {
-  const { slug } = failedPhoto();
-  await page.goto(`/p/${slug}`);
-  const retry = page.getByRole("button", { name: "Retry" });
-  await expect(retry).toBeVisible();
-  await page.getByRole("button", { name: "Add tags" }).click();
-  const box = page.getByRole("textbox", { name: "Add a tag" });
-  await box.fill("wombat");
-  await box.press("Enter");
-  await box.fill("still typing");
-  await Promise.all([page.waitForResponse("**/api/pages/*"), retry.click()]); // drawn again
-  await expect(page.getByText("Waiting: Claude ingest is off")).toBeVisible();
-  await expect(page.getByRole("button", { name: "Remove #wombat" })).toBeVisible();
-  await expect(box).toHaveValue("still typing");
-  await page.getByRole("button", { name: "Cancel" }).click();
-  const tagsButton = page.locator(".page .tags").getByRole("button", { name: "Add tags" });
-  await expect(tagsButton).toBeFocused(); // back where it was
-  await expect(page.getByText("Waiting: Claude ingest is off")).toBeVisible(); // the page as it is now
-  await tagsButton.click();
-  await box.fill("x");
-  await box.press("Escape");
-  await expect(box).toBeHidden();
-  await expect(tagsButton).toBeFocused();
-  expect((await (await page.request.get(`/api/pages/${slug}`)).json()).tags).toEqual([]);
+  await expect(page.getByRole("button", { name: /^(Change tags|Add tags)$/ })).toHaveCount(0);
+  await expect(page.locator(".tagform")).toHaveCount(0);
 });
 
 test("a kept draft brings back only the tags changed in it", async ({ page }) => {
