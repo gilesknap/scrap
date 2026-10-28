@@ -164,7 +164,9 @@ def placed(text: str, blobs: list[BlobRef]) -> str:
             return f"![](/api/blobs/{sha}/preview?size=2048)"
         name = re.sub(r"[\[\]\\]", "", name or "")  # no bracket, nor one escaped
         label = " ".join(CONTROL.sub(" ", name).split())
-        return f"[{label or 'file'}](/api/blobs/{sha})"
+        link = f"[{label or 'file'}](/api/blobs/{sha})"
+        # after a "!" (Look!⟦file 1⟧) the link would read as an image: a space between
+        return f" {link}" if m.start() and text[m.start() - 1] == "!" else link
 
     return UPLOAD_TOKEN.sub(embed, text)
 

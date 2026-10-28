@@ -139,6 +139,15 @@ def test_a_token_for_no_upload_stays_as_typed(client):
     assert (got["title"], got["body"]) == ("⟦image 1⟧ stays", "⟦image 1⟧ stays")
 
 
+def test_a_file_token_after_a_bang_is_no_image(client):
+    """Look!⟦file 1⟧ would be Look![name](...): an image embed. A space between."""
+    page = post(client, "Look!⟦file 1⟧ and !⟦image 2⟧", PDF, PHOTO)
+    s = shas(page)
+    assert page["body"] == (
+        f"Look! [minutes.pdf](/api/blobs/{s['minutes.pdf']}) and !{image(s['a.jpg'])}"
+    )
+
+
 def test_a_token_twice_embeds_twice(client):
     page = post(client, "⟦image 1⟧\n\nagain\n\n⟦image 1⟧", PHOTO)
     sha = shas(page)["a.jpg"]

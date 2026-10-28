@@ -20,7 +20,7 @@ import {
 } from "./editor";
 import { DRAFT, FRESH, promote, recover } from "./fresh";
 import { embedBytes, tooLong } from "./pagecap";
-import { pend, placeAt, placed, wire } from "./pending";
+import { offTokens, pend, placeAt, placed, wire } from "./pending";
 import type { Capture } from "./queue";
 import { refused } from "./refused";
 import { split } from "./split";
@@ -98,7 +98,7 @@ export async function compose(picked: File[], as?: string, resume = false, given
       em.add(e);
       return e.token;
     });
-    const c = placeAt(text.value, at, to, tokens);
+    const c = placeAt(text.value, ...offTokens(text.value, at, to), tokens);
     text.setRangeText(c.insert, c.from, c.to);
     text.setSelectionRange(c.start, c.end);
     text.dispatchEvent(new Event("input", { bubbles: true })); // its chips, and the draft kept

@@ -110,17 +110,25 @@ export function embedded(text: HTMLTextAreaElement) {
   // Each chip's thumbnail made once (a phone's photo is big to draw on every keystroke). A
   // preview that won't come (not a photo the server can draw, offline): the file icon
   const thumbs = new Map<Embed, Element>();
-  const thumb = (e: Embed) => {
+  const make = (e: Embed, keep: boolean) => {
+    const img = e.blob ? blobImg(e.blob) : h("img", { src: previewUrl(e.sha, 480), alt: "" });
+    img.onerror = () => {
+      if (e.blob) URL.revokeObjectURL(img.src); // as blobImg's own, which this replaces
+      const file = icon("file");
+      if (keep) thumbs.set(e, file); // the icon from now on, not the broken image again
+      img.replaceWith(file);
+    };
+    return img;
+  };
+  // drawn: those with a chip already in this pass; a token twice gets a second picture (one
+  // element can't be in two chips), or a copy of its icon
+  const thumb = (e: Embed, drawn: Set<Embed>) => {
     let el = thumbs.get(e);
+    if (drawn.has(e))
+      return el && !(el instanceof HTMLImageElement) ? el.cloneNode(true) : make(e, false);
+    drawn.add(e);
     if (!el) {
-      const img = e.blob ? blobImg(e.blob) : h("img", { src: previewUrl(e.sha, 480), alt: "" });
-      img.onerror = () => {
-        if (e.blob) URL.revokeObjectURL(img.src); // as blobImg's own, which this replaces
-        const file = icon("file");
-        thumbs.set(e, file); // the icon from now on, not the broken image again
-        img.replaceWith(file);
-      };
-      el = img;
+      el = make(e, true);
       thumbs.set(e, el);
     }
     return el;
@@ -129,6 +137,7 @@ export function embedded(text: HTMLTextAreaElement) {
   // A tap keeps the keyboard as it is, as the editor's keys do
   const chips = h("div", { className: "embeds", onpointerdown: (e: Event) => e.preventDefault() });
   const show = () => {
+    const drawn = new Set<Embed>();
     chips.replaceChildren(
       ...found(text.value, embeds).map(({ embed: e, at }) => {
         const what = `${e.image ? "image" : "file"} ${e.n}`;
@@ -154,7 +163,7 @@ export function embedded(text: HTMLTextAreaElement) {
           h(
             "button",
             { type: "button", className: "pick", title: e.token, onclick: pick },
-            e.image ? thumb(e) : icon("file"),
+            e.image ? thumb(e, drawn) : icon("file"),
             h("span", { dir: "auto" }, e.label),
           ),
           h(

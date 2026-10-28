@@ -1,7 +1,7 @@
 // The composer's photos and files as tokens in its text (#403): pending.ts.
 import { describe, expect, it } from "vitest";
 import { tokenise } from "../src/embeds";
-import { pend, placeAt, placed, wire } from "../src/pending";
+import { offTokens, pend, placeAt, placed, wire } from "../src/pending";
 
 const photo = (name = "IMG_1.jpg") => new File(["p"], name, { type: "image/jpeg" });
 const pdf = (name = "minutes.pdf") => new File(["%PDF"], name, { type: "application/pdf" });
@@ -64,6 +64,32 @@ describe("placeAt", () => {
 
   it("replaces what is selected", () => {
     expect(put("one TWO three", 4, ["⟦image 1⟧"], 7)[0]).toBe("one \n\n⟦image 1⟧\n\n three");
+  });
+});
+
+describe("offTokens", () => {
+  const text = "ab ⟦image 1⟧ cd ⟦file 1: m.pdf⟧";
+  const end1 = text.indexOf("⟧") + 1;
+  it("moves a selected token's selection to its end: the file goes after it, not over it", () => {
+    expect(offTokens(text, 3, end1)).toEqual([end1, end1]);
+  });
+  it("moves a caret inside a token to its end: the token is not split", () => {
+    expect(offTokens(text, 6, 6)).toEqual([end1, end1]);
+    expect(offTokens(text, text.length - 3, text.length - 3)).toEqual([text.length, text.length]);
+  });
+  it("collapses a selection across a token to its end; leaves one clear of tokens", () => {
+    expect(offTokens(text, 1, 6)).toEqual([end1, end1]);
+    expect(offTokens(text, 0, 2)).toEqual([0, 2]);
+    expect(offTokens(text, end1, end1 + 2)).toEqual([end1, end1 + 2]);
+  });
+  it("keeps the earlier file when one is added with its token selected", () => {
+    const a = pend(photo("a.jpg"), [], "");
+    const t = `x ${a.token} y`;
+    const b = pend(photo("b.jpg"), [a], t);
+    const c = placeAt(t, ...offTokens(t, 2, 2 + a.token.length), [b.token]);
+    const out = t.slice(0, c.from) + c.insert + t.slice(c.to);
+    expect(out).toBe("x ⟦image 1⟧\n\n⟦image 2⟧\n\n y");
+    expect(placed(out, [a, b])).toEqual([a, b]);
   });
 });
 

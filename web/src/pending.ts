@@ -47,6 +47,20 @@ export function placeAt(text: string, from: number, to: number, tokens: string[]
   return { from, to, insert, start: at, end: at };
 }
 
+/** A caret or selection (from..to) moved off any token in text: one inside or across a token
+ * collapses to the token's end, so a file added there never replaces or splits it (a chip's tap
+ * selects its token). */
+export function offTokens(text: string, from: number, to: number): [number, number] {
+  for (const m of text.matchAll(TOKEN)) {
+    const end = m.index + m[0].length;
+    if (m.index < to && end > from) {
+      to = Math.max(to, end);
+      from = to;
+    }
+  }
+  return [from, to];
+}
+
 /** The pending files whose tokens are in text, in the order of their first token. */
 export function placed(text: string, pending: Embed[]): Embed[] {
   const out = new Set<Embed>();

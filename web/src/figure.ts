@@ -65,7 +65,11 @@ export function figures(
     const f = files.get(a.dataset.sha ?? "");
     const para = a.parentElement;
     if (!f || isImage(f) || para?.tagName !== "P") continue;
-    if (para.textContent?.trim() !== a.textContent?.trim()) continue;
+    // the link alone (an image beside it, or text, and it stays a link)
+    const alone = [...para.childNodes].every(
+      (n) => n === a || n.nodeName === "BR" || (n instanceof Text && !n.data.trim()),
+    );
+    if (!alone) continue;
     shown.add(f.sha256);
     inPlace.push([para, f]);
   }

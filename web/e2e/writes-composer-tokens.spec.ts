@@ -299,3 +299,44 @@ test("a chip whose preview fails keeps the file icon as the text changes", async
   page.once("dialog", (d) => d.accept()); // discard the change
   await page.getByRole("button", { name: "Cancel" }).click();
 });
+
+test("an image and a file link in one paragraph: the figure stays, the file is listed below", async ({
+  page,
+}) => {
+  const made = await page.request.post("/api/captures", {
+    multipart: { id: id(), text: "Mixed\n\n⟦image 1⟧\n⟦file 2⟧", place: "1", file: photo("m.png") },
+  });
+  const ref = (await made.json()) as { page_id: string; slug: string };
+  // the PDF, added to the page; its link put beside the image by hand
+  const saved = await read(page, ref.page_id);
+  const img = saved.captures[0].blobs[0].sha256;
+  const add = await page.request.post(`/api/pages/${ref.page_id}/captures`, {
+    multipart: { id: id(), file: pdf("doc.pdf", "doc") },
+  });
+  const doc = ((await add.json()) as Saved).captures[1].blobs[0].sha256;
+  const body = `Mixed\n\n![](/api/blobs/${img}/preview?size=2048)\n[doc.pdf](/api/blobs/${doc})`;
+  const rev = ((await add.json()) as { rev: number }).rev;
+  await page.request.patch(`/api/pages/${ref.page_id}`, { data: { base_rev: rev, body } });
+  await page.goto(`/p/${ref.slug}`);
+  await expect(page.locator("figure.orig img")).toHaveCount(1); // the image still a figure
+  await expect(page.locator(`a[data-sha="${doc}"]`)).toHaveText("doc.pdf"); // a link in place
+  await expect(page.locator(".originals .filerow")).toHaveCount(1); // and its row below
+});
+
+test("a token pasted twice: two chips, each with its picture", async ({ page }) => {
+  const made = await page.request.post("/api/captures", {
+    multipart: { id: id(), text: "Twice\n\n⟦image 1⟧", place: "1", file: photo("t.png") },
+  });
+  const ref = (await made.json()) as { page_id: string; slug: string };
+  await page.goto(`/p/${ref.slug}`);
+  await page.getByRole("button", { name: "Edit" }).click();
+  await expect(chips(page).locator("img")).toHaveCount(1);
+  await page.getByLabel("Body").press("Control+End");
+  await page.keyboard.insertText("\n\n⟦image 1⟧"); // a copy of its token, pasted
+  await expect(chips(page)).toHaveText(["Image 1", "Image 1"]);
+  await expect(chips(page).locator("img")).toHaveCount(2);
+  await page.keyboard.type(" more"); // drawn again: both keep a picture
+  await expect(chips(page).locator("img")).toHaveCount(2);
+  page.once("dialog", (d) => d.accept());
+  await page.getByRole("button", { name: "Cancel" }).click();
+});
