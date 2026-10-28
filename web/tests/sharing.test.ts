@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { sharePageFile, tapExpired } from "../src/sharing";
+import { sharePageFile, sharePageHtml, tapExpired } from "../src/sharing";
 
 const denied = Object.assign(new Error("not allowed"), { name: "NotAllowedError" });
 
@@ -69,5 +69,34 @@ describe("sharePageFile", () => {
     await sharePageFile("/api/pages/a/download", "A page", saved);
     expect(share).not.toHaveBeenCalled();
     expect(saved.mock.calls[0][0].name).toBe("p.md");
+  });
+});
+
+describe("sharePageHtml", () => {
+  afterEach(() => vi.unstubAllGlobals());
+  const article = {
+    nodeType: 1,
+    nodeName: "ARTICLE",
+    childNodes: [{ nodeType: 3, nodeName: "#text", data: "hello", childNodes: [] }],
+  } as unknown as HTMLElement;
+
+  it("shares the page as an HTML file", async () => {
+    const share = vi.fn(async () => {});
+    vi.stubGlobal("navigator", { share, canShare: () => true });
+    const saved = vi.fn();
+    await sharePageHtml(article, "My page", saved);
+    const file = (share.mock.calls[0] as unknown as [ShareData])[0].files?.[0] as File;
+    expect(file.name).toBe("My-page.html");
+    expect(await file.text()).toContain("hello");
+    expect(saved).not.toHaveBeenCalled();
+  });
+
+  it("saves the file where this phone can't share one", async () => {
+    const share = vi.fn(async () => {});
+    vi.stubGlobal("navigator", { share, canShare: () => false });
+    const saved = vi.fn();
+    await sharePageHtml(article, "My page", saved);
+    expect(share).not.toHaveBeenCalled();
+    expect(saved.mock.calls[0][0].name).toBe("My-page.html");
   });
 });

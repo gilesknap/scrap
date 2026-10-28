@@ -451,13 +451,14 @@ Page text is Markdown as GitHub writes it:
 
 ### Sharing a page
 
-**Share** asks **Link**, **Text**, **File** (where the browser can share files) or **Download**. Tap **Share** again or elsewhere to close.
+**Share** asks **Link**, **Text**, **HTML** and **Zip** (both saved like Download where the browser cannot share files) or **Download**. Tap **Share** again or elsewhere to close.
 
 | Choice | Sends |
 | --- | --- |
 | **Link** | The page's address; opens the page for anyone who can reach your scrap |
 | **Text** | Title and text as typed, without lines that only show a photo; no link to scrap |
-| **File** | The same Markdown, or zip, as Download, handed to the share sheet, but with each photo as a preview (up to 2048 pixels, with no location or camera details) instead of the original. If the browser cannot share files it is saved like Download, with the original photos (which keep their location and camera details) |
+| **HTML** | The page as you see it, as one `.html` file that opens anywhere with no scrap: your text, Claude's card with the labels the page gives it (nothing added), and the file names; task boxes show as `[x]` or `[ ]`, and Ask, Download and the other buttons, and the notes that say what Claude is waiting for, are left out. Photos are inlined as 480 pixel previews (no location or camera details), up to about 4 MB in all; past that, the rest are named in brackets. PDFs and other files are named, not included; links to other pages of scrap lose their link. No script, and nothing in it is fetched. It is built from the page on screen, so it shows what the page shows now. If the browser cannot share files it is saved |
+| **Zip** | The same Markdown, or zip, as Download, handed to the share sheet, but with each photo as a preview (up to 2048 pixels, with no location or camera details) instead of the original. If the browser cannot share files it is saved like Download, with the original photos (which keep their location and camera details) |
 | **Download** | Markdown, or a zip of the Markdown and its files (the originals) when it has any |
 
 The Markdown has what the page shows, not only your text. The front matter lists the page's
