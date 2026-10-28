@@ -1,16 +1,16 @@
-// Text size (Settings, kept on this device): the root font size that every rem follows.
-// Phone (the default) leaves it to css/base.css: 17 px times the phone's font size (Android,
-// through text-scale) or an iPhone's text size, never under 17 px (main.ts). A percentage sets
-// scrap's own size instead, 17 px times it, whatever the phone says, marked data-text so
-// main.ts leaves it. theme-init.js does the same before the first paint; this is Settings'.
+// Text size (Settings, kept on this device): the root font size that every rem follows. 100%,
+// the default, is scrap's 17 px, sized as a web page is (the browser's zoom applies to it). A
+// percentage is 17 px times it. Phone follows the phone's font size instead (css/base.css:
+// Android's through text-scale, an iPhone's text size), never under 17 px. main.ts applies the
+// kept choice at the start and when the app comes back, theme-init.js before the first paint;
+// this is Settings', at once.
 import { kept } from "./api";
 
 export const TEXT_KEY = "scrap.text_size";
 
-/** The sizes Settings offers, as kept (a string, so "1e0" or "0x1" are not "1") and as shown.
- * public/theme-init.js has the same list of values: change both. The 17 px is css/base.css's
- * and main.ts's floor() as well. */
+/** What Settings offers, as kept and as shown. "1" (100%) is kept as nothing: the default. */
 export const SIZES: [string, string][] = [
+  ["phone", "Phone"],
   ["0.8", "80%"],
   ["0.9", "90%"],
   ["1", "100%"],
@@ -18,18 +18,19 @@ export const SIZES: [string, string][] = [
   ["1.3", "130%"],
 ];
 
-/** The chosen size as a factor of 17 px, or null: the phone's (nothing, or anything else). */
+/** The choice: one of SIZES' keys ("1" if nothing or anything else is kept). */
 export const textSize = () => {
   const v = kept(TEXT_KEY);
-  return SIZES.some(([k]) => k === v) ? Number(v) : null;
+  return SIZES.some(([k]) => k === v) ? (v as string) : "1";
 };
 
-/** Keep the choice (null: the phone's) and show it at once. */
-export function setTextSize(n: number | null) {
-  kept(TEXT_KEY, n ? String(n) : null);
+/** Keep the choice and show it at once, as main.ts's floor() does. */
+export function setTextSize(v: string) {
+  kept(TEXT_KEY, v === "1" ? null : v);
   const html = document.documentElement;
-  html.style.fontSize = n ? `${17 * n}px` : "";
-  if (n) html.dataset.text = String(n);
-  else delete html.dataset.text;
-  if (!n && parseFloat(getComputedStyle(html).fontSize) < 17) html.style.fontSize = "17px";
+  const n = Number(v);
+  html.dataset.text = v === "1" ? "" : v;
+  html.style.fontSize = n >= 0.8 && n <= 1.3 && v !== "1" ? `${17 * n}px` : "";
+  if (v === "phone" && parseFloat(getComputedStyle(html).fontSize) < 17)
+    html.style.fontSize = "17px";
 }

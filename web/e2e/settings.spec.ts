@@ -92,16 +92,16 @@ test.describe("Text size", () => {
     await page.evaluate((k) => localStorage.removeItem(k), SIZE);
   });
 
-  test("sets the root outright, survives reload and the floor, and Phone undoes it", async ({
+  test("100% is the default; a size survives reload and coming back; 100% undoes it", async ({
     page,
   }) => {
-    expect(await rootPx(page)).toBe(17); // Phone: the default
+    expect(await rootPx(page)).toBe(17); // 100%, as a web page is sized
     const group = await open(page);
-    await expect(group.getByLabel("Phone")).toBeChecked();
+    await expect(group.getByLabel("100%")).toBeChecked();
 
     await group.getByText("90%", { exact: true }).click();
-    await expect.poll(() => rootPx(page)).toBeCloseTo(15.3, 1); // under 17 px, which only Phone is held to
-    // coming back to the app, and going online again, re-measure the root (main.ts floor)
+    await expect.poll(() => rootPx(page)).toBeCloseTo(15.3, 1);
+    // coming back to the app, and going online again, apply it again (main.ts floor)
     await page.evaluate(() => {
       dispatchEvent(new Event("online"));
       document.dispatchEvent(new Event("visibilitychange"));
@@ -116,10 +116,29 @@ test.describe("Text size", () => {
     await sizes(page).getByText("130%", { exact: true }).click();
     await expect.poll(() => rootPx(page)).toBeCloseTo(22.1, 1);
 
+    // Phone: the phone's font size (none in this browser: 17 px), marked for base.css
     await sizes(page).getByText("Phone", { exact: true }).click();
     await expect.poll(() => rootPx(page)).toBe(17);
-    expect(await page.evaluate(() => document.documentElement.dataset.text)).toBeUndefined();
+    expect(await page.evaluate(() => document.documentElement.dataset.text)).toBe("phone");
+    expect(await page.evaluate((k) => localStorage.getItem(k), SIZE)).toBe("phone");
+
+    await sizes(page).getByText("100%", { exact: true }).click();
+    await expect.poll(() => rootPx(page)).toBe(17);
+    expect(await page.evaluate(() => document.documentElement.dataset.text)).toBe("");
     expect(await page.evaluate((k) => localStorage.getItem(k), SIZE)).toBeNull();
+  });
+
+  test("the app applies a kept size even if theme-init.js didn't (a stale copy)", async ({
+    page,
+  }) => {
+    // An older theme-init.js, from before Settings had a text size, as a phone's cache once held
+    await page.route("**/theme-init.js", (r) =>
+      r.fulfill({ contentType: "text/javascript", body: "/* stale */" }),
+    );
+    await page.evaluate((k) => localStorage.setItem(k, "0.9"), SIZE);
+    await page.reload();
+    await expect.poll(() => rootPx(page)).toBeCloseTo(15.3, 1);
+    await page.unroute("**/theme-init.js");
   });
 
   test("a chosen size is in place before the app starts, with no flash", async ({ page }) => {
@@ -143,15 +162,14 @@ test.describe("Text size", () => {
     expect(await rootPx(page)).toBeCloseTo(13.6, 1);
   });
 
-  test("a kept value that is not one of the six is the phone's, on the first paint too", async ({
+  test("a kept value that is not one Settings offers is 100%, on the first paint too", async ({
     page,
   }) => {
-    for (const junk of ["0x1", "1e0", "0.85"]) {
+    for (const junk of ["abc", "2", "0.5"]) {
       await page.evaluate(([k, v]) => localStorage.setItem(k, v), [SIZE, junk]);
       await page.reload();
       expect(await rootPx(page)).toBe(17);
-      expect(await page.evaluate(() => document.documentElement.dataset.text)).toBeUndefined();
-      await expect((await open(page)).getByLabel("Phone")).toBeChecked();
+      await expect((await open(page)).getByLabel("100%")).toBeChecked();
     }
   });
 

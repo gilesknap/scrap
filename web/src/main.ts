@@ -273,15 +273,18 @@ function dueSoon() {
 }
 addEventListener("scrap:wrote", dueSoon);
 
-// iPhone's text size, or Android's font size (text-scale), sets the root (css/base.css), but
-// never under scrap's 17 px: measured again when the app comes back, the setting may have
-// changed meanwhile. Not while Settings' text size sets it (data-text: theme-init.js)
+// Settings' text size, kept on this device (textsize.ts): theme-init.js applies it before the
+// first paint, and this again at the start and when the app comes back, so a size is never lost
+// to a stale script. A percentage of scrap's 17 px, inline; "phone", the phone's font size
+// (css/base.css), never under 17 px; none, 17 px, as a web page is sized
 const html = document.documentElement;
 const root = html.style;
 const floor = () => {
-  if (html.dataset.text) return;
-  root.fontSize = "";
-  if (parseFloat(getComputedStyle(html).fontSize) < 17) root.fontSize = "17px";
+  const s = kept("scrap.text_size") ?? "";
+  const n = +s;
+  html.dataset.text = s;
+  root.fontSize = n >= 0.8 && n <= 1.3 ? `${17 * n}px` : "";
+  if (s === "phone" && parseFloat(getComputedStyle(html).fontSize) < 17) root.fontSize = "17px";
 };
 floor();
 
