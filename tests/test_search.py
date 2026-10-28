@@ -6,6 +6,7 @@ from datetime import UTC, date, datetime, timedelta
 import pytest
 from fastapi.testclient import TestClient
 
+from pagehelp import import_page
 from scrap.app import create_app
 from scrap.query import SORTS, Filter, Term, bound, due, parse
 from scrap.store import (
@@ -89,7 +90,7 @@ def page(store, title, body="", tags=(), kind="note", **fields):
         "body": body, "kind": kind, "fields": fields, "tags": list(tags),
         "created_at": stamp, "updated_at": stamp,
     }  # fmt: skip
-    return store.import_page(p, [(new_ulid(), "note", body, [])], "me")[0]
+    return import_page(store, p, [(new_ulid(), "note", body, [])], "me")[0]
 
 
 def slugs(store, query):

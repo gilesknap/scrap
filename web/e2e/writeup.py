@@ -12,9 +12,11 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
+sys.path.insert(0, str(Path(__file__).parents[2] / "tests"))
 
 from draw import BOARD, photo  # noqa: E402
 
+from pagehelp import import_page  # noqa: E402
 from scrap import claude, enrich, ingest  # noqa: E402
 from scrap.store import Store, new_ulid, transaction  # noqa: E402
 
@@ -53,7 +55,7 @@ def main(data_dir: str) -> None:
         "title": "Retry policy", "body": "Retry with backoff.", "kind": "note",
         "fields": {}, "tags": [], "created_at": stamp, "updated_at": stamp,
     }  # fmt: skip
-    slug = store.import_page(target, [(new_ulid(), "note", "x", [])], "e2e")[0]
+    slug = import_page(store, target, [(new_ulid(), "note", "x", [])], "e2e")[0]
     sha, size = store.put_blob(io.BytesIO(photo()))
     c = store.prepare({"id": new_ulid()}, ["image/png"])
     ref = store.capture(c, [(sha, "image/png", size, "whiteboard.png")], "e2e")[0]

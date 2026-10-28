@@ -6,6 +6,7 @@ from contextlib import closing
 
 import pytest
 
+from pagehelp import import_page
 from scrap import retention
 from scrap.store import Store, connect, new_ulid, todo
 from test_mcp import write
@@ -136,7 +137,7 @@ def test_each_way_to_set_and_clear_a_value_keeps_the_table_right(store):
         "created_at": "2026-01-01T00:00:00.000Z",
         "updated_at": "2026-01-01T00:00:00.000Z",
     }  # fmt: skip
-    store.import_page(p, [(new_ulid(), "note", "", [])], "me")
+    import_page(store, p, [(new_ulid(), "note", "", [])], "me")
     (value,) = rows(store).values()
     assert value == (LATER, "high")
     # a todo with nothing set has no row

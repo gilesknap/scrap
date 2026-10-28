@@ -2,6 +2,7 @@
 
 import pytest
 
+from pagehelp import import_page
 from scrap.store import Store, new_ulid
 
 
@@ -95,7 +96,9 @@ def test_import_moves_due_and_priority_into_the_todo_row(tmp_path):
             "fields": fields, "tags": [], "created_at": "2026-01-01T00:00:00.000Z",
             "updated_at": "2026-01-01T00:00:00.000Z",
         }  # fmt: skip
-        return store.page(store.import_page(p, [(new_ulid(), "note", "", [])], "me")[0])
+        return store.page(
+            import_page(store, p, [(new_ulid(), "note", "", [])], "me")[0]
+        )
 
     todo = imported("todo", status="open", due="2026-11-01", priority="urgent")
     assert (todo["due"], todo["priority"], todo["fields"]) == (

@@ -11,6 +11,7 @@ from typing import Any
 import pytest
 from fastapi.testclient import TestClient
 
+from pagehelp import import_page
 from scrap import claude, enrich, fetch
 from scrap.app import create_app
 from scrap.enrich import finding
@@ -311,7 +312,7 @@ def imported_photos(store, *read):
          "kind": "note", "fields": {}, "tags": [], "created_at": stamp,
          "updated_at": stamp}  # fmt: skip
     cid = new_ulid()
-    page = store.page(store.import_page(p, [(cid, "photo", None, blobs)], "me")[0])
+    page = store.page(import_page(store, p, [(cid, "photo", None, blobs)], "me")[0])
     with closing(connect(store.db)) as conn, conn:
         for (sha, *_), pair in zip(blobs, read, strict=True):
             for kind, text in zip(("description", "ocr"), pair, strict=True):
@@ -987,7 +988,7 @@ def test_a_page_is_enrichs_or_ingests_by_its_first_capture(store):
     lo, hi = "01J0000000000000000000000A", "01J0000000000000000000000B"
     caps = [(lo, "note", "a note", []),
             (hi, "photo", None, [(sha, "image/jpeg", size, None)])]  # fmt: skip
-    page_id = store.page(store.import_page(p, caps, "me")[0])["id"]
+    page_id = store.page(import_page(store, p, caps, "me")[0])["id"]
     store.update_page(page_id, 1, None, "a note, edited", "me")
     assert [j[:2] for j in jobs(store)] == [("save", "queued")]
 
@@ -1003,7 +1004,7 @@ def test_an_imported_note_with_files_is_enrichs_whatever_the_ids(store):
     note, files = "01J0000000000000000000000F", "01J0000000000000000000000E"
     caps = [(note, "note", "a note", []),
             (files, "file", None, [(sha, "application/pdf", size, None)])]  # fmt: skip
-    page_id = store.page(store.import_page(p, caps, "me")[0])["id"]
+    page_id = store.page(import_page(store, p, caps, "me")[0])["id"]
     store.update_page(page_id, 1, None, "a note, edited", "me")
     assert [j[:2] for j in jobs(store)] == [("save", "queued")]
 

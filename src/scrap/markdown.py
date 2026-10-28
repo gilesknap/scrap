@@ -1,7 +1,7 @@
 """Page text parsed as Markdown (markdown-it-py: CommonMark, plus GFM tables,
 strikethrough and footnotes, and Obsidian's [[target|label]] links), as the PWA renders
 it with markdown-it: raw HTML is text, a line break stays one. Used for the text the
-search index holds (`plain`) and for the importer's link rewriting (`rewrite`), so code
+search index holds (`plain`) and for link rewriting (`rewrite`), so code
 is never mistaken for a link, and no part of it backtracks on hostile text."""
 
 import re

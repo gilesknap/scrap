@@ -8,6 +8,7 @@ from contextlib import closing
 from fastapi.testclient import TestClient
 from PIL import Image
 
+from pagehelp import import_page
 from scrap import claude, ingest
 from scrap.app import create_app
 from scrap.store import Store, connect, new_ulid, now, topics, transaction
@@ -253,7 +254,7 @@ def test_a_photo_and_files_import_reads_its_photo_first(tmp_path):
     main, files = "01J0000000000000000000000F", "01J0000000000000000000000E"
     caps = [(main, "photo", "notes", [(img, "image/jpeg", size, None)]),
             (files, "file", None, [(pdf, "application/pdf", n, None)])]  # fmt: skip
-    s.import_page(p, caps, "me", enqueue=True)
+    import_page(s, p, caps, "me", enqueue=True)
     run_all(tmp_path, BOARD)
     assert s.page("board")["tags"] == ["design", "queues"]  # Claude's, from the photo
 

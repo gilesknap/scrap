@@ -10,6 +10,7 @@ from typing import Any
 import pytest
 from PIL import Image
 
+from pagehelp import import_page
 from scrap import claude, ingest
 from scrap.store import CLAUDE, MCP, Store, connect, new_ulid, now, roles, topics
 from scrap.store.db import transaction
@@ -82,7 +83,7 @@ def pages(store) -> dict[str, str]:
     p = {"slug": "imported", "title": "Imported", "body": "notes", "kind": "note",
          "fields": {}, "tags": [], "created_at": stamp,
          "updated_at": stamp}  # fmt: skip
-    store.import_page(
+    import_page(store,
         p,
         [(new_ulid(), "note", "notes", [(img, "image/jpeg", size, None)]),
          (new_ulid(), "file", None, [(pdf, "application/pdf", n, None)])],

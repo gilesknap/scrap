@@ -21,7 +21,7 @@ Search needed plain text from the same parse.
   ` ```mermaid ` blocks are drawn by a bundled, separately loaded Mermaid with
   `securityLevel: 'strict'`, so the CSP does not change.
 - The server uses markdown-it-py (`scrap/markdown.py`) to produce search text (link/image text, not
-  addresses; code as typed) and for the importer, which rewrites links, images and wiki links found by
+  addresses; code as typed) and for link rewriting, which rewrites links, images and wiki links found by
   the parse and mapped back to source positions, so code is never touched.
 - Parsers must be linear in the text. Migration 0004 re-indexed every page this way.
 - Search deliberately does not index addresses.

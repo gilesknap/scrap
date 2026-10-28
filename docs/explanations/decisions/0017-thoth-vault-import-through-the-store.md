@@ -4,7 +4,9 @@ Date: 2026-10-20 (#45, #47)
 
 ## Status
 
-Accepted
+Accepted, then superseded in practice: the importer (`scrap import`, `importer/`) was removed once the
+Thoth migration was done (#413). Git history keeps it. A general Markdown import and export is
+tracked in #417.
 
 ## Context
 

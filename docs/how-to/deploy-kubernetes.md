@@ -821,10 +821,6 @@ purge date from `trashDays` (`SCRAP_TRASH_DAYS`, `off` while the job does not de
 `gc.delete: false` to have it only count until you trust it. To see what the store holds by size,
 `kubectl -n scrap exec deploy/scrap -- scrap gc --report` (it reads only).
 
-Photos stored before the phone made them smaller can be shrunk once by hand with
-`kubectl -n scrap exec deploy/scrap -- scrap shrink` (a dry run; `--apply` does it). Back up first:
-see {ref}`scrap-shrink`.
-
 - **Turn one off** with `gc.enabled: false`, `enrichRelated.enabled: false` or
   `enrichTopics.enabled: false` (or `ingest.enabled: false` for both Claude jobs).
 - **Change when** with its `.schedule` and `.timeZone`.

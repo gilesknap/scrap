@@ -1,7 +1,7 @@
 """A todo's due and priority live in page_todo (ADR 36, #267 baseline).
 
-A store is filled with every combination of the values; the searches, writes and
-an export/import round trip run on it."""
+A store is filled with every combination of the values; the searches and
+writes run on it."""
 
 import json
 from contextlib import closing
@@ -9,7 +9,6 @@ from datetime import date, timedelta
 
 import pytest
 
-from scrap.__main__ import main
 from scrap.store import Store, connect, new_ulid, todo
 from scrap.store.constants import REV_INSERT
 from scrap.store.indexing import index_page
@@ -111,7 +110,7 @@ def test_the_searches_find_something(store):
     assert hits["due:none"]
 
 
-def test_writes_and_a_round_trip_still_work_on_a_populated_store(store, tmp_path):
+def test_writes_still_work_on_a_populated_store(store):
     clear = dict.fromkeys(todo.NAMES)
 
     def edit(slug, values):
@@ -127,17 +126,3 @@ def test_writes_and_a_round_trip_still_work_on_a_populated_store(store, tmp_path
     assert table_rows(store)["all-three"] == (day(9), None)
     edit("all-three", clear)
     assert "all-three" not in table_rows(store)
-    # export, then import into a new store: the values come back
-    edit("all-three", {"due": day(2), "priority": "high"})
-    out = tmp_path / "md"
-    main(["export", "--data-dir", str(store.dir), str(out)])
-    (out / "actions").mkdir()  # import reads a todo by its folder, as a vault has it
-    (out / "all-three.md").rename(out / "actions" / "all-three.md")
-    other = tmp_path / "other"
-    main(["import", "--data-dir", str(other), str(out)])
-    with closing(connect(Store(other).db)) as conn:
-        got = conn.execute(
-            "SELECT t.* FROM page_todo t JOIN page ON id = page_id"
-            " WHERE slug = 'all-three'"
-        ).fetchone()
-    assert (got["due"], got["priority"]) == (day(2), "high")

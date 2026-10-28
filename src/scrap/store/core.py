@@ -1,7 +1,6 @@
 """The Store base: paths, connections, blobs, slugs."""
 
 import hashlib
-import json
 import os
 import sqlite3
 import tempfile
@@ -80,20 +79,6 @@ class Core:
             return set()
         with self.connect() as conn:
             return {row[0] for row in conn.execute("SELECT slug FROM page")}
-
-    def imported(self, ids: list[str]) -> dict[str, str]:
-        """The slug of the page each of these capture ids made, for those that exist."""
-        if not self.db.is_file():
-            return {}
-        with self.connect() as conn:
-            return {
-                row[0]: row[1]
-                for row in conn.execute(
-                    "SELECT c.id, p.slug FROM capture c JOIN page p ON p.id = c.page_id"
-                    " WHERE c.id IN (SELECT value FROM json_each(?))",
-                    (json.dumps(ids),),
-                )
-            }
 
     def _ref(self, conn: sqlite3.Connection, cid: str, page_id: str) -> dict[str, str]:
         slug = conn.execute("SELECT slug FROM page WHERE id = ?", (page_id,)).fetchone()
