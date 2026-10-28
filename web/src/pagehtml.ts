@@ -27,7 +27,7 @@ const KEEP = new Set(
 );
 // Left out with everything inside: controls, scripts and drawings of the app, not the page
 const DROP = new Set(
-  "audio button canvas dialog embed form iframe input link menu meta nav noscript object script select style svg template textarea video".split(
+  "audio button canvas dialog embed form iframe link menu meta nav noscript object script select style svg template textarea video".split(
     " ",
   ),
 );
@@ -44,12 +44,14 @@ const kids = (n: N) => Array.from(n.childNodes);
 
 /** Whether a node is one of the page's controls (a Download, an Ask), not its content. */
 function control(n: N): boolean {
+  // A prompt or where Claude is up to ("Waiting for Claude", "Claude can describe it..."),
+  // which means nothing in a file
   const cls = ` ${attr(n, "class") ?? ""} `;
   return (
     DROP.has(tag(n)) ||
     n.hasAttribute?.("download") === true ||
     n.hasAttribute?.("hidden") === true ||
-    / (tools|headend|ingest-actions|ctitle-actions|bar) /.test(cls)
+    / (tools|headend|bar|state|did|hint) /.test(cls)
   );
 }
 
@@ -87,6 +89,10 @@ export async function inline(
   const out = new Map<N, string | null>();
   let total = 0;
   for (const img of imgs) {
+    if (total >= cap) {
+      out.set(img, null); // the file is full: no more fetching
+      continue;
+    }
     const blob = await get(previewOf(attr(img, "src") ?? "")).catch(() => null);
     const url = blob && blob.type === "image/jpeg" ? await read(blob) : null;
     if (url && total + url.length <= cap) {
@@ -108,6 +114,11 @@ function render(n: N, shown: Map<N, string | null>): string {
     kids(n)
       .map((k) => render(k, shown))
       .join("");
+  if (t === "input") {
+    // A task box (render.ts): its state as text, as the page shows it
+    if (attr(n, "type") !== "checkbox") return "";
+    return n.hasAttribute?.("checked") ? "[x] " : "[ ] ";
+  }
   if (t === "img") {
     const url = shown.get(n);
     // A photo past the cap (or one that is not this server's): named, with no address

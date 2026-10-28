@@ -138,3 +138,36 @@ describe("photos and names", () => {
     expect(htmlName("???")).toBe("page.html");
   });
 });
+
+describe("the page's own parts", () => {
+  it("shows a task box as its state, and leaves out prompts and where Claude is up to", () => {
+    const page = e(
+      "div",
+      {},
+      e("label", { class: "taskbox" }, e("input", { type: "checkbox", disabled: "", checked: "" })),
+      e("label", { class: "taskbox" }, e("input", { type: "checkbox", disabled: "" })),
+      e("span", { class: "state queued", role: "status" }, "Waiting for Claude"),
+      e("p", { class: "did" }, "Claude can describe it"),
+      e("small", { class: "hint" }, "Text couldn't be read"),
+    );
+    const html = pageHtml(page, "T", none);
+    expect(html).toContain("[x] ");
+    expect(html).toContain("[ ] ");
+    expect(html).not.toMatch(/Waiting|can describe|couldn't/);
+  });
+
+  it("does not fetch a photo once the file is full", async () => {
+    const mk = (alt: string) => e("img", { src: `/api/blobs/${SHA}/preview?size=2048`, alt });
+    const asked: string[] = [];
+    await inline(
+      [mk("a"), mk("b")],
+      async (u) => {
+        asked.push(u);
+        return new Blob(["x"], { type: "image/jpeg" });
+      },
+      async () => "x".repeat(10),
+      10,
+    );
+    expect(asked).toHaveLength(1);
+  });
+});
