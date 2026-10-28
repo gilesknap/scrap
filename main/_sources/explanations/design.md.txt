@@ -63,7 +63,7 @@ flowchart LR
   off). Capture, search and everything else work without it.
 - The API and the worker both write, so every connection sets `PRAGMA foreign_keys = ON` and
   `PRAGMA busy_timeout = 5000` on open; the database is in WAL mode.
-- The CLI (`scrap backup`, `restore`, `export`, `import`, `gc`, `shrink`, `enrich`, `ingest-once`) opens the
+- The CLI (`scrap backup`, `restore`, `export`, `gc`, `enrich`) opens the
   same data folder directly; `scrap serve` migrates, then serves.
 - No login code. Tailscale Serve is the way in; on Kubernetes a proxy fronts it, with an optional
   bearer token on `/mcp` ([](decisions/0007-tailscale-serve-for-access-and-identity.md),
@@ -78,7 +78,6 @@ flowchart TD
     subgraph entry["Entry points"]
         app["app.py, *_api.py, api_models.py, middleware.py, uploads.py, pwa.py, public.py"]
         mcpt["mcp_server.py, mcp_tools/"]
-        imp["importer/"]
     end
     subgraph bg["Background work"]
         ing["ingest/"]
@@ -94,7 +93,6 @@ flowchart TD
 
     app --> st
     mcpt --> st
-    imp --> st
     ing --> st
     enr --> st
     ing --> cl
@@ -116,7 +114,6 @@ flowchart TD
 | `enrich/` | Claude's reading of text pages: summary, tags, related pages, board write-ups, topic pages. |
 | `claude.py`, `claude_cli.py` | The Messages API client and the Claude seat (`claude -p`) backend. |
 | `mcp_tools/` | The tools served at `/mcp`. |
-| `importer/` | Reads a Thoth vault and writes it through `Store`. |
 
 ## One capture becomes one page
 
@@ -138,11 +135,11 @@ sequenceDiagram
 ```
 
 Every capture kind (note, link, photo, file) gets its own page; what goes in the body and title is
-tabled on [Capture, files and import](architecture/capture-and-files.md).
+tabled on [Capture, files and backup](architecture/capture-and-files.md).
 
 Ingest is a fixed pipeline with no search-then-decide loop. Merging and cross-linking pages is done
 by hand or through MCP `write`. Details are in
-[Capture, files and import](architecture/capture-and-files.md) and
+[Capture, files and backup](architecture/capture-and-files.md) and
 [Job queue and Claude features](architecture/claude-pipeline.md).
 
 ## Page map
@@ -151,7 +148,7 @@ by hand or through MCP `write`. Details are in
 | --- | --- |
 | [Scope and stack](overview.md) | What scrap is and is not; the tools it uses. |
 | [Data model and storage](architecture/data-model.md) | Tables, page identity, kinds, revisions, migrations. |
-| [Capture, files and import](architecture/capture-and-files.md) | Capture routes, blobs, images in text, `scrap gc`, Thoth import. |
+| [Capture, files and backup](architecture/capture-and-files.md) | Capture routes, blobs, images in text, `scrap gc`, backup and export. |
 | [Job queue and Claude features](architecture/claude-pipeline.md) | Jobs, pausing, enrich, write-ups, topics, budget. |
 | [Search](architecture/search.md) | FTS5 index, query syntax, filters. |
 | [MCP server and access](architecture/mcp-and-access.md) | Tools, revisions over MCP, bearer token, security. |

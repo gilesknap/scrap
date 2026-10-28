@@ -203,7 +203,6 @@ From any other device on the tailnet, a browser opens the web app at the same
 ## Next steps
 
 - Use the app: [](../how-to/use-the-pwa.md).
-- Bring in an existing vault: [](../how-to/import-a-vault.md).
 - Ingest on a Claude seat instead of an API key: [](ingest-with-claude-seat.md).
 - Look after the install, in [](../how-to/deploy-single-server.md): {ref}`scrap-update`, backup and
   restore (a daily backup timer is already running, but its copy stays on the server),

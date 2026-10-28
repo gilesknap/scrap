@@ -204,7 +204,7 @@ These five are the only kinds. A topic page is a `document`, identified by the `
   changes it. Photo ingest, enrich (a saved link becomes Later) and task boxes only change an
   unfixed note; an import sets and fixes its kind.
 - **Changing kind** keeps every field and adds the new kind's defaults for missing keys, so
-  todo, note, todo round-trips. See [Capture, files and import](capture-and-files.md) for how a
+  todo, note, todo round-trips. See [Capture, files and backup](capture-and-files.md) for how a
   kind is chosen at capture.
 
 ## Identity, links and tags

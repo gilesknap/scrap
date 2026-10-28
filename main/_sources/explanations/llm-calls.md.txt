@@ -66,9 +66,6 @@ screen) are plain SQL and make no call: Claude's views of the library are the to
 (contradictions and open questions), topic discovery (topics to make) and the related pass
 (links to suggest) ([](decisions/0029-store-health-checks-as-search-filters.md)).
 
-Imports are not read as text unless `scrap enrich --backfill` queues them (their first enrich then
-queues the related call). Their photos are read only with `scrap import --ingest`.
-
 Topic discovery (`scrap enrich --topics`, weekly: [](../reference/scheduled-jobs.md)) is one call over the whole library: an index of
 every page not in the trash and not a topic (at most 2,000, the most recently changed: number,
 title, up to 6 tags, a summary cut to 150 characters), the existing topics with their sources'

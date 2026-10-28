@@ -179,8 +179,7 @@ Known limits:
 
 The full-size original stays in the phone's own gallery, not in scrap. Colours are redrawn in
 sRGB, so a wide-gamut colour profile may be lost. **Settings**, **Photos**, **Full size** turns
-this off for every photo (**Smaller** is the default); there is no choice per shot. Photos stored
-before this existed can be shrunk once with `scrap shrink` ({ref}`scrap-shrink`).
+this off for every photo (**Smaller** is the default); there is no choice per shot.
 
 ## What scrap stores on the phone
 
@@ -309,7 +308,7 @@ first; the full grammar is in [](../reference/api.md).
 | `tag:tech` | A tag (`tag:epics` also finds `tech/epics`) |
 | `is:open`, `is:in_progress`, `is:done`, `is:cancelled` | A todo's or Later page's status |
 | `is:claude`, `is:claude-edited` | Pages Claude wrote over MCP; pages whose text Claude changed over MCP |
-| `is:personal`, `is:work` | The page's `personal` flag, set by an import ([](import-a-vault.md)); the app cannot set it |
+| `is:personal`, `is:work` | The page's `personal` flag, which nothing sets yet (the app cannot) |
 | `is:topic` | Claude's topic pages |
 | `has:image`, `has:drawing` | Pages with an image file; with a drawing made from a photo |
 | `image:photo`, `image:whiteboard` | What Claude took the photo for |
@@ -365,7 +364,7 @@ their own ([](../reference/scheduled-jobs.md)).
   Text still in the box when you save counts too. The composer has the same **Tags** line.
   Changing tags is not a text revision and does not move the page up the list.
 - **Rules.** Lower case, no leading `#`, at most 64 characters each and 64 per page (the box says
-  when one is too long), as the importer keeps them.
+  when one is too long).
 - **Finding by tag.** Use the Filters panel's **Tags** row (before any search it covers every tag
   in use).
 

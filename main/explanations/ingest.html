@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Claude ingest &#8212; scrap 0.17.1.dev10+gdcf060530 documentation</title>
+    <title>Claude ingest &#8212; scrap 0.17.1.dev11+g22a511589 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=fe23e306"></script>
+    <script src="../_static/documentation_options.js?v=b60f7174"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -825,7 +825,7 @@ window.runMermaid = runMermaid;</script>
 </details></li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="design.html">Architecture</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l2"><a class="reference internal" href="architecture/data-model.html">Data model and storage</a></li>
-<li class="toctree-l2"><a class="reference internal" href="architecture/capture-and-files.html">Capture, files and import</a></li>
+<li class="toctree-l2"><a class="reference internal" href="architecture/capture-and-files.html">Capture, files and backup</a></li>
 <li class="toctree-l2"><a class="reference internal" href="architecture/claude-pipeline.html">Job queue and Claude features</a></li>
 <li class="toctree-l2"><a class="reference internal" href="architecture/search.html">Search</a></li>
 <li class="toctree-l2"><a class="reference internal" href="architecture/mcp-and-access.html">MCP server and access</a></li>
@@ -1016,9 +1016,7 @@ has no value of its own for the text model, effort, debounce or <code class="doc
 <code class="docutils literal notranslate"><span class="pre">extraEnv</span></code>.</p></li>
 </ul>
 <p><code class="docutils literal notranslate"><span class="pre">SCRAP_ENRICH</span></code> (default on) controls the text-page job and needs ingest on; <code class="docutils literal notranslate"><span class="pre">off</span></code> keeps ingest to
-photos. <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">ingest-once</span> <span class="pre">IMAGE</span></code> tries the Claude call on one image without a database and prints
-tokens, cost and counts only (<code class="docutils literal notranslate"><span class="pre">--save</span> <span class="pre">FILE</span></code> also writes the full result): the quickest check of a
-key and a model.</p>
+photos.</p>
 </section>
 <section id="worker">
 <h2>Worker<a class="headerlink" href="#worker" title="Link to this heading">#</a></h2>
@@ -1155,8 +1153,7 @@ Claude seat, <a class="reference internal" href="#on-a-claude-seat"><span class=
 ⌈w/28⌉·⌈h/28⌉ ≤ 4784 image tokens (the high-resolution cap), never above the original: a 4:3
 photo is sent as 2048×1536 and a square one as 1932×1932.</p>
 <p>The PWA itself shrinks a photo over 2560 px on the long edge (JPEG, quality 85) before it queues it, so
-the original that is stored is already that size; <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">shrink</span></code> does the same for photos stored
-before (<a class="reference internal" href="../how-to/deploy-single-server.html#scrap-shrink"><span class="std std-ref">Shrink photos already stored</span></a>).</p>
+the original that is stored is already that size.</p>
 <p>The image block sets <code class="docutils literal notranslate"><span class="pre">&quot;transformations&quot;:</span> <span class="pre">{&quot;oversized_image&quot;:</span> <span class="pre">&quot;error&quot;}</span></code>, so the API never
 rescales it silently and drawing coordinates are in sent pixels. The JPEG is stored as a blob
 (<code class="docutils literal notranslate"><span class="pre">model_run.sent_sha256</span></code>) with its <code class="docutils literal notranslate"><span class="pre">image_width</span></code> and <code class="docutils literal notranslate"><span class="pre">image_height</span></code>. The PWA scales the drawing
@@ -1647,11 +1644,10 @@ files: with <code class="docutils literal notranslate"><span class="pre">SCRAP_F
 new one is read after the debounce like a user’s note: Claude’s own pages get model tags and
 a summary, and cost budget. <code class="docutils literal notranslate"><span class="pre">append_to</span></code> adds a section without a reading, as do tag and kind
 edits.</p></li>
-<li><p>An import (<a class="reference internal" href="../how-to/import-a-vault.html"><span class="std std-doc">Import a Thoth vault</span></a>); use <code class="docutils literal notranslate"><span class="pre">--backfill</span></code>.</p></li>
 </ul>
 </li>
 <li><p><strong>Order.</strong> The worker takes the oldest ready photo job first and runs a text page only when no
-photo job is ready. After <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">import</span> <span class="pre">--ingest</span></code> or a burst of photos, notes and links wait
+photo job is ready. After a burst of photos, notes and links wait
 until the photo queue is empty, so “Waiting for Claude” on a note can last as long as the
 photos take, and several days if the daily budget spreads them out. A photo waiting out a
 retry delay does not hold text back, but a pause stops both kinds, and they share the one daily
@@ -2062,30 +2058,22 @@ holds what you sent to Claude, and your backups do too.</p>
 </tr>
 </thead>
 <tbody>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">ingest-once</span> <span class="pre">IMAGE</span> <span class="pre">[--save</span> <span class="pre">FILE]</span></code></p></td>
-<td><p>Try one image against Claude with no database; numbers only unless <code class="docutils literal notranslate"><span class="pre">--save</span></code></p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">enrich</span> <span class="pre">--backfill</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">enrich</span> <span class="pre">--backfill</span></code></p></td>
 <td><p>Queue the notes, todos and reads with no tags that Claude has not read; the service’s worker runs them</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">enrich</span> <span class="pre">--related</span> <span class="pre">[--all]</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">enrich</span> <span class="pre">--related</span> <span class="pre">[--all]</span></code></p></td>
 <td><p>Pick related pages now, in the command’s process (the nightly pass)</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">enrich</span> <span class="pre">--writeups</span> <span class="pre">[--all</span> <span class="pre">|</span> <span class="pre">--outdated]</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">enrich</span> <span class="pre">--writeups</span> <span class="pre">[--all</span> <span class="pre">|</span> <span class="pre">--outdated]</span></code></p></td>
 <td><p>Write Claude’s write-up now, in the command’s process, for each board page with none (<code class="docutils literal notranslate"><span class="pre">--all</span></code>: every board page; <code class="docutils literal notranslate"><span class="pre">--outdated</span></code>: each outdated one instead)</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">enrich</span> <span class="pre">--topics</span> <span class="pre">[--all]</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">enrich</span> <span class="pre">--topics</span> <span class="pre">[--all]</span></code></p></td>
 <td><p>Find topics now, in the command’s process (the weekly pass), then queue each topic’s synthesis that is due (<code class="docutils literal notranslate"><span class="pre">--all</span></code>: every topic’s) for the service’s worker</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">import</span> <span class="pre">DIR</span> <span class="pre">--ingest</span></code></p></td>
-<td><p>Import a vault and also queue its images for Claude; see <a class="reference internal" href="../how-to/import-a-vault.html"><span class="std std-doc">Import a Thoth vault</span></a></p></td>
 </tr>
 </tbody>
 </table>
 </div>
-<p>The full option lists are in <a class="reference internal" href="../reference/api.html"><span class="std std-doc">HTTP API and CLI</span></a>. A large import with <code class="docutils literal notranslate"><span class="pre">--ingest</span></code> queues one
-job per image, so the daily budget decides how many days it takes; the queue works through them
-and pauses at the budget each day.</p>
+<p>The full option lists are in <a class="reference internal" href="../reference/api.html"><span class="std std-doc">HTTP API and CLI</span></a>.</p>
 </section>
 <section id="troubleshooting">
 <span id="ingest-troubleshooting"></span><h2>Troubleshooting<a class="headerlink" href="#troubleshooting" title="Link to this heading">#</a></h2>
