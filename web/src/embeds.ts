@@ -9,7 +9,7 @@
 const EMBED =
   /(!?)\[([^[\]\n]*)\]\(\/api\/blobs\/([0-9a-f]{64})(?:\/preview\?size=\d+|\?download=1)?\)/g;
 // A token, or what may be one: brackets no keyboard types by accident
-const TOKEN = /⟦[^⟦⟧\n]*⟧/g;
+export const TOKEN = /⟦[^⟦⟧\n]*⟧/g;
 
 export interface Embed {
   token: string; // as the text box has it
@@ -18,9 +18,10 @@ export interface Embed {
   image: boolean; // else a file's link
   n: number; // its number among the images, or among the files
   label: string; // its alt text or file name, else "Image 1"
+  blob?: Blob; // a file not yet on the server: the composer's (pending.ts), md its token
 }
 
-const short = (s: string) => (s.length > 32 ? `${s.slice(0, 31)}…` : s);
+export const short = (s: string) => (s.length > 32 ? `${s.slice(0, 31)}…` : s);
 
 /** body with each embed replaced by its token, and the embeds. */
 export function tokenise(body: string): { text: string; embeds: Embed[] } {

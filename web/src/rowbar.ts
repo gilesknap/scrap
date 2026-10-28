@@ -1,6 +1,7 @@
 // The Retry, Split and Discard buttons on a capture that failed to upload (lists.ts's pending
 // rows): a chunk of its own, loaded only when a capture has failed.
 import { queue } from "./app";
+import { split } from "./split";
 import { h } from "./ui";
 
 export const rowbar = (i: { id: string; files: unknown[]; error?: string }) => {
@@ -26,7 +27,7 @@ export const rowbar = (i: { id: string; files: unknown[]; error?: string }) => {
     "span",
     { className: "rowbar" },
     tooBig
-      ? act("Split and retry", () => queue.splitRetry(i.id))
+      ? act("Split and retry", () => queue.splitRetry(i.id, split))
       : act("Retry", () => queue.retry(i.id)),
     act(
       "Discard",

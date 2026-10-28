@@ -50,17 +50,6 @@ export function newItem(c: Capture, now = Date.now()): Item {
   return { ...c, id: ulid(now), created_at: new Date(now).toISOString(), attempts: 0, next: 0 };
 }
 
-/** One capture per file, the text with the first: for photos too big to send together.
- * Each page gets the tags and the kind (or an older build's hint), if any. */
-export const split = (c: Capture): Capture[] =>
-  c.files.map((f, i) => {
-    const part: Capture = { ...(!i && { text: c.text, url: c.url }), source: c.source, files: [f] };
-    // The text once; the kind, its due date and priority, and the tags on every part
-    for (const k of ["kind", "hint", "tags", "due", "priority", "page", "to"] as const)
-      if (c[k]) Object.assign(part, { [k]: c[k] });
-    return part;
-  });
-
 const permanent = (status: number) => status >= 400 && status < 500 && ![408, 429].includes(status);
 
 export class Queue {
@@ -134,8 +123,9 @@ export class Queue {
     return this.flush();
   }
 
-  /** Re-queue a capture refused as too large as one capture per photo (new ids). */
-  async splitRetry(id: string): Promise<void> {
+  /** Re-queue a capture refused as too large as one capture per photo (new ids), split by
+   * split.ts (not in the app shell: the failed row's chunk passes it). */
+  async splitRetry(id: string, split: (c: Capture) => Capture[]): Promise<void> {
     await this.running;
     const item = (await this.items()).find((i) => i.id === id);
     if (!item) return;

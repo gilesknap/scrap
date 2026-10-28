@@ -57,6 +57,17 @@ export function figures(
   const shown = new Set(
     runs.flatMap((el) => [...el.children].filter(own).map((i) => i.dataset.sha)),
   );
+  // A file of the page (a PDF, a .md) the text links to where it goes (the composer puts them
+  // there, #403): a link, or its row in place on a line of its own; not listed below as well
+  const inPlace: [HTMLElement, Placed][] = [];
+  for (const a of body.querySelectorAll<HTMLAnchorElement>("a[data-sha]")) {
+    const f = files.get(a.dataset.sha ?? "");
+    if (!f || isImage(f)) continue;
+    shown.add(f.sha256);
+    const para = a.parentElement;
+    if (para?.tagName === "P" && para.textContent?.trim() === a.textContent?.trim())
+      inPlace.push([para, f]);
+  }
   // Not an image whose embed was deleted from the text: it went with its line
   const removed = new Set(p.removed);
   const rest = [...files.values()].filter((f) => !shown.has(f.sha256) && !removed.has(f.sha256));
@@ -122,12 +133,12 @@ export function figures(
     });
     para.replaceWith(...figs);
   }
-  return rest.map((f) => {
-    const name = f.filename || f.mime;
-    if (isImage(f)) return figure(f.sha256, f.filename || "", f);
+  const row = (f: Placed) => {
     const href = blobUrl(f.sha256);
-    return fileRow(href, name, download(`${href}?download=1`, "save"), f.ingest);
-  });
+    return fileRow(href, f.filename || f.mime, download(`${href}?download=1`, "save"), f.ingest);
+  };
+  for (const [para, f] of inPlace) para.replaceWith(row(f));
+  return rest.map((f) => (isImage(f) ? figure(f.sha256, f.filename || "", f) : row(f)));
 }
 
 /** Send one image to Claude; the page, shown again, then has its panel with the queue state. */

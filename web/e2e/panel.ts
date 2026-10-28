@@ -26,3 +26,12 @@ export async function openFold(scope: Locator, name: "Tags" | "Due") {
     await summary.click();
   return summary;
 }
+
+/** Type a first line into the composer, before the tokens of the photos and files picked
+ * (#403): a paragraph of its own, as the old Caption box made it. */
+export async function caption(page: Page, text: string) {
+  const box = page.locator(".editor textarea");
+  await box.focus();
+  await box.evaluate((t: HTMLTextAreaElement) => t.setSelectionRange(0, 0));
+  await page.keyboard.insertText(`${text}\n\n`);
+}

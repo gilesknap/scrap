@@ -323,11 +323,15 @@ test("an unsaved note survives a reload, photos too; Discard and Cancel drop it"
   await page.waitForTimeout(600); // the draft is kept 0.4 s after typing stops
   await page.reload(); // as if the app was killed
   // Kept: a row over Capture's tiles, which resumes it
-  await page.getByRole("button", { name: "Draft: half a thought" }).click();
+  // (said as the queue says it: its first line, then what it holds)
+  await page.getByRole("button", { name: "Draft: half a thought · 1 photo" }).click();
   await expect(page.getByText("Restored your unsaved draft.")).toBeVisible();
-  await expect(page.getByPlaceholder("Caption (optional)")).toHaveValue("half a thought");
-  await expect(page.locator(".thumb img")).toHaveCount(1);
-  await expect(page.locator(".kinds")).toBeHidden(); // photos: ingest decides the kind
+  // The photo's token where it was put, its chip under the text (#403)
+  await expect(page.locator(".editor textarea")).toHaveValue("half a thought\n\n⟦image 1⟧\n\n");
+  await expect(page.locator(".editor .embeds img")).toHaveCount(1);
+  // With photos too, the kind as chosen, and a todo's Due line (#403)
+  await expect(page.getByRole("radio", { name: "Todo" })).toBeChecked();
+  await expect(page.locator(".editor details.fold", { hasText: "Due" })).toBeVisible();
 
   // Cancel with changes asks first; saying no keeps the editor
   page.once("dialog", (d) => d.dismiss());
@@ -335,7 +339,7 @@ test("an unsaved note survives a reload, photos too; Discard and Cancel drop it"
   await expect(page.locator(".editor")).toBeVisible();
   await page.getByRole("button", { name: "Discard it" }).click();
   await expect(page.getByPlaceholder("Note or link")).toHaveValue("");
-  await expect(page.locator(".thumb img")).toHaveCount(0);
+  await expect(page.locator(".editor .embeds img")).toHaveCount(0);
   await expect(page.getByRole("radio", { name: "Note" })).toBeChecked();
   await page.getByRole("button", { name: "Cancel" }).click(); // nothing to lose: no question
   await expect(page.locator(".editor")).toBeHidden();

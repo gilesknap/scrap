@@ -1,8 +1,9 @@
 import "fake-indexeddb/auto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { drafts, idb } from "../src/db";
-import { backoff, type Item, type Lock, newItem, Queue, split } from "../src/queue";
+import { backoff, type Item, type Lock, newItem, Queue } from "../src/queue";
 import { fromShare } from "../src/share";
+import { firstOnly, split } from "../src/split";
 
 const ULID = /^[0-9A-HJKMNP-TV-Z]{26}$/;
 
@@ -145,7 +146,7 @@ describe("queue", () => {
     const big = await q.add({ text: "board", kind: "todo", source: "pwa", files: photos });
     await q.flush();
     replies = [0];
-    await q.splitRetry(big.id);
+    await q.splitRetry(big.id, split);
     const parts = await q.items();
     expect(parts.map((i) => [i.text, i.kind, i.files.map((f) => f.name), i.failed])).toEqual([
       ["board", "todo", ["a.jpg"], undefined],
@@ -182,6 +183,30 @@ describe("queue", () => {
     expect(split({ source: "pwa", files: photos }).every((p) => !("due" in p))).toBe(true);
   });
 
+  it("leaves no stray token when a capture with tokens is split (#403)", async () => {
+    const q = queue();
+    replies = [413];
+    const files = [
+      { name: "a.jpg", blob: new Blob(["a"], { type: "image/jpeg" }) },
+      { name: "m.pdf", blob: new Blob(["m"], { type: "application/pdf" }) },
+      { name: "b.jpg", blob: new Blob(["b"], { type: "image/jpeg" }) },
+    ];
+    const text = "Trip\n\n⟦file 2⟧\n\nthe view ⟦image 3⟧ from the top\n\n⟦image 1⟧\n\nend";
+    const big = await q.add({ text, source: "pwa", files });
+    await q.flush();
+    replies = [0];
+    await q.splitRetry(big.id, split);
+    const parts = await q.items();
+    // The text with the first file, and only its token; the others' pages have no text
+    expect(parts.map((i) => [i.text, i.files.map((f) => f.name)])).toEqual([
+      ["Trip\n\n\nthe view  from the top\n\n⟦image 1⟧\n\nend", ["a.jpg"]],
+      [undefined, ["m.pdf"]],
+      [undefined, ["b.jpg"]],
+    ]);
+    expect(firstOnly("⟦file 2: m.pdf⟧\n⟦image 1⟧\n⟦image 12⟧")).toBe("⟦image 1⟧");
+    expect(firstOnly("no tokens\n\nat all")).toBe("no tokens\n\nat all");
+  });
+
   it("splits in one transaction: all parts and no original, or nothing", async () => {
     const q = queue();
     replies = [413];
@@ -194,7 +219,7 @@ describe("queue", () => {
     await expect(idb.replace([good, bad], big.id)).rejects.toThrow();
     expect((await q.items()).map((i) => i.id)).toEqual([big.id]); // untouched: split again later
     replies = [0];
-    await q.splitRetry(big.id);
+    await q.splitRetry(big.id, split);
     expect((await q.items()).map((i) => i.files[0].name)).toEqual(["a", "b"]);
   });
 
@@ -206,7 +231,7 @@ describe("queue", () => {
     await q.flush();
     replies = [0, 0];
     const other = new Queue(idb, send, () => clock + 10); // its own ids, as another tab
-    await Promise.all([q.splitRetry(big.id), other.splitRetry(big.id)]);
+    await Promise.all([q.splitRetry(big.id, split), other.splitRetry(big.id, split)]);
     expect((await q.items()).map((i) => i.files[0].name)).toEqual(["a", "b", "c"]);
   });
 

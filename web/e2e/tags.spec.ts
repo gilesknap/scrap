@@ -3,7 +3,7 @@
 import { execFileSync } from "node:child_process";
 import { expect, test } from "@playwright/test";
 import { lowContrast } from "./contrast";
-import { filters, filtersButton, openFold } from "./panel";
+import { caption, filters, filtersButton, openFold } from "./panel";
 
 let slugs: string[] = [];
 test.beforeAll(() => {
@@ -454,7 +454,7 @@ test("tags on a photo captured offline go with it when the queue sends it", asyn
     page.getByText("Gallery").click(),
   ]);
   await gallery.setFiles({ name: "q.png", mimeType: "image/png", buffer: Buffer.alloc(900, 7) });
-  await page.getByPlaceholder("Caption (optional)").fill("Quoll den offline");
+  await caption(page, "Quoll den offline");
   await openTags(composer(page));
   const box = composer(page).getByRole("textbox", { name: "Add a tag" });
   await box.fill("quoll, den");

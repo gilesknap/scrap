@@ -63,18 +63,21 @@ test("a PDF and a .md picked with File: chips in the composer, files on the page
   const { chooser } = await choose(page, ".actions", "File");
   await chooser.setFiles([PDF, MD]);
   await expect(page.locator(".editor")).toBeVisible();
-  // Each a chip with its name, not a photo that can't be drawn
-  const thumbs = page.locator(".thumbs .thumb");
+  // Each a token in the text and a chip with its name (#403), not a photo that can't be drawn
+  const box = page.locator(".editor textarea");
+  await expect(box).toHaveValue("⟦file 1: minutes.pdf⟧\n\n⟦file 2: reading.md⟧\n\n");
+  const thumbs = page.locator(".editor .embeds .embed");
   await expect(thumbs).toHaveCount(2);
-  await expect(page.locator(".thumbs img")).toHaveCount(0);
-  await expect(thumbs.nth(0).locator(".file")).toHaveText("minutes.pdf");
-  await expect(thumbs.nth(1).locator(".file")).toHaveText("reading.md");
-  await expect(page.getByRole("button", { name: "Remove minutes.pdf" })).toBeVisible();
+  await expect(page.locator(".editor .embeds img")).toHaveCount(0);
+  await expect(thumbs.nth(0)).toHaveText("minutes.pdf");
+  await expect(thumbs.nth(1)).toHaveText("reading.md");
+  await expect(page.getByRole("button", { name: "Remove file 1" })).toBeVisible();
   // One more from the composer's own File, then one taken out again
   await (await choose(page, ".editor .fields > .bar", "File")).chooser.setFiles([TXT]);
   await expect(thumbs).toHaveCount(3);
-  await page.getByRole("button", { name: "Remove list.txt" }).click();
+  await page.getByRole("button", { name: "Remove file 3" }).click();
   await expect(thumbs).toHaveCount(2);
+  await expect(box).toHaveValue("⟦file 1: minutes.pdf⟧\n\n⟦file 2: reading.md⟧\n\n\n");
   const made = page.waitForResponse(
     (r) => r.url().endsWith("/api/captures") && r.request().method() === "POST",
   );
@@ -86,8 +89,11 @@ test("a PDF and a .md picked with File: chips in the composer, files on the page
     ["minutes.pdf", "application/pdf"],
     ["reading.md", "text/markdown"],
   ]);
+  // Each linked where its token was, its row in place, and not listed again below the text
+  expect(saved.body).toMatch(/^\[minutes\.pdf\]\(\/api\/blobs\/\w{64}\)\n\n\[reading\.md\]/);
   await page.goto(`/p/${ref.slug}`);
   await expect(page.locator(".filerow")).toHaveCount(2);
+  await expect(page.locator(".originals .filerow")).toHaveCount(0);
   await expect(page.locator(".filerow", { hasText: "reading.md" })).toBeVisible();
 });
 
@@ -131,7 +137,7 @@ test("offline, a file waiting for its page is a file in Capture's queue, not a p
   await page.goto("/");
   const row = page.locator(".pending li");
   await expect(row).toHaveCount(1);
-  await expect(row.locator("strong")).toHaveText("File for Committee");
+  await expect(row.locator("strong")).toHaveText("1 file for Committee");
   await expect(row.locator("img")).toHaveCount(0);
   await expect(row.locator('.noimg path[d="M15 3.5v4h4"]')).toHaveCount(1); // the file icon
   await context.setOffline(false);

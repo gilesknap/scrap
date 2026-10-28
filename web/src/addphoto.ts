@@ -7,6 +7,7 @@ import { overLimit } from "./api";
 import { queue } from "./app";
 import { FILES, picker } from "./capture";
 import type { Capture } from "./queue";
+import { holds } from "./says";
 import { h, toast } from "./ui";
 
 /** The editor's text once the server added photos onto the revision it holds: over is that
@@ -39,15 +40,6 @@ export function uploads(files: File[], page: { id: string; title: string }): Cap
  * (a board photo would queue one over it; the server refuses them too). */
 export const takesPhotos = (page: { topic?: unknown }) => !page.topic;
 
-/** What a toast calls what was added: photos, files (PDFs, text), or photos and files. */
-export function noun(files: { type: string }[]) {
-  const photos = files.filter((f) => f.type.startsWith("image/")).length;
-  const others = files.length - photos;
-  const say = (n: number, one: string) => (n > 1 ? `${one}s` : n ? one : "");
-  const words = [say(photos, "photo"), say(others, "file")].filter(Boolean).join(" and ");
-  return words[0].toUpperCase() + words.slice(1);
-}
-
 /** Add photo, for the page editor: Camera, Gallery and File, named as the composer's are
  * (short enough to share a row at large text sizes). */
 export function photoAdder(page: { id: string; title: string }) {
@@ -59,7 +51,7 @@ export function photoAdder(page: { id: string; title: string }) {
     } catch (err) {
       return toast(`Not added: the phone refused to store it (${(err as Error).name}).`);
     }
-    const n = noun(files);
+    const n = holds(files); // as Capture and its queue say it (says.ts)
     toast(
       navigator.onLine
         ? `${n} added to the end of the page`

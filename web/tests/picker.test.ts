@@ -22,7 +22,7 @@ vi.mock("../src/fresh", () => ({ DRAFT: "d", recover: () => {} }));
 vi.mock("../src/lists", () => ({ pageList: () => null, pendingList: () => null }));
 vi.mock("../src/icons", () => ({ icon: () => "", kindIcon: () => "note" }));
 const { FILES, picker } = await import("../src/capture");
-const { noun, photoAdder } = await import("../src/addphoto");
+const { photoAdder } = await import("../src/addphoto");
 
 beforeEach(() => {
   inputs = [];
@@ -44,14 +44,4 @@ it("gives the editor's Camera and Gallery photos only, and File PDFs, text and M
   photoAdder({ id: "P1", title: "Board" });
   expect(inputs.map((i) => i.accept)).toEqual(["image/*", "image/*", FILES]);
   expect(inputs.map((i) => i.multiple)).toEqual([false, true, true]);
-});
-
-it("names what was added as photos, files (PDFs), or both", () => {
-  const f = (type: string) => ({ type });
-  expect(noun([f("image/jpeg")])).toBe("Photo");
-  expect(noun([f("image/jpeg"), f("image/png")])).toBe("Photos");
-  expect(noun([f("application/pdf")])).toBe("File");
-  expect(noun([f("application/pdf"), f("application/pdf")])).toBe("Files");
-  expect(noun([f("image/jpeg"), f("application/pdf")])).toBe("Photo and file");
-  expect(noun([f("image/jpeg"), f("image/png"), f("application/pdf")])).toBe("Photos and file");
 });
