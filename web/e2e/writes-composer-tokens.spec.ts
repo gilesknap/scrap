@@ -340,3 +340,15 @@ test("a token pasted twice: two chips, each with its picture", async ({ page }) 
   page.once("dialog", (d) => d.accept());
   await page.getByRole("button", { name: "Cancel" }).click();
 });
+
+test("Gallery puts its photo's token at the caret, mid-text", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Note" }).click();
+  await page.getByPlaceholder("Note or link").fill("Before the photo after it");
+  await box(page).evaluate((t: HTMLTextAreaElement) => t.setSelectionRange(16, 16));
+  await pick(page, BAR, "Gallery", [photo("mid.png")]);
+  await expect(box(page)).toHaveValue("Before the photo\n\n⟦image 1⟧\n\n after it");
+  await expect(chips(page)).toHaveText(["Image 1"]);
+  page.once("dialog", (d) => d.accept());
+  await page.getByRole("button", { name: "Cancel" }).click();
+});
