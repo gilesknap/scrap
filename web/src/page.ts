@@ -69,6 +69,9 @@ export async function page(key: string, signal: AbortSignal): Promise<Node> {
     renderer(),
   ]);
   signal.throwIfAborted(); // gone meanwhile (Back, or timed out): no poll or listeners
+  // Tell the server this page is the one open (MCP current_page, #452); no reply awaited,
+  // and offline or refused is no matter
+  fetch(`/api/pages/${encodeURIComponent(p.id)}/viewed`, { method: "POST" }).catch(() => {});
   const root = h("article", { className: "page" });
   // A file opens in a new window, but in Android's home-screen app that window has no Back to
   // this page: the back gesture closed the app (#443). There it opens in this window, one step

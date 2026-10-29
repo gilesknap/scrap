@@ -971,3 +971,10 @@ test("a photo page shows its thumbnail however the list found it", async ({ page
   }
   await expect(row.locator(".snip mark")).toHaveCount(0); // a filter alone: no words to mark
 });
+
+test("opening a page tells the server it is the current one (#452)", async ({ page }) => {
+  const slug = await note(page, "Look at me\nbody");
+  const seen = page.waitForRequest((r) => r.method() === "POST" && r.url().endsWith("/viewed"));
+  await page.goto(`/p/${slug}`);
+  expect((await seen).url()).toContain("/viewed");
+});
