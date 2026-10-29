@@ -7,6 +7,7 @@ Technical reference material including APIs and release notes.
 :glob:
 
 reference/api
+reference/export-format
 reference/mcp
 reference/scheduled-jobs
 Python API <_api/scrap>

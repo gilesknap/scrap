@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Scope and stack &#8212; scrap 1.0.0rc4.dev6+g68eb4f5d9 documentation</title>
+    <title>Scope and stack &#8212; scrap 1.0.0rc4.dev7+g19521008c documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=9b21963c"></script>
+    <script src="../_static/documentation_options.js?v=f9179de7"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -546,8 +546,9 @@ principles and how it works; the <a class="reference internal" href="decisions.h
 <section id="non-goals">
 <h2>Non-goals<a class="headerlink" href="#non-goals" title="Link to this heading">#</a></h2>
 <ul class="simple">
-<li><p>No Obsidian vault and no git sync: the database and a folder of files are the store. A Markdown
-export exists (<code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">export</span></code>), one-way only.</p></li>
+<li><p>No Obsidian vault and no git sync: the database and a folder of files are the store. An export
+of every page as Markdown (<code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">export</span></code>, or Settings, <strong>Export everything</strong>) opens as an
+Obsidian vault, but nothing is kept in step with it.</p></li>
 <li><p>No login code of its own and no user management. Access is the network: Tailscale (Serve
 supplies the identity header) or an authenticating proxy such as Cloudflare Access, with an
 optional bearer token on <code class="docutils literal notranslate"><span class="pre">/mcp</span></code> only

@@ -115,8 +115,8 @@ flowchart LR
   `store/constants.py`, as `Store.removed`). A file the text never mentioned stays listed. Restoring
   the text (a revert) shows the file again (#303).
 - **Add photo** to an existing page is `POST /api/pages/{key}/captures` (`photos_api.py`).
-- **Download and `scrap export`** rewrite embeds and links to the files beside the Markdown, never
-  inside code.
+- **Download and the export** rewrite embeds and links to the files beside the Markdown, never
+  inside code (`backup.localise`).
 
 ## Unused files
 
@@ -175,12 +175,12 @@ flowchart LR
 flowchart LR
     s[("Store")]:::store -- "scrap backup" --> b[("Backup dir + COMPLETE")]:::store
     b -- "scrap restore" --> s
-    s -- "scrap export" --> x["Markdown + files"]:::user
+    s -- "scrap export, Export everything" --> x["Markdown + files"]:::user
     classDef store fill:#e8f1ff,stroke:#4a7bd0
     classDef user fill:#e9f7ef,stroke:#2e9d5b
 ```
 
-**Backup, restore, export** (`backup.py`; [](deployment.md)):
+**Backup, restore, export** (`backup.py`, `export.py`; [](deployment.md)):
 
 - `backup` takes an online SQLite snapshot, then copies `files/`, safe while serving. Blobs are
   written before the rows that name them, so the copy always holds every blob in the snapshot.
@@ -188,7 +188,13 @@ flowchart LR
 - `restore` checks integrity and that the schema is not newer than the code, works from read-only
   media, and refuses a non-empty data folder without `--force`. The preview cache is never backed
   up.
-- `export` writes one Markdown file per page with its files beside it, so the data outlives scrap.
+- `export` writes one Markdown file per page with its files beside it, so the data outlives scrap:
+  a folder (`scrap export`) or a zip streamed from `GET /api/store/download`, the same files either
+  way, laid out as an Obsidian vault ([](../../reference/export-format.md)). A page's file holds
+  only the owner's text and data; what a model wrote about it goes in `_claude/<slug>.md`, so the
+  model's words are never mistaken for the owner's ([](../decisions/0020-text-enrichment.md),
+  [](../decisions/0027-claude-write-ups-of-boards-apart-from-the-text.md)).
+  The pages are read in one transaction, then the files are copied or streamed a chunk at a time.
 
 ## Invariants
 

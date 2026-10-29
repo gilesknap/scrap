@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Capture from your phone (the PWA) &#8212; scrap 1.0.0rc4.dev6+g68eb4f5d9 documentation</title>
+    <title>Capture from your phone (the PWA) &#8212; scrap 1.0.0rc4.dev7+g19521008c documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=9b21963c"></script>
+    <script src="../_static/documentation_options.js?v=f9179de7"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -786,6 +786,7 @@ window.runMermaid = runMermaid;</script>
 <li class="toctree-l1"><a class="reference internal" href="contribute.html">Contribute to the project</a></li>
 <li class="toctree-l1"><a class="reference internal" href="deploy-kubernetes.html">Deploy on Kubernetes</a></li>
 <li class="toctree-l1"><a class="reference internal" href="deploy-single-server.html">Deploy on a single server</a></li>
+<li class="toctree-l1"><a class="reference internal" href="export-your-pages.html">Export your pages</a></li>
 <li class="toctree-l1"><a class="reference internal" href="keep-an-index.html">Keep an index of your pages</a></li>
 <li class="toctree-l1"><a class="reference internal" href="make-your-own-lists.html">Make your own lists: a contacts directory</a></li>
 <li class="toctree-l1"><a class="reference internal" href="use-scrap-on-your-phone.html">Use scrap on your phone over Tailscale</a></li>
@@ -1314,7 +1315,8 @@ nothing).</p></li>
 <section id="store-health">
 <h3>Store health<a class="headerlink" href="#store-health" title="Link to this heading">#</a></h3>
 <p>The health checks, one count each from <code class="docutils literal notranslate"><span class="pre">GET</span> <span class="pre">/api/health</span></code>, are listed on <strong>Settings</strong> (the cog),
-<strong>Store health</strong> (Settings also has <strong>Trash</strong>: <a class="reference internal" href="#the-trash"><span class="std std-ref">The trash</span></a>). A tap runs the check’s search; Back returns to the screen. Nothing is dismissed
+<strong>Store health</strong> (Settings also has <strong>Trash</strong>, <a class="reference internal" href="#the-trash"><span class="std std-ref">The trash</span></a>, and <strong>Export everything</strong>,
+<a class="reference internal" href="export-your-pages.html"><span class="std std-doc">Export your pages</span></a>). A tap runs the check’s search; Back returns to the screen. Nothing is dismissed
 there: a check that keeps finding a page you are happy with is the check to change.</p>
 <div class="pst-scrollable-table-container"><table class="table">
 <thead>
@@ -1505,7 +1507,8 @@ tags, status and topics. After your text and the files comes one section headed 
 topic’s synthesis, and related pages. Then <em>Linked from</em> lists the pages that link here. The text
 read from a PDF or text file follows the file’s link, in a block cut at 20,000 characters. If
 <code class="docutils literal notranslate"><span class="pre">SCRAP_PUBLIC_URL</span></code> is set, <code class="docutils literal notranslate"><span class="pre">[[slug]]</span></code> links are written as full addresses so they work outside
-scrap. <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">export</span></code> does not write any of this: it stays your text.</p>
+scrap. The export of every page (<a class="reference internal" href="export-your-pages.html"><span class="std std-doc">Export your pages</span></a>) keeps Claude’s notes in a file of their
+own instead.</p>
 <p>Where the browser cannot share, there is no Share and <strong>Download</strong> is in the toolbar. While it
 fetches the button says <em>Preparing…</em>; a finished Download says <em>Downloaded</em> with name and size; a
 failure says <em>Download failed</em> or <em>Share failed</em> and why, for about 8 seconds. Closing the share
@@ -1575,7 +1578,7 @@ under yours: merge into your text and save (overwrites theirs), or discard yours
 <li><p><strong>Revisions.</strong> Every save that changes a page’s title or text is kept as a revision, whether by
 you or Claude over MCP. The app has no screen to browse or restore them; Claude can use the MCP
 <code class="docutils literal notranslate"><span class="pre">revisions</span></code> and <code class="docutils literal notranslate"><span class="pre">revert</span></code> tools (<a class="reference internal" href="../reference/mcp.html"><span class="std std-doc">MCP server</span></a>). Tag and kind changes are kept apart.
-<strong>Download</strong> and <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">export</span></code> hold only the current text.</p></li>
+<strong>Download</strong> and the export (<a class="reference internal" href="export-your-pages.html"><span class="std std-doc">Export your pages</span></a>) hold only the current text.</p></li>
 <li><p><strong>Size.</strong> A page’s text holds at most 1 MB (about a million letters; photo links a capture adds
 count). Save says so before sending and keeps the text for you to shorten or split. A page
 imported over the limit can still be edited if its text stays as it is or shrinks.</p></li>
