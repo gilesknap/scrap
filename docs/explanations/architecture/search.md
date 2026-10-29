@@ -107,7 +107,7 @@ flowchart TD
   PDF's or text file's text, which scrap reads itself ({ref}`ingest-files`), is such a chunk too.
 - **Disposable.** There is no `reindex` command. `index_page` rebuilds one page's own chunk,
   and a migration that changes what is indexed rebuilds every page's (the trash's too: undo brings
-  a page back), as the migrations before the 1.0 baseline did (they are folded into `baseline.sql`, [ADR 37](../decisions/0037-one-baseline-schema-for-1-0.md)).
+  a page back).
 
 ## Store health as search
 

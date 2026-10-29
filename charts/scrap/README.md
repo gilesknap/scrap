@@ -107,7 +107,7 @@ also turns on Claude enrichment of text pages.
   `gc.trashDays` (`SCRAP_TRASH_DAYS`, `off` while gc does not delete). `kubectl -n scrap exec
   deploy/scrap -- scrap gc --report` prints what the store holds, by size.
 - Database migrations are forward only, so rolling back to an older version also needs a restore
-  of the database. scrap 1.0 refuses a database below schema 18: go through 0.16.x first.
+  of the database.
 
 The full guide (secrets, exposure with the Tailscale operator, upgrades, backup and restore,
 Argo CD) is [Deploy on Kubernetes](https://gilesknap.github.io/scrap/main/how-to/deploy-kubernetes.html),

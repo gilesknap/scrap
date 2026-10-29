@@ -4,8 +4,8 @@ scrap keeps one SQLite database and a folder of content-addressed files. Capture
 are the truth; derived rows cost an LLM call to remake so they are stored; chunks and the FTS index
 are a disposable cache.
 
-Back to [Architecture](../design.md). The schema is `src/scrap/migrations/baseline.sql` (schema
-18); numbered scripts after it start at 0019 (none yet). The code is in `src/scrap/store/`.
+Back to [Architecture](../design.md). The schema is `src/scrap/migrations/baseline.sql`, with the numbered
+scripts after it in the same folder. The code is in `src/scrap/store/`.
 
 ## Core tables
 
@@ -306,30 +306,30 @@ stateDiagram-v2
 
 ## Migrations
 
-The schema is `migrations/baseline.sql`, schema 18, the 1.0 squash of the migrations 0001 to 0018
-([ADR 37](../decisions/0037-one-baseline-schema-for-1-0.md)). It is generated from a database, never
-edited by hand (`python -m scrap.store.baseline`), and holds every table, index and trigger, the
-`queue_state` seed row and the full-text index rebuild. The migrations that built it are gone: their
-Python steps and `store/fixes.py` went with them, and the history is in the ADRs and the 0.16 tag.
+The schema is `migrations/baseline.sql`, the starting point every database is made from
+([ADR 37](../decisions/0037-one-baseline-schema-for-1-0.md)). It is generated from a database,
+never edited by hand (`python -m scrap.store.baseline`), and holds every table, index and
+trigger, the `queue_state` seed row and the full-text index rebuild.
 
-Numbered scripts after the baseline are numbered by merge order with no gaps: the first is
-`0019_*.sql`, and the number in a file's name is `BASELINE + 1 + its position` (`db.BASELINE`, 18;
-`tests/test_migrate.py` enforces it). The runner sets `PRAGMA user_version = N` after script *N*,
-in the same transaction.
+Numbered scripts after the baseline change it, numbered by merge order with no gaps: the number
+in a file's name is `BASELINE + 1 + its position` (`db.BASELINE` is the baseline's version, and
+`0019_generated_current_only.sql` is the first script; `tests/test_migrate.py` enforces the
+numbering). The runner sets `PRAGMA user_version = N` after script *N*, in the same transaction.
 
 `migrate()` takes an exclusive `flock` on `scrap.db.lock` (`<database>.lock`), turns on WAL and
 then:
 
 | The database is | `migrate()` |
 | --- | --- |
-| empty (`user_version` 0) | applies `baseline.sql` and sets version 18, in one transaction, then any later scripts |
-| below 18 | refuses: `<db> has schema N, older than the baseline this scrap starts from (18): upgrade with scrap 0.16.x first (it migrates to schema 18), then use 0.17.0 or later` |
-| 18 up to the latest | applies each missing script in its own transaction; none is missing at 18 now |
+| empty (`user_version` 0) | applies `baseline.sql` and sets its version, in one transaction, then every numbered script |
+| at the baseline or later, behind the code | applies each missing script in its own transaction |
+| current | does nothing |
 | newer than the code | refuses: `<db> has schema N; this scrap knows M` |
 
-- `scrap restore` runs the same check on the copy of a backup before it swaps anything in, so a
-  backup below schema 18 is refused with that message, naming the folder given. To use one, restore
-  it with scrap 0.16.x, which migrates it to 18, take a new backup, then use 0.17.0 or later.
+- `scrap serve` runs `migrate()` at start, before it answers `/healthz`, and `scrap restore` runs
+  it on the copy of a backup before it swaps anything in: a backup from an older release is
+  migrated, one from a newer release is refused with the same message, naming the folder given,
+  and the data folder is untouched.
 - A migration after the baseline avoids rebuilding a table in Python unless a `CHECK` must change;
   plain SQL is enough and easy to fold later.
 - `tests/data/schema_baseline.json` is the frozen structure of the baseline, and

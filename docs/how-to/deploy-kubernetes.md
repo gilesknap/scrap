@@ -414,7 +414,7 @@ For a quick try, `kubectl -n scrap port-forward svc/scrap 8000:80`. Nothing is e
 ## Upgrades
 
 Back up first, then upgrade to the newer chart version (its image follows, unless your values set
-`image.tag`: change that too). Coming from before 0.16? See {ref}`k8s-upgrade-1-0` first.
+`image.tag`: change that too).
 
 ```
 kubectl -n scrap create job --from=cronjob/scrap-backup scrap-backup-pre-upgrade
@@ -434,15 +434,6 @@ Migrations are **forward only**, and an older scrap refuses a database migrated 
 So `helm rollback` alone does not go back: roll back to the old image *and* restore the
 pre-upgrade backup with `--force` (below). Anything captured since the upgrade is then lost from
 the database; its files stay.
-
-(k8s-upgrade-1-0)=
-### Upgrading to 1.0 from before 0.16
-
-scrap 0.17.0 and later, 1.0 included, start from schema 18 and refuse a database or
-a backup below it: `<db> has schema N, older than the baseline this scrap starts from (18):
-upgrade with scrap 0.16.x first (it migrates to schema 18), then use 0.17.0 or later`. Upgrade to the latest
-0.16.x chart first (`--version 0.16.<x>`), let it start and migrate, back up again, then upgrade
-to 1.0. To restore a backup taken below schema 18, restore it with 0.16.x, then upgrade.
 
 ## Backup and restore
 
@@ -568,15 +559,13 @@ restore into it without `--force`, and point `persistence.existingClaim` at it.
 ### Which backups restore
 
 What `scrap restore` accepts depends on the schema of the backup (the database version, named
-in the error messages below) against the release that runs the restore. scrap 0.17.0 and later, 1.0 included, start from schema 18 and add
-numbered migrations after it, so:
+in the error message below) against the release that runs the restore:
 
 | The backup is | `scrap restore` |
 | --- | --- |
-| below schema 18 (any release before 0.17.0) | **Refuses**, and the data folder is untouched: `bad backup: <backup path> has schema N, older than the baseline this scrap starts from (18): upgrade with scrap 0.16.x first (it migrates to schema 18), then use 0.17.0 or later`. Restore it with scrap 0.16.x (which migrates the copy up to 18), take a fresh backup, then use 0.17.0 or later. See {ref}`k8s-upgrade-1-0`; the `0.16.<x>` image stays published, so `restore.yaml` can name it. |
-| at 18 or above, and lower than the release's schema | **Migrates**: restore runs the numbered scripts after the backup's version on its copy before the swap, so the data folder only ever receives a current database. A failed migration leaves the database as it was (files already copied stay, and are harmless). |
 | the same schema as the release | Copied as it is. |
-| above the release's schema (a newer scrap made it) | **Refuses**: `bad backup: <db> has schema N; this scrap knows M`. Use the release that wrote the backup, or a newer one. |
+| lower than the release's schema (an older release made it) | **Migrates**: restore runs the numbered migration scripts after the backup's version on its copy before the swap, so the data folder only ever receives a current database. A failed migration leaves the database as it was (files already copied stay, and are harmless). |
+| above the release's schema (a newer release made it) | **Refuses**: `bad backup: <db> has schema N; this scrap knows M`. Use the release that wrote the backup, or a newer one. |
 
 Pointing a newer server at an older store migrates it in place when it starts (`scrap serve`
 migrates before it answers `/healthz`), so an upgrade needs no restore. Migrations are one-way:
@@ -591,16 +580,28 @@ A backup you have never opened is a hope, not a backup. This checks one on any m
 touching the cluster's data: restore it into a throwaway folder, start scrap on another port and
 compare what it shows with the live store.
 
-**Tested.** On 2026-10-28 with scrap 0.17.0 (schema 18): a backup made with `scrap backup` from
-data streamed out of the live pod, not a run of the nightly CronJob, was restored into a scratch
-folder. It showed 306 pages, matching live; the handoff page was identical at the same
-revision; search worked; a blob served with a matching SHA-256; `/healthz` and `/api/health`
-were fine. A restore of an actual CronJob run, copied off the claim as in step 1, has not been
-tried yet, so treat step 1 as untested until it is. The table below says which rows that run
-checked; the rest are the checks to do, with no result recorded.
+**Room.** You need room for two copies of the store: the run you copy off the cluster and the
+restored folder. Check the size first with `kubectl -n scrap exec deploy/scrap -- du -sh /data`
+(about 500 MB free for a 250 MB store), and keep everything in one folder you can delete at the
+end. The steps call it `$RT`; pick a disk with room, not a small `/tmp`; it is created new, so the final `rm -rf "$RT"` removes nothing else.
 
-1. Get a run onto the machine. A run directory holds `scrap.db`, `files/` and a `COMPLETE` file.
-   No running pod mounts the backup claim (the scrap pod mounts only data and tmp, and backup
+```
+export RT=$(mktemp -d "$HOME/rt.XXXXXX")   # a new, empty folder; put another disk's path in place of $HOME if needed
+mkdir "$RT/backup"
+```
+
+**Tested.** On 2026-10-29 with a main-branch build of scrap 1.0.0rc4.dev5, on a throwaway
+instance (not the cluster): a `scrap backup` of a store of synthetic pages (todos and notes, 110
+of them in the trash, one file) was restored into a scratch folder and compared with the
+instance it came from (steps 2 to 7, the script included). It is not yet tried on a real run
+copied off the backup claim by step 1, nor on 1.0.0 itself: re-run it there and update this
+paragraph.
+
+1. Get a run onto the machine. A run directory holds `scrap.db`, a `files/` folder (once any
+   file has been stored) and a `COMPLETE` file; copy the whole directory, whatever else is in
+   it (a `scrap.db-wal` or `scrap.db-shm` beside `scrap.db` is a harmless SQLite leftover:
+   `scrap restore` uses a `-wal` if there is one and ignores a `-shm`). No running pod mounts the
+   backup claim (the scrap pod mounts only data and tmp, and backup
    pods are Completed), so start a read-only helper pod that does. `reader.yaml`, with the
    image of the scrap version that wrote the backup or a newer one (restore refuses a newer
    backup's schema; see {ref}`k8s-restore-schema`) and the claim name `<fullname>-backups` (see
@@ -652,39 +653,43 @@ checked; the rest are the checks to do, with no result recorded.
    same affinity as the CronJobs: it needs the scrap pod running, on the node where the claim
    is bound (the labels are the chart's selector labels: `app.kubernetes.io/instance` is the
    release name, and `name` the chart name unless `nameOverride` is set). With scrap scaled to
-   zero, or a `ReadWriteMany` claim, leave `affinity` out. Then copy the newest run:
+   zero, or a `ReadWriteMany` claim, leave `affinity` out. Then list the runs and copy one:
 
    ```
    kubectl -n scrap apply -f reader.yaml
    kubectl -n scrap wait --for=condition=Ready pod/scrap-backup-reader --timeout=2m
-   kubectl -n scrap exec scrap-backup-reader -- ls /backups          # pick the newest run
-   mkdir -p /tmp/rt/backup
-   kubectl -n scrap cp scrap-backup-reader:/backups/<run> /tmp/rt/backup/<run>
+   kubectl -n scrap exec scrap-backup-reader -- ls /backups
+   kubectl -n scrap cp scrap-backup-reader:/backups/<run> "$RT/backup/<run>"
    kubectl -n scrap delete pod scrap-backup-reader
-   ls /tmp/rt/backup/<run>/COMPLETE
+   ls "$RT/backup/<run>/COMPLETE"
    ```
 
-   `kubectl cp` needs `tar` in the image, and the scrap image has it. A run without `COMPLETE`
-   was not finished: take another. Where the backup claim is an NFS share, you can mount that
-   share on your machine instead and copy the run from there. A run under `monthly/` is
+   Which run? A run is named for the UTC time it began, and nightly, pre-upgrade and manual runs
+   (`kubectl create job --from=cronjob/scrap-backup`) all land in the same folder, so the
+   newest name is not necessarily a nightly one. A nightly run begins within seconds of its
+   schedule (`03:30` by default, so `20261029T0330xxZ`): to try the CronJob's own output, take
+   the newest run whose name has that time. Any other run restores the same way. A run without
+   `COMPLETE` was not finished: take another. `kubectl cp` needs `tar` in the image, and the
+   scrap image has it. Where the backup claim is an NFS share, you can mount that share on your
+   machine instead and copy the run from there. A run under `monthly/` is
    `/backups/monthly/<run>`.
 
 2. Get a `scrap` command. Either check out the release tag you are testing and run
    `uv sync` once, then use `uv run scrap ...` for every `scrap` below; or use the released
-   image with the folders mounted (`podman run --rm -v /tmp/rt:/tmp/rt -e
-   SCRAP_DATA_DIR=/tmp/rt/scratch --user 10001:10001 ghcr.io/gilesknap/scrap:<version> restore /tmp/rt/backup/<run>`; the user
+   image with the folders mounted (`podman run --rm -v "$RT:$RT" -e
+   SCRAP_DATA_DIR="$RT/scratch" --user 10001:10001 ghcr.io/gilesknap/scrap:<version> restore "$RT/backup/<run>"`; the user
    must be able to write the scratch folder). Use the version that wrote the backup or a newer
    one.
 
 3. Restore into an empty folder of its own, without `--force`. It prints nothing when it works:
 
    ```
-   export SCRAP_DATA_DIR=/tmp/rt/scratch
-   scrap restore /tmp/rt/backup/<run>
+   export SCRAP_DATA_DIR="$RT/scratch"
+   scrap restore "$RT/backup/<run>"
    ```
 
-   Running it again says `/tmp/rt/scratch is not empty; stop scrap and use --force` and changes
-   nothing.
+   Running it again says `$RT/scratch is not empty; stop scrap and use --force` (with the folder
+   spelt out) and changes nothing.
 
 4. Start scrap on a spare port, in the background. Leave `SCRAP_INGEST` and the Claude settings
    unset, so it makes no calls. A clone without the PWA build logs `The scrap PWA is not built`;
@@ -703,27 +708,30 @@ checked; the rest are the checks to do, with no result recorded.
    FWD=$!
    ```
 
-6. Compare with the live store, read only. A page edited or captured on the live store since
-   the run was taken will differ; that is not a failed restore. The list `GET /api/pages` has
-   grown fields over time (a `thumb` was added), so compare ids, titles and tags per page, not
-   the whole body of the list against output recorded earlier.
+6. Compare with the live store, read only. The live store keeps changing: a page edited or
+   captured since the run was taken, or one in the trash since, will differ or be missing, and
+   that is not a failed restore. Take a run from today to keep that small. The list
+   `GET /api/pages` has grown fields over time (a `thumb` was added), so compare ids, titles and
+   tags per page, not the whole body of the list against output recorded earlier. Run each
+   call against port 8793 (restored) and 8794 (live):
 
-   | Check | Call | 2026-10-28 run (local `scrap backup`) |
-   | --- | --- | --- |
-   | Pages | `GET /api/pages?limit=500` (the trash is left out) | 306 on both |
-   | Pages in full | `GET /api/pages/<slug>` for each (the script below) | the handoff page only, identical at the same revision; not run for all |
-   | Tags, topics | `GET /api/tags`, `/api/topics` | not recorded |
-   | Todos | `GET /api/search?q=kind:todo` | not recorded |
-   | Write-ups | `writeup.current.text` in `GET /api/pages/<slug>` | not recorded |
-   | Trash | `GET /api/trash` | not recorded |
-   | Files | `GET /api/blobs/<sha>` for each file a page refers to; the count and size of `files/`: `ls files \| wc -l` and `du -sb files` in the restored folder against `kubectl -n scrap exec deploy/scrap -- sh -c 'ls /data/files \| wc -l; du -sb /data/files'` | one blob, its SHA-256 matched its name; counts and size not recorded |
-   | Search | `GET /api/search?q=<a word you know>` | worked; counts not recorded |
-   | Health | `GET /healthz`, `GET /api/health` | fine |
+   | Check | Call |
+   | --- | --- |
+   | Pages | `GET /api/pages?limit=500` (the trash is left out; 500 is the most it lists) |
+   | Pages in full | `GET /api/pages/<slug>` for each (the script below) |
+   | Tags, topics | `GET /api/tags`, `/api/topics` |
+   | Todos | `GET /api/pages?kind=todo&limit=500`: count the list. (`GET /api/search` stops at 20 results unless asked for up to 100, so it cannot confirm a count.) |
+   | Write-ups | `writeup` in `GET /api/pages/<slug>` (the script below) |
+   | Trash | `GET /api/trash?limit=500`: compare `total`, which counts the whole trash; `results` stops at `limit` (100 unless asked for up to 500) |
+   | Files | `GET /api/blobs/<sha>` for each file a page refers to; the count and total bytes of the files (they sit in sub-folders, so count files, not entries): `find files -type f -printf '%s\n' \| awk '{n+=$1} END{print NR, n}'` in the restored folder against `kubectl -n scrap exec deploy/scrap -- sh -c "cd /data && find files -type f -printf '%s\n' \| awk '{n+=\$1} END{print NR, n}'"` |
+   | Search | `GET /api/search?q=<a word you know>` |
+   | Health | `GET /healthz`, `GET /api/health` |
 
-   Only the rows with a result were run in the test; the others, and the full loop over every
-   page, are the checks to do. The script has been run against a restored copy of a small store and reported no differences, but not on a full-size one. It loops over every page, compares the two ports and
-   prints each slug whose text, tags, kind or fields differ (`captures` are left out, because
-   their files are checked by count and size above):
+   The script loops over every page, compares the two ports and prints each slug whose text,
+   tags, kind or fields differ, then the page, todo and trash counts for both (`captures` are
+   left out, because their files are checked by count and size above). A page's tags come back
+   most-used first, by a count over the whole store, so the same tags can arrive in another
+   order on the live store; the script compares them sorted.
 
    ```
    python3 - <<'PY'
@@ -733,17 +741,23 @@ checked; the rest are the checks to do, with no result recorded.
        with urllib.request.urlopen(f"http://localhost:{port}{path}") as r:
            return json.load(r)
 
-   KEYS = ("title", "body", "tags", "kind", "fields", "rev")
+   def key(p):
+       return [p.get("title"), p.get("body"), sorted(p.get("tags") or []), p.get("kind"),
+               p.get("fields"), p.get("rev"), p.get("writeup")]
+
    a, b = get(8793, "/api/pages?limit=500"), get(8794, "/api/pages?limit=500")
    sa, sb = {p["slug"] for p in a}, {p["slug"] for p in b}
    print(len(sa), "restored,", len(sb), "live; only restored:", sorted(sa - sb), "only live:", sorted(sb - sa))
    bad = 0
    for slug in sorted(sa & sb):
-       pa, pb = get(8793, f"/api/pages/{slug}"), get(8794, f"/api/pages/{slug}")
-       if [pa.get(k) for k in KEYS] != [pb.get(k) for k in KEYS]:
+       if key(get(8793, f"/api/pages/{slug}")) != key(get(8794, f"/api/pages/{slug}")):
            bad += 1
            print("differs:", slug)
    print(bad, "differ")
+   for port in (8793, 8794):
+       todos = len(get(port, "/api/pages?kind=todo&limit=500"))
+       trash = get(port, "/api/trash?limit=500")["total"]
+       print(port, "todos:", todos, "trash:", trash)
    PY
    ```
 
@@ -754,15 +768,16 @@ checked; the rest are the checks to do, with no result recorded.
 
    ```
    kill $SERVE $FWD
-   rm -rf /tmp/rt
+   rm -rf "$RT"
    ```
 
 What to expect:
 
-- A backup from an older scrap at schema 18 or above is migrated by `restore`, on the copy,
-  before it is swapped into place (below 18 it is refused: see {ref}`k8s-restore-schema`).
-  `PRAGMA integrity_check` should say `ok`. `GET /healthz` shows the scrap version of the
-  scratch instance, which may be newer than the live one; that is expected.
+- A backup from an older release is migrated by `restore`, on the copy, before it is swapped
+  into place (see {ref}`k8s-restore-schema`). `PRAGMA integrity_check` should say `ok`.
+  `GET /healthz` shows the version of the scratch instance, which is the scrap you ran in
+  step 2, so it differs from the live version if you used another release. Same or newer than
+  live is fine; older cannot read a newer backup and `restore` refuses it.
 - The backup holds the database and every file in `files/`. It does not hold `cache/`, the page
   previews, which scrap makes again the first time a photo is shown.
 - `enrich.on` and `writeup.on` read `false` on the scratch instance only because Claude is off
