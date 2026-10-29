@@ -589,3 +589,17 @@ def test_older_schema_reads_no_write_up_as_a_topic(store):
                      prompt_version="topic@1", summary="s", text="t",
                      guidance=None)  # fmt: skip
         assert writeups.shown(conn, page_id) is None
+
+
+def test_the_mcp_writeup_tool_refuses_a_topic_without_an_image(store):
+    _, topic = made(store)
+
+    async def main():
+        async with Client(mcp_server.server(store)) as client:
+            return await client.call_tool("writeup", {"page": topic, "guidance": "x"})
+
+    out = anyio.run(main)
+    assert out.is_error and "no image" in str(out.content)
+    with closing(connect(store.db)) as conn:  # nothing queued, no guidance kept
+        assert conn.execute("SELECT count(*) FROM writeup_guidance").fetchone()[0] == 0
+    assert jobs(store)[-1][0] != "writeup"

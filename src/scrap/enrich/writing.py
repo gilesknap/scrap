@@ -1,4 +1,5 @@
-"""Enrich: Claude's write-up of a board page (#256), one call, and the backfill.
+"""Enrich: Claude's write-up of a board page (#256), one call, and the backfill. Any
+other page with an image can have one on request (#453), made with the readout prompt.
 
 A board page is one with a whiteboard or diagram image that is not a list of actions
 (store.roles.HAS_BOARD). Its write-up explains the board in Markdown sections,
@@ -15,7 +16,7 @@ from typing import Any
 
 from .. import claude, preview
 from ..ingest.constants import budget_day_micros
-from ..store import NotFoundError, Store, now, transaction, writeups
+from ..store import NotFoundError, Store, now, roles, transaction, writeups
 from .checking import checked_writeup, record
 from .constants import BOARDS, MAX_BOARDS, WRITEUP_SCHEMA
 from .finding import CANDIDATES
@@ -47,17 +48,25 @@ def _sent(store: Store, board: dict[str, Any]) -> str | None:
 
 
 def write_up(
-    store: Store, call: Call, page_id: str, job_id: int | None = None
+    store: Store,
+    call: Call,
+    page_id: str,
+    job_id: int | None = None,
+    boards_only: bool = False,
 ) -> claude.CallError | None:
     """One write-up call for a board page; on success its write-up is a new current
     version, and the page is indexed again. The run is recorded either way; a failure
     is returned for the caller to act on (pause, charge or carry on). None: done, or
-    nothing to do (the page is in the trash, or has no board image)."""
+    nothing to do (the page is in the trash, or has no board image). Ask (boards_only)
+    writes up a board only: any other page's is asked for, never made on its own
+    (#453)."""
     with store.connect() as conn:
         page = conn.execute(
             "SELECT * FROM page WHERE id = ? AND deleted_at IS NULL", (page_id,)
         ).fetchone()
         if page is None:
+            return None
+        if boards_only and not roles.has_board(conn, page_id):
             return None
         boards = writeups.board_images(conn, page_id)
         if not boards:
@@ -72,8 +81,10 @@ def write_up(
         ).fetchall())  # fmt: skip
     slugs = [slug_of.get(p["id"], "") for p in pages]
     sent = [_sent(store, b) for b in boards[:MAX_BOARDS]]
-    system, version = writeup_prompt(pages)
-    messages = writeup_message(page, tags, boards, sent, guidance)
+    with store.connect() as conn:
+        readout = not roles.has_board(conn, page_id)  # asked for, not a board (#453)
+    system, version = writeup_prompt(pages, readout)
+    messages = writeup_message(page, tags, boards, sent, guidance, readout)
     model = claude.model_name()
     request = {
         "purpose": "writeup", "model": model, "max_tokens": claude.MAX_TOKENS,

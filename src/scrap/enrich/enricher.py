@@ -313,7 +313,7 @@ class Enricher:
             error = (
                 None
                 if not asked or self._written(jid)
-                else write_up(self.store, self.call, page_id, jid)
+                else write_up(self.store, self.call, page_id, jid, True)
             ) or relate(self.store, self.call, page_id, jid, True, sending.related_most)
             if error is not None:
                 self._job_failed(jid, error)

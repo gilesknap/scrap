@@ -75,6 +75,7 @@ export interface CurrentWriteup {
 export interface Writeup {
   board: boolean; // a whiteboard or diagram page: one can be written
   topic?: boolean; // a topic page: its synthesis (#261)
+  image?: boolean; // any other page with an image: one can be asked for (#453)
   on: boolean; // Claude is on
   guidance: string | null; // the owner's, for the next one
   state: "queued" | "processing" | "done" | "failed" | "paused" | null;

@@ -654,7 +654,9 @@ def test_a_new_prompt_outdates_every_write_up(store, monkeypatch):
     page_id = board(store)
     other = board(store, "blue")
     assert enrich.writeup_pass(store, Fake(), outdated=True, dry_run=True)["pages"] == 0
-    monkeypatch.setattr(enrich.writing, "writeup_prompt", lambda pages: ("p", "w@new"))
+    monkeypatch.setattr(
+        enrich.writing, "writeup_prompt", lambda pages, readout=False: ("p", "w@new")
+    )
     c = enrich.writeup_pass(store, Fake(), outdated=True)
     assert c["pages"] == 2
     assert {page_id, other} == found(store, "is:outdated")
