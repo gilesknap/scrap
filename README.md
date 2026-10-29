@@ -40,12 +40,14 @@ Claude searches, reads and adds pages over MCP; the PWA is for capturing and loo
 
 ```
 printf 'Anthropic API key (Enter to skip): '; read -rs ANTHROPIC_API_KEY; export ANTHROPIC_API_KEY
-podman run --network=host -v scrap-data:/data -e SCRAP_INGEST=${ANTHROPIC_API_KEY:+on} -e ANTHROPIC_API_KEY ghcr.io/gilesknap/scrap:latest serve
+podman run -d --name scrap --network=host -v scrap-data:/data \
+  -e SCRAP_INGEST=${ANTHROPIC_API_KEY:+on} -e ANTHROPIC_API_KEY \
+  ghcr.io/gilesknap/scrap:latest serve
 ```
 
-The key is optional: it lets Claude read your photos and tag your notes.
+Open <http://localhost:8000/>; `podman logs -f scrap` to watch it, `podman rm -f scrap` to stop it (the data stays in the `scrap-data` volume).
 
-Open <http://localhost:8000/>. Then add scrap to Claude Code and install the `sc` commands and skill:
+The key is optional: it lets Claude read your photos and tag your notes. Then add scrap to Claude Code and install the `sc` commands and skill:
 
 ```
 claude mcp add --transport http --scope user scrap http://localhost:8000/mcp
