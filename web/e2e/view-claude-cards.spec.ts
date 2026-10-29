@@ -65,3 +65,22 @@ test("never read: what Claude would do, and Generate", async ({ page }) => {
   await expect(card.getByRole("button", { name: "Generate" })).toBeVisible();
   await expect(card.locator("details")).toHaveCount(0);
 });
+
+test("a page made by sharing a PDF: the file comes before About this page (#445)", async ({
+  page,
+}) => {
+  const r = await page.request.post("/api/captures", {
+    multipart: {
+      id: ulid(),
+      text: `Shared pdf ${ulid().slice(-6)}`,
+      file: { name: "shared.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.4") },
+    },
+  });
+  const n = (await r.json()) as { slug: string };
+  await asRead(page, n.slug, { state: "done", summary: "A shared PDF." });
+  await page.goto(`/p/${n.slug}`);
+  await expect(page.locator(".enrich.claude")).toBeVisible();
+  const file = await page.locator(".originals a.file, .filerow a.file").first().boundingBox();
+  const card = await page.locator(".enrich.claude").boundingBox();
+  expect(file && card && file.y < card.y).toBe(true);
+});
