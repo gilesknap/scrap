@@ -26,7 +26,7 @@ store module, and the rest of scrap, can use it.
 import sqlite3
 from typing import Any, Literal
 
-from .constants import ENRICH_KINDS, MCP, PINNED_SLUG
+from .constants import ENRICH_KINDS, GONE, MCP, PINNED_SLUG
 
 MadeBy = Literal["human", "claude", "topic", "gc"]
 WriteupType = Literal["board", "topic", "image"]
@@ -198,11 +198,16 @@ HAS_BOARD = """EXISTS (
 # photo reading of any kind, unless it judged it a list of actions. A write-up asked
 # for on such a page, not a board (a screenshot, a readout), is made with the readout
 # prompt, whose version starts READOUT_PREFIX (no column says it was asked for).
-HAS_IMAGE = """EXISTS (
+HAS_IMAGE = (
+    """EXISTS (
     SELECT 1 FROM capture c JOIN derived d ON d.capture_id = c.id
     LEFT JOIN model_run r ON r.id = d.run_id
     WHERE c.page_id = {p}.id AND d.kind = 'description' AND d.superseded_at IS NULL
-      AND coalesce(json_extract(r.output, '$.intent'), '') <> 'list-of-actions')"""
+      AND coalesce(json_extract(r.output, '$.intent'), '') <> 'list-of-actions'
+      AND NOT """
+    + GONE.format(p="{p}", sha="d.source_sha256")  # not one whose embed was deleted
+    + ")"
+)
 READOUT_PREFIX = "writeup-readout@"
 ON_REQUEST = (
     "EXISTS (SELECT 1 FROM writeup w WHERE w.page_id = {p}.id"

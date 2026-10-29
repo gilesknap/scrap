@@ -13,7 +13,7 @@ from typing import Any
 
 from ..markdown import wiki_targets
 from ..public import public_origins
-from .constants import IMAGE_JOB
+from .constants import GONE, IMAGE_JOB
 from .roles import HAS_BOARD, IS_TOPIC, READOUT_PREFIX, SHOWN, has_board, writeup_type
 
 
@@ -27,14 +27,18 @@ def _rows(conn: sqlite3.Connection, sql: str, *args: Any) -> list[dict[str, Any]
 # checklist instead). With what it read, and the JPEG photo ingest sent (if kept).
 # With :any, every image of the page (a write-up asked for on a page that is not a
 # board, #453), still not a list of actions, and when each was received.
-BOARD_IMAGES = """
+BOARD_IMAGES = (
+    """
 WITH once AS (
     SELECT c.id AS capture_id, cb.sha256, c.received_at, cb.ord,
            row_number() OVER (PARTITION BY cb.sha256
                               ORDER BY c.received_at, c.id, cb.ord) AS copy
     FROM capture c JOIN capture_blob cb ON cb.capture_id = c.id
-    JOIN blob b USING (sha256)
-    WHERE c.page_id = :page AND b.mime LIKE 'image/%')
+    JOIN blob b USING (sha256) JOIN page p ON p.id = c.page_id
+    WHERE c.page_id = :page AND b.mime LIKE 'image/%'
+      AND (NOT :any OR NOT """
+    + GONE.format(p="p", sha="cb.sha256")  # on request: not one removed from the text
+    + """))
 SELECT o.capture_id, o.sha256, o.received_at, json_extract(d.data, '$.kind') AS kind,
        d.text AS description, d.created_at AS read_at,
        (SELECT t.text FROM derived t WHERE t.capture_id = o.capture_id
@@ -50,6 +54,7 @@ WHERE o.copy = 1
   AND coalesce(json_extract(r.output, '$.intent'), '') <> 'list-of-actions'
 ORDER BY o.received_at, o.capture_id, o.ord
 """
+)
 # A board image of a page p read since its last write-up (or it has none)
 READ_SINCE = """EXISTS (
     SELECT 1 FROM capture c JOIN derived d ON d.capture_id = c.id

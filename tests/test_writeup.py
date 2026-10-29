@@ -23,6 +23,7 @@ from scrap.store import (
     model_summary,
     new_ulid,
     now,
+    roles,
     writeups,
 )
 
@@ -579,6 +580,41 @@ def test_ask_on_a_screenshot_page_does_not_write_it_up(store):
     fake = Fake(photo=SCREENSHOT, writeup=READOUT)
     run_all(store, fake)
     assert "writeup" not in fake.kinds() and count(store, ref["page_id"]) == 0
+
+
+def test_mcp_writeup_saves_guidance_first_and_changes_nothing_when_refused(store):
+    ref, _ = screenshot_page(store)
+
+    def call(page, **args):
+        async def main():
+            async with Client(mcp_server.server(store)) as client:
+                return await client.call_tool("writeup", {"page": page, **args})
+
+        return anyio.run(main)
+
+    bad = call(ref["slug"], guidance="a\x00b")  # refused: not queued, none kept
+    assert bad.is_error and jobs(store) == [("related", "done")]
+    plain = note(store, "plain")
+    assert call(plain["slug"], guidance="g").is_error
+    with closing(connect(store.db)) as conn:
+        assert writeups.guidance(conn, plain["page_id"]) is None
+    assert not call(ref["slug"], guidance="valves").is_error
+    with closing(connect(store.db)) as conn:
+        assert writeups.guidance(conn, ref["page_id"]) == "valves"
+
+
+def test_an_image_removed_from_the_text_is_not_written_up(store):
+    ref, _ = screenshot_page(store)
+    key = ref["page_id"]
+    with closing(connect(store.db)) as conn:
+        assert writeups.board_images(conn, key) and roles.has_image(conn, key)
+    store.update_page(key, store.page(key)["rev"], None, "no embed now", "me")
+    assert store.page(key)["removed"]
+    with closing(connect(store.db)) as conn:
+        assert writeups.board_images(conn, key) == []
+        assert not roles.has_image(conn, key)
+    with pytest.raises(Exception, match="page with an image"):
+        enrich.regenerate(store, key)
 
 
 def test_a_page_with_no_image_or_a_sticky_refuses_a_write_up(store):

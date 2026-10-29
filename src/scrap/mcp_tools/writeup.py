@@ -8,7 +8,7 @@ from pydantic import Field
 
 from .. import enrich
 from ..mcp_page import page_key
-from ..store import enrich_on
+from ..store import enrich_on, roles
 from .context import Ctx, text
 from .limits import AUTHOR
 
@@ -42,11 +42,19 @@ def register_writeup(mcp: MCPServer, ctx: Ctx) -> None:
         key = text(page_key(page), "page")
         if not enrich_on():
             raise ToolError("scrap's Claude is off (SCRAP_ENRICH): nothing was queued")
-        # queued first (it refuses a page with nothing to write up); the guidance is
-        # read when the call runs
+        note = None if guidance is None else text(guidance, "guidance")
+        # refused here, before anything changes: this tool is for an image (a topic's
+        # synthesis is the page's own Regenerate)
+        page_id = checked(store.page, key)["id"]
+        with store.connect() as conn:
+            if not roles.has_image(conn, page_id):
+                raise ToolError(
+                    "the page has no image to write up (read, not a list of actions)"
+                )
+        # guidance first: the job reads it when it runs
+        if note is not None:
+            checked(enrich.set_guidance, store, key, note, AUTHOR)
         done = checked(enrich.regenerate, store, key)
-        if guidance is not None:
-            checked(enrich.set_guidance, store, key, text(guidance, "guidance"), AUTHOR)
         return {
             "queued": True,
             "page": done["slug"],
