@@ -48,5 +48,8 @@ test("Share > HTML renders Markdown in the body and the summary, offline", async
   await expect(file.locator(".summary a")).toHaveAttribute("href", "https://example.com/s");
   const text = await file.locator("body").innerText();
   expect(text).not.toMatch(/\*\*|##|```/);
+  // The meta line's parts are told apart in the file's text too (#431), not "Note1 of 2"
+  expect(await file.locator(".meta").first().innerText()).toMatch(/\S · \S/);
+  if (process.env.SHOT) await file.screenshot({ path: process.env.SHOT });
   await ctx.close();
 });
