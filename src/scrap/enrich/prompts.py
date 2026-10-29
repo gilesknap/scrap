@@ -233,9 +233,13 @@ def page_message(
     return [{"role": "user", "content": [{"type": "text", "text": "\n".join(parts)}]}]
 
 
-def writeup_prompt(pages: list[dict[str, Any]]) -> tuple[str, str]:
-    """The write-up call's fixed prompt, then the index of pages it may link to."""
-    text, version = claude.prompt("writeup", WRITEUP_SCHEMA)
+def writeup_prompt(
+    pages: list[dict[str, Any]], readout: bool = False
+) -> tuple[str, str]:
+    """The write-up call's fixed prompt, then the index of pages it may link to; the
+    readout one (#453) for a page asked about that is not a board."""
+    name = "writeup-readout" if readout else "writeup"
+    text, version = claude.prompt(name, WRITEUP_SCHEMA)
     return f"{text}\n## Other pages\n\n{index_lines(pages) or '(none)'}\n", version
 
 
@@ -245,6 +249,7 @@ def writeup_message(
     boards: Sequence[dict[str, Any]],
     sent: Sequence[str | None],
     guidance: str | None,
+    readout: bool = False,
 ) -> list[dict[str, Any]]:
     """The write-up call's user turn: each board image sent (sent: the JPEG's
     SHA-256 for the first MAX_BOARDS, None for one that could not be), numbered,
@@ -272,6 +277,9 @@ def writeup_message(
         "</page>",
         *image_lines(images, WRITEUP_IMAGES),
     ]
+    if readout:  # the readings are as of when each image was captured
+        lines += [f"Image {n} was received {b['received_at']}."
+                  for n, b in enumerate(boards, start=1)]  # fmt: skip
     if len(boards) > len(attached):
         shown = ", ".join(map(str, attached)) or "none"
         lines.append(

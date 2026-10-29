@@ -29,7 +29,7 @@ from typing import Any, Literal
 from .constants import ENRICH_KINDS, MCP, PINNED_SLUG
 
 MadeBy = Literal["human", "claude", "topic", "gc"]
-WriteupType = Literal["board", "topic"]
+WriteupType = Literal["board", "topic", "image"]
 
 GC = "gc"  # the source of the capture scrap gc makes a review page with (orphans.py)
 
@@ -194,8 +194,23 @@ HAS_BOARD = """EXISTS (
     WHERE c.page_id = {p}.id AND d.kind = 'description' AND d.superseded_at IS NULL
       AND json_extract(d.data, '$.kind') IN ('whiteboard', 'diagram')
       AND coalesce(json_extract(r.output, '$.intent'), '') <> 'list-of-actions')"""
-# Whether a page's write-up is on show (SQL on a page p): a board page's or a topic's
-SHOWN = f"({HAS_BOARD} OR {IS_TOPIC})"
+# Whether a page has an image that can be written up on request (#453): a current
+# photo reading of any kind, unless it judged it a list of actions. A write-up asked
+# for on such a page, not a board (a screenshot, a readout), is made with the readout
+# prompt, whose version starts READOUT_PREFIX (no column says it was asked for).
+HAS_IMAGE = """EXISTS (
+    SELECT 1 FROM capture c JOIN derived d ON d.capture_id = c.id
+    LEFT JOIN model_run r ON r.id = d.run_id
+    WHERE c.page_id = {p}.id AND d.kind = 'description' AND d.superseded_at IS NULL
+      AND coalesce(json_extract(r.output, '$.intent'), '') <> 'list-of-actions')"""
+READOUT_PREFIX = "writeup-readout@"
+ON_REQUEST = (
+    "EXISTS (SELECT 1 FROM writeup w WHERE w.page_id = {p}.id"
+    f" AND substr(w.prompt_version, 1, {len(READOUT_PREFIX)}) = '{READOUT_PREFIX}')"
+)
+# Whether a page's write-up is on show (SQL on a page p): a board page's, a topic's, or
+# one asked for on a page with an image
+SHOWN = f"({HAS_BOARD} OR {IS_TOPIC} OR ({HAS_IMAGE} AND {ON_REQUEST}))"
 
 
 def has_board(conn: sqlite3.Connection, page_id: str) -> bool:
@@ -203,15 +218,23 @@ def has_board(conn: sqlite3.Connection, page_id: str) -> bool:
     return _one(conn, HAS_BOARD, page_id)
 
 
+def has_image(conn: sqlite3.Connection, page_id: str) -> bool:
+    """Whether a page has an image a write-up can be asked for (HAS_IMAGE)."""
+    return _one(conn, HAS_IMAGE, page_id)
+
+
 def writeup_type(conn: sqlite3.Connection, page_id: str) -> WriteupType | None:
     """A page's write-up: board (a board image: write_up explains it), topic (its
-    synthesis) or None (SHOWN, with board first, as writeups.view has it).
+    synthesis), image (any other image: asked for, never made on its own, #453) or
+    None (SHOWN, with board first, as writeups.view has it).
     TODO(#280, for the owner): a page both would be a board here and in view, but a
     topic in OUTDATED (HAS_BOARD AND NOT IS_TOPIC) and Store.page's related via. None
     can be both today: add_photos refuses a topic, and a topic has no capture."""
     if has_board(conn, page_id):
         return "board"
-    return "topic" if is_topic(conn, page_id) else None
+    if is_topic(conn, page_id):
+        return "topic"
+    return "image" if has_image(conn, page_id) else None
 
 
 # ---- what automation may change

@@ -1,6 +1,7 @@
 """E2E fixture: a board page with Claude's write-up (one write-up), by a fake Claude.
 
-Run as `uv run python web/e2e/writeup.py DATA_DIR` while scrap serves DATA_DIR. It
+Run as `uv run python web/e2e/writeup.py DATA_DIR [screenshot]` while scrap serves
+DATA_DIR. It
 adds a page the write-up links to, saves a capture of a drawn whiteboard, runs its
 ingest job and a write-up with a canned answer instead of calling Claude, and
 prints {"slug", "target"} as JSON. Nothing in it is real or private.
@@ -23,12 +24,26 @@ from scrap.store import Store, new_ulid, transaction  # noqa: E402
 LEAD = "A capture pipeline from phone to model, by way of a queue."
 
 
-def answer():
-    """The fake Claude: the photo's reading, then the write-up (it links the target)."""
+SHOT = {**BOARD, "kind": "screenshot", "title": "Hutch synoptic",
+        "description": "A screenshot of a hutch synoptic: gate valve pressures.",
+        "text": "GV1 2.1e-9 mbar"}  # fmt: skip
+READOUT = {
+    "summary": "A hutch synoptic: gate valve pressures and states.",
+    "text": "## Overview\n\nCaptured 2026-06-08.\n\n## Readings\n\n"
+    "| Item | Value | Unit | State |\n|---|---|---|---|\n"
+    "| GV1 | 2.1e-9 | mbar | open |",
+}
+
+
+def answer(shot: bool = False):
+    """The fake Claude: the photo's reading, then the write-up (it links the target).
+    shot: a screenshot, and the readout write-up asked for on it (#453)."""
 
     def fake(model, system, messages, schema, blob, **kw):
         if schema is claude.SCHEMA:
-            out = BOARD
+            out = SHOT if shot else BOARD
+        elif shot:
+            out = READOUT
         else:
             index = system.split("## Other pages")[1]
             cite = next(
@@ -47,7 +62,7 @@ def answer():
     return fake
 
 
-def main(data_dir: str) -> None:
+def main(data_dir: str, shot: bool = False) -> None:
     store = Store(data_dir)
     stamp = "2026-01-01T12:00:00.000Z"
     target = {
@@ -65,10 +80,10 @@ def main(data_dir: str) -> None:
             " RETURNING id, capture_id, source_sha256, failures, options",
             (ref["capture_id"],),
         ).fetchone()
-    ingest.Worker(store, answer()).process(job)
-    assert enrich.write_up(store, answer(), ref["page_id"]) is None
+    ingest.Worker(store, answer(shot)).process(job)
+    assert enrich.write_up(store, answer(shot), ref["page_id"]) is None
     print(json.dumps({"slug": ref["slug"], "target": slug}))
 
 
 if __name__ == "__main__":
-    main(sys.argv[1])
+    main(sys.argv[1], sys.argv[2:] == ["screenshot"])

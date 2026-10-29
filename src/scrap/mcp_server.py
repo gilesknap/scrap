@@ -33,6 +33,7 @@ from .mcp_tools import (
     register_history,
     register_meta,
     register_reading,
+    register_writeup,
     register_writing,
 )
 from .mcp_tools.limits import CONTEXT, HUNK, MAX_DRAWING  # noqa: F401 (re-exported)
@@ -207,6 +208,7 @@ def server(store: Store) -> MCPServer:
     register_browsing(mcp, ctx)
     register_writing(mcp, ctx)
     register_meta(mcp, ctx)
+    register_writeup(mcp, ctx)
     register_history(mcp, ctx)
     if editable:
         register_editing(mcp, ctx)

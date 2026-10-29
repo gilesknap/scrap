@@ -9,6 +9,7 @@ from .editing import register_editing
 from .history import register_history
 from .meta import register_meta
 from .reading import register_reading
+from .writeup import register_writeup
 from .writing import register_writing
 
 __all__ = [
@@ -19,5 +20,6 @@ __all__ = [
     "register_history",
     "register_meta",
     "register_reading",
+    "register_writeup",
     "register_writing",
 ]

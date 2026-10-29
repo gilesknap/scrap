@@ -221,7 +221,10 @@ def test_a_to_do_sticky_or_a_photo_gets_no_write_up_but_its_related_call(store, 
     run_all(store, fake)
     assert "writeup" not in fake.kinds()
     assert jobs(store) == [("related", "done")]  # as before (#258)
-    assert store.page(ref["page_id"])["writeup"] is None
+    view = store.page(ref["page_id"])["writeup"]
+    # a sticky has no image to write up; any other image can be asked for (#453)
+    assert (view is None) == (answer is STICKY)
+    assert view is None or (view["image"] and view["current"] is None)
 
 
 def test_with_enrich_off_nothing_is_queued(store, monkeypatch):
@@ -523,6 +526,90 @@ def test_the_api_regenerates_and_steers(tmp_path, monkeypatch):
     assert client.get(f"/api/pages/{text['page_id']}").json()["writeup"] is None
 
 
+# ---- on request, for any page with an image (#453)
+
+READOUT = {
+    "summary": "A hutch synoptic: six gate valves with their vacuum pressures.",
+    "text": "## Overview\n\nCaptured 2026-06-08.\n\n## Readings\n\n"
+    "| Item | Value | Unit |\n|---|---|---|\n| GV1 | 2.1e-9 | mbar |",
+}
+SCREENSHOT = {**BOARD, "kind": "screenshot", "title": "Optics hutch synoptic",
+              "description": "A screenshot of a synoptic: gate valve pressures.",
+              "text": "GV1 2.1e-9 mbar"}  # fmt: skip
+
+
+def screenshot_page(store):
+    ref = photo(store)
+    fake = Fake(photo=SCREENSHOT, writeup=READOUT)
+    run_all(store, fake)
+    assert "writeup" not in fake.kinds()  # opt-in: nothing without the action
+    return ref, fake
+
+
+def test_a_screenshot_is_written_up_only_on_request_with_the_readout_prompt(store):
+    ref, _ = screenshot_page(store)
+    key = ref["page_id"]
+    view = store.page(key)["writeup"]
+    assert view["image"] and not view["board"] and view["current"] is None
+    assert jobs(store) == [("related", "done")]
+    enrich.set_guidance(store, key, "the valves only", "me")
+    page = enrich.regenerate(store, key)
+    assert page["writeup"]["state"] == "queued"
+    fake = Fake(photo=SCREENSHOT, writeup=READOUT)
+    run_all(store, fake)
+    call = next(c for c in fake.calls if c["kind"] == "writeup")
+    assert "Readings" in call["system"] and "whiteboards" not in call["system"]
+    text = call["messages"][0]["content"][-1]["text"]
+    assert "was received 20" in text and "the valves only" in text
+    page = store.page(key)
+    up = page["writeup"]["current"]
+    assert up["prompt_version"].startswith("writeup-readout@")
+    assert "2.1e-9" in up["text"] and page["writeup"]["image"] is True
+    assert page["writeup"]["outdated"] is False
+    assert [h["id"] for h in store.search("hutch", 10)] == [
+        key
+    ]  # indexed, as a board's
+    with closing(connect(store.db)) as conn:
+        assert writeups.shown(conn, key) is not None
+
+
+def test_ask_on_a_screenshot_page_does_not_write_it_up(store):
+    ref, _ = screenshot_page(store)
+    enrich.ask(store, ref["page_id"])
+    fake = Fake(photo=SCREENSHOT, writeup=READOUT)
+    run_all(store, fake)
+    assert "writeup" not in fake.kinds() and count(store, ref["page_id"]) == 0
+
+
+def test_a_page_with_no_image_or_a_sticky_refuses_a_write_up(store):
+    with pytest.raises(Exception, match="page with an image"):
+        enrich.regenerate(store, note(store, "plain")["page_id"])
+    ref = photo(store)
+    run_all(store, Fake(photo=STICKY))
+    with pytest.raises(Exception, match="page with an image"):
+        enrich.regenerate(store, ref["page_id"])
+
+
+def test_mcp_writeup_queues_and_read_returns_it(store, monkeypatch):
+    ref, _ = screenshot_page(store)
+
+    def call(name, **args):
+        async def main():
+            async with Client(mcp_server.server(store)) as client:
+                return await client.call_tool(name, args)
+
+        return anyio.run(main)
+
+    out = call("writeup", page=ref["slug"], guidance="valves")
+    assert not out.is_error and out.structured_content["queued"] is True
+    run_all(store, Fake(photo=SCREENSHOT, writeup=READOUT))
+    by = call("read", page=ref["slug"]).structured_content["by_model"]
+    assert by["writeup"]["summary"] == READOUT["summary"]
+    monkeypatch.setenv("SCRAP_ENRICH", "off")
+    off = call("writeup", page=ref["slug"])
+    assert off.is_error and "off" in str(off.content)
+
+
 def test_mcp_read_returns_the_write_up_under_by_model(store):
     ref = board_page(store)
 
@@ -568,15 +655,15 @@ def test_a_page_no_longer_a_board_keeps_its_write_up_unseen(store):
     ingest.reprocess(store, ref["capture_id"], None, False)
     run_all(store, Fake(photo=SCENE))  # read again: a photo of a scene now
     page = store.page(ref["page_id"])
-    assert page["writeup"] is None
+    assert page["writeup"]["current"] is None  # an image now: a board's is not shown
     assert "writeup" not in [r["via"] for r in page["related"]]
     assert "writeup" not in [r["via"] for r in store.page(target["page_id"])["related"]]
     assert store.search("zanzibar", 10) == []
     with closing(connect(store.db)) as conn:
         assert model_summary(conn, ref["page_id"]) == ""
         assert writeups.current(conn, ref["page_id"]) is not None  # kept, unseen
-    with pytest.raises(Exception, match="whiteboard or diagram"):
-        enrich.regenerate(store, ref["page_id"])
+    with pytest.raises(Exception, match="page with an image"):
+        enrich.regenerate(store, note(store, "no image")["page_id"])
 
 
 def test_an_ask_retried_after_its_related_call_does_not_write_up_again(store):

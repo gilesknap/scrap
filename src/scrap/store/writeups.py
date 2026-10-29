@@ -14,7 +14,7 @@ from typing import Any
 from ..markdown import wiki_targets
 from ..public import public_origins
 from .constants import IMAGE_JOB
-from .roles import HAS_BOARD, IS_TOPIC, SHOWN, writeup_type
+from .roles import HAS_BOARD, IS_TOPIC, READOUT_PREFIX, SHOWN, has_board, writeup_type
 
 
 def _rows(conn: sqlite3.Connection, sql: str, *args: Any) -> list[dict[str, Any]]:
@@ -25,6 +25,8 @@ def _rows(conn: sqlite3.Connection, sql: str, *args: Any) -> list[dict[str, Any]
 # current reading says whiteboard or diagram (the photo call's kind, not the page's),
 # unless that reading judged it a list of actions (a to-do sticky: it becomes a
 # checklist instead). With what it read, and the JPEG photo ingest sent (if kept).
+# With :any, every image of the page (a write-up asked for on a page that is not a
+# board, #453), still not a list of actions, and when each was received.
 BOARD_IMAGES = """
 WITH once AS (
     SELECT c.id AS capture_id, cb.sha256, c.received_at, cb.ord,
@@ -33,7 +35,7 @@ WITH once AS (
     FROM capture c JOIN capture_blob cb ON cb.capture_id = c.id
     JOIN blob b USING (sha256)
     WHERE c.page_id = :page AND b.mime LIKE 'image/%')
-SELECT o.capture_id, o.sha256, json_extract(d.data, '$.kind') AS kind,
+SELECT o.capture_id, o.sha256, o.received_at, json_extract(d.data, '$.kind') AS kind,
        d.text AS description, d.created_at AS read_at,
        (SELECT t.text FROM derived t WHERE t.capture_id = o.capture_id
           AND t.source_sha256 = o.sha256 AND t.kind = 'ocr'
@@ -44,7 +46,7 @@ JOIN derived d ON d.capture_id = o.capture_id AND d.source_sha256 = o.sha256
   AND d.kind = 'description' AND d.superseded_at IS NULL
 LEFT JOIN model_run r ON r.id = d.run_id
 WHERE o.copy = 1
-  AND json_extract(d.data, '$.kind') IN ('whiteboard', 'diagram')
+  AND (:any OR json_extract(d.data, '$.kind') IN ('whiteboard', 'diagram'))
   AND coalesce(json_extract(r.output, '$.intent'), '') <> 'list-of-actions'
 ORDER BY o.received_at, o.capture_id, o.ord
 """
@@ -94,8 +96,15 @@ ON CONFLICT (page_id) DO UPDATE SET producer = excluded.producer,
 
 
 def board_images(conn: sqlite3.Connection, page_id: str) -> list[dict[str, Any]]:
-    """A page's board images in order (BOARD_IMAGES)."""
-    return [dict(r) for r in conn.execute(BOARD_IMAGES, {"page": page_id})]
+    """A page's board images in order (BOARD_IMAGES); a page that is not a board, all
+    its images (asked for, #453)."""
+    args = {"page": page_id, "any": not has_board(conn, page_id)}
+    return [dict(r) for r in conn.execute(BOARD_IMAGES, args)]
+
+
+def on_request(write: dict[str, Any] | None) -> bool:
+    """Whether a write-up was made on request, with the readout prompt (#453)."""
+    return bool(write and write["prompt_version"].startswith(READOUT_PREFIX))
 
 
 def due(conn: sqlite3.Connection, page_id: str) -> bool:
@@ -119,7 +128,8 @@ def shown(conn: sqlite3.Connection, page_id: str) -> dict[str, Any] | None:
     its write-up, but it is no longer its summary, its search text, its
     links or on show."""
     up = current(conn, page_id)
-    if up is None or writeup_type(conn, page_id) is None:
+    kind = writeup_type(conn, page_id)
+    if up is None or kind is None or (kind == "image" and not on_request(up)):
         return None
     return up
 
@@ -232,7 +242,7 @@ def view(
     if kind is None:
         return None
     board, topic = kind == "board", kind == "topic"
-    up = current(conn, page_id)
+    up = shown(conn, page_id)
     job = conn.execute(
         "SELECT state, reason, last_error,"
         " (SELECT paused_until > ? FROM queue_state) AS paused"
@@ -247,10 +257,11 @@ def view(
         )
         if state == "queued" and job["paused"] and on:
             state = "paused"
-    shown = ("producer", "created_at", "prompt_version", "summary", "text", "guidance")
+    fields = ("producer", "created_at", "prompt_version", "summary", "text", "guidance")
     return {
         "board": board,
         "topic": topic,
+        "image": kind == "image",
         "on": on,
         "guidance": guidance(conn, page_id),
         "state": state,
@@ -259,7 +270,7 @@ def view(
         # with the pages it links that exist: the PWA links no other
         "current": up
         and {
-            **{k: up[k] for k in shown},
+            **{k: up[k] for k in fields},
             "links": [p["slug"] for p in links(conn, page_id)],
         },
     }

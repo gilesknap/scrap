@@ -7,9 +7,9 @@ import { execFileSync } from "node:child_process";
 import { expect, type Page, test } from "@playwright/test";
 import { lowContrast } from "./contrast";
 
-function board(): { slug: string; target: string } {
+function board(kind = ""): { slug: string; target: string } {
   const data = process.env.SCRAP_E2E_DATA as string;
-  const args = ["run", "--locked", "python", "web/e2e/writeup.py", data];
+  const args = ["run", "--locked", "python", "web/e2e/writeup.py", data, ...(kind ? [kind] : [])];
   const out = execFileSync("uv", args, { cwd: "..", encoding: "utf8" });
   return JSON.parse(out.trim().split("\n").pop() || "null");
 }
@@ -218,4 +218,31 @@ test("an edit since the write-up says so quietly, and nothing regenerates", asyn
     await page.emulateMedia({ colorScheme, reducedMotion: "reduce" });
     expect(await page.evaluate(lowContrast, ""), colorScheme).toEqual([]);
   }
+});
+
+test("a screenshot's write-up is asked for, and shows its readings (#453)", async ({ page }) => {
+  await opened(page);
+  const b = board("screenshot");
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  const s = section(page);
+  for (const colorScheme of ["light", "dark"] as const) {
+    await page.emulateMedia({ colorScheme });
+    await page.goto(`/p/${b.slug}`);
+    await expect(s.locator("details.writeup .card")).toBeVisible();
+    await expect(s.getByRole("heading", { name: "Readings" })).toBeVisible();
+    await expect(s.getByRole("cell", { name: "mbar" })).toBeVisible();
+    const theirs = ".page > :not(section), .page > section:not([aria-label])";
+    expect(await page.evaluate(lowContrast, theirs), colorScheme).toEqual([]);
+    await page.screenshot({ path: `test-results/readout-${colorScheme}.png`, fullPage: true });
+  }
+  // Not yet written up (as if Claude were on): the card offers it
+  await page.route(`**/api/pages/${b.slug}`, async (r) => {
+    const json = await (await r.fetch()).json();
+    await r.fulfill({ json: { ...json, writeup: { ...json.writeup, on: true, current: null } } });
+  });
+  await page.goto(`/p/${b.slug}`);
+  await expect(s.getByRole("button", { name: "Generate" })).toBeVisible();
+  await expect(s.getByText("Claude can write up this image")).toBeVisible();
+  await page.screenshot({ path: "test-results/readout-generate.png", fullPage: true });
 });

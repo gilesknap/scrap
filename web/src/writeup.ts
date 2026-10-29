@@ -78,7 +78,7 @@ function act(label: string, run: () => Promise<void>, className = "") {
  * a fold, In detail. Null when there is none to show and none can be written. */
 export function writeupParts(p: Page, show: (p: Page) => void) {
   const w = p.writeup;
-  const can = !!w && (w.board || !!w.topic); // one can be written: a board, or a topic
+  const can = !!w && (w.board || !!w.topic || !!w.image); // one can be written: a board, a topic, or on request (an image)
   if (!w || (!w.current && !(can && w.on))) return null;
   const up = w.current;
   const busy = ["queued", "processing", "paused"].includes(w.state ?? "");
@@ -142,7 +142,9 @@ export function writeupParts(p: Page, show: (p: Page) => void) {
             { className: "did" },
             w.topic
               ? "Claude can draw this topic's sources together: an overview, key facts with their sources, and open questions."
-              : "Claude can describe this board in detail: its parts and how they connect.",
+              : w.image
+                ? "Claude can write up this image: its readings and states with their units, and when it was captured."
+                : "Claude can describe this board in detail: its parts and how they connect.",
           )
         : null,
     guidance:

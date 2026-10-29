@@ -84,3 +84,24 @@ owner should be able to steer it.
   would fail on the foreign key (within its 30 days). The write-ups are lost with them; the
   search chunks made from them go when their pages are indexed again. Upgrading again is safe,
   and `scrap enrich --writeups` writes them again.
+
+## Amendment: on request for any page with an image (#453)
+
+A write-up can also be asked for on **any page with an image**, not only a board: a screenshot of a
+live readout is classed `screenshot`, so it never got one. It is opt-in: the owner presses
+Generate on the page's Claude card, or asks Claude to call the MCP `writeup` tool (which can set
+guidance too). Nothing queues one on its own for these pages, and Ask does not write them up; boards
+are written up automatically as before. A page whose images are all lists of actions, or not yet
+read, cannot have one.
+
+- Eligibility is `roles.HAS_IMAGE`: a current photo reading of any kind that is not a list of
+  actions. `writeup_type` says `image` for such a page that is not a board or topic.
+- Such a write-up is made with its own prompt, `prompts/writeup-readout.md`: record readings and
+  states faithfully (values with units, per-item status, the capture date, uncertain readings kept
+  as (?)). All the page's images are sent (at most 4), with when each was received. A board keeps
+  the board prompt.
+- No schema change. A write-up made on request is told by its `prompt_version`
+  (`writeup-readout@...`, `roles.READOUT_PREFIX`), so a board page's stale write-up on a page now read
+  as another kind stays unseen, as before. It is shown, searched, linked and the page's summary like
+  a board's, but never flagged outdated (only a board's is), and the weekly and `--writeups` passes
+  leave it alone. Regenerate remakes it.
