@@ -46,7 +46,7 @@ rights, and run nothing else as that user. See {ref}`scrap-access`.
 - `machinectl`, from the `systemd-container` package, if you will log in as the scrap user from
   an admin account rather than over `ssh` (below).
 - `git` and `curl`.
-- An [Anthropic API key](https://console.anthropic.com/) for the ingest step, and
+- An [Anthropic API key](https://platform.claude.com/) for the ingest step, and
   [Claude Code](https://code.claude.com/docs) on the server if you want the last step.
 - [Tailscale](https://tailscale.com/download) on the server, logged in to your tailnet, with
   [HTTPS certificates](https://tailscale.com/kb/1153/enabling-https) and MagicDNS enabled for the
