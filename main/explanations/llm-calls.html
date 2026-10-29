@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>What Claude is asked, per page &#8212; scrap 1.0.0rc3.dev5+g02a633ffb documentation</title>
+    <title>What Claude is asked, per page &#8212; scrap 1.0.0rc4.dev1+g386356e02 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=9d44bca1"></script>
+    <script src="../_static/documentation_options.js?v=54eb3750"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -1095,36 +1095,41 @@ change the kind, title and tags by hand.</p>
 <td><p>Its synthesis is its write-up</p></td>
 </tr>
 <tr class="row-even"><td><p>Write-up</p></td>
+<td><p>image</p></td>
+<td><p>Any other page with a read image that is not a list of actions (<code class="docutils literal notranslate"><span class="pre">HAS_IMAGE</span></code>, <code class="docutils literal notranslate"><span class="pre">writeup_type</span></code>)</p></td>
+<td><p>Only on request (Generate, MCP <code class="docutils literal notranslate"><span class="pre">writeup</span></code>), with the readout prompt (<code class="docutils literal notranslate"><span class="pre">writeup-readout</span></code>: readings with units, states and the capture date; ADR 27). Shown only for a write-up made so (its <code class="docutils literal notranslate"><span class="pre">prompt_version</span></code>); never outdated; Ask does not make it</p></td>
+</tr>
+<tr class="row-odd"><td><p>Write-up</p></td>
 <td><p>none</p></td>
 <td><p>Neither (<code class="docutils literal notranslate"><span class="pre">SHOWN</span></code> is false)</p></td>
 <td><p>No write-up; the row is kept unseen</p></td>
 </tr>
-<tr class="row-odd"><td><p>May retitle</p></td>
+<tr class="row-even"><td><p>May retitle</p></td>
 <td><p>while untouched</p></td>
 <td><p>Its title is still revision 1’s and there is no later text revision (<code class="docutils literal notranslate"><span class="pre">TITLE_UNTOUCHED</span></code>)</p></td>
 <td><p>Photo ingest: from the first photo of the first capture, if that has no text. Enrich: a saved link’s title as captured; on Ask or a file page’s first reading, a page whose first capture is a file’s with no text, from the files’ text (<code class="docutils literal notranslate"><span class="pre">FILE_UNTITLED</span></code>)</p></td>
 </tr>
-<tr class="row-even"><td><p>May re-kind</p></td>
+<tr class="row-odd"><td><p>May re-kind</p></td>
 <td><p>an unfiled note</p></td>
 <td><p>Its kind nobody chose (<code class="docutils literal notranslate"><span class="pre">kind_fixed</span></code> 0) and a note (<code class="docutils literal notranslate"><span class="pre">UNFILED</span></code>, <code class="docutils literal notranslate"><span class="pre">may_rekind</span></code>)</p></td>
 <td><p>Photo ingest files it a whiteboard or document (first capture only); a fetched link files it a read; task boxes file it a todo</p></td>
 </tr>
-<tr class="row-odd"><td><p>May re-kind</p></td>
+<tr class="row-even"><td><p>May re-kind</p></td>
 <td><p>an unfiled note or whiteboard</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">may_rekind(...,</span> <span class="pre">(&quot;note&quot;,</span> <span class="pre">&quot;whiteboard&quot;))</span></code></p></td>
 <td><p>Task boxes from a photo’s list of actions file it a todo</p></td>
 </tr>
-<tr class="row-even"><td><p>May re-kind</p></td>
+<tr class="row-odd"><td><p>May re-kind</p></td>
 <td><p>an unfiled todo</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">may_rekind(...,</span> <span class="pre">(&quot;todo&quot;,))</span></code></p></td>
 <td><p>Claude’s own boxes taken off by Claude’s revert file it back as it was (a note, or ingest’s kind)</p></td>
 </tr>
-<tr class="row-odd"><td><p>May re-tag</p></td>
+<tr class="row-even"><td><p>May re-tag</p></td>
 <td><p>first capture</p></td>
 <td><p>Photo ingest: only the page’s first capture counts (<code class="docutils literal notranslate"><span class="pre">IS_FIRST</span></code>, <code class="docutils literal notranslate"><span class="pre">first_capture</span></code>)</p></td>
 <td><p>Photo ingest adds tags from the first capture’s first photo; enrich adds tags, never from a save. A tag the owner took off stays off</p></td>
 </tr>
-<tr class="row-even"><td><p>Takes photos</p></td>
+<tr class="row-odd"><td><p>Takes photos</p></td>
 <td><p>not a topic</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">takes_photos</span></code></p></td>
 <td><p>Photos and files are refused on a topic page (the editor offers none)</p></td>

@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>27. Claude’s write-ups of boards, apart from the text &#8212; scrap 1.0.0rc3.dev5+g02a633ffb documentation</title>
+    <title>27. Claude’s write-ups of boards, apart from the text &#8212; scrap 1.0.0rc4.dev1+g386356e02 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../../_static/documentation_options.js?v=9d44bca1"></script>
+    <script src="../../_static/documentation_options.js?v=54eb3750"></script>
     <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -632,6 +632,28 @@ and <code class="docutils literal notranslate"><span class="pre">scrap</span> <s
 </li>
 </ul>
 </section>
+<section id="amendment-on-request-for-any-page-with-an-image-453">
+<h2>Amendment: on request for any page with an image (#453)<a class="headerlink" href="#amendment-on-request-for-any-page-with-an-image-453" title="Link to this heading">#</a></h2>
+<p>A write-up can also be asked for on <strong>any page with an image</strong>, not only a board: a screenshot of a
+live readout is classed <code class="docutils literal notranslate"><span class="pre">screenshot</span></code>, so it never got one. It is opt-in: the owner presses
+Generate on the page’s Claude card, or asks Claude to call the MCP <code class="docutils literal notranslate"><span class="pre">writeup</span></code> tool (which can set
+guidance too). Nothing queues one on its own for these pages, and Ask does not write them up; boards
+are written up automatically as before. A page whose images are all lists of actions, or not yet
+read, cannot have one.</p>
+<ul class="simple">
+<li><p>Eligibility is <code class="docutils literal notranslate"><span class="pre">roles.HAS_IMAGE</span></code>: a current photo reading of any kind that is not a list of
+actions. <code class="docutils literal notranslate"><span class="pre">writeup_type</span></code> says <code class="docutils literal notranslate"><span class="pre">image</span></code> for such a page that is not a board or topic.</p></li>
+<li><p>Such a write-up is made with its own prompt, <code class="docutils literal notranslate"><span class="pre">prompts/writeup-readout.md</span></code>: record readings and
+states faithfully (values with units, per-item status, the capture date, uncertain readings kept
+as (?)). All the page’s images are sent (at most 4), with when each was received. A board keeps
+the board prompt.</p></li>
+<li><p>No schema change. A write-up made on request is told by its <code class="docutils literal notranslate"><span class="pre">prompt_version</span></code>
+(<code class="docutils literal notranslate"><span class="pre">writeup-readout&#64;...</span></code>, <code class="docutils literal notranslate"><span class="pre">roles.READOUT_PREFIX</span></code>), so a board page’s stale write-up on a page now read
+as another kind stays unseen, as before. It is shown, searched, linked and the page’s summary like
+a board’s, but never flagged outdated (only a board’s is), and the weekly and <code class="docutils literal notranslate"><span class="pre">--writeups</span></code> passes
+leave it alone. Regenerate remakes it.</p></li>
+</ul>
+</section>
 </section>
 
 
@@ -685,6 +707,7 @@ and <code class="docutils literal notranslate"><span class="pre">scrap</span> <s
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#context">Context</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#decision">Decision</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#consequences">Consequences</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#amendment-on-request-for-any-page-with-an-image-453">Amendment: on request for any page with an image (#453)</a></li>
 </ul>
   </nav></div>
 
