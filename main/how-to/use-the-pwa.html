@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Capture from your phone (the PWA) &#8212; scrap 1.0.0rc4.dev8+gd4e5dee7a documentation</title>
+    <title>Capture from your phone (the PWA) &#8212; scrap 1.0.0rc4.dev9+g7a72df41a documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=9b5e1236"></script>
+    <script src="../_static/documentation_options.js?v=90f60a73"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -1052,8 +1052,17 @@ kept on this device, applies at once, and is applied again whenever the app star
 Chrome’s own zoom: Chrome, Settings, Accessibility, <strong>Page zoom</strong> (and Site settings, <strong>Zoom</strong>,
 for scrap’s address). It applies on top of the font size.</p>
 </section>
+<section id="maximum-column-width">
+<span id="id2"></span><h3>Maximum column width<a class="headerlink" href="#maximum-column-width" title="Link to this heading">#</a></h3>
+<p>On a wide enough window (760 px or more: a computer, or a phone turned sideways), scrap centres
+a column rather than stretching every line the width of the window. Settings → <strong>Maximum column
+width</strong> sets the most it grows to: <strong>Narrow</strong> (720 px), <strong>Medium</strong> (800 px, the default),
+<strong>Wide</strong> (880 px) or <strong>Wider</strong> (960 px). A window narrower than the chosen width still shrinks
+the column to fit, with the usual gutter either side, so nothing scrolls sideways. It is the
+window’s width that decides this, not the device: a narrow phone never reaches it.</p>
+</section>
 <section id="smaller-photos">
-<span id="id2"></span><h3>Smaller photos<a class="headerlink" href="#smaller-photos" title="Link to this heading">#</a></h3>
+<span id="id3"></span><h3>Smaller photos<a class="headerlink" href="#smaller-photos" title="Link to this heading">#</a></h3>
 <p>Before a photo goes into the queue, the phone makes it smaller: at most <strong>2560 px</strong> on its long
 edge, as a JPEG at quality 85, turned upright (the camera’s rotation is applied and the EXIF data
 is dropped). A big photo then holds the connection for less time, and the queue takes less room.
@@ -1150,10 +1159,11 @@ goes back one step at a time. A page opened cold (a link or share) goes up inste
 todo, Topics for a topic page, Capture otherwise. Back always goes where its label says: while
 the page is still loading, that is Capture. A screen returns scrolled where you left it.</p></li>
 <li><p><strong>Layout.</strong> On a narrow phone, a page’s upload badge shortens to its dot and count (● 2). On a
-wide screen the app is one centred column about 720 px wide. With a mouse the tabs move to the
-top bar, Camera, Gallery, File and Note sit over the list, a page’s buttons (Mark done, Edit, Share,
-Delete) are a row under its title, and messages appear at the bottom of the window. Touch
-devices keep the bars at the bottom.</p></li>
+wide screen the app is one centred column, 800 px wide by default (<a class="reference internal" href="#maximum-column-width">Maximum column width</a>
+changes it, 720 to 960 px). With a mouse the tabs move to the top bar, Camera, Gallery, File and
+Note sit over the list, a page’s buttons (Mark done, Edit, Share, Delete) are a row under its
+title, and messages appear at the bottom of the window. Touch devices keep the bars at the
+bottom.</p></li>
 <li><p><strong>Links.</strong> Rows, tags, <code class="docutils literal notranslate"><span class="pre">[[links]]</span></code> and the pager’s arrows are ordinary links: long-press (phone)
 or Ctrl/Cmd-click or middle-click (computer) to open in a new tab. A page opened that way has
 no pager. An unknown address shows <em>Not found</em>.</p></li>
@@ -1596,7 +1606,7 @@ After Undo is gone, the page waits in the <strong>Trash</strong> (below) for 30 
 good.</p></li>
 </ul>
 <section id="the-trash">
-<span id="id3"></span><h3>The trash<a class="headerlink" href="#the-trash" title="Link to this heading">#</a></h3>
+<span id="id4"></span><h3>The trash<a class="headerlink" href="#the-trash" title="Link to this heading">#</a></h3>
 <p>A deleted page goes to the trash, and nothing deletes it until it has been there for 30 days
 (the server’s <code class="docutils literal notranslate"><span class="pre">SCRAP_TRASH_DAYS</span></code>, set as the nightly <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">gc</span></code> is: see
 <a class="reference internal" href="../reference/scheduled-jobs.html"><span class="std std-doc">Scheduled jobs</span></a>). Then the nightly <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">gc</span></code> purges it for good, with its
@@ -1875,6 +1885,7 @@ own projects (OFL: <a class="reference external" href="https://openfontlicense.o
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#share-into-scrap">Share into scrap</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#the-offline-queue">The offline queue</a><ul class="nav section-nav flex-column">
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#text-size">Text size</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#maximum-column-width">Maximum column width</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#smaller-photos">Smaller photos</a></li>
 </ul>
 </li>
