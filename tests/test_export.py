@@ -62,7 +62,7 @@ def vault_problems(root: Path) -> list[str]:
     a [[link]] (or an attachment's) naming no file, a relative link to no file."""
     problems = []
     for md in root.rglob("*.md"):
-        text = md.read_text()
+        text = md.read_text(encoding="utf-8")
         try:
             front, body = split(text)
         except (AssertionError, yaml.YAMLError) as error:
@@ -143,7 +143,7 @@ def test_a_note_has_its_title_tags_and_dates_as_yaml(
     assert export(Store(data), out) == 4  # not the trashed one
     ref = store_pages["note"]
     page = client.get(f"/api/pages/{ref['page_id']}").json()
-    front, body = split((out / f"{ref['slug']}.md").read_text())
+    front, body = split((out / f"{ref['slug']}.md").read_text(encoding="utf-8"))
     assert front == {
         "title": "Notes on ibek",
         "aliases": ["Notes on ibek"],
@@ -162,7 +162,7 @@ def test_links_are_kept_as_typed_and_name_a_file(data, store_pages, tmp_path):
     out = tmp_path / "md"
     export(Store(data), out)
     slug = store_pages["other"]["slug"]
-    text = (out / f"{store_pages['note']['slug']}.md").read_text()
+    text = (out / f"{store_pages['note']['slug']}.md").read_text(encoding="utf-8")
     assert f"See [[{slug}]] and [[{slug}|the RTEMS page]]." in text
     assert (out / f"{slug}.md").is_file()
     assert vault_problems(out) == []
@@ -173,7 +173,9 @@ def test_a_todo_has_due_priority_and_status_and_keeps_its_boxes(
 ):
     out = tmp_path / "md"
     export(Store(data), out)
-    front, body = split((out / f"{store_pages['todo']['slug']}.md").read_text())
+    front, body = split(
+        (out / f"{store_pages['todo']['slug']}.md").read_text(encoding="utf-8")
+    )
     assert front["kind"] == "todo"
     assert (front["due"], front["priority"], front["status"]) == (
         "2026-11-15", "high", "open",
@@ -186,7 +188,7 @@ def test_an_image_page_embeds_its_photo_and_lists_its_pdf(data, store_pages, tmp
     out = tmp_path / "md"
     export(Store(data), out)
     slug = store_pages["board"]["slug"]
-    front, body = split((out / f"{slug}.md").read_text())
+    front, body = split((out / f"{slug}.md").read_text(encoding="utf-8"))
     photo, pdf = f"{store_pages['photo']}.jpg", f"{store_pages['pdf']}.pdf"
     assert front["kind"] == "whiteboard"
     assert front["attachments"] == [f"[[files/{pdf}]]"]
@@ -201,11 +203,11 @@ def test_model_text_is_only_in_the_sidecar(data, store_pages, tmp_path):
     out = tmp_path / "md"
     export(Store(data), out)
     for md in out.glob("*.md"):  # the pages: none of it, nor a drawing
-        text = md.read_text()
+        text = md.read_text(encoding="utf-8")
         assert not [t for t in MODEL_TEXT if t in text], md
         assert ".excalidraw" not in text and "Claude" not in text
     slug = store_pages["board"]["slug"]
-    sidecar = (out / SIDECAR / f"{slug}.md").read_text()
+    sidecar = (out / SIDECAR / f"{slug}.md").read_text(encoding="utf-8")
     front, notes = split(sidecar)
     assert front == {"generated_by": "claude", "page": slug}
     assert "Written by a model" in notes and f"(../{slug}.md)" in notes
@@ -213,7 +215,7 @@ def test_model_text_is_only_in_the_sidecar(data, store_pages, tmp_path):
         assert text in notes
     assert f"> {MODEL_TEXT[0]}" in notes and f"```text\n{MODEL_TEXT[1]}\n```" in notes
     [drawing] = re.findall(r"\(\.\./files/([^)]+\.excalidraw)\)", notes)
-    assert "BOX" in (out / "files" / drawing).read_text()
+    assert "BOX" in (out / "files" / drawing).read_text(encoding="utf-8")
     assert [p.name for p in (out / SIDECAR).iterdir()] == [f"{slug}.md"]
 
 
@@ -229,7 +231,7 @@ def test_sidecar_links_are_relative_paths(client, data, tmp_path):
         " VALUES (?, 'm', 'B', ?)", b["page_id"], stamp)  # fmt: skip
     out = tmp_path / "md"
     export(Store(data), out)
-    notes = (out / SIDECAR / f"{a['slug']}.md").read_text()
+    notes = (out / SIDECAR / f"{a['slug']}.md").read_text(encoding="utf-8")
     assert f"> Like [{b['slug']}](../{b['slug']}.md)." in notes and "[[" not in notes
     assert vault_problems(out) == []
 
@@ -247,15 +249,18 @@ def test_tags_and_titles_that_need_escaping_parse_back(client, data, tmp_path, t
     ref = add(client, f"{title}\nbody", tags=tags)
     page = client.get(f"/api/pages/{ref['page_id']}").json()
     sql(data, "UPDATE page SET fields = ? WHERE id = ?",
-        '{"status": "a: b", "title": "a field", "n": 3, "ok": true}',
+        '{"status": "a: b", "title": "a field", "n": 3, "ok": true,'
+        ' "x: y #z": 1, "- [q]\\nr": "s", "on": "x", "Null": 2}',
         ref["page_id"])  # fmt: skip
     out = tmp_path / "md"
     export(Store(data), out)
-    front, _ = split((out / f"{ref['slug']}.md").read_text())
+    front, _ = split((out / f"{ref['slug']}.md").read_text(encoding="utf-8"))
     assert front["title"] == page["title"] and front["aliases"] == [page["title"]]
     assert front["tags"] == page["tags"]  # as stored, spaces and all
     assert (front["status"], front["n"], front["ok"]) == ("a: b", 3, True)
     assert front["fields"] == {"title": "a field"}  # a field named as one of scrap's
+    names = ("x: y #z", "- [q]\nr", "on", "Null")  # free text: quoted
+    assert [front[n] for n in names] == [1, "s", "x", 2]
 
 
 def test_made_by_is_there_only_when_not_the_owner(data, tmp_path):
@@ -264,7 +269,7 @@ def test_made_by_is_there_only_when_not_the_owner(data, tmp_path):
     page = ok(store, "write", title="By Claude", body="text", origin="o")
     out = tmp_path / "md"
     export(store, out)
-    front, _ = split((out / f"{page['slug']}.md").read_text())
+    front, _ = split((out / f"{page['slug']}.md").read_text(encoding="utf-8"))
     assert front["made_by"] == "claude"
 
 
@@ -325,12 +330,34 @@ def test_the_zip_is_sent_a_chunk_at_a_time(client, data, monkeypatch):
     assert zf.read(name) == big
 
 
-def test_a_file_gone_since_is_left_out(client, data, store_pages):
-    path = Store(data).blob_path(store_pages["pdf"])
-    path.unlink()  # scrap gc, between the read and the copy
+def test_a_file_gone_since_is_left_out(client, data, store_pages, monkeypatch):
+    entries = export_module._entries
+
+    def gone(store):  # scrap gc deletes it after the pages were read
+        out = entries(store)
+        Store(data).blob_path(store_pages["pdf"]).unlink()
+        return out
+
+    monkeypatch.setattr(export_module, "_entries", gone)
     zf = zipfile.ZipFile(io.BytesIO(client.get("/api/store/download").content))
     assert zf.testzip() is None
     assert f"files/{store_pages['pdf']}.pdf" not in zf.namelist()
+
+
+def test_a_file_gone_since_is_left_out_of_the_folder(data, store_pages, tmp_path):
+    from scrap.export import _entries
+
+    def gone(store):  # scrap gc deletes it after the pages were read
+        entries, count = _entries(store)
+        Store(data).blob_path(store_pages["pdf"]).unlink()
+        return entries, count
+
+    out = tmp_path / "md"
+    with pytest.MonkeyPatch.context() as m:
+        m.setattr(export_module, "_entries", gone)
+        assert export(Store(data), out) == 4
+    assert not (out / "files" / f"{store_pages['pdf']}.pdf").exists()
+    assert (out / "files" / f"{store_pages['photo']}.jpg").is_file()
 
 
 def test_an_empty_store_exports_an_empty_vault(client, tmp_path, data):

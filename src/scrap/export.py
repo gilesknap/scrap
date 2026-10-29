@@ -17,9 +17,11 @@ trash, revisions and model runs are left out: backup is the full-fidelity copy.
 """
 
 import json
+import os
 import re
 import shutil
 import sqlite3
+import time
 import zipfile
 from collections.abc import Iterator
 from dataclasses import dataclass, field
@@ -48,6 +50,9 @@ OWN = (
 )  # fmt: skip
 # What YAML may not hold as it is (C1 controls, its line breaks, non-characters)
 NOT_YAML = re.compile(r"[\x7f-\x9f\u2028\u2029\ufeff\ufffe\uffff]")
+PLAIN_KEY = re.compile(r"[A-Za-z_][A-Za-z0-9_-]*")
+# Bare, YAML 1.1 reads these as a boolean or null, not a name
+YAML_WORDS = {"y", "n", "yes", "no", "on", "off", "true", "false", "null"}
 CHUNK = 1 << 20  # bytes of a file read and sent at a time
 
 
@@ -93,7 +98,14 @@ def _front(
         rest["attachments"] = attachments
     if clash := {k: v for k, v in fields.items() if k in OWN}:
         rest["fields"] = clash
-    return ["---", *lines, *(f"{k}: {_yaml(v)}" for k, v in rest.items()), "---"]
+    return ["---", *lines, *(f"{_key(k)}: {_yaml(v)}" for k, v in rest.items()), "---"]
+
+
+def _key(name: str) -> str:
+    """A front matter key: bare if it is a plain name, else quoted (a field's name is
+    free text, and `a: b` or `# x` bare would be other YAML)."""
+    plain = PLAIN_KEY.fullmatch(name) and name.lower() not in YAML_WORDS
+    return name if plain else _yaml(name)
 
 
 def _here(slug: str) -> str:
@@ -225,8 +237,11 @@ def export(store: Store, dest: Path) -> int:
             target.write_text(content, encoding="utf-8")
         elif isinstance(content, bytes):
             target.write_bytes(content)
-        elif not target.exists() and content.is_file():  # by content: the same
-            shutil.copyfile(content, target)
+        elif not target.exists():  # by content: one there is the same
+            try:
+                shutil.copyfile(content, target)
+            except FileNotFoundError:  # gone since the pages were read (scrap gc)
+                target.unlink(missing_ok=True)
     return count
 
 
@@ -254,6 +269,15 @@ class _Sink:
         return data
 
 
+def _info(name: str, st: os.stat_result) -> zipfile.ZipInfo:
+    """A stored file's zip entry, from the open file (not its path, which may go)."""
+    info = zipfile.ZipInfo(name, time.localtime(st.st_mtime)[:6])
+    info.file_size = st.st_size  # so a file over 4 GB gets ZIP64 headers
+    info.external_attr = (st.st_mode & 0xFFFF) << 16
+    info.compress_type = zipfile.ZIP_STORED  # photos are compressed already
+    return info
+
+
 def stream(store: Store) -> Iterator[bytes]:
     """The export as a zip, a chunk at a time: never all in memory, nor on disk.
 
@@ -267,10 +291,12 @@ def stream(store: Store) -> Iterator[bytes]:
             if isinstance(content, str | bytes):
                 data = content.encode() if isinstance(content, str) else content
                 zf.writestr(name, data, zipfile.ZIP_DEFLATED)
-            elif content.is_file():  # gone since (scrap gc): left out
-                info = zipfile.ZipInfo.from_file(content, name)
-                info.compress_type = zipfile.ZIP_STORED
-                with content.open("rb") as src, zf.open(info, "w") as dst:
+            else:
+                try:
+                    src = content.open("rb")
+                except FileNotFoundError:  # gone since the pages were read: left out
+                    continue
+                with src, zf.open(_info(name, os.fstat(src.fileno())), "w") as dst:
                     while chunk := src.read(CHUNK):
                         dst.write(chunk)
                         yield sink.take()

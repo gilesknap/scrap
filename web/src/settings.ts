@@ -175,7 +175,7 @@ export function settings() {
       h(
         "p",
         { className: "hint" },
-        "Every page as Markdown with its files, in a zip that opens as an Obsidian vault. What Claude wrote is kept apart, in its _claude folder.",
+        "Every page not in the trash as Markdown with its files, in a zip that opens as an Obsidian vault. What Claude wrote is kept apart, in its _claude folder. A copy to read and keep, not a backup: revisions and the trash are left out.",
       ),
     ),
   );
