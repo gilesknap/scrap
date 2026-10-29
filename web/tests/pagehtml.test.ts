@@ -207,3 +207,25 @@ describe("text that holds Markdown (#427)", () => {
     expect(html).not.toMatch(/\*\*|<p[^>]*><p/);
   });
 });
+
+describe("the meta line", () => {
+  it("spells out the separators the app draws with CSS, so the parts do not run together", () => {
+    const page = e(
+      "article",
+      {},
+      e(
+        "p",
+        { class: "meta" },
+        e(
+          "span",
+          { class: "parts" },
+          e("span", { class: "kind" }, e("svg", {}, "icon"), "Todo"),
+          e("span", {}, "1 of 2"),
+        ),
+      ),
+    );
+    const html = pageHtml(page, "T", none);
+    expect(html).toContain("</span> · <span>1 of 2");
+    expect(html.replace(/<[^>]*>/g, "")).toContain("Todo · 1 of 2"); // as text or copied
+  });
+});

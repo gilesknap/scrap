@@ -135,10 +135,14 @@ function render(n: N, shown: Map<N, string | null>, swaps: Swaps = new Map()): s
   if (n.nodeType === TEXT) return esc(n.data ?? "");
   if (!el(n) || control(n)) return "";
   const t = tag(n);
+  // The meta line's parts (pagehead.ts) are told apart by CSS the file does not carry, so they
+  // would fuse ("Todo1 of 2"): the file spells the "·" out, as the text a reader or copy gets
+  const apart = t === "span" && ` ${attr(n, "class") ?? ""} `.includes(" parts ");
   const inner = () =>
     kids(swaps.get(n) ?? n)
       .map((k) => render(k, shown, swaps))
-      .join("");
+      .filter((s) => !apart || s)
+      .join(apart ? " · " : "");
   if (t === "input") {
     // A task box (render.ts): its state as text, as the page shows it
     if (attr(n, "type") !== "checkbox") return "";
