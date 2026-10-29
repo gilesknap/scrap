@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Export format &#8212; scrap 1.0.0rc4.dev7+g19521008c documentation</title>
+    <title>Export format &#8212; scrap 1.0.0rc4.dev8+gd4e5dee7a documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=f9179de7"></script>
+    <script src="../_static/documentation_options.js?v=9b5e1236"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -681,6 +681,16 @@ Ingest
 <p>Pages in the trash, revisions, the text scrap read from PDFs and text files, the pages that link
 to a page (each page’s own links say it), and Claude’s call records. A file whose embed was deleted from a page’s text, which the page no longer shows, is left out too.</p>
 </section>
+<section id="reading-it-back">
+<h2>Reading it back<a class="headerlink" href="#reading-it-back" title="Link to this heading">#</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">import</span></code> and Settings, <strong>Import Markdown…</strong> (<code class="docutils literal notranslate"><span class="pre">POST</span> <span class="pre">/api/import</span></code>) read this layout back:
+every page as it was (its id, slug, title, text, kind, fields, a todo’s due date and priority,
+tags, dates, <code class="docutils literal notranslate"><span class="pre">made_by</span></code> and files), with the tag <code class="docutils literal notranslate"><span class="pre">import/YYYY-MM-DD</span></code> added. They never read
+<code class="docutils literal notranslate"><span class="pre">_claude/</span></code>. Each <code class="docutils literal notranslate"><span class="pre">files/&lt;name&gt;</span></code> in a page’s text becomes the stored file’s address again, in one
+form: an image shown as <code class="docutils literal notranslate"><span class="pre">/api/blobs/&lt;sha256&gt;/preview?size=2048</span></code>, any other file linked as
+<code class="docutils literal notranslate"><span class="pre">/api/blobs/&lt;sha256&gt;</span></code>. A topic page is not read back (Claude makes topics again). See
+<a class="reference internal" href="../how-to/import-your-pages.html"><span class="std std-doc">Import your pages</span></a>.</p>
+</section>
 </section>
 
 
@@ -735,6 +745,7 @@ to a page (each page’s own links say it), and Claude’s call records. A file 
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#claude-s-notes-claude-slug-md">Claude’s notes: <code class="docutils literal notranslate"><span class="pre">_claude/&lt;slug&gt;.md</span></code></a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#examples">Examples</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#what-is-left-out">What is left out</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#reading-it-back">Reading it back</a></li>
 </ul>
   </nav></div>
 
