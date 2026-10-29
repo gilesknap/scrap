@@ -285,22 +285,17 @@ const floor = () => {
   html.dataset.text = s;
   root.fontSize = n >= 0.8 && n <= 1.3 ? `${17 * n}px` : "";
   if (s === "phone" && parseFloat(getComputedStyle(html).fontSize) < 17) root.fontSize = "17px";
+  // Settings' maximum column width, kept on this device (column.ts): the same pattern, so
+  // neither is ever lost to a stale script. A CSS custom property, never anything to validate
+  // (an invalid or missing kept value just falls back to tokens.css's 800 px default)
+  const c = kept("scrap.column");
+  root.setProperty("--column", c ? `${c}px` : "");
 };
 floor();
-
-// Settings' maximum column width, kept on this device (column.ts): the same pattern as text
-// size just above, so neither is ever lost to a stale script. "800" is the default: kept as
-// nothing
-const colFloor = () => {
-  const c = kept("scrap.column") ?? "";
-  root.setProperty("--column", /^(720|880|960)$/.test(c) ? `${c}px` : "");
-};
-colFloor();
 
 // No Background Sync guarantee on Android: flush on open, on reconnect and when shown.
 const flush = () => {
   floor();
-  colFloor();
   void queue.nudge(); // now, not when its backoff says: the user is here
   dueSoon();
   void learnLimit(); // the server's upload limit, kept for offline checks

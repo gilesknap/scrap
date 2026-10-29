@@ -21,7 +21,7 @@ export const columnWidth = () => {
   return COLUMNS.some(([k]) => k === v) ? (v as string) : "800";
 };
 
-/** Keep the choice and show it at once, as main.ts's columnFloor() does. */
+/** Keep the choice and show it at once. */
 export function setColumnWidth(v: string) {
   kept(COLUMN_KEY, v === "800" ? null : v);
   document.documentElement.style.setProperty("--column", v === "800" ? "" : `${v}px`);

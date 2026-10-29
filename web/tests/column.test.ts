@@ -28,11 +28,15 @@ it("reads every width Settings offers", () => {
   }
 });
 
-it("main.ts and theme-init.js apply every non-default width Settings offers", () => {
+it("theme-init.js validates every non-default width Settings offers, before the first paint", () => {
   const widths = COLUMNS.filter(([k]) => k !== "800").map(([k]) => k);
   expect(widths).toEqual(["720", "880", "960"]);
-  for (const file of ["public/theme-init.js", "src/main.ts"]) {
-    const text = readFileSync(file, "utf8");
-    for (const w of widths) expect(text, `${file} misses ${w}`).toContain(w);
-  }
+  const text = readFileSync("public/theme-init.js", "utf8");
+  for (const w of widths) expect(text, `theme-init.js misses ${w}`).toContain(w);
+});
+
+it("main.ts reapplies the kept width too, at the start and when the app comes back", () => {
+  const text = readFileSync("src/main.ts", "utf8");
+  expect(text).toContain(COLUMN_KEY);
+  expect(text).toContain("--column");
 });
