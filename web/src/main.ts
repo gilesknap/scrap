@@ -288,9 +288,19 @@ const floor = () => {
 };
 floor();
 
+// Settings' maximum column width, kept on this device (column.ts): the same pattern as text
+// size just above, so neither is ever lost to a stale script. "800" is the default: kept as
+// nothing
+const colFloor = () => {
+  const c = kept("scrap.column") ?? "";
+  root.setProperty("--column", /^(720|880|960)$/.test(c) ? `${c}px` : "");
+};
+colFloor();
+
 // No Background Sync guarantee on Android: flush on open, on reconnect and when shown.
 const flush = () => {
   floor();
+  colFloor();
   void queue.nudge(); // now, not when its backoff says: the user is here
   dueSoon();
   void learnLimit(); // the server's upload limit, kept for offline checks

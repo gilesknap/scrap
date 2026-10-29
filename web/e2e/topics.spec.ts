@@ -229,7 +229,8 @@ test.describe("on a computer (a mouse, a wide window)", () => {
     expect(first && logo && first.x > logo.x + logo.width).toBe(true);
     expect(last && cog && last.x + last.width < cog.x).toBe(true);
     await page.screenshot({ path: "test-results/topics-900.png" });
-    // A page (no nav) keeps its top bar on the page's 720 px column: Back over the title
+    // A page (no nav) keeps its top bar on the page's own column (--column, 800 px by
+    // default): Back over the title
     const t = topic();
     await page.goto(`/p/${t.slug}`);
     const back = await page.locator("#back").boundingBox();

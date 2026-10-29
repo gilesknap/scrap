@@ -173,6 +173,15 @@ If scrap looks much bigger in the installed app than in a Chrome tab or another 
 Chrome's own zoom: Chrome, Settings, Accessibility, **Page zoom** (and Site settings, **Zoom**,
 for scrap's address). It applies on top of the font size.
 
+(column-width)=
+### Maximum column width
+
+On a computer, scrap centres a column rather than stretching every line the width of the window.
+Settings → **Maximum column width** sets the most it grows to: **Narrow** (720 px), **Medium**
+(800 px, the default), **Wide** (880 px) or **Wider** (960 px). A window narrower than the
+chosen width still shrinks the column to fit, with the usual gutter either side, so nothing
+scrolls sideways. It has no effect on a phone or a touch tablet, which never use the column.
+
 (smaller-photos)=
 ### Smaller photos
 
@@ -241,10 +250,11 @@ The app opens without a connection. Anything that reads from or writes to the se
   todo, Topics for a topic page, Capture otherwise. Back always goes where its label says: while
   the page is still loading, that is Capture. A screen returns scrolled where you left it.
 - **Layout.** On a narrow phone, a page's upload badge shortens to its dot and count (● 2). On a
-  wide screen the app is one centred column about 720 px wide. With a mouse the tabs move to the
-  top bar, Camera, Gallery, File and Note sit over the list, a page's buttons (Mark done, Edit, Share,
-  Delete) are a row under its title, and messages appear at the bottom of the window. Touch
-  devices keep the bars at the bottom.
+  wide screen the app is one centred column, 800 px wide by default ([Maximum column width](#column-width)
+  changes it, 720 to 960 px). With a mouse the tabs move to the top bar, Camera, Gallery, File and
+  Note sit over the list, a page's buttons (Mark done, Edit, Share, Delete) are a row under its
+  title, and messages appear at the bottom of the window. Touch devices keep the bars at the
+  bottom.
 - **Links.** Rows, tags, `[[links]]` and the pager's arrows are ordinary links: long-press (phone)
   or Ctrl/Cmd-click or middle-click (computer) to open in a new tab. A page opened that way has
   no pager. An unknown address shows *Not found*.

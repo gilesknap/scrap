@@ -69,15 +69,17 @@
   rotate: 45deg;
 }
 
-/* A wide window (a laptop, a tablet on its side): one centred column of about 720px, the
-   background still to the edges, so lines stay readable and bars don't spread out. Phones are
-   narrower than this, so it never applies there. */
+/* A wide window (a laptop, a tablet on its side): one centred column, at most --column wide
+   (tokens.css; Settings lets a computer choose the maximum), the background still to the
+   edges, so lines stay readable and bars don't spread out. A window narrower than --column
+   still keeps the usual gutter (var(--s-4)) and shrinks the column to fit, never scrolling
+   sideways. Phones are narrower than this breakpoint, so it never applies there. */
 @media (min-width: 760px) {
   header,
   main,
   nav,
   .editor {
-    padding-inline: calc((100% - 720px) / 2);
+    padding-inline: max(var(--s-4), calc((100% - var(--column)) / 2));
   }
 }
 /* Claude's tags, on a page's chip row and in the tag editor: the same pill as the owner's,

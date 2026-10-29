@@ -484,3 +484,24 @@ test("high contrast mode shows the chosen tab and a pressed Photo", async ({ pag
   await tool(page, "Photo").click();
   await expect(tool(page, "Photo")).toHaveCSS("outline-style", "solid");
 });
+
+test.describe("on a computer (a mouse, a wide window)", () => {
+  test.use({ viewport: { width: 1024, height: 1280 }, isMobile: false, hasTouch: false });
+
+  test("a page's photo and drawing are always tabbed, never side by side", async ({ page }) => {
+    const b = board();
+    await page.goto(`/p/${b.slug}`);
+    const tabs = page.getByRole("tablist", { name: "Show" });
+    await expect(tabs).toBeVisible();
+    const photo = page.locator(".pair > .orig:not(.drawing)");
+    const drawing = page.locator(".pair > .orig.drawing");
+    // Starts on Drawing: the photo tab's panel is hidden, not beside it (the old side-by-side
+    // rule showed both at once at this width)
+    await expect(drawing).toBeVisible();
+    await expect(photo).toBeHidden();
+    await page.getByRole("tab", { name: "Photo" }).click();
+    await expect(photo).toBeVisible();
+    await expect(drawing).toBeHidden();
+    await page.screenshot({ path: "test-results/page-pair-tabs-1024.png", fullPage: true });
+  });
+});

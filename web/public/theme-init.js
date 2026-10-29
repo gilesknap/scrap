@@ -16,3 +16,10 @@ try {
   document.documentElement.dataset.text = s;
   if (n >= 0.8 && n <= 1.3) document.documentElement.style.fontSize = `${17 * n}px`;
 } catch {}
+// and the chosen maximum column width (column.ts; main.ts does the same), so a computer's wide
+// window never flashes at tokens.css's 800 px default before settling on the kept choice
+try {
+  const c = localStorage.getItem("scrap.column");
+  if (c === "720" || c === "880" || c === "960")
+    document.documentElement.style.setProperty("--column", `${c}px`);
+} catch {}
