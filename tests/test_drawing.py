@@ -12,8 +12,8 @@ from fastapi.testclient import TestClient
 
 from scrap import ingest, sanitise
 from scrap.app import create_app
-from scrap.backup import export
 from scrap.drawing import excalidraw_file
+from scrap.export import export
 from scrap.sanitise import SCENE_BYTES
 from scrap.store import InvalidError, Store, connect, new_ulid
 from test_ingest import BOARD, Fake, jpeg
@@ -252,8 +252,8 @@ def test_a_scene_as_deep_as_allowed_is_saved_and_served(board):
 
 
 def test_export_keeps_each_pages_drawing_of_the_same_photo(tmp_path):
-    """One photo on two pages, with different drawings: each page's Markdown links
-    to its own drawing in the shared files/ folder."""
+    """One photo on two pages, with different drawings: each page's notes in
+    _claude/ link to its own drawing in the shared files/ folder."""
     client = TestClient(create_app(tmp_path))
     image = jpeg(size=(800, 600))
     refs = []
@@ -270,8 +270,9 @@ def test_export_keeps_each_pages_drawing_of_the_same_photo(tmp_path):
     out = tmp_path / "export"
     assert export(Store(tmp_path), out) == 2
     for ref, words in zip(refs, ("ONE", "TWO"), strict=True):
-        md = (out / f"{ref['slug']}.md").read_text()
-        link = md.split("[Drawing of")[1].split("(files/")[1].split(")")[0]
+        assert "Drawing" not in (out / f"{ref['slug']}.md").read_text()
+        md = (out / "_claude" / f"{ref['slug']}.md").read_text()  # Claude's: aside
+        link = md.split("[Drawing of")[1].split("(../files/")[1].split(")")[0]
         assert ref["capture_id"] in link
         drawing = json.loads((out / "files" / link).read_text())
         assert [e["text"] for e in drawing["elements"]] == [words]

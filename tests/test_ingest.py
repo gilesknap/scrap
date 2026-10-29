@@ -869,6 +869,6 @@ def test_lone_surrogates_from_the_model_never_reach_the_database(tmp_path):
     page = client.get(f"/api/pages/{ref['page_id']}").json()
     assert page["title"] == "Board �" and page["tags"] == ["t�"]
     assert client.get(f"/api/pages/{ref['page_id']}/download").status_code == 200
-    from scrap.backup import export
+    from scrap.export import export
 
     assert export(store, tmp_path / "out") == 1

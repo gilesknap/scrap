@@ -1,9 +1,11 @@
-"""The HTTP routes for files: a page's download, and a stored file, its preview and
-how many pages use it. Registered by app.create_app (add_routes)."""
+"""The HTTP routes for files: a page's download, the whole store's export, and a
+stored file, its preview and how many pages use it. Registered by app.create_app
+(add_routes)."""
 
 import re
 import tempfile
 from collections.abc import Iterator
+from datetime import UTC, datetime
 from typing import Literal
 from urllib.parse import quote
 
@@ -12,7 +14,7 @@ from fastapi import FastAPI, Response
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 
-from . import backup, preview
+from . import backup, export, preview
 from .store import Store
 
 BLOB_HEADERS = {
@@ -60,6 +62,17 @@ def add_routes(app: FastAPI, store: Store) -> None:
 
         headers = {"Content-Disposition": attachment(name), "Cache-Control": "no-store"}
         return StreamingResponse(chunks(), media_type=mime, headers=headers)
+
+    @app.get("/api/store/download")
+    def store_download() -> StreamingResponse:
+        """Every page as Markdown with its files, as scrap-export-<date>.zip, streamed
+        as it is made (export.py; Settings > Export everything). The pages are read
+        first, in one transaction; then the files follow, a chunk at a time."""
+        name = f"scrap-export-{datetime.now(UTC).date().isoformat()}.zip"
+        headers = {"Content-Disposition": attachment(name), "Cache-Control": "no-store"}
+        return StreamingResponse(
+            export.stream(store), media_type="application/zip", headers=headers
+        )
 
     decoding = anyio.Lock()  # requests wait for the decoder here, not in worker threads
 

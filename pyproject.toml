@@ -41,6 +41,7 @@ dev = [
     "pytest",
     "pytest-cov",
     "pytest-xdist",
+    "pyyaml>=6.0.3",
     "ruff",
     "sphinx-autobuild",
     "sphinx-copybutton",
@@ -48,6 +49,7 @@ dev = [
     "sphinxcontrib-mermaid>=2.1.1",
     "tox-uv",
     "types-mock",
+    "types-pyyaml>=6.0.12.20260906",
 ]
 
 [project.scripts]

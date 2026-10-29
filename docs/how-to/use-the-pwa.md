@@ -353,7 +353,8 @@ How matching works:
 ### Store health
 
 The health checks, one count each from `GET /api/health`, are listed on **Settings** (the cog),
-**Store health** (Settings also has **Trash**: {ref}`the-trash`). A tap runs the check's search; Back returns to the screen. Nothing is dismissed
+**Store health** (Settings also has **Trash**, {ref}`the-trash`, and **Export everything**,
+[](export-your-pages.md)). A tap runs the check's search; Back returns to the screen. Nothing is dismissed
 there: a check that keeps finding a page you are happy with is the check to change.
 
 | Search | Finds |
@@ -489,7 +490,8 @@ tags, status and topics. After your text and the files comes one section headed 
 topic's synthesis, and related pages. Then *Linked from* lists the pages that link here. The text
 read from a PDF or text file follows the file's link, in a block cut at 20,000 characters. If
 `SCRAP_PUBLIC_URL` is set, `[[slug]]` links are written as full addresses so they work outside
-scrap. `scrap export` does not write any of this: it stays your text.
+scrap. The export of every page ([](export-your-pages.md)) keeps Claude's notes in a file of their
+own instead.
 
 Where the browser cannot share, there is no Share and **Download** is in the toolbar. While it
 fetches the button says *Preparing…*; a finished Download says *Downloaded* with name and size; a
@@ -557,7 +559,7 @@ scrap and try again*.
 - **Revisions.** Every save that changes a page's title or text is kept as a revision, whether by
   you or Claude over MCP. The app has no screen to browse or restore them; Claude can use the MCP
   `revisions` and `revert` tools ([](../reference/mcp.md)). Tag and kind changes are kept apart.
-  **Download** and `scrap export` hold only the current text.
+  **Download** and the export ([](export-your-pages.md)) hold only the current text.
 - **Size.** A page's text holds at most 1 MB (about a million letters; photo links a capture adds
   count). Save says so before sending and keeps the text for you to shorten or split. A page
   imported over the limit can still be edited if its text stays as it is or shrinks.

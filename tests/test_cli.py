@@ -147,7 +147,7 @@ def test_export_markdown(client, note, tmp_path, capsys):
     [png] = (out / "files").iterdir()
     assert png.read_bytes() == b"png bytes"
     photo = (out / "photo.md").read_text()
-    assert f"![b.png](files/{png.name})" in photo  # the text's embed, pointed here
+    assert f"![](files/{png.name})" in photo  # the text's embed as typed, pointed here
     assert photo.count(png.name) == 1 and "/api/blobs" not in photo
     # Another page's photo: its copy in the one files/ folder
     sha = png.name.split(".")[0]
