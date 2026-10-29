@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Deploy on a single server &#8212; scrap 1.0.0rc4.dev5+g5aa4459b2 documentation</title>
+    <title>Deploy on a single server &#8212; scrap 1.0.0rc4.dev6+g68eb4f5d9 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=a6e547b0"></script>
+    <script src="../_static/documentation_options.js?v=9b21963c"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -1308,8 +1308,7 @@ connection to <code class="docutils literal notranslate"><span class="pre">127.0
 </section>
 <section id="update">
 <span id="scrap-update"></span><h2>Update<a class="headerlink" href="#update" title="Link to this heading">#</a></h2>
-<p>Take a restore point first (<a class="reference internal" href="#scrap-upgrade-db"><span class="std std-ref">Database changes and rolling back</span></a>). Coming from before 0.16? See
-<a class="reference internal" href="#scrap-upgrade-1-0"><span class="std std-ref">Upgrading to 1.0 from before 0.16</span></a> first. Then update the clone, pull the new release (see <a class="reference external" href="https://github.com/gilesknap/scrap/releases">scrap’s
+<p>Take a restore point first (<a class="reference internal" href="#scrap-upgrade-db"><span class="std std-ref">Database changes and rolling back</span></a>). Then update the clone, pull the new release (see <a class="reference external" href="https://github.com/gilesknap/scrap/releases">scrap’s
 releases</a>), point <code class="docutils literal notranslate"><span class="pre">SCRAP_IMAGE</span></code> at it, and re-run the
 install script:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">git</span> <span class="o">-</span><span class="n">C</span> <span class="o">~/</span><span class="n">scrap</span> <span class="n">fetch</span> <span class="o">--</span><span class="n">depth</span> <span class="mi">1</span> <span class="n">origin</span> <span class="n">tag</span> <span class="o">&lt;</span><span class="n">version</span><span class="o">&gt;</span>
@@ -1358,14 +1357,6 @@ with <code class="docutils literal notranslate"><span class="pre">podman</span> 
 before the update (see <a class="reference internal" href="#scrap-restore"><span class="std std-ref">Restore</span></a>; set <code class="docutils literal notranslate"><span class="pre">SCRAP_IMAGE</span></code> to the old image first), and start
 scrap on that image. Pages added since the backup are lost from the database; their files stay.
 Backups made after the update have the new schema, so the old image refuses to restore them.</p>
-</section>
-<section id="upgrading-to-1-0-from-before-0-16">
-<span id="scrap-upgrade-1-0"></span><h3>Upgrading to 1.0 from before 0.16<a class="headerlink" href="#upgrading-to-1-0-from-before-0-16" title="Link to this heading">#</a></h3>
-<p>scrap 0.17.0 and later, 1.0 included, start from schema 18 and refuse a database or a backup
-below it:
-<code class="docutils literal notranslate"><span class="pre">&lt;db&gt;</span> <span class="pre">has</span> <span class="pre">schema</span> <span class="pre">N,</span> <span class="pre">older</span> <span class="pre">than</span> <span class="pre">the</span> <span class="pre">baseline</span> <span class="pre">this</span> <span class="pre">scrap</span> <span class="pre">starts</span> <span class="pre">from</span> <span class="pre">(18):</span> <span class="pre">upgrade</span> <span class="pre">with</span> <span class="pre">scrap</span> <span class="pre">0.16.x</span> <span class="pre">first</span> <span class="pre">(it</span> <span class="pre">migrates</span> <span class="pre">to</span> <span class="pre">schema</span> <span class="pre">18),</span> <span class="pre">then</span> <span class="pre">use</span> <span class="pre">0.17.0</span> <span class="pre">or</span> <span class="pre">later</span></code>. Update to the latest 0.16.x first (as above, with
-<code class="docutils literal notranslate"><span class="pre">ghcr.io/gilesknap/scrap:0.16.&lt;x&gt;</span></code>), let it start and migrate, take a new restore point, then
-update to 1.0. To restore a backup taken below schema 18, restore it with 0.16.x, then upgrade.</p>
 </section>
 </section>
 <section id="backup-and-restore">
@@ -1998,7 +1989,6 @@ from a backup taken before the update (see <a class="reference internal" href="#
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#access-and-identity">Access and identity</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#update">Update</a><ul class="nav section-nav flex-column">
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#database-changes-and-rolling-back">Database changes and rolling back</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-1-0-from-before-0-16">Upgrading to 1.0 from before 0.16</a></li>
 </ul>
 </li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#backup-and-restore">Backup and restore</a><ul class="nav section-nav flex-column">

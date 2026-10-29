@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Deploy on Kubernetes &#8212; scrap 1.0.0rc4.dev5+g5aa4459b2 documentation</title>
+    <title>Deploy on Kubernetes &#8212; scrap 1.0.0rc4.dev6+g68eb4f5d9 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=a6e547b0"></script>
+    <script src="../_static/documentation_options.js?v=9b21963c"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -1311,7 +1311,7 @@ probes use, answers to any name), and roll the pod after changing it.</p>
 <section id="upgrades">
 <h2>Upgrades<a class="headerlink" href="#upgrades" title="Link to this heading">#</a></h2>
 <p>Back up first, then upgrade to the newer chart version (its image follows, unless your values set
-<code class="docutils literal notranslate"><span class="pre">image.tag</span></code>: change that too). Coming from before 0.16? See <a class="reference internal" href="#k8s-upgrade-1-0"><span class="std std-ref">Upgrading to 1.0 from before 0.16</span></a> first.</p>
+<code class="docutils literal notranslate"><span class="pre">image.tag</span></code>: change that too).</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">kubectl</span> <span class="o">-</span><span class="n">n</span> <span class="n">scrap</span> <span class="n">create</span> <span class="n">job</span> <span class="o">--</span><span class="n">from</span><span class="o">=</span><span class="n">cronjob</span><span class="o">/</span><span class="n">scrap</span><span class="o">-</span><span class="n">backup</span> <span class="n">scrap</span><span class="o">-</span><span class="n">backup</span><span class="o">-</span><span class="n">pre</span><span class="o">-</span><span class="n">upgrade</span>
 <span class="n">kubectl</span> <span class="o">-</span><span class="n">n</span> <span class="n">scrap</span> <span class="n">wait</span> <span class="o">--</span><span class="k">for</span><span class="o">=</span><span class="n">condition</span><span class="o">=</span><span class="n">complete</span> <span class="n">job</span><span class="o">/</span><span class="n">scrap</span><span class="o">-</span><span class="n">backup</span><span class="o">-</span><span class="n">pre</span><span class="o">-</span><span class="n">upgrade</span> <span class="o">--</span><span class="n">timeout</span><span class="o">=</span><span class="mi">30</span><span class="n">m</span>
 <span class="n">helm</span> <span class="n">upgrade</span> <span class="n">scrap</span> <span class="n">oci</span><span class="p">:</span><span class="o">//</span><span class="n">ghcr</span><span class="o">.</span><span class="n">io</span><span class="o">/</span><span class="n">gilesknap</span><span class="o">/</span><span class="n">charts</span><span class="o">/</span><span class="n">scrap</span> <span class="o">--</span><span class="n">version</span> <span class="o">&lt;</span><span class="n">new</span><span class="o">&gt;</span> <span class="o">-</span><span class="n">n</span> <span class="n">scrap</span> <span class="o">-</span><span class="n">f</span> <span class="n">my</span><span class="o">-</span><span class="n">values</span><span class="o">.</span><span class="n">yaml</span>
@@ -1326,13 +1326,6 @@ them five minutes.</p>
 So <code class="docutils literal notranslate"><span class="pre">helm</span> <span class="pre">rollback</span></code> alone does not go back: roll back to the old image <em>and</em> restore the
 pre-upgrade backup with <code class="docutils literal notranslate"><span class="pre">--force</span></code> (below). Anything captured since the upgrade is then lost from
 the database; its files stay.</p>
-<section id="upgrading-to-1-0-from-before-0-16">
-<span id="k8s-upgrade-1-0"></span><h3>Upgrading to 1.0 from before 0.16<a class="headerlink" href="#upgrading-to-1-0-from-before-0-16" title="Link to this heading">#</a></h3>
-<p>scrap 0.17.0 and later, 1.0 included, start from schema 18 and refuse a database or
-a backup below it: <code class="docutils literal notranslate"><span class="pre">&lt;db&gt;</span> <span class="pre">has</span> <span class="pre">schema</span> <span class="pre">N,</span> <span class="pre">older</span> <span class="pre">than</span> <span class="pre">the</span> <span class="pre">baseline</span> <span class="pre">this</span> <span class="pre">scrap</span> <span class="pre">starts</span> <span class="pre">from</span> <span class="pre">(18):</span> <span class="pre">upgrade</span> <span class="pre">with</span> <span class="pre">scrap</span> <span class="pre">0.16.x</span> <span class="pre">first</span> <span class="pre">(it</span> <span class="pre">migrates</span> <span class="pre">to</span> <span class="pre">schema</span> <span class="pre">18),</span> <span class="pre">then</span> <span class="pre">use</span> <span class="pre">0.17.0</span> <span class="pre">or</span> <span class="pre">later</span></code>. Upgrade to the latest
-0.16.x chart first (<code class="docutils literal notranslate"><span class="pre">--version</span> <span class="pre">0.16.&lt;x&gt;</span></code>), let it start and migrate, back up again, then upgrade
-to 1.0. To restore a backup taken below schema 18, restore it with 0.16.x, then upgrade.</p>
-</section>
 </section>
 <section id="backup-and-restore">
 <h2>Backup and restore<a class="headerlink" href="#backup-and-restore" title="Link to this heading">#</a></h2>
@@ -1444,8 +1437,7 @@ restore into it without <code class="docutils literal notranslate"><span class="
 <section id="which-backups-restore">
 <span id="k8s-restore-schema"></span><h3>Which backups restore<a class="headerlink" href="#which-backups-restore" title="Link to this heading">#</a></h3>
 <p>What <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">restore</span></code> accepts depends on the schema of the backup (the database version, named
-in the error messages below) against the release that runs the restore. scrap 0.17.0 and later, 1.0 included, start from schema 18 and add
-numbered migrations after it, so:</p>
+in the error message below) against the release that runs the restore:</p>
 <div class="pst-scrollable-table-container"><table class="table">
 <thead>
 <tr class="row-odd"><th class="head"><p>The backup is</p></th>
@@ -1453,16 +1445,13 @@ numbered migrations after it, so:</p>
 </tr>
 </thead>
 <tbody>
-<tr class="row-even"><td><p>below schema 18 (any release before 0.17.0)</p></td>
-<td><p><strong>Refuses</strong>, and the data folder is untouched: <code class="docutils literal notranslate"><span class="pre">bad</span> <span class="pre">backup:</span> <span class="pre">&lt;backup</span> <span class="pre">path&gt;</span> <span class="pre">has</span> <span class="pre">schema</span> <span class="pre">N,</span> <span class="pre">older</span> <span class="pre">than</span> <span class="pre">the</span> <span class="pre">baseline</span> <span class="pre">this</span> <span class="pre">scrap</span> <span class="pre">starts</span> <span class="pre">from</span> <span class="pre">(18):</span> <span class="pre">upgrade</span> <span class="pre">with</span> <span class="pre">scrap</span> <span class="pre">0.16.x</span> <span class="pre">first</span> <span class="pre">(it</span> <span class="pre">migrates</span> <span class="pre">to</span> <span class="pre">schema</span> <span class="pre">18),</span> <span class="pre">then</span> <span class="pre">use</span> <span class="pre">0.17.0</span> <span class="pre">or</span> <span class="pre">later</span></code>. Restore it with scrap 0.16.x (which migrates the copy up to 18), take a fresh backup, then use 0.17.0 or later. See <a class="reference internal" href="#k8s-upgrade-1-0"><span class="std std-ref">Upgrading to 1.0 from before 0.16</span></a>; the <code class="docutils literal notranslate"><span class="pre">0.16.&lt;x&gt;</span></code> image stays published, so <code class="docutils literal notranslate"><span class="pre">restore.yaml</span></code> can name it.</p></td>
-</tr>
-<tr class="row-odd"><td><p>at 18 or above, and lower than the release’s schema</p></td>
-<td><p><strong>Migrates</strong>: restore runs the numbered scripts after the backup’s version on its copy before the swap, so the data folder only ever receives a current database. A failed migration leaves the database as it was (files already copied stay, and are harmless).</p></td>
-</tr>
 <tr class="row-even"><td><p>the same schema as the release</p></td>
 <td><p>Copied as it is.</p></td>
 </tr>
-<tr class="row-odd"><td><p>above the release’s schema (a newer scrap made it)</p></td>
+<tr class="row-odd"><td><p>lower than the release’s schema (an older release made it)</p></td>
+<td><p><strong>Migrates</strong>: restore runs the numbered migration scripts after the backup’s version on its copy before the swap, so the data folder only ever receives a current database. A failed migration leaves the database as it was (files already copied stay, and are harmless).</p></td>
+</tr>
+<tr class="row-even"><td><p>above the release’s schema (a newer release made it)</p></td>
 <td><p><strong>Refuses</strong>: <code class="docutils literal notranslate"><span class="pre">bad</span> <span class="pre">backup:</span> <span class="pre">&lt;db&gt;</span> <span class="pre">has</span> <span class="pre">schema</span> <span class="pre">N;</span> <span class="pre">this</span> <span class="pre">scrap</span> <span class="pre">knows</span> <span class="pre">M</span></code>. Use the release that wrote the backup, or a newer one.</p></td>
 </tr>
 </tbody>
@@ -1479,16 +1468,26 @@ refused by the old image.</p>
 <p>A backup you have never opened is a hope, not a backup. This checks one on any machine, with nothing
 touching the cluster’s data: restore it into a throwaway folder, start scrap on another port and
 compare what it shows with the live store.</p>
-<p><strong>Tested.</strong> On 2026-10-28 with scrap 0.17.0 (schema 18): a backup made with <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">backup</span></code> from
-data streamed out of the live pod, not a run of the nightly CronJob, was restored into a scratch
-folder. It showed 306 pages, matching live; the handoff page was identical at the same
-revision; search worked; a blob served with a matching SHA-256; <code class="docutils literal notranslate"><span class="pre">/healthz</span></code> and <code class="docutils literal notranslate"><span class="pre">/api/health</span></code>
-were fine. A restore of an actual CronJob run, copied off the claim as in step 1, has not been
-tried yet, so treat step 1 as untested until it is. The table below says which rows that run
-checked; the rest are the checks to do, with no result recorded.</p>
+<p><strong>Room.</strong> You need room for two copies of the store: the run you copy off the cluster and the
+restored folder. Check the size first with <code class="docutils literal notranslate"><span class="pre">kubectl</span> <span class="pre">-n</span> <span class="pre">scrap</span> <span class="pre">exec</span> <span class="pre">deploy/scrap</span> <span class="pre">--</span> <span class="pre">du</span> <span class="pre">-sh</span> <span class="pre">/data</span></code>
+(about 500 MB free for a 250 MB store), and keep everything in one folder you can delete at the
+end. The steps call it <code class="docutils literal notranslate"><span class="pre">$RT</span></code>; pick a disk with room, not a small <code class="docutils literal notranslate"><span class="pre">/tmp</span></code>; it is created new, so the final <code class="docutils literal notranslate"><span class="pre">rm</span> <span class="pre">-rf</span> <span class="pre">&quot;$RT&quot;</span></code> removes nothing else.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>export RT=$(mktemp -d "$HOME/rt.XXXXXX")   # a new, empty folder; put another disk's path in place of $HOME if needed
+mkdir "$RT/backup"
+</pre></div>
+</div>
+<p><strong>Tested.</strong> On 2026-10-29 with a main-branch build of scrap 1.0.0rc4.dev5, on a throwaway
+instance (not the cluster): a <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">backup</span></code> of a store of synthetic pages (todos and notes, 110
+of them in the trash, one file) was restored into a scratch folder and compared with the
+instance it came from (steps 2 to 7, the script included). It is not yet tried on a real run
+copied off the backup claim by step 1, nor on 1.0.0 itself: re-run it there and update this
+paragraph.</p>
 <ol class="arabic">
-<li><p>Get a run onto the machine. A run directory holds <code class="docutils literal notranslate"><span class="pre">scrap.db</span></code>, <code class="docutils literal notranslate"><span class="pre">files/</span></code> and a <code class="docutils literal notranslate"><span class="pre">COMPLETE</span></code> file.
-No running pod mounts the backup claim (the scrap pod mounts only data and tmp, and backup
+<li><p>Get a run onto the machine. A run directory holds <code class="docutils literal notranslate"><span class="pre">scrap.db</span></code>, a <code class="docutils literal notranslate"><span class="pre">files/</span></code> folder (once any
+file has been stored) and a <code class="docutils literal notranslate"><span class="pre">COMPLETE</span></code> file; copy the whole directory, whatever else is in
+it (a <code class="docutils literal notranslate"><span class="pre">scrap.db-wal</span></code> or <code class="docutils literal notranslate"><span class="pre">scrap.db-shm</span></code> beside <code class="docutils literal notranslate"><span class="pre">scrap.db</span></code> is a harmless SQLite leftover:
+<code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">restore</span></code> uses a <code class="docutils literal notranslate"><span class="pre">-wal</span></code> if there is one and ignores a <code class="docutils literal notranslate"><span class="pre">-shm</span></code>). No running pod mounts the
+backup claim (the scrap pod mounts only data and tmp, and backup
 pods are Completed), so start a read-only helper pod that does. <code class="docutils literal notranslate"><span class="pre">reader.yaml</span></code>, with the
 image of the scrap version that wrote the backup or a newer one (restore refuses a newer
 backup’s schema; see <a class="reference internal" href="#k8s-restore-schema"><span class="std std-ref">Which backups restore</span></a>) and the claim name <code class="docutils literal notranslate"><span class="pre">&lt;fullname&gt;-backups</span></code> (see
@@ -1538,33 +1537,37 @@ the note under <code class="docutils literal notranslate"><span class="pre">rest
 same affinity as the CronJobs: it needs the scrap pod running, on the node where the claim
 is bound (the labels are the chart’s selector labels: <code class="docutils literal notranslate"><span class="pre">app.kubernetes.io/instance</span></code> is the
 release name, and <code class="docutils literal notranslate"><span class="pre">name</span></code> the chart name unless <code class="docutils literal notranslate"><span class="pre">nameOverride</span></code> is set). With scrap scaled to
-zero, or a <code class="docutils literal notranslate"><span class="pre">ReadWriteMany</span></code> claim, leave <code class="docutils literal notranslate"><span class="pre">affinity</span></code> out. Then copy the newest run:</p>
+zero, or a <code class="docutils literal notranslate"><span class="pre">ReadWriteMany</span></code> claim, leave <code class="docutils literal notranslate"><span class="pre">affinity</span></code> out. Then list the runs and copy one:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">kubectl</span> <span class="o">-</span><span class="n">n</span> <span class="n">scrap</span> <span class="n">apply</span> <span class="o">-</span><span class="n">f</span> <span class="n">reader</span><span class="o">.</span><span class="n">yaml</span>
 <span class="n">kubectl</span> <span class="o">-</span><span class="n">n</span> <span class="n">scrap</span> <span class="n">wait</span> <span class="o">--</span><span class="k">for</span><span class="o">=</span><span class="n">condition</span><span class="o">=</span><span class="n">Ready</span> <span class="n">pod</span><span class="o">/</span><span class="n">scrap</span><span class="o">-</span><span class="n">backup</span><span class="o">-</span><span class="n">reader</span> <span class="o">--</span><span class="n">timeout</span><span class="o">=</span><span class="mi">2</span><span class="n">m</span>
-<span class="n">kubectl</span> <span class="o">-</span><span class="n">n</span> <span class="n">scrap</span> <span class="n">exec</span> <span class="n">scrap</span><span class="o">-</span><span class="n">backup</span><span class="o">-</span><span class="n">reader</span> <span class="o">--</span> <span class="n">ls</span> <span class="o">/</span><span class="n">backups</span>          <span class="c1"># pick the newest run</span>
-<span class="n">mkdir</span> <span class="o">-</span><span class="n">p</span> <span class="o">/</span><span class="n">tmp</span><span class="o">/</span><span class="n">rt</span><span class="o">/</span><span class="n">backup</span>
-<span class="n">kubectl</span> <span class="o">-</span><span class="n">n</span> <span class="n">scrap</span> <span class="n">cp</span> <span class="n">scrap</span><span class="o">-</span><span class="n">backup</span><span class="o">-</span><span class="n">reader</span><span class="p">:</span><span class="o">/</span><span class="n">backups</span><span class="o">/&lt;</span><span class="n">run</span><span class="o">&gt;</span> <span class="o">/</span><span class="n">tmp</span><span class="o">/</span><span class="n">rt</span><span class="o">/</span><span class="n">backup</span><span class="o">/&lt;</span><span class="n">run</span><span class="o">&gt;</span>
+<span class="n">kubectl</span> <span class="o">-</span><span class="n">n</span> <span class="n">scrap</span> <span class="n">exec</span> <span class="n">scrap</span><span class="o">-</span><span class="n">backup</span><span class="o">-</span><span class="n">reader</span> <span class="o">--</span> <span class="n">ls</span> <span class="o">/</span><span class="n">backups</span>
+<span class="n">kubectl</span> <span class="o">-</span><span class="n">n</span> <span class="n">scrap</span> <span class="n">cp</span> <span class="n">scrap</span><span class="o">-</span><span class="n">backup</span><span class="o">-</span><span class="n">reader</span><span class="p">:</span><span class="o">/</span><span class="n">backups</span><span class="o">/&lt;</span><span class="n">run</span><span class="o">&gt;</span> <span class="s2">"$RT/backup/&lt;run&gt;"</span>
 <span class="n">kubectl</span> <span class="o">-</span><span class="n">n</span> <span class="n">scrap</span> <span class="n">delete</span> <span class="n">pod</span> <span class="n">scrap</span><span class="o">-</span><span class="n">backup</span><span class="o">-</span><span class="n">reader</span>
-<span class="n">ls</span> <span class="o">/</span><span class="n">tmp</span><span class="o">/</span><span class="n">rt</span><span class="o">/</span><span class="n">backup</span><span class="o">/&lt;</span><span class="n">run</span><span class="o">&gt;/</span><span class="n">COMPLETE</span>
+<span class="n">ls</span> <span class="s2">"$RT/backup/&lt;run&gt;/COMPLETE"</span>
 </pre></div>
 </div>
-<p><code class="docutils literal notranslate"><span class="pre">kubectl</span> <span class="pre">cp</span></code> needs <code class="docutils literal notranslate"><span class="pre">tar</span></code> in the image, and the scrap image has it. A run without <code class="docutils literal notranslate"><span class="pre">COMPLETE</span></code>
-was not finished: take another. Where the backup claim is an NFS share, you can mount that
-share on your machine instead and copy the run from there. A run under <code class="docutils literal notranslate"><span class="pre">monthly/</span></code> is
+<p>Which run? A run is named for the UTC time it began, and nightly, pre-upgrade and manual runs
+(<code class="docutils literal notranslate"><span class="pre">kubectl</span> <span class="pre">create</span> <span class="pre">job</span> <span class="pre">--from=cronjob/scrap-backup</span></code>) all land in the same folder, so the
+newest name is not necessarily a nightly one. A nightly run begins within seconds of its
+schedule (<code class="docutils literal notranslate"><span class="pre">03:30</span></code> by default, so <code class="docutils literal notranslate"><span class="pre">20261029T0330xxZ</span></code>): to try the CronJob’s own output, take
+the newest run whose name has that time. Any other run restores the same way. A run without
+<code class="docutils literal notranslate"><span class="pre">COMPLETE</span></code> was not finished: take another. <code class="docutils literal notranslate"><span class="pre">kubectl</span> <span class="pre">cp</span></code> needs <code class="docutils literal notranslate"><span class="pre">tar</span></code> in the image, and the
+scrap image has it. Where the backup claim is an NFS share, you can mount that share on your
+machine instead and copy the run from there. A run under <code class="docutils literal notranslate"><span class="pre">monthly/</span></code> is
 <code class="docutils literal notranslate"><span class="pre">/backups/monthly/&lt;run&gt;</span></code>.</p>
 </li>
 <li><p>Get a <code class="docutils literal notranslate"><span class="pre">scrap</span></code> command. Either check out the release tag you are testing and run
 <code class="docutils literal notranslate"><span class="pre">uv</span> <span class="pre">sync</span></code> once, then use <code class="docutils literal notranslate"><span class="pre">uv</span> <span class="pre">run</span> <span class="pre">scrap</span> <span class="pre">...</span></code> for every <code class="docutils literal notranslate"><span class="pre">scrap</span></code> below; or use the released
-image with the folders mounted (<code class="docutils literal notranslate"><span class="pre">podman</span> <span class="pre">run</span> <span class="pre">--rm</span> <span class="pre">-v</span> <span class="pre">/tmp/rt:/tmp/rt</span> <span class="pre">-e</span> <span class="pre">SCRAP_DATA_DIR=/tmp/rt/scratch</span> <span class="pre">--user</span> <span class="pre">10001:10001</span> <span class="pre">ghcr.io/gilesknap/scrap:&lt;version&gt;</span> <span class="pre">restore</span> <span class="pre">/tmp/rt/backup/&lt;run&gt;</span></code>; the user
+image with the folders mounted (<code class="docutils literal notranslate"><span class="pre">podman</span> <span class="pre">run</span> <span class="pre">--rm</span> <span class="pre">-v</span> <span class="pre">&quot;$RT:$RT&quot;</span> <span class="pre">-e</span> <span class="pre">SCRAP_DATA_DIR=&quot;$RT/scratch&quot;</span> <span class="pre">--user</span> <span class="pre">10001:10001</span> <span class="pre">ghcr.io/gilesknap/scrap:&lt;version&gt;</span> <span class="pre">restore</span> <span class="pre">&quot;$RT/backup/&lt;run&gt;&quot;</span></code>; the user
 must be able to write the scratch folder). Use the version that wrote the backup or a newer
 one.</p></li>
 <li><p>Restore into an empty folder of its own, without <code class="docutils literal notranslate"><span class="pre">--force</span></code>. It prints nothing when it works:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">export</span> <span class="n">SCRAP_DATA_DIR</span><span class="o">=/</span><span class="n">tmp</span><span class="o">/</span><span class="n">rt</span><span class="o">/</span><span class="n">scratch</span>
-<span class="n">scrap</span> <span class="n">restore</span> <span class="o">/</span><span class="n">tmp</span><span class="o">/</span><span class="n">rt</span><span class="o">/</span><span class="n">backup</span><span class="o">/&lt;</span><span class="n">run</span><span class="o">&gt;</span>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">export</span> <span class="n">SCRAP_DATA_DIR</span><span class="o">=</span><span class="s2">"$RT/scratch"</span>
+<span class="n">scrap</span> <span class="n">restore</span> <span class="s2">"$RT/backup/&lt;run&gt;"</span>
 </pre></div>
 </div>
-<p>Running it again says <code class="docutils literal notranslate"><span class="pre">/tmp/rt/scratch</span> <span class="pre">is</span> <span class="pre">not</span> <span class="pre">empty;</span> <span class="pre">stop</span> <span class="pre">scrap</span> <span class="pre">and</span> <span class="pre">use</span> <span class="pre">--force</span></code> and changes
-nothing.</p>
+<p>Running it again says <code class="docutils literal notranslate"><span class="pre">$RT/scratch</span> <span class="pre">is</span> <span class="pre">not</span> <span class="pre">empty;</span> <span class="pre">stop</span> <span class="pre">scrap</span> <span class="pre">and</span> <span class="pre">use</span> <span class="pre">--force</span></code> (with the folder
+spelt out) and changes nothing.</p>
 </li>
 <li><p>Start scrap on a spare port, in the background. Leave <code class="docutils literal notranslate"><span class="pre">SCRAP_INGEST</span></code> and the Claude settings
 unset, so it makes no calls. A clone without the PWA build logs <code class="docutils literal notranslate"><span class="pre">The</span> <span class="pre">scrap</span> <span class="pre">PWA</span> <span class="pre">is</span> <span class="pre">not</span> <span class="pre">built</span></code>;
@@ -1581,61 +1584,54 @@ FWD=$!
 </pre></div>
 </div>
 </li>
-<li><p>Compare with the live store, read only. A page edited or captured on the live store since
-the run was taken will differ; that is not a failed restore. The list <code class="docutils literal notranslate"><span class="pre">GET</span> <span class="pre">/api/pages</span></code> has
-grown fields over time (a <code class="docutils literal notranslate"><span class="pre">thumb</span></code> was added), so compare ids, titles and tags per page, not
-the whole body of the list against output recorded earlier.</p>
+<li><p>Compare with the live store, read only. The live store keeps changing: a page edited or
+captured since the run was taken, or one in the trash since, will differ or be missing, and
+that is not a failed restore. Take a run from today to keep that small. The list
+<code class="docutils literal notranslate"><span class="pre">GET</span> <span class="pre">/api/pages</span></code> has grown fields over time (a <code class="docutils literal notranslate"><span class="pre">thumb</span></code> was added), so compare ids, titles and
+tags per page, not the whole body of the list against output recorded earlier. Run each
+call against port 8793 (restored) and 8794 (live):</p>
 <div class="pst-scrollable-table-container"><table class="table">
 <thead>
 <tr class="row-odd"><th class="head"><p>Check</p></th>
 <th class="head"><p>Call</p></th>
-<th class="head"><p>2026-10-28 run (local <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">backup</span></code>)</p></th>
 </tr>
 </thead>
 <tbody>
 <tr class="row-even"><td><p>Pages</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">GET</span> <span class="pre">/api/pages?limit=500</span></code> (the trash is left out)</p></td>
-<td><p>306 on both</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">GET</span> <span class="pre">/api/pages?limit=500</span></code> (the trash is left out; 500 is the most it lists)</p></td>
 </tr>
 <tr class="row-odd"><td><p>Pages in full</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">GET</span> <span class="pre">/api/pages/&lt;slug&gt;</span></code> for each (the script below)</p></td>
-<td><p>the handoff page only, identical at the same revision; not run for all</p></td>
 </tr>
 <tr class="row-even"><td><p>Tags, topics</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">GET</span> <span class="pre">/api/tags</span></code>, <code class="docutils literal notranslate"><span class="pre">/api/topics</span></code></p></td>
-<td><p>not recorded</p></td>
 </tr>
 <tr class="row-odd"><td><p>Todos</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">GET</span> <span class="pre">/api/search?q=kind:todo</span></code></p></td>
-<td><p>not recorded</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">GET</span> <span class="pre">/api/pages?kind=todo&amp;limit=500</span></code>: count the list. (<code class="docutils literal notranslate"><span class="pre">GET</span> <span class="pre">/api/search</span></code> stops at 20 results unless asked for up to 100, so it cannot confirm a count.)</p></td>
 </tr>
 <tr class="row-even"><td><p>Write-ups</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">writeup.current.text</span></code> in <code class="docutils literal notranslate"><span class="pre">GET</span> <span class="pre">/api/pages/&lt;slug&gt;</span></code></p></td>
-<td><p>not recorded</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">writeup</span></code> in <code class="docutils literal notranslate"><span class="pre">GET</span> <span class="pre">/api/pages/&lt;slug&gt;</span></code> (the script below)</p></td>
 </tr>
 <tr class="row-odd"><td><p>Trash</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">GET</span> <span class="pre">/api/trash</span></code></p></td>
-<td><p>not recorded</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">GET</span> <span class="pre">/api/trash?limit=500</span></code>: compare <code class="docutils literal notranslate"><span class="pre">total</span></code>, which counts the whole trash; <code class="docutils literal notranslate"><span class="pre">results</span></code> stops at <code class="docutils literal notranslate"><span class="pre">limit</span></code> (100 unless asked for up to 500)</p></td>
 </tr>
 <tr class="row-even"><td><p>Files</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">GET</span> <span class="pre">/api/blobs/&lt;sha&gt;</span></code> for each file a page refers to; the count and size of <code class="docutils literal notranslate"><span class="pre">files/</span></code>: <code class="docutils literal notranslate"><span class="pre">ls</span> <span class="pre">files</span> <span class="pre">|</span> <span class="pre">wc</span> <span class="pre">-l</span></code> and <code class="docutils literal notranslate"><span class="pre">du</span> <span class="pre">-sb</span> <span class="pre">files</span></code> in the restored folder against <code class="docutils literal notranslate"><span class="pre">kubectl</span> <span class="pre">-n</span> <span class="pre">scrap</span> <span class="pre">exec</span> <span class="pre">deploy/scrap</span> <span class="pre">--</span> <span class="pre">sh</span> <span class="pre">-c</span> <span class="pre">'ls</span> <span class="pre">/data/files</span> <span class="pre">|</span> <span class="pre">wc</span> <span class="pre">-l;</span> <span class="pre">du</span> <span class="pre">-sb</span> <span class="pre">/data/files'</span></code></p></td>
-<td><p>one blob, its SHA-256 matched its name; counts and size not recorded</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">GET</span> <span class="pre">/api/blobs/&lt;sha&gt;</span></code> for each file a page refers to; the count and total bytes of the files (they sit in sub-folders, so count files, not entries): <code class="docutils literal notranslate"><span class="pre">find</span> <span class="pre">files</span> <span class="pre">-type</span> <span class="pre">f</span> <span class="pre">-printf</span> <span class="pre">'%s\n'</span> <span class="pre">|</span> <span class="pre">awk</span> <span class="pre">'{n+=$1}</span> <span class="pre">END{print</span> <span class="pre">NR,</span> <span class="pre">n}'</span></code> in the restored folder against <code class="docutils literal notranslate"><span class="pre">kubectl</span> <span class="pre">-n</span> <span class="pre">scrap</span> <span class="pre">exec</span> <span class="pre">deploy/scrap</span> <span class="pre">--</span> <span class="pre">sh</span> <span class="pre">-c</span> <span class="pre">&quot;cd</span> <span class="pre">/data</span> <span class="pre">&amp;&amp;</span> <span class="pre">find</span> <span class="pre">files</span> <span class="pre">-type</span> <span class="pre">f</span> <span class="pre">-printf</span> <span class="pre">'%s\n'</span> <span class="pre">|</span> <span class="pre">awk</span> <span class="pre">'{n+=\$1}</span> <span class="pre">END{print</span> <span class="pre">NR,</span> <span class="pre">n}'&quot;</span></code></p></td>
 </tr>
 <tr class="row-odd"><td><p>Search</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">GET</span> <span class="pre">/api/search?q=&lt;a</span> <span class="pre">word</span> <span class="pre">you</span> <span class="pre">know&gt;</span></code></p></td>
-<td><p>worked; counts not recorded</p></td>
 </tr>
 <tr class="row-even"><td><p>Health</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">GET</span> <span class="pre">/healthz</span></code>, <code class="docutils literal notranslate"><span class="pre">GET</span> <span class="pre">/api/health</span></code></p></td>
-<td><p>fine</p></td>
 </tr>
 </tbody>
 </table>
 </div>
-<p>Only the rows with a result were run in the test; the others, and the full loop over every
-page, are the checks to do. The script has been run against a restored copy of a small store and reported no differences, but not on a full-size one. It loops over every page, compares the two ports and
-prints each slug whose text, tags, kind or fields differ (<code class="docutils literal notranslate"><span class="pre">captures</span></code> are left out, because
-their files are checked by count and size above):</p>
+<p>The script loops over every page, compares the two ports and prints each slug whose text,
+tags, kind or fields differ, then the page, todo and trash counts for both (<code class="docutils literal notranslate"><span class="pre">captures</span></code> are
+left out, because their files are checked by count and size above). A page’s tags come back
+most-used first, by a count over the whole store, so the same tags can arrive in another
+order on the live store; the script compares them sorted.</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">python3</span> <span class="o">-</span> <span class="o">&lt;&lt;</span><span class="s1">'PY'</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">json</span><span class="o">,</span><span class="w"> </span><span class="nn">urllib.request</span>
 
@@ -1643,17 +1639,23 @@ their files are checked by count and size above):</p>
     <span class="k">with</span> <span class="n">urllib</span><span class="o">.</span><span class="n">request</span><span class="o">.</span><span class="n">urlopen</span><span class="p">(</span><span class="sa">f</span><span class="s2">"http://localhost:</span><span class="si">{</span><span class="n">port</span><span class="si">}{</span><span class="n">path</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span> <span class="k">as</span> <span class="n">r</span><span class="p">:</span>
         <span class="k">return</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">r</span><span class="p">)</span>
 
-<span class="n">KEYS</span> <span class="o">=</span> <span class="p">(</span><span class="s2">"title"</span><span class="p">,</span> <span class="s2">"body"</span><span class="p">,</span> <span class="s2">"tags"</span><span class="p">,</span> <span class="s2">"kind"</span><span class="p">,</span> <span class="s2">"fields"</span><span class="p">,</span> <span class="s2">"rev"</span><span class="p">)</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">key</span><span class="p">(</span><span class="n">p</span><span class="p">):</span>
+    <span class="k">return</span> <span class="p">[</span><span class="n">p</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"title"</span><span class="p">),</span> <span class="n">p</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"body"</span><span class="p">),</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">p</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"tags"</span><span class="p">)</span> <span class="ow">or</span> <span class="p">[]),</span> <span class="n">p</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"kind"</span><span class="p">),</span>
+            <span class="n">p</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"fields"</span><span class="p">),</span> <span class="n">p</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"rev"</span><span class="p">),</span> <span class="n">p</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"writeup"</span><span class="p">)]</span>
+
 <span class="n">a</span><span class="p">,</span> <span class="n">b</span> <span class="o">=</span> <span class="n">get</span><span class="p">(</span><span class="mi">8793</span><span class="p">,</span> <span class="s2">"/api/pages?limit=500"</span><span class="p">),</span> <span class="n">get</span><span class="p">(</span><span class="mi">8794</span><span class="p">,</span> <span class="s2">"/api/pages?limit=500"</span><span class="p">)</span>
 <span class="n">sa</span><span class="p">,</span> <span class="n">sb</span> <span class="o">=</span> <span class="p">{</span><span class="n">p</span><span class="p">[</span><span class="s2">"slug"</span><span class="p">]</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">a</span><span class="p">},</span> <span class="p">{</span><span class="n">p</span><span class="p">[</span><span class="s2">"slug"</span><span class="p">]</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">b</span><span class="p">}</span>
 <span class="nb">print</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">sa</span><span class="p">),</span> <span class="s2">"restored,"</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">sb</span><span class="p">),</span> <span class="s2">"live; only restored:"</span><span class="p">,</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">sa</span> <span class="o">-</span> <span class="n">sb</span><span class="p">),</span> <span class="s2">"only live:"</span><span class="p">,</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">sb</span> <span class="o">-</span> <span class="n">sa</span><span class="p">))</span>
 <span class="n">bad</span> <span class="o">=</span> <span class="mi">0</span>
 <span class="k">for</span> <span class="n">slug</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">sa</span> <span class="o">&amp;</span> <span class="n">sb</span><span class="p">):</span>
-    <span class="n">pa</span><span class="p">,</span> <span class="n">pb</span> <span class="o">=</span> <span class="n">get</span><span class="p">(</span><span class="mi">8793</span><span class="p">,</span> <span class="sa">f</span><span class="s2">"/api/pages/</span><span class="si">{</span><span class="n">slug</span><span class="si">}</span><span class="s2">"</span><span class="p">),</span> <span class="n">get</span><span class="p">(</span><span class="mi">8794</span><span class="p">,</span> <span class="sa">f</span><span class="s2">"/api/pages/</span><span class="si">{</span><span class="n">slug</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
-    <span class="k">if</span> <span class="p">[</span><span class="n">pa</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">k</span><span class="p">)</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">KEYS</span><span class="p">]</span> <span class="o">!=</span> <span class="p">[</span><span class="n">pb</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">k</span><span class="p">)</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">KEYS</span><span class="p">]:</span>
+    <span class="k">if</span> <span class="n">key</span><span class="p">(</span><span class="n">get</span><span class="p">(</span><span class="mi">8793</span><span class="p">,</span> <span class="sa">f</span><span class="s2">"/api/pages/</span><span class="si">{</span><span class="n">slug</span><span class="si">}</span><span class="s2">"</span><span class="p">))</span> <span class="o">!=</span> <span class="n">key</span><span class="p">(</span><span class="n">get</span><span class="p">(</span><span class="mi">8794</span><span class="p">,</span> <span class="sa">f</span><span class="s2">"/api/pages/</span><span class="si">{</span><span class="n">slug</span><span class="si">}</span><span class="s2">"</span><span class="p">)):</span>
         <span class="n">bad</span> <span class="o">+=</span> <span class="mi">1</span>
         <span class="nb">print</span><span class="p">(</span><span class="s2">"differs:"</span><span class="p">,</span> <span class="n">slug</span><span class="p">)</span>
 <span class="nb">print</span><span class="p">(</span><span class="n">bad</span><span class="p">,</span> <span class="s2">"differ"</span><span class="p">)</span>
+<span class="k">for</span> <span class="n">port</span> <span class="ow">in</span> <span class="p">(</span><span class="mi">8793</span><span class="p">,</span> <span class="mi">8794</span><span class="p">):</span>
+    <span class="n">todos</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">get</span><span class="p">(</span><span class="n">port</span><span class="p">,</span> <span class="s2">"/api/pages?kind=todo&amp;limit=500"</span><span class="p">))</span>
+    <span class="n">trash</span> <span class="o">=</span> <span class="n">get</span><span class="p">(</span><span class="n">port</span><span class="p">,</span> <span class="s2">"/api/trash?limit=500"</span><span class="p">)[</span><span class="s2">"total"</span><span class="p">]</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">port</span><span class="p">,</span> <span class="s2">"todos:"</span><span class="p">,</span> <span class="n">todos</span><span class="p">,</span> <span class="s2">"trash:"</span><span class="p">,</span> <span class="n">trash</span><span class="p">)</span>
 <span class="n">PY</span>
 </pre></div>
 </div>
@@ -1662,17 +1664,18 @@ example <code class="docutils literal notranslate"><span class="pre">scrap</span
 </li>
 <li><p>Stop the server and the port-forward, and delete the folders:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span>kill $SERVE $FWD
-rm -rf /tmp/rt
+rm -rf "$RT"
 </pre></div>
 </div>
 </li>
 </ol>
 <p>What to expect:</p>
 <ul class="simple">
-<li><p>A backup from an older scrap at schema 18 or above is migrated by <code class="docutils literal notranslate"><span class="pre">restore</span></code>, on the copy,
-before it is swapped into place (below 18 it is refused: see <a class="reference internal" href="#k8s-restore-schema"><span class="std std-ref">Which backups restore</span></a>).
-<code class="docutils literal notranslate"><span class="pre">PRAGMA</span> <span class="pre">integrity_check</span></code> should say <code class="docutils literal notranslate"><span class="pre">ok</span></code>. <code class="docutils literal notranslate"><span class="pre">GET</span> <span class="pre">/healthz</span></code> shows the scrap version of the
-scratch instance, which may be newer than the live one; that is expected.</p></li>
+<li><p>A backup from an older release is migrated by <code class="docutils literal notranslate"><span class="pre">restore</span></code>, on the copy, before it is swapped
+into place (see <a class="reference internal" href="#k8s-restore-schema"><span class="std std-ref">Which backups restore</span></a>). <code class="docutils literal notranslate"><span class="pre">PRAGMA</span> <span class="pre">integrity_check</span></code> should say <code class="docutils literal notranslate"><span class="pre">ok</span></code>.
+<code class="docutils literal notranslate"><span class="pre">GET</span> <span class="pre">/healthz</span></code> shows the version of the scratch instance, which is the scrap you ran in
+step 2, so it differs from the live version if you used another release. Same or newer than
+live is fine; older cannot read a newer backup and <code class="docutils literal notranslate"><span class="pre">restore</span></code> refuses it.</p></li>
 <li><p>The backup holds the database and every file in <code class="docutils literal notranslate"><span class="pre">files/</span></code>. It does not hold <code class="docutils literal notranslate"><span class="pre">cache/</span></code>, the page
 previews, which scrap makes again the first time a photo is shown.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">enrich.on</span></code> and <code class="docutils literal notranslate"><span class="pre">writeup.on</span></code> read <code class="docutils literal notranslate"><span class="pre">false</span></code> on the scratch instance only because Claude is off
@@ -1919,10 +1922,7 @@ sessions (<a class="reference internal" href="connect-claude-code.html"><span cl
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#port-forward">Port-forward</a></li>
 </ul>
 </li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrades">Upgrades</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-1-0-from-before-0-16">Upgrading to 1.0 from before 0.16</a></li>
-</ul>
-</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrades">Upgrades</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#backup-and-restore">Backup and restore</a><ul class="nav section-nav flex-column">
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#which-backups-restore">Which backups restore</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#try-a-restore-in-a-scratch-instance">Try a restore in a scratch instance</a></li>

@@ -470,8 +470,7 @@ connection to `127.0.0.1` gets full access too.
 (scrap-update)=
 ## Update
 
-Take a restore point first ({ref}`scrap-upgrade-db`). Coming from before 0.16? See
-{ref}`scrap-upgrade-1-0` first. Then update the clone, pull the new release (see [scrap's
+Take a restore point first ({ref}`scrap-upgrade-db`). Then update the clone, pull the new release (see [scrap's
 releases](https://github.com/gilesknap/scrap/releases)), point `SCRAP_IMAGE` at it, and re-run the
 install script:
 
@@ -532,16 +531,6 @@ To roll back, stop scrap, run `scrap restore --force` from the **old** image on 
 before the update (see {ref}`scrap-restore`; set `SCRAP_IMAGE` to the old image first), and start
 scrap on that image. Pages added since the backup are lost from the database; their files stay.
 Backups made after the update have the new schema, so the old image refuses to restore them.
-
-(scrap-upgrade-1-0)=
-### Upgrading to 1.0 from before 0.16
-
-scrap 0.17.0 and later, 1.0 included, start from schema 18 and refuse a database or a backup
-below it:
-`<db> has schema N, older than the baseline this scrap starts from (18): upgrade with scrap 0.16.x
-first (it migrates to schema 18), then use 0.17.0 or later`. Update to the latest 0.16.x first (as above, with
-`ghcr.io/gilesknap/scrap:0.16.<x>`), let it start and migrate, take a new restore point, then
-update to 1.0. To restore a backup taken below schema 18, restore it with 0.16.x, then upgrade.
 
 (scrap-backup-restore)=
 ## Backup and restore
