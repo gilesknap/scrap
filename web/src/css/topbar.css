@@ -137,6 +137,29 @@ header.crumb #back {
   color: var(--ink-2);
   font-size: var(--t-sm);
 }
+/* Import Markdown: what the zip holds, a tick box for each Claude choice with its cost */
+.settings .import {
+  display: grid;
+  gap: var(--s-2);
+}
+.settings .tick {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  column-gap: var(--s-2);
+  min-height: var(--tap);
+}
+.settings .tick input {
+  width: 22px;
+  height: 22px;
+  margin: 0;
+}
+.settings .tick .hint {
+  grid-column: 2;
+}
+.settings .import .primary {
+  justify-self: start;
+}
 .badge {
   position: relative;
   min-height: 36px;

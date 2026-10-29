@@ -157,3 +157,13 @@ Ingest
 
 Pages in the trash, revisions, the text scrap read from PDFs and text files, the pages that link
 to a page (each page's own links say it), and Claude's call records. A file whose embed was deleted from a page's text, which the page no longer shows, is left out too.
+
+## Reading it back
+
+`scrap import` and Settings, **Import Markdown…** (`POST /api/import`) read this layout back:
+every page as it was (its id, slug, title, text, kind, fields, a todo's due date and priority,
+tags, dates, `made_by` and files), with the tag `import/YYYY-MM-DD` added. They never read
+`_claude/`. Each `files/<name>` in a page's text becomes the stored file's address again, in one
+form: an image shown as `/api/blobs/<sha256>/preview?size=2048`, any other file linked as
+`/api/blobs/<sha256>`. A topic page is not read back (Claude makes topics again). See
+[](../how-to/import-your-pages.md).

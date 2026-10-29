@@ -20,7 +20,8 @@ html_theme.sidebar_secondary.remove: true
 - **Claude over MCP.** A Claude Code session can search, read, write, edit, retag and trash pages
   and redraw a drawing, and undo each change: see [](how-to/connect-claude-code.md) and [](reference/mcp.md).
 - **Your data stays yours.** The store is one SQLite database and a folder of files. `scrap backup`
-  and `scrap restore` copy it, `scrap export` writes Markdown, and `scrap gc` finds files nothing uses and purges the
+  and `scrap restore` copy it, `scrap export` writes Markdown, `scrap import` reads it back (or an
+  Obsidian vault), and `scrap gc` finds files nothing uses and purges the
   trash (after 30 days by default).
 
 Search is full-text only (SQLite FTS5); semantic search was deferred, see

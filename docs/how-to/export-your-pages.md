@@ -8,7 +8,8 @@ layout is in [](../reference/export-format.md).
 
 An export is a copy to read and keep. It leaves out the trash, a page's revisions and Claude's
 call records. To be able to put everything back, take a backup too (`scrap backup`, see
-{ref}`api-cli-folders`).
+{ref}`api-cli-folders`). An export can be read back in, into this store or another, with an
+import: see [](import-your-pages.md).
 
 ## From the app
 

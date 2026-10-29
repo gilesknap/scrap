@@ -3,6 +3,7 @@
 from .capture import CaptureMixin
 from .core import Core
 from .edits import EditsMixin
+from .imports import ImportMixin
 from .meta import MetaMixin
 from .pages import PagesMixin
 from .photos import PhotosMixin
@@ -14,6 +15,7 @@ from .trash import TrashMixin
 
 class Store(
     CaptureMixin,
+    ImportMixin,
     PinnedMixin,
     PagesMixin,
     EditsMixin,
