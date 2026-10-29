@@ -583,11 +583,11 @@ compare what it shows with the live store.
 **Room.** You need room for two copies of the store: the run you copy off the cluster and the
 restored folder. Check the size first with `kubectl -n scrap exec deploy/scrap -- du -sh /data`
 (about 500 MB free for a 250 MB store), and keep everything in one folder you can delete at the
-end. The steps call it `$RT`; pick a disk with room, not a small `/tmp`; it is created new, so the final `rm -rf $RT` removes nothing else.
+end. The steps call it `$RT`; pick a disk with room, not a small `/tmp`; it is created new, so the final `rm -rf "$RT"` removes nothing else.
 
 ```
 export RT=$(mktemp -d "$HOME/rt.XXXXXX")   # a new, empty folder; put another disk's path in place of $HOME if needed
-mkdir $RT/backup
+mkdir "$RT/backup"
 ```
 
 **Tested.** On 2026-10-29 with a main-branch build of scrap 1.0.0rc4.dev5, on a throwaway
@@ -659,9 +659,9 @@ paragraph.
    kubectl -n scrap apply -f reader.yaml
    kubectl -n scrap wait --for=condition=Ready pod/scrap-backup-reader --timeout=2m
    kubectl -n scrap exec scrap-backup-reader -- ls /backups
-   kubectl -n scrap cp scrap-backup-reader:/backups/<run> $RT/backup/<run>
+   kubectl -n scrap cp scrap-backup-reader:/backups/<run> "$RT/backup/<run>"
    kubectl -n scrap delete pod scrap-backup-reader
-   ls $RT/backup/<run>/COMPLETE
+   ls "$RT/backup/<run>/COMPLETE"
    ```
 
    Which run? A run is named for the UTC time it began, and nightly, pre-upgrade and manual runs
@@ -676,16 +676,16 @@ paragraph.
 
 2. Get a `scrap` command. Either check out the release tag you are testing and run
    `uv sync` once, then use `uv run scrap ...` for every `scrap` below; or use the released
-   image with the folders mounted (`podman run --rm -v $RT:$RT -e
-   SCRAP_DATA_DIR=$RT/scratch --user 10001:10001 ghcr.io/gilesknap/scrap:<version> restore $RT/backup/<run>`; the user
+   image with the folders mounted (`podman run --rm -v "$RT:$RT" -e
+   SCRAP_DATA_DIR="$RT/scratch" --user 10001:10001 ghcr.io/gilesknap/scrap:<version> restore "$RT/backup/<run>"`; the user
    must be able to write the scratch folder). Use the version that wrote the backup or a newer
    one.
 
 3. Restore into an empty folder of its own, without `--force`. It prints nothing when it works:
 
    ```
-   export SCRAP_DATA_DIR=$RT/scratch
-   scrap restore $RT/backup/<run>
+   export SCRAP_DATA_DIR="$RT/scratch"
+   scrap restore "$RT/backup/<run>"
    ```
 
    Running it again says `$RT/scratch is not empty; stop scrap and use --force` (with the folder
@@ -768,7 +768,7 @@ paragraph.
 
    ```
    kill $SERVE $FWD
-   rm -rf $RT
+   rm -rf "$RT"
    ```
 
 What to expect:
