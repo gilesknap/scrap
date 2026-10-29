@@ -50,6 +50,11 @@
   --s-6: 32px;
   --s-7: 48px;
 
+  /* Layout: the most a wide window's centred column grows to (css/todos.css); a little wider
+     than GitHub's markdown page. Settings' Maximum column width (column.ts) overrides this on
+     this device; theme-init.js and main.ts apply that choice before this ever paints. */
+  --column: 800px;
+
   /* Shape */
   --r-sm: 8px;
   --r-md: 12px;

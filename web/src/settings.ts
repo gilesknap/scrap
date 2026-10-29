@@ -4,6 +4,7 @@
 // Import Markdown (importzip.ts).
 import { kept } from "./api";
 import { go } from "./app";
+import { COLUMNS, columnWidth, setColumnWidth } from "./column";
 import { getShrink, setShrink } from "./downscale";
 import { importSection } from "./importzip";
 import { SIZES, setTextSize, textSize } from "./textsize";
@@ -112,6 +113,13 @@ export function settings() {
         "p",
         { className: "hint" },
         "100% is scrap's usual size, like a web page: the browser's zoom enlarges it too. Phone follows the phone's font size instead.",
+      ),
+      h("h3", { className: "label" }, "Maximum column width"),
+      choice("column", "Maximum column width", columnWidth(), COLUMNS, setColumnWidth),
+      h(
+        "p",
+        { className: "hint" },
+        "On a wide enough window (a computer, or a phone turned sideways): the most the centred column grows to. A narrower window still shrinks it to fit, with the usual gutter.",
       ),
       h("h3", { className: "label" }, "App theme"),
       choice(

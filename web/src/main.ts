@@ -285,6 +285,11 @@ const floor = () => {
   html.dataset.text = s;
   root.fontSize = n >= 0.8 && n <= 1.3 ? `${17 * n}px` : "";
   if (s === "phone" && parseFloat(getComputedStyle(html).fontSize) < 17) root.fontSize = "17px";
+  // Settings' maximum column width, kept on this device (column.ts): the same pattern, so
+  // neither is ever lost to a stale script. A CSS custom property, never anything to validate
+  // (an invalid or missing kept value just falls back to tokens.css's 800 px default)
+  const c = kept("scrap.column");
+  root.setProperty("--column", c ? `${c}px` : "");
 };
 floor();
 

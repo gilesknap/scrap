@@ -9,7 +9,7 @@
   gap: var(--s-2);
 }
 
-/* The photo and its drawing: side by side when there is room, else one at a time */
+/* The photo and its drawing: one at a time, switched by the Photo / Drawing tabs */
 .pair {
   display: grid;
   gap: var(--s-3);
@@ -41,20 +41,9 @@
   color: var(--ink);
   box-shadow: var(--shadow);
 }
-@media (max-width: 699px) and (orientation: portrait), (max-width: 559px) {
-  .pair.show-photo > .drawing,
-  .pair.show-drawing > .orig:not(.drawing) {
-    display: none;
-  }
-}
-@media (min-width: 700px), (orientation: landscape) and (min-width: 560px) {
-  .pair {
-    grid-template-columns: 1fr 1fr;
-    align-items: start;
-  }
-  .tabs {
-    display: none;
-  }
+.pair.show-photo > .drawing,
+.pair.show-drawing > .orig:not(.drawing) {
+  display: none;
 }
 
 /* The preview: a picture of the drawing, framed like the photo and inert to gestures (a

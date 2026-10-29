@@ -6,9 +6,9 @@
    (ui.ts has the same query, DESK, for placing toasts.) */
 @media (min-width: 900px) and (hover: hover) and (pointer: fine) {
   /* The nav: tabs in the middle of the top bar, not a bar at the window's foot. Four tabs and
-     the wordmark (with a long development version) are wider than the 720 px column, so a
-     list screen's top bar has a column of its own, 960 px (the screen under it keeps 720). A
-     page has no nav: its Back and pager stay on the page's 720 px column */
+     the wordmark (with a long development version) are wider than --column, so a list screen's
+     top bar has a column of its own, 960 px (the screen under it keeps --column). A page has
+     no nav: its Back and pager stay on the page's --column */
   main {
     padding-bottom: var(--s-6);
   }
