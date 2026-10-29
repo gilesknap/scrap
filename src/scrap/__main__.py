@@ -40,7 +40,7 @@ def main(args: Sequence[str] | None = None) -> None:
     for name, text in [
         ("backup", "Copy the database and files to DIR (safe while serving)"),
         ("restore", "Restore a backup from DIR into an empty data folder"),
-        ("export", "Write the pages to DIR as Markdown with their files"),
+        ("export", "Write the pages to DIR as Markdown and files (an Obsidian vault)"),
     ]:
         sub = subparsers.add_parser(name, parents=[common], help=text)
         sub.add_argument("dir", type=Path)
@@ -195,7 +195,7 @@ def main(args: Sequence[str] | None = None) -> None:
         config = uvicorn.Config("scrap.app:create_app", factory=True)
         uvicorn.Server(config).run(sockets=[sock])
     elif parsed.command:
-        from . import backup
+        from . import backup, export
         from .store import Store
 
         store = Store(parsed.data_dir or os.environ.get("SCRAP_DATA_DIR", "data"))
@@ -263,7 +263,7 @@ def main(args: Sequence[str] | None = None) -> None:
         elif parsed.command == "restore":
             backup.restore(parsed.dir, store, parsed.force)
         else:
-            print(f"exported {backup.export(store, parsed.dir)} pages to {parsed.dir}")
+            print(f"exported {export.export(store, parsed.dir)} pages to {parsed.dir}")
     else:
         parser.print_help()
 

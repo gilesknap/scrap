@@ -5,8 +5,9 @@ principles and how it works; the [decision records](decisions.md) give the reaso
 
 ## Non-goals
 
-- No Obsidian vault and no git sync: the database and a folder of files are the store. A Markdown
-  export exists (`scrap export`), one-way only.
+- No Obsidian vault and no git sync: the database and a folder of files are the store. An export
+  of every page as Markdown (`scrap export`, or Settings, **Export everything**) opens as an
+  Obsidian vault, but nothing is kept in step with it.
 - No login code of its own and no user management. Access is the network: Tailscale (Serve
   supplies the identity header) or an authenticating proxy such as Cloudflare Access, with an
   optional bearer token on `/mcp` only

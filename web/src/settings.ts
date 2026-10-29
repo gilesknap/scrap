@@ -1,6 +1,6 @@
 // Settings: a sheet from the top bar's cog, over the app like the editor. What it holds is
-// kept on this device and applied at once (theme.ts); and Store health and Trash, screens of
-// their own (health.ts, trash.ts), which the sheet closes to open.
+// kept on this device and applied at once (theme.ts); Store health and Trash, screens of
+// their own (health.ts, trash.ts), which the sheet closes to open; and Export everything.
 import { kept } from "./api";
 import { go } from "./app";
 import { getShrink, setShrink } from "./downscale";
@@ -166,6 +166,17 @@ export function settings() {
       ),
       screen("/trash", "Trash"),
       h("p", { className: "hint" }, "Deleted pages, when each goes for good, and Restore."),
+      // A plain link: the browser saves the zip as it streams, however big the store
+      h(
+        "a",
+        { href: "/api/store/download", className: "button", download: "" },
+        "Export everything",
+      ),
+      h(
+        "p",
+        { className: "hint" },
+        "Every page as Markdown with its files, in a zip that opens as an Obsidian vault. What Claude wrote is kept apart, in its _claude folder.",
+      ),
     ),
   );
   const keys = (e: KeyboardEvent) => {

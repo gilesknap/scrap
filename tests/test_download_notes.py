@@ -1,7 +1,7 @@
 """A single page's download carries what the page shows (#405): tags, status and
 topics, Claude's notes under one marked heading, what links here, a file's text, and
-full addresses for [[slug]] links when the address is set. `scrap export` carries none
-of the notes."""
+full addresses for [[slug]] links when the address is set. `scrap export` keeps
+the notes in _claude/, out of the pages."""
 
 import io
 import zipfile
@@ -11,8 +11,8 @@ import pytest
 from fastapi.testclient import TestClient
 from PIL import Image
 
-from scrap import backup
 from scrap.app import create_app
+from scrap.export import export
 from scrap.page_notes import MAX_FILE_TEXT, NOTES_HEADING
 from scrap.store import Store, connect, new_ulid, now, topics, writeups
 
@@ -134,13 +134,22 @@ def test_slug_links_are_full_addresses_only_when_set(client, cast, monkeypatch):
     assert md(client, fenced).count(f"[[{slug}]]") == 3  # code and an embed: as typed
 
 
-def test_export_leaves_the_notes_and_the_rest_out(client, cast, data, tmp_path):
+def test_export_keeps_the_notes_and_the_rest_out_of_the_pages(
+    client, cast, data, tmp_path
+):
     out = tmp_path / "md"
-    assert backup.export(Store(data), out)
+    assert export(Store(data), out)
     for file in out.glob("*.md"):
         text = file.read_text()
         assert "Claude's notes" not in text and "Linked from" not in text
-        assert "\ntags:" not in text and "\ntopics:" not in text
+        assert "A short Claude summary" not in text and "\ntopics:" not in text
+    # The owner's tag is the page's; one Claude added is only in its notes
+    a = (out / f"{cast[0]['slug']}.md").read_text()
+    assert "\ntags:" not in a  # "epics" here is Claude's (model_tag)
+    assert (
+        "A short Claude summary"
+        in (out / "_claude" / f"{cast[0]['slug']}.md").read_text()
+    )
 
 
 def test_a_files_text_is_fenced_and_capped(client, data):

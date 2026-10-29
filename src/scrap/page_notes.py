@@ -1,11 +1,12 @@
-"""What a single page's download adds to its Markdown (and `scrap export` does not):
+"""What a single page's download adds to its Markdown (and the export does not):
 tags, status and topics in the front matter, Claude's notes under one marked heading,
 the pages that link here, the text read from a PDF or text file, and `[[slug]]` links
 as full addresses when $SCRAP_PUBLIC_URL is set.
 
-Claude's notes are kept out of `scrap export`: an import would read everything after the
-front matter as the owner's text, so model text there would come back as theirs
-(ADR 0020, 0027). A download is a copy to read or share, not a backup format.
+Claude's notes are kept out of an exported page's file (export.py puts them in
+_claude/<slug>.md, with _notes): an import would read everything after the front matter
+as the owner's text, so model text there would come back as theirs (ADR 0020, 0027). A
+download is a copy to read or share, not a backup format.
 """
 
 import sqlite3

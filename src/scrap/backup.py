@@ -1,4 +1,5 @@
-"""Backup, restore and Markdown export of a data folder."""
+"""Backup and restore of a data folder, and a single page's Markdown download. The
+whole store's Markdown export (export.py) shares localise."""
 
 import json
 import mimetypes
@@ -8,6 +9,7 @@ import sqlite3
 import zipfile
 from collections.abc import Callable
 from contextlib import closing
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import IO
@@ -26,7 +28,14 @@ from .store import (
 )
 from .store.todo import read as read_todo
 
-__all__ = ["backup", "restore", "export", "page_markdown", "download", "file_name"]
+__all__ = [
+    "backup",
+    "restore",
+    "page_markdown",
+    "localise",
+    "download",
+    "file_name",
+]
 
 # Written last into a backup run; gc deletes only after a run that has one
 COMPLETE = "COMPLETE"
@@ -202,33 +211,25 @@ def _fenced(text: str) -> list[str]:
     return [f"{fence}text", text, fence]
 
 
-def page_markdown(
-    conn: sqlite3.Connection,
-    page: sqlite3.Row,
-    name: Namer = _sha_name,
-    extras: Extras | None = None,
-) -> tuple[str, list[tuple[str, str | bytes]]]:
-    """A page as Markdown: front matter, its body, then a link per file under files/,
-    each photo followed by what Claude made of it (its description, the text it read
-    and the drawing, as an .excalidraw file beside it).
+@dataclass
+class Local:
+    """A page's text, its files' addresses made files/<name>, and its files."""
 
-    name picks each file's name (given the names taken so far). Returns the text and,
-    for each file, its name and either its sha256 (a stored file) or its bytes.
+    body: str
+    files: list[tuple[str, str | bytes]]  # each file's name, and its sha256 or bytes
+    blobs: list[sqlite3.Row]  # the page's captures' files, in order
+    names: dict[str, str]  # each file's name here, by sha256
+    shown: set[str]  # files the text shows as images
+    taken: set[str]  # the names used
+    linked: set[str]  # files the text shows or links to
 
-    extras (a single page's download, not `scrap export`) adds the page's tags, status
-    and topics to the front matter, the text read from its PDFs and text files, then
-    Claude's notes and what links here, and writes `[[slug]]` links as full addresses.
-    """
-    front = {
-        key: page[key] for key in ("title", "id", "kind", "created_at", "updated_at")
-    }
-    if page["kind"] == "todo":  # a todo's due date and priority, if it has them
-        front |= {k: v for k, v in read_todo(conn, page["id"]).items() if v}
-    if page["task_total"]:  # its task boxes, as counted
-        front["tasks"] = {"done": page["task_done"], "total": page["task_total"]}
-    front |= extras.front if extras else {}
-    front["fields"] = json.loads(page["fields"])
-    lines = ["---", *(f"{k}: {json.dumps(v)}" for k, v in front.items())]
+
+def localise(
+    conn: sqlite3.Connection, page: sqlite3.Row, name: Namer, verbatim: bool = False
+) -> Local:
+    """page's text with its own files' addresses as files/<name>, name picking each
+    file's name. verbatim keeps each link's text as typed (an export, read back); else
+    an empty one is filled with the file's name."""
     files: list[tuple[str, str | bytes]] = []
     taken: set[str] = set()
     blobs = conn.execute(
@@ -250,6 +251,7 @@ def page_markdown(
             local[sha] = (f"files/{quote(file)}", label)
 
     shown: set[str] = set()  # files the text shows as images
+    linked: set[str] = set()  # or links to
 
     # The text's images point at the files here, named. Another page's file is only in
     # an export (one files/ folder for all): there it is added, else left as it is.
@@ -266,28 +268,64 @@ def page_markdown(
                 local[sha] = (f"files/{quote(file)}", "")
         if sha not in local:
             return m[0]
+        linked.add(sha)
         if m[1]:
             shown.add(sha)
         address, label = local[sha]
         # No alt: the name it was uploaded under; if the file has none (another page's,
         # or a bare sha) an image keeps its alt empty, not a 64-hex name, while a link
         # (which needs text to show) gets the file's name
-        text = m[2] or label or ("" if m[1] else unquote(address.split("/", 1)[1]))
+        text = m[2]
+        if not verbatim:
+            text = text or label or ("" if m[1] else unquote(address.split("/", 1)[1]))
         return f"{m[1]}[{text}]({address})"
 
     body = _outside_code(page["body"], lambda t: OWN_BLOB.sub(here, t))
+    return Local(body, files, blobs, names, shown, taken, linked)
+
+
+def page_markdown(
+    conn: sqlite3.Connection,
+    page: sqlite3.Row,
+    name: Namer = _sha_name,
+    extras: Extras | None = None,
+) -> tuple[str, list[tuple[str, str | bytes]]]:
+    """A page as Markdown: front matter, its body, then a link per file under files/,
+    each photo followed by what Claude made of it (its description, the text it read
+    and the drawing, as an .excalidraw file beside it).
+
+    name picks each file's name (given the names taken so far). Returns the text and,
+    for each file, its name and either its sha256 (a stored file) or its bytes.
+
+    extras (a single page's download; export.py writes the whole store's) adds the
+    page's tags, status and topics to the front matter, the text read from its PDFs and
+    text files, then Claude's notes and what links here, and writes `[[slug]]` links as
+    full addresses.
+    """
+    front = {
+        key: page[key] for key in ("title", "id", "kind", "created_at", "updated_at")
+    }
+    if page["kind"] == "todo":  # a todo's due date and priority, if it has them
+        front |= {k: v for k, v in read_todo(conn, page["id"]).items() if v}
+    if page["task_total"]:  # its task boxes, as counted
+        front["tasks"] = {"done": page["task_done"], "total": page["task_total"]}
+    front |= extras.front if extras else {}
+    front["fields"] = json.loads(page["fields"])
+    lines = ["---", *(f"{k}: {json.dumps(v)}" for k, v in front.items())]
+    local = localise(conn, page, name)
+    body, files, names, taken = local.body, local.files, local.names, local.taken
     if extras:
         body = extras.links(body)
     lines += ["---", "", body, ""]
     listed: set[str] = set()
-    for blob in blobs:
+    for blob in local.blobs:
         sha = blob["sha256"]
         file = names[sha]
         label = (blob["filename"] or file).replace("[", "(").replace("]", ")")
         image = blob["mime"].startswith("image/")
         got = _derived(conn, blob["capture_id"], sha) if image else {}
         # Each file once; an image the text shows is only named, before Claude's notes
-        if sha not in shown and sha not in listed:
+        if sha not in local.shown and sha not in listed:
             lines.append(f"{'!' if image else ''}[{label}](files/{quote(file)})")
         elif got:
             lines.append(f"[{label}](files/{quote(file)})")
@@ -330,26 +368,6 @@ def _drawing_name(stem: str, taken: set[str]) -> str:
         n += 1
         name = f"{stem}-{n}.excalidraw"
     return name
-
-
-def export(store: Store, dest: Path) -> int:
-    """Write a Markdown file per page, its originals in files/; return the count."""
-    if not store.db.is_file():
-        raise SystemExit(f"no database at {store.db}")
-    (dest / "files").mkdir(parents=True, exist_ok=True)
-    with store.connect() as conn:
-        pages = conn.execute(
-            "SELECT * FROM page WHERE deleted_at IS NULL ORDER BY created_at"
-        ).fetchall()
-        for page in pages:
-            text, files = page_markdown(conn, page)
-            for name, content in files:
-                if isinstance(content, bytes):  # made here, e.g. a drawing
-                    (dest / "files" / name).write_bytes(content)
-                elif not (dest / "files" / name).exists():
-                    shutil.copy2(store.blob_path(content), dest / "files" / name)
-            (dest / f"{page['slug']}.md").write_text(text)
-    return len(pages)
 
 
 def file_name(name: str | None, sha: str, mime: str) -> str:
