@@ -28,6 +28,7 @@ from . import (
     search_api,
     topic_api,
     trash_api,
+    viewed_api,
     writeup_api,
 )
 from .api_models import SURROGATE_MSG, EnrichOffError
@@ -154,6 +155,7 @@ def create_app(data_dir: Path | str | None = None) -> FastAPI:
         if app.state.worker:
             app.state.worker.wake()
 
+    viewed_api.add_routes(app, store)
     writeup_api.add_routes(app, store, wake)
     topic_api.add_routes(app, store, wake)
     photos_api.add_routes(app, store, wake, limit)
