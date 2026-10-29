@@ -1,7 +1,7 @@
 # Install scrap on Kubernetes
 
 In this tutorial you run scrap on a Kubernetes cluster with its Helm chart, and publish it on
-your own domain through a [Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/).
+your own domain through a [Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/).
 Cloudflare Access sits in front: it asks for an email one-time PIN before anyone reaches the web
 app, and for a service token before anyone reaches the MCP endpoint, which Claude Code uses. At
 the end you have scrap on `https://scrap.<your-domain>`, installed on your phone, and Claude Code
