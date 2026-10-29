@@ -194,9 +194,10 @@ export async function page(key: string, signal: AbortSignal): Promise<Node> {
               "Shown under the empty search box. Edit to rename, reorder or take out a pin.",
             )
           : "",
-      // One Claude card for the page, at its end: its summary, a board's write-up, related pages
-      enr?.enrichPanel(p, show, wr?.writeupParts(p, show) ?? null) ?? "",
+      // The page's files (the owner's own), then one Claude card for the page, at its end:
+      // its summary, a board's write-up, related pages
       h("div", { className: "originals" }, ...files),
+      enr?.enrichPanel(p, show, wr?.writeupParts(p, show) ?? null) ?? "",
       h("div", { className: "bar tools" }, ...tools(p, saved, menus)),
     );
   };
