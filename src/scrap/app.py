@@ -19,6 +19,7 @@ from . import (
     drawing,
     enrich,
     health_api,
+    import_api,
     ingest,
     ingest_api,
     mcp_server,
@@ -159,6 +160,7 @@ def create_app(data_dir: Path | str | None = None) -> FastAPI:
     writeup_api.add_routes(app, store, wake)
     topic_api.add_routes(app, store, wake)
     photos_api.add_routes(app, store, wake, limit)
+    import_api.add_routes(app, store, wake, limit)
     health_api.add_routes(app, store)
     captures_api.add_routes(app, store)
     ingest_api.add_routes(app, store)

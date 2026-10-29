@@ -353,8 +353,8 @@ How matching works:
 ### Store health
 
 The health checks, one count each from `GET /api/health`, are listed on **Settings** (the cog),
-**Store health** (Settings also has **Trash**, {ref}`the-trash`, and **Export everything**,
-[](export-your-pages.md)). A tap runs the check's search; Back returns to the screen. Nothing is dismissed
+**Store health** (Settings also has **Trash**, {ref}`the-trash`, **Export everything**,
+[](export-your-pages.md), and **Import Markdown…**, [](import-your-pages.md)). A tap runs the check's search; Back returns to the screen. Nothing is dismissed
 there: a check that keeps finding a page you are happy with is the check to change.
 
 | Search | Finds |

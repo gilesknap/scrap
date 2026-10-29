@@ -1,9 +1,11 @@
 // Settings: a sheet from the top bar's cog, over the app like the editor. What it holds is
 // kept on this device and applied at once (theme.ts); Store health and Trash, screens of
-// their own (health.ts, trash.ts), which the sheet closes to open; and Export everything.
+// their own (health.ts, trash.ts), which the sheet closes to open; Export everything, and
+// Import Markdown (importzip.ts).
 import { kept } from "./api";
 import { go } from "./app";
 import { getShrink, setShrink } from "./downscale";
+import { importSection } from "./importzip";
 import { SIZES, setTextSize, textSize } from "./textsize";
 import {
   APP_KEY,
@@ -177,12 +179,17 @@ export function settings() {
         { className: "hint" },
         "Every page not in the trash as Markdown with its files, in a zip that opens as an Obsidian vault. What Claude wrote is kept apart, in its _claude folder. A copy to read and keep, not a backup: revisions and the trash are left out.",
       ),
+      ...importSection(),
     ),
   );
   const keys = (e: KeyboardEvent) => {
     if (e.key === "Escape") return void history.back();
     if (e.key !== "Tab") return;
-    const stops = [...form.querySelectorAll<HTMLElement>("input:checked, button, a[href]")];
+    const stops = [
+      ...form.querySelectorAll<HTMLElement>(
+        "input:checked, input[type=checkbox]:enabled, button:enabled, a[href], summary",
+      ),
+    ];
     const at = stops.indexOf(document.activeElement as HTMLElement);
     const next = e.shiftKey ? at <= 0 : at === stops.length - 1;
     if (next) {

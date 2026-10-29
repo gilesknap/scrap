@@ -52,6 +52,31 @@ def main(args: Sequence[str] | None = None) -> None:
                 " lost; files are kept). Stop scrap first: a running server would"
                 " go on writing to the old, replaced database and lose those writes",
             )
+    imp = subparsers.add_parser(
+        "import",
+        parents=[common],
+        help="Import Markdown pages with YAML front matter (a scrap export, an"
+        " Obsidian vault) from a folder or a zip of any size; each new page is tagged"
+        " import/<date>, and a page here already is skipped, never overwritten",
+    )
+    imp.add_argument("path", type=Path)
+    imp.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Write nothing; list what would be imported, every problem found and"
+        " roughly what Claude would cost",
+    )
+    imp.add_argument(
+        "--enrich",
+        action="store_true",
+        help="Queue the new text pages for Claude to tag and summarise (off: none)",
+    )
+    imp.add_argument(
+        "--photos",
+        action="store_true",
+        help="Queue the new pages' photos for Claude to read, on the vision model"
+        " (the dearer part; off: none, Reprocess on a page sends them later)",
+    )
     gc = subparsers.add_parser(
         "gc",
         parents=[common],
@@ -201,6 +226,8 @@ def main(args: Sequence[str] | None = None) -> None:
         store = Store(parsed.data_dir or os.environ.get("SCRAP_DATA_DIR", "data"))
         if parsed.command == "gc":
             gc_command(store, parsed)
+        elif parsed.command == "import":
+            import_command(store, parsed)
         elif parsed.command == "enrich":
             from . import claude_cli
             from .enrich import backfill, related_pass, writeup_pass
@@ -312,6 +339,44 @@ def gc_command(store: Any, parsed: Any) -> None:
     except GcError as error:
         raise SystemExit(f"scrap gc: {error}") from None
     print(report.text())
+
+
+def import_command(store: Any, parsed: Any) -> None:
+    """scrap import: the plan and its problems with --dry-run, else the import."""
+    from . import importer
+    from .ingest import enabled
+    from .store import enrich_on
+
+    try:
+        src = importer.source(parsed.path)
+    except importer.RefusedError as error:
+        raise SystemExit(f"scrap import: {error}") from None
+    try:
+        plan = importer.plan(src, store)
+        if parsed.dry_run:
+            s = importer.summary(plan)
+            print(importer.report(plan, details=True))
+            print(
+                f"Claude, roughly: ${s['text_pages'] * importer.per_page():.2f} to tag"
+                f" and summarise {s['text_pages']} text pages (--enrich),"
+                f" ${s['photos'] * importer.per_photo():.2f} to read"
+                f" {s['photos']} photos (--photos)"
+            )
+            return
+        done = importer.run(
+            store, src, plan, enrich=parsed.enrich, photos=parsed.photos
+        )
+    except importer.RefusedError as error:
+        raise SystemExit(f"scrap import: {error}") from None
+    finally:
+        src.close()
+    print(importer.report(plan, done))
+    if parsed.enrich and not enrich_on():
+        print("Claude enrichment is off here (SCRAP_INGEST, SCRAP_ENRICH): no page"
+              " was queued")  # fmt: skip
+    if parsed.photos and not enabled():
+        print("ingest is off here (SCRAP_INGEST): the photos wait until it is on")
+    print(f"into {store.dir} (--dry-run lists every problem)")
 
 
 def topics_report(store: Any, every: bool, limit: int | None, dry_run: bool) -> None:
