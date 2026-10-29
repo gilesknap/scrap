@@ -69,15 +69,30 @@
   rotate: 45deg;
 }
 
-/* A wide window (a laptop, a tablet on its side): one centred column, at most --column wide
-   (tokens.css; Settings lets a computer choose the maximum), the background still to the
-   edges, so lines stay readable and bars don't spread out. A window narrower than --column
-   still keeps the usual gutter (var(--s-4)) and shrinks the column to fit, never scrolling
-   sideways. Phones are narrower than this breakpoint, so it never applies there. */
+/* A wide window (760 px or more: a laptop, a tablet on its side, or a wide phone in landscape):
+   one centred column, at most --column wide (tokens.css; Settings lets a computer choose the
+   maximum), the background still to the edges, so lines stay readable and bars don't spread
+   out. A window narrower than --column still keeps the usual gutter (var(--s-4)) and shrinks
+   the column to fit, never scrolling sideways. It is the window's width that decides this, not
+   the device or pointer: a phone can be wide enough too. header, main and nav each take the
+   bigger of a display cutout's inset and the usual gutter on their own side (a cutout can be on
+   one side only); .editor's children already allow for the cutout, so it keeps the centred
+   value alone. */
 @media (min-width: 760px) {
   header,
   main,
-  nav,
+  nav {
+    padding-inline-start: max(
+      env(safe-area-inset-left),
+      var(--s-4),
+      calc((100% - var(--column)) / 2)
+    );
+    padding-inline-end: max(
+      env(safe-area-inset-right),
+      var(--s-4),
+      calc((100% - var(--column)) / 2)
+    );
+  }
   .editor {
     padding-inline: max(var(--s-4), calc((100% - var(--column)) / 2));
   }

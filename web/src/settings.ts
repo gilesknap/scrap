@@ -119,7 +119,7 @@ export function settings() {
       h(
         "p",
         { className: "hint" },
-        "Only on a computer: the most the centred column grows to. A narrower window still shrinks it to fit, with the usual gutter.",
+        "On a wide enough window (a computer, or a phone turned sideways): the most the centred column grows to. A narrower window still shrinks it to fit, with the usual gutter.",
       ),
       h("h3", { className: "label" }, "App theme"),
       choice(
