@@ -28,7 +28,8 @@ def regenerate(store: Store, key: str) -> dict[str, Any]:
         # A topic first here, a board first in roles.writeup_type (see its TODO)
         if roles.is_topic(conn, page["id"]):
             queue_topic(conn, page["id"])
-        elif roles.has_image(conn, page["id"]):  # a board, or on request (#453)
+        elif roles.has_board(conn, page["id"]) or roles.has_image(conn, page["id"]):
+            # a board (as ever), or any page with an image, on request (#453)
             queue_writeup(conn, page["id"])
         else:
             raise InvalidError(
