@@ -83,9 +83,4 @@ test("a page made by sharing a PDF: the file comes before About this page (#445)
   const file = await page.locator(".originals a.file, .filerow a.file").first().boundingBox();
   const card = await page.locator(".enrich.claude").boundingBox();
   expect(file && card && file.y < card.y).toBe(true);
-  for (const colorScheme of ["light", "dark"] as const) {
-    await page.emulateMedia({ colorScheme });
-    await page.setViewportSize({ width: 390, height: 844 });
-    await page.screenshot({ path: `/home/giles/wt/shots445/shot-pdf-${colorScheme}.png` });
-  }
 });
