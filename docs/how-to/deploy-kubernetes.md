@@ -583,11 +583,11 @@ compare what it shows with the live store.
 **Room.** You need room for two copies of the store: the run you copy off the cluster and the
 restored folder. Check the size first with `kubectl -n scrap exec deploy/scrap -- du -sh /data`
 (about 500 MB free for a 250 MB store), and keep everything in one folder you can delete at the
-end. The steps call it `$RT`; pick one on a disk with room, not a small `/tmp`.
+end. The steps call it `$RT`; pick a disk with room, not a small `/tmp`; it is created new, so the final `rm -rf $RT` removes nothing else.
 
 ```
-export RT=$HOME/rt
-mkdir -p $RT/backup
+export RT=$(mktemp -d "$HOME/rt.XXXXXX")   # a new, empty folder; put another disk's path in place of $HOME if needed
+mkdir $RT/backup
 ```
 
 **Tested.** On 2026-10-29 with a main-branch build of scrap 1.0.0rc4.dev5, on a throwaway
