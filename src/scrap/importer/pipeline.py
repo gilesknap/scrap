@@ -4,11 +4,20 @@ import hashlib
 import mimetypes
 import posixpath
 from collections import Counter
+from contextlib import nullcontext
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
 
-from ..store import MAX_PAGE, MAX_TAGS, BlobRef, Store, slug_base, upload_limit
+from ..store import (
+    MAX_PAGE,
+    MAX_TAGS,
+    BlobRef,
+    InvalidError,
+    Store,
+    slug_base,
+    upload_limit,
+)
 from ..store.constants import ENRICH_KINDS, PINNED_SLUG
 from ..store.helpers import file_kind
 from .linker import Linker, is_page
@@ -47,7 +56,8 @@ def _pages(plan: Plan, src: Source) -> dict[str, Page]:
             continue
         if page.made_by != "claude":
             page.made_by = "human"
-        page.tags.append(plan.tag)
+        if plan.tag not in page.tags:  # an export of an import made today has it
+            page.tags.append(plan.tag)
         # The same file twice gives the same id: a run again skips it
         page.cid = ulid(f"{rel}\0{hashlib.sha256(data).hexdigest()}")
         pages[rel] = page
@@ -64,18 +74,21 @@ def plan(src: Source, store: Store, day: datetime | None = None) -> Plan:
     for rel in src.unsafe:
         result.note("not a plain file", rel, "a link or device, not read")
     pages = _pages(result, src)
-    store.migrate()
-    with store.connect() as conn:
-        taken = {row[0] for row in conn.execute("SELECT slug FROM page")}
+    # Read only: a store with no database yet has nothing to match (none is made)
+    with store.connect() if store.db.is_file() else nullcontext() as conn:
+        taken = {r[0] for r in conn.execute("SELECT slug FROM page")} if conn else set()
         pinned = PINNED_SLUG in taken
         seen: set[str] = set()
         for page in pages.values():
             if page.id in seen:  # a file copied, id and all: a page of its own
                 result.note("id used twice", page.path, "imported as a new page")
                 page.id = None
-            row = None
             if page.id:
                 seen.add(page.id)
+            if conn is None:
+                continue
+            row = None
+            if page.id:
                 row = conn.execute(
                     "SELECT slug FROM page WHERE id = ?", (page.id,)
                 ).fetchone()
@@ -147,6 +160,7 @@ def run(
     """Import the planned pages that are not here yet. enrich: queue each new page
     that enrich reads (a note, todo or read, not a photo or file page) for Claude to
     tag and summarise; photos: queue each new page's photos for Claude to read."""
+    store.migrate()
     done = Done(skipped=sum(not p.new for p in plan.pages))
     for page in plan.pages:
         if not page.new:
@@ -181,9 +195,16 @@ def run(
             "updated_at": page.updated_at,
             "made_by": page.made_by,
         }
-        _, new, queued = store.import_page(
-            record, captures, author, photos=photos, files=True, enrich=enrich
-        )
+        if len(page.body.encode()) > MAX_PAGE:  # grew as its links were made
+            plan.note("too large", page.path, f"over {MAX_PAGE:,} bytes")
+            continue
+        try:
+            _, new, queued = store.import_page(
+                record, captures, author, photos=photos, files=True, enrich=enrich
+            )
+        except InvalidError as e:  # its text grew past MAX_PAGE as links were made
+            plan.note("not imported", page.path, str(e))
+            continue
         if not new:  # made meanwhile
             done.skipped += 1
             continue

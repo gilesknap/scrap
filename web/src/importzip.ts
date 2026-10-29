@@ -43,7 +43,8 @@ export function said(r: Imported): string {
     r.enrich && `${plural(r.enrich, "page")} to tag and summarise`,
     r.photos && `${plural(r.photos, "photo")} to read`,
   ].filter(Boolean);
-  return `${parts.join("; ")}. Each is tagged ${r.tag}. ${
+  const tagged = r.new ? ` ${r.new === 1 ? "It is" : "Each is"} tagged ${r.tag}.` : "";
+  return `${parts.join("; ")}.${tagged} ${
     queued.length ? `Queued for Claude: ${queued.join(", ")}.` : "Nothing queued for Claude."
   }`;
 }
@@ -104,7 +105,7 @@ export function importSection(): HTMLElement[] {
     );
     const photos = choice(
       "Read photos with Claude",
-      `${dollars(n.photos * terms.photo_usd)} for ${plural(n.photos, "photo")} (rough; the dearer model)`,
+      `${dollars(n.photos * terms.photo_usd)} for up to ${plural(n.photos, "image")} in the zip (rough; the dearer model)`,
       !terms.photos,
     );
     const go = h("button", { type: "button", className: "primary" }, "Import");

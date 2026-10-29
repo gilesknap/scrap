@@ -67,7 +67,10 @@ def stamp(value: Any) -> str | None:
     if isinstance(value, datetime):
         if value.tzinfo is None:
             value = value.replace(tzinfo=UTC)
-        value = value.astimezone(UTC).isoformat(timespec="milliseconds")
+        try:
+            value = value.astimezone(UTC).isoformat(timespec="milliseconds")
+        except OverflowError:  # year 1 east of UTC: before the first datetime
+            return None
         return value.replace("+00:00", "Z")
     if isinstance(value, date):
         return f"{value.isoformat()}T12:00:00.000Z"  # noon: the same day everywhere

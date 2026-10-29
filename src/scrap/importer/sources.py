@@ -17,6 +17,9 @@ from typing import IO
 
 from .model import MAX_ENTRIES, MAX_TOTAL
 
+DOS_EPOCH = datetime(1980, 1, 1, tzinfo=UTC)  # the earliest time a zip holds
+NOFOLLOW = getattr(os, "O_NOFOLLOW", 0)
+
 
 class RefusedError(Exception):
     """An archive or folder that is not imported at all, and why."""
@@ -108,9 +111,20 @@ class Folder(Source):
 
     @contextmanager
     def open(self, rel: str) -> Iterator[IO[bytes]]:
-        path = self.root / rel
-        # O_NOFOLLOW: a file swapped for a symlink since the walk is not read
-        fd = os.open(path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
+        """rel, reached from the root a folder at a time, none of them (nor the file)
+        followed if it is a symlink: one swapped in since the walk is not read."""
+        *folders, name = rel.split("/")
+        at = os.open(self.root, os.O_RDONLY | os.O_DIRECTORY)
+        try:
+            for folder in folders:
+                down = os.open(
+                    folder, os.O_RDONLY | os.O_DIRECTORY | NOFOLLOW, dir_fd=at
+                )
+                os.close(at)
+                at = down
+            fd = os.open(name, os.O_RDONLY | NOFOLLOW, dir_fd=at)
+        finally:
+            os.close(at)
         with os.fdopen(fd, "rb") as f:
             yield f
 
@@ -141,7 +155,10 @@ class Archive(Source):
                     raise RefusedError(
                         f"its files hold more than {total / 2**30:g} GB unpacked"
                     )
-                when = datetime(*info.date_time, tzinfo=UTC)
+                try:
+                    when = datetime(*info.date_time, tzinfo=UTC)
+                except ValueError:  # a month 0 and the like: the DOS epoch
+                    when = DOS_EPOCH
                 self._add(info.filename, Entry(info.file_size, when))
         except BaseException:
             self.zip.close()

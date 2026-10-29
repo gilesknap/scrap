@@ -49,6 +49,7 @@ it("counts pages and photos as the import reads them", () => {
     "_claude/note.md", // model text: never read
     ".obsidian/workspace.md",
     "Pasted image.PNG",
+    "Shouting.MD", // the import reads .md only
     "doc.pdf",
   ];
   expect(countNames(names)).toEqual({ pages: 2, photos: 2 });
@@ -60,7 +61,10 @@ it("says what an import did, and rough costs", () => {
     "Imported 3 pages; 1 here already, not imported again. Each is tagged import/2026-10-29. Queued for Claude: 2 pages to tag and summarise.",
   );
   expect(said({ ...r, new: 1, skipped: 0, enrich: 0, issues: {} })).toBe(
-    "Imported 1 page. Each is tagged import/2026-10-29. Nothing queued for Claude.",
+    "Imported 1 page. It is tagged import/2026-10-29. Nothing queued for Claude.",
+  );
+  expect(said({ ...r, new: 0, skipped: 3, enrich: 0, issues: {} })).toBe(
+    "Imported 0 pages; 3 here already, not imported again. Nothing queued for Claude.",
   );
   expect(dollars(0.004)).toBe("under $0.01");
   expect(dollars(1.234)).toBe("about $1.23");

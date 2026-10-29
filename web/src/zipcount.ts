@@ -55,7 +55,8 @@ export function countNames(names: string[]): ZipCount {
   let photos = 0;
   for (const name of names) {
     if (name.endsWith("/") || HIDDEN.test(name) || DRAWING.test(name)) continue;
-    if (/\.md$/i.test(name) && !STORED.test(name)) pages++;
+    if (name.endsWith(".md") && !STORED.test(name))
+      pages++; // as the import: .md only
     else if (PHOTO.test(name)) photos++;
   }
   return { pages, photos };

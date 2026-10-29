@@ -137,7 +137,7 @@ def test_the_plan_reports_what_it_could_not_do(tmp_path, store):
     assert issues["folder skipped"] == [".obsidian/", "_templates/"]
     assert issues["file not used by a new page"] == ["attachments/unused.png"]
     assert "field not imported" in issues  # cssclasses
-    assert rows(store, "SELECT count(*) FROM page") == [(0,)]  # a plan writes nothing
+    assert not store.db.exists()  # a plan writes nothing
 
 
 def test_a_slug_in_use_is_suffixed_and_links_follow_it(tmp_path, store):
@@ -228,6 +228,29 @@ def test_odd_values_are_left_out_not_failed(tmp_path, store):
     assert got["kind"] == "note" and got["made_by"] == "human"
     assert got["fields"] == {"long": "x" * 199 + "…"}
     assert got["tags"] == sorted(["ok", "3", importer.import_tag()])
+
+
+def test_dates_out_of_range_and_the_import_tag_given_already(tmp_path, store):
+    tag = importer.import_tag()
+    text = f"---\ncreated: 0001-01-01T00:00:00+05:00\ntags: [{tag}]\n---\nOld\n"
+    run(write(tmp_path / "v", {"old.md": text}), store)
+    assert page(store, "old")["tags"] == [tag]  # once
+
+
+def test_a_zip_entry_with_an_impossible_time_is_read(store):
+    out = io.BytesIO()
+    with zipfile.ZipFile(out, "w") as zf:
+        zf.writestr(zipfile.ZipInfo("a.md", (2026, 13, 40, 0, 0, 0)), "A\n")
+    assert run(out.getvalue(), store).new == 1
+    assert page(store, "a")["created_at"] == "1980-01-01T00:00:00.000Z"
+
+
+def test_a_page_whose_links_grow_past_the_limit_is_skipped(
+    tmp_path, store, monkeypatch
+):
+    monkeypatch.setattr("scrap.importer.pipeline.MAX_PAGE", 60)
+    files = {"a.md": "![](x.png) ![](x.png)\n", "x.png": PNG}
+    assert run(write(tmp_path / "v", files), store).new == 0
 
 
 def test_topic_and_gc_pages_are_not_imported(tmp_path, store):
@@ -357,7 +380,7 @@ def test_the_cli_dry_run_writes_nothing(tmp_path, store, capsys):
     assert "3 pages, 3 new" in out and "broken link: 1" in out
     assert "  My Note.md: Missing page" in out  # each problem, with --dry-run
     assert "Claude, roughly: $" in out and "2 text pages" in out
-    assert rows(store, "SELECT count(*) FROM page") == [(0,)]
+    assert not store.dir.exists()  # not even an empty database
 
 
 def test_the_cli_imports_a_zip(tmp_path, store, capsys):
