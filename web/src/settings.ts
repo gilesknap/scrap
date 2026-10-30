@@ -211,12 +211,14 @@ export function settings() {
     removeEventListener("keydown", keys);
     form.remove();
     for (const el of behind) el.inert = false;
+    document.body.classList.remove("editing");
     open = false;
     if (then) go(then);
     else opener?.focus({ preventScroll: true });
   };
   done.onclick = () => history.back();
   for (const el of behind) el.inert = true;
+  document.body.classList.add("editing"); // the page behind stops scrolling: the sheet's is the only scrollbar
   document.body.append(form);
   history.pushState({ settings: true }, "");
   addEventListener("popstate", onpop, true);
