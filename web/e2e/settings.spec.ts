@@ -180,3 +180,28 @@ test.describe("Text size", () => {
       .toBe(true);
   });
 });
+
+for (const [width, height] of [
+  [1024, 1280],
+  [1440, 900],
+  [390, 700],
+] as const) {
+  test(`Settings has one scrollbar, the sheet's, with the page behind locked (${width}x${height})`, async ({
+    browser,
+  }) => {
+    const ctx = await browser.newContext({ viewport: { width, height } });
+    const page = await ctx.newPage();
+    await page.goto("/");
+    await page.getByRole("button", { name: "Settings" }).click();
+    await expect(page.getByRole("dialog", { name: "Settings" })).toBeVisible();
+    const state = await page.evaluate(() => ({
+      locked: getComputedStyle(document.body).overflow === "hidden",
+      docScrolls: document.documentElement.scrollHeight > document.documentElement.clientHeight,
+    }));
+    expect(state.locked).toBe(true); // no second scrollbar from the page behind
+    expect(state.docScrolls).toBe(false);
+    await page.getByRole("button", { name: "Done" }).click();
+    expect(await page.evaluate(() => getComputedStyle(document.body).overflow)).not.toBe("hidden");
+    await ctx.close();
+  });
+}
