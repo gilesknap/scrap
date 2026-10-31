@@ -38,11 +38,12 @@ Without `SCRAP_PUBLISH_TO` and a token, publishing is off.
 ## Transport and auth
 
 - HTTP/1.1 with keep-alive. A request has 30 seconds in all, its body included (`408`).
-- A client should send `Expect: 100-continue` with every request that has a body, so a refusal
+- A client should send `Expect: 100-continue` with every request that has a body, where its
+  HTTP library supports it, so a refusal
   that needs only the headers (`401`, `411`, `413`, `415`, `422 bad_unit`) arrives before the
   body is sent. When the receiver refuses a body it has not read, it closes the connection
-  lingering (it reads and drops what is still arriving for a moment first), so the client sees
-  the answer rather than a reset.
+  lingering (it reads and drops what is still arriving for a moment first), so a client that
+  cannot send `Expect` still sees the answer rather than a reset.
 - Every route except `GET /healthz` needs `Authorization: Bearer <token>`, compared with
   `hmac.compare_digest`. Without it the answer is `401` with `WWW-Authenticate: Bearer`, before
   any other check: an unknown path is `401` too, not `404`. The token, and the `Authorization`
@@ -59,7 +60,7 @@ inside a unit.
 | --- | --- | --- | --- | --- |
 | A page | `p/[a-z0-9-]{1,120}` | `index.html` | its images and files (below) | `/p/<slug>`, `/p/<slug>/`, `/p/<slug>/<name>` |
 | A tag | `t/[a-z0-9-]{1,80}` | `index.html` | other `.html` files | `/t/<key>`, `/t/<key>/` |
-| The home page | `home` | `index.html` | `tags.html`, `404.html` | `/`, `/tags`, every 404 |
+| The home page | `home` | `index.html` | any other one-segment `.html` (scrap sends `tags.html` and `404.html`) | `/`, `/tags`, every 404 |
 | The search index | `pagefind` | at least one file | Pagefind's files and `scrap-search.js` | `/pagefind/<path>` |
 | Shared assets | `assets` | at least one file | KaTeX's CSS and fonts | `/assets/<path>` |
 
@@ -166,7 +167,7 @@ written (UTC, ISO 8601, to the second).
 Replace a unit, or make it. Required: `Content-Type: application/x-tar` (`415
 unsupported_media_type`), `Content-Length` (`411 length_required`; a chunked body is `411`
 too, and a length that is not a number `400 bad_request`) and `Scrap-Digest`. Send
-`Expect: 100-continue` ([](#transport-and-auth)).
+`Expect: 100-continue` where the client supports it ([](#transport-and-auth)).
 
 One lock serialises every write (`PUT`, `DELETE`, `sync`). A request that cannot take it at once
 gets `503 busy` with `Retry-After: 1`.
@@ -212,8 +213,9 @@ and an entry that is not a unit (`422 bad_unit`).
 | `422` | `no_index` | A page, tag or home unit without `index.html` |
 | `422` | `empty_unit` | A tar with no files |
 | `422` | `empty_keep`, `no_home` | A `sync` list that is refused |
+| `500` | `server_error` | Anything unexpected in the receiver |
 | `503` | `busy` | Another write holds the lock (with `Retry-After: 1`) |
-| `507` | `over_quota` | The site would be over its quota |
+| `507` | `over_quota` | The site would be over its quota, or the disk itself is full |
 
 `detail` never repeats the token or a header.
 
@@ -270,7 +272,7 @@ On every response:
 | --- | --- |
 | `/p/<slug>/file-*.pdf` | `sandbox` |
 | `/p/<slug>/img-*`, `/p/<slug>/file-*` (not a PDF) | `sandbox; default-src 'none'; style-src 'unsafe-inline'; img-src data:; font-src data:` |
-| `/p/...` and `/t/...` otherwise (a page's or tag's HTML) | `default-src 'none'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; font-src 'self'; script-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'` |
+| `/p/...` and `/t/...` otherwise (a page's or tag's HTML) | `default-src 'none'; img-src 'self' data:; style-src 'self'; style-src-attr 'unsafe-inline'; font-src 'self'; script-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'` |
 | everything else (home, `/pagefind/`, `/assets/`, 404) | `default-src 'none'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; font-src 'self'; script-src 'self' 'wasm-unsafe-eval'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'` |
 
 A page's images and files follow ADR 42's rule for stored files: opened on their own they run
@@ -288,53 +290,153 @@ index (`connect-src 'self'`) and run WebAssembly (`'wasm-unsafe-eval'`).
 
 Nothing the site does reaches copies people saved, or caches that ignore these headers.
 
+## The PWA's API in scrap
+
+These routes are under `/api`, so only the owner's PWA session reaches them (behind Cloudflare
+Access or Tailscale, as the rest of `/api`). They are **not** served under `/mcp`, and an MCP
+bearer token cannot reach them: MCP never publishes HTML. Errors are scrap's usual
+`{"error", "detail"}` JSON.
+
+### The flag
+
+`PATCH /api/pages/{id}` with `{"public": true}` or `{"public": false}`, or MCP
+`edit_meta(public=...)`, sets `page.public`, as a revision that `revert` can undo.
+
+- **On** only sets the flag. The page is published the next time the PWA renders it: through
+  the Public toggle (which sets the flag, then publishes), a save, or Refresh all.
+- **Off** unpublishes at once, whichever route turned it off, and so does the page going to the
+  trash ([](#scraps-copies)).
+- Undelete and revert keep the flag as it is. A page with `public` on and `published_at` null
+  shows its badge as "Public · not published yet", and Refresh all publishes it. That is only a
+  null timestamp, not stale tracking.
+
+### `PUT /api/pages/{id}/published`
+
+Publish the page. The body is JSON, at most 25 MiB:
+
+```json
+{"html": "<!DOCTYPE html>...", "rev": 42, "defer": false}
+```
+
+`html` is the page from `pagehtml.ts`'s publish mode, and `rev` the page's revision the PWA
+rendered. With `defer: true` scrap pushes the page's unit but not `home`, the tag units or
+`pagefind` (Refresh all, below).
+
+Under scrap's lock, scrap reads the page again, then checks ([](#the-html-scrap-accepts)),
+replaces the placeholders, builds the unit and pushes it. `200` with
+`{"url": "<SCRAP_PUBLISH_SITE>/p/<slug>", "published_at": "<UTC ISO 8601>", "files": <n>}`.
+
+| Status | `error` | When |
+| --- | --- | --- |
+| `409` | `not_public` | The page is not `public`, or it is in the trash |
+| `409` | `stale` | `rev` is not the page's current revision |
+| `413` | `too_large` | The body is over 25 MiB |
+| `422` | from the check | The HTML fails a rule, or a cap ([](#placeholders-and-files)); `detail` says which |
+| `502` | `publish_failed` | The receiver refused or failed; `detail` holds its `error` code |
+| `503` | `not_configured` | Publishing is off (no `SCRAP_PUBLISH_TO` or token) |
+
+A receiver `503 busy` is retried for up to 10 seconds before `502`.
+
+### `GET /api/public`
+
+The public pages: `[{"id", "slug", "title", "published_at"}]`, with `published_at` null for a
+page not published yet. `?links_to=<slug>` lists only the public pages whose text links to that
+page (from the backlinks). The PWA uses it to decide which links in a page stay live, to find
+the pages to render again when a page is made public or private, and for Refresh all.
+
+### `POST /api/public/rebuild`
+
+Build `home`, every tag unit and `pagefind` once, and push those whose digest changed. Refresh
+all sends each public page with `defer: true`, then calls this once.
+
 ## What scrap sends for a page
 
-The PWA uploads the page's HTML, written by `pagehtml.ts` in its publish mode, to scrap. scrap
-**checks** it, refusing anything that does not pass with `422` (it never cleans the HTML),
-**replaces** its placeholders, adds the page's files, and pushes the unit.
+scrap **checks** the uploaded HTML, refusing anything that does not pass with `422` (it never
+cleans the HTML), **replaces** its placeholders, adds the page's files, and pushes the unit.
+
+### Parsing
+
+- The HTML is parsed with a WHATWG-conformant parser (html5lib in Python), never a regular
+  expression, `html.parser` or `lxml.html`, so scrap checks the tree a browser would build.
+- Elements and attributes are matched as (namespace, local name), HTML, MathML or SVG. Anything
+  not listed below is refused, which covers `xlink:href`, an SVG `a` and an SVG `style`.
+- Values are checked after entity decoding. URL rules use `re.fullmatch`.
+- Comments are dropped or allowed. CDATA sections, processing instructions and `template` are
+  refused, as is an attribute given twice on one element.
+- "A class includes `katex`" means `katex` is one of its whitespace-separated tokens.
+- A `style` value is parsed as declarations, `property: value` separated by `;`, with spaces
+  after `:` and a trailing `;` allowed.
 
 ### The HTML scrap accepts
 
-The document is `<!DOCTYPE html>` with `html`, `head`, `title` and `body`. In `head`:
+The document is `<!DOCTYPE html>` with `html`, `head`, `title` and `body`; `html`, `head` and
+`body` may have only `lang` and `dir`. In `head`, only:
 
 - `<meta charset="utf-8">`;
 - `<meta name="viewport" content="...">`;
-- exactly this tag, which scrap checks is present:
-  `<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; font-src 'self'">`
-  (there is no `script-src`, so no script runs even if the file is opened elsewhere);
-- one `<style>` element (pagehtml's own);
-- at most one `<link rel="stylesheet" href="/assets/katex.css">`.
+- the CSP, which must be present:
+  `<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self' data:; style-src 'self'; style-src-attr 'unsafe-inline'; font-src 'self'">`.
+  Its parsed `content`, with whitespace normalised, must equal that exactly. There is no
+  `script-src`, so no script runs even if the file is opened elsewhere;
+- `<link rel="stylesheet" href="/assets/page.css">` (pagehtml's page CSS, moved out of the file),
+  and, for a page with maths, `<link rel="stylesheet" href="/assets/katex.css">`. No other `link`.
 
-In `body`, only these elements: pagehtml's kept set (`a abbr article aside b blockquote br
-caption code dd del details div dl dt em figcaption figure h1 h2 h3 h4 h5 h6 hr i img ins kbd li
-mark ol p pre q s section small span strong sub summary sup table tbody td tfoot th thead time tr
-u ul`), and inside a `span` whose class includes `katex` (KaTeX's markup, "inside KaTeX" below)
-its MathML (`math semantics annotation mrow mi mn mo mtext mspace msup msub msubsup mfrac msqrt
-mroot mover munder munderover mtable mtr mtd mstyle mpadded mphantom menclose`) and the `svg`,
-`path` and `line` it draws stretchy symbols with.
+There is **no `<style>` element** anywhere: every one is refused.
+
+In `body`, only pagehtml's kept elements (`a abbr article aside b blockquote br caption code dd
+del details div dl dt em figcaption figure h1 h2 h3 h4 h5 h6 hr i img ins kbd li mark ol p pre q
+s section small span strong sub summary sup table tbody td tfoot th thead time tr u ul`), and,
+inside a `span` whose class includes `katex` ("inside KaTeX" below), KaTeX's markup:
+
+- MathML: `math semantics annotation mrow mi mn mo mtext mspace msup msub msubsup mfrac msqrt
+  mroot mover munder munderover mtable mtr mtd mstyle mpadded mphantom menclose`;
+- SVG: `svg`, `path` and `line`, which it draws stretchy symbols with.
 
 Attributes:
 
 | Attribute | Where | Value |
 | --- | --- | --- |
-| `class`, `dir` | any kept element | any text |
+| `class`, `dir` | any kept HTML element | any text |
 | `colspan`, `rowspan` | `td`, `th` | 1 to 3 digits |
 | `open` | `details` | none |
 | `alt` | `img` | any text |
-| `src` | `img` | a placeholder, `scrap-blob:<sha>`, and nothing else |
-| `href` | `a` | `https:...`, `mailto:...`, `#...`, `/p/<slug>` of a public page, `/t/<key>`, or a placeholder (`scrap-blob:<sha>`, `scrap-tag:<tag>`) |
-| `style` | a `span`, `svg` or `mpadded` inside KaTeX | the declarations below only, separated by `;` |
-| `aria-hidden` | a `span` inside KaTeX | `true` |
-| `xmlns`, `d`, `viewBox`, `preserveAspectRatio`, `width`, `height`, `x1`, `y1`, `x2`, `y2`, `stroke-width` | `svg`, `path`, `line` inside KaTeX | as KaTeX writes them, with no `url(` |
-| `display`, `encoding`, `accent`, `accentunder`, `columnalign`, `columnlines`, `columnspacing`, `rowlines`, `rowspacing`, `depth`, `voffset`, `lspace`, `rspace`, `width`, `height`, `displaystyle`, `scriptlevel`, `mathsize`, `mathvariant`, `mathcolor`, `mathbackground`, `linethickness`, `fence`, `stretchy`, `minsize`, `maxsize`, `notation` | MathML inside KaTeX | as KaTeX writes them, with no `url(` |
+| `src` | `img` | a `scrap-blob:<sha>` placeholder, and nothing else |
+| `href` | `a` | below |
+| `aria-hidden` | `span` inside KaTeX | `true` |
+| `style` | `span`, `mstyle`, `mpadded`, `svg` inside KaTeX | the declarations below |
+| `xmlns` | `math`, `svg` | the MathML or SVG namespace |
+| `width`, `height`, `viewBox`, `preserveAspectRatio` | `svg` | as KaTeX writes them, with no `url(` |
+| `d` | `path` | as KaTeX writes it |
+| `x1`, `y1`, `x2`, `y2`, `stroke-width` | `line` | as KaTeX writes them |
+| `display`, `encoding`, `accent`, `accentunder`, `columnalign`, `columnlines`, `columnspacing`, `rowlines`, `rowspacing`, `depth`, `voffset`, `lspace`, `rspace`, `width`, `height`, `displaystyle`, `scriptlevel`, `mathsize`, `mathvariant`, `mathcolor`, `mathbackground`, `linethickness`, `fence`, `stretchy`, `separator`, `largeop`, `minsize`, `maxsize`, `linebreak`, `notation` | MathML inside KaTeX | as KaTeX writes them, with no `url(` |
 
-The `style` declarations KaTeX writes, taken from KaTeX 0.16.47 itself (the version the PWA
-bundles): each `.style.<property> =` in `katex.js`, checked by rendering a corpus with the
-PWA's options (fractions, roots, every matrix and alignment environment, arrays with rules,
-`CD`, `\[<size>]`, `\color`, `\colorbox`, `\fcolorbox`, `\boxed`, `\cancel`, `\angl`,
-stretchy arrows and accents, braces, `\rule`, `\raisebox`, spacing, sizes and `\pmb`). A new
-KaTeX version means checking this list again.
+An `a`'s `href` must fully match one of:
+
+- `https?://...` to any host **except scrap's own origins** (`public.public_origins()`: the
+  addresses in `SCRAP_PUBLIC_URL` and the like), which are refused;
+- `mailto:...`, or `#...`;
+- `/p/<slug>` of a page that is public, or `/t/<key>`;
+- a placeholder, `scrap-blob:<sha>` or `scrap-tag:<tag>`.
+
+`/api/...` is always refused, as are `//...` and `/\...` (a browser reads both as another host),
+`javascript:`, `data:` and anything else. There is no rule about private (RFC 1918) addresses.
+
+### KaTeX's markup
+
+The publish mode writes each formula as `katex.renderToString(tex, options)`, with the PWA's
+options from `web/src/math.ts` (`trust: false`, `throwOnError: true`, `strict: "ignore"`), so
+the markup is KaTeX's own string, not the browser's serialisation of the page. The lists above
+and below come from KaTeX 0.16.47, the version the PWA bundles: every `setAttribute(...)` and
+every `.style.<property> =` in `katex.mjs`, checked by rendering a corpus with those options and
+reading both halves of the output, the HTML and the MathML (fractions, roots, every matrix and
+alignment environment, arrays with rules, `CD`, `\\[<size>]`, line breaks, `\color`,
+`\colorbox`, `\fcolorbox`, `\boxed`, `\cancel`, `\angl`, stretchy arrows and accents, braces,
+`\rule`, `\raisebox`, spacing, sizes, `\mathop`, `\pmb` and `\boldsymbol`). The attributes KaTeX
+sets only with `trust` (`href`, `src`, `alt`, `valign` on `mglyph`) or only for an error it
+renders instead of throwing (`title`) are not allowed. A new KaTeX version means checking the
+lists again.
+
+The `style` declarations allowed:
 
 | Property | Value |
 | --- | --- |
@@ -344,37 +446,40 @@ KaTeX version means checking this list again.
 | `border` (on `mpadded`, from `\fcolorbox`) | a length, `solid`, a colour |
 | `border-style`, `border-right-style` | `solid` or `dashed` |
 | `position` | `relative` |
-| `text-shadow` (from `\pmb`) | three lengths |
+| `text-shadow` (on `span` and `mstyle`, from `\pmb`) | three lengths |
 
 A length is `-?([0-9]+|[0-9]*\.[0-9]+)(em|ex|px)?`. A colour is `#` and 3, 4, 6 or 8 hex digits,
 `rgb(...)` or `rgba(...)` of numbers and `%`, or a name of letters only (`red`, `Goldenrod`,
 `transparent`). Any other property or value, or `style` outside KaTeX, is refused.
 
-Refused, with anything else not listed: any `script`; a `style` element other than the one in
-`head`; a `meta` other than the three above; `base`; a `link` other than KaTeX's stylesheet;
-`iframe`, `object`, `embed`, `form`; any `on*` attribute; any other `style` attribute; any other
-`href` (`http:`, `javascript:`, `data:`, `/api/...`, a private address) or `src`.
+**The `katex` gate is visual hygiene, not a security boundary.** It keeps stray markup and
+inline styles out of the page's own content, but a page could wrap anything in a `katex` span.
+What keeps a public page safe is the CSP (the page's meta CSP and nginx's, with
+`script-src 'none'`), the allow-list of elements and attributes, and that the upload is reachable
+only from the owner's PWA session.
 
-### Placeholders
+### Placeholders and files
 
 - `scrap-blob:[0-9a-f]{64}` names a stored file by its sha. It is replaced only when it is the
   whole value of an `img`'s `src` or an `a`'s `href`; anywhere else (in text, say) it is left as
   text. The element decides the kind: an `img` is published as an image, an `a` as a file. A
   file used both ways is published once as each; a file used twice the same way, once.
-- A drawing (Excalidraw) is published as its rendered image, through an `img`.
-- `scrap-tag:<tag, URL-encoded>` as an `href` (a tag chip) is replaced by `/t/<key>` (below).
+- `scrap-tag:<tag, URL-encoded>` as an `href` (a tag chip) is replaced by `/t/<key>`
+  ([](#tag-keys)).
 - A placeholder naming a file that is not on the page, or a tag the page does not have, refuses
   the publish.
+- **Drawings (Excalidraw) are not published** in this version: the publish mode leaves them out,
+  and a photo with a drawing on it is published as the photo alone. Publishing drawings is a
+  follow-up.
 
 Each `scrap-blob` becomes an absolute path, `/p/<slug>/<name>` (absolute, because a relative link
 from `/p/<slug>` would resolve under `/p/`), and scrap adds the bytes beside `index.html`:
 
-| Published as | Name | Bytes |
-| --- | --- | --- |
-| A photo or raster image | `img-<n>-<hex>.jpg` (`.png` when its preview is a PNG) | Its 2048-pixel preview, EXIF and GPS stripped when the preview was made |
-| An SVG, image or attachment | `img-<n>-<hex>.svg` | The stored SVG, run through scrap's SVG sanitiser again at publish (SVGs stored before #480 were never sanitised) |
-| A drawing | `img-<n>-<hex>.svg` or `.png` | Its rendered image |
-| Another attachment | `file-<n>-<hex>.<ext>` | The file as stored; `<ext>` from the list in [](#units), else `bin` |
+| Published as | Name | `kind` in `files.json` | Bytes |
+| --- | --- | --- | --- |
+| A photo or raster image | `img-<n>-<hex>.jpg` (`.png` when its preview is a PNG) | `img` | Its 2048-pixel preview, EXIF and GPS stripped when the preview was made |
+| An SVG, as an image or as an attachment | `img-<n>-<hex>.svg` | `img` | The stored SVG, run through scrap's SVG sanitiser again at publish (SVGs stored before #480 were never sanitised) |
+| Another attachment | `file-<n>-<hex>.<ext>` | `file` | The file as stored; `<ext>` from the list in [](#units), else `bin` |
 
 - `<n>` counts images and files separately, from 1, in the order they first appear in the HTML.
 - `<hex>` is the first 10 hex digits of the SHA-256 of the bytes published. Neither the stored
@@ -406,49 +511,64 @@ with the same slug still get different keys.
 
 ## What scrap builds
 
-From its kept copies of the pages ([](#scraps-copies)), with plain Python templates and no
-Markdown:
+From its kept copies and their `meta.json` ([](#scraps-copies)), with plain Python templates and
+no Markdown:
 
-- `home`: `index.html` (the public pages, newest first, with their tags and Pagefind's search
-  box), `tags.html` (every tag with its pages) and `404.html`;
+- `home`: `index.html` (the public pages by `published_at`, newest first, with their tags and
+  Pagefind's search box), `tags.html` (every tag with its pages) and `404.html`;
 - a `t/<key>` unit for each tag a public page has, listing its pages;
 - `pagefind`: the index, built by the `pagefind[bin]` Python package at a pinned version, plus
-  Pagefind's UI files and `scrap-search.js`, which starts the UI;
-- `assets`: `katex.css` and KaTeX's fonts, from scrap's own static build of the PWA. Pagefind's
-  UI stylesheet goes here too, as CSS lives only in `assets`.
+  Pagefind's UI files and `scrap-search.js`, which starts the UI. Each page is indexed from an
+  in-memory copy with its `.katex` elements removed and the formula's TeX (from its
+  `annotation encoding="application/x-tex"`) put in their place, so search finds the TeX, not
+  KaTeX's glyph spans;
+- `assets`: `page.css` (pagehtml's page CSS), `katex.css` and KaTeX's fonts, from scrap's own
+  static build of the PWA, and Pagefind's UI stylesheet, as CSS lives only in `assets`.
 
-Every build is deterministic: the same copies give the same bytes (sorted order, no timestamps),
-so an unchanged unit has an unchanged digest.
+Titles and tag names come from `meta.json`. Every build is deterministic: the same copies give
+the same bytes (sorted order, no timestamps), so an unchanged unit has an unchanged digest.
 
 ## scrap's copies
 
-For each public page scrap keeps the unit exactly as it last pushed it, under
-`<data>/cache/publish/p/<slug>/`: `index.html` (placeholders replaced), every `img-*` and
-`file-*`, and `files.json`, which maps each published name to
-`{"sha": <stored file>, "kind": "image" | "file", "bytes_sha256": <hex>}`. It is derived data,
-not backed up. scrap also stores the digest it last pushed for every unit.
+For each published page scrap keeps the unit exactly as it last pushed it, under
+`<data>/cache/publish/p/<slug>/`:
+
+- `index.html` (placeholders replaced), every `img-*` and `file-*`;
+- `files.json`, which maps each published name to
+  `{"sha": <stored file>, "kind": "img" | "file", "bytes_sha256": <hex>}`;
+- `meta.json`: `{"id", "title", "tags", "published_at"}`, the tags being the page's current
+  tags in the database at publish time.
+
+It is derived data, not backed up. scrap also stores the digest it last pushed for every unit.
 
 **One lock in scrap** is held over every publish, unpublish and reconcile step, so they never
 interleave.
 
-- **Publish:** check and build the page unit, push it, write the copy and its digest, then build
-  and push `home`, the page's tag units (before and after) and `pagefind`.
+- **Publish:** read the page again and refuse unless it is public and not in the trash (`409
+  not_public`); check and build the page unit, push it, write the copy, `meta.json` and the
+  digest; then, unless deferred, build `home`, the page's tag units (before and after) and
+  `pagefind`, and push those whose digest changed.
 - **Unpublish** (Public off in the PWA or over MCP, a revert, the page going to the trash):
   delete scrap's copy first, then `DELETE /v1/units/p/<slug>`, then build and push `home`, the
   page's tag units (deleting a tag unit no public page has any more) and `pagefind`.
 
 ## Reconciling
 
-At startup and every 10 minutes, under the lock, scrap:
+At startup, scrap first builds the derived units fresh (`home`, every `t/*`, `pagefind` and
+`assets`) and pushes any whose digest changed, which covers a new KaTeX, new templates or a new
+Pagefind after an upgrade. Then, at startup and every 10 minutes, under the lock, scrap:
 
-1. reads `GET /v1/manifest`;
-2. for each unit it means to have (each kept page, each tag, `home`, `pagefind`, `assets`),
-   compares the manifest's digest with the digest it last pushed and stored (not with a fresh
-   build), and `PUT`s the unit again from its kept bytes when the unit is missing or differs.
-   A page's copy is re-read under the lock before each `PUT`. A kept copy that is missing or
+1. works out the units to keep: the kept page copies whose pages are public and not in the
+   trash, their tags, `home`, `pagefind` and `assets`. A kept copy of any other page is deleted,
+   with its unit;
+2. reads `GET /v1/manifest`;
+3. compares each unit's manifest digest with the digest it last pushed and stored (not with a
+   fresh build), and `PUT`s the unit again from its kept bytes when it is missing or differs. A
+   page's copy is re-read under the lock before each `PUT`. A kept copy that is missing or
    damaged (a file gone, or bytes that no longer match `files.json`) is not pushed: scrap deletes
-   that unit and the next Refresh all puts it back;
-3. ends with `POST /v1/sync` listing every unit it means to keep.
+   the copy and the unit, then rebuilds `home`, the tag units and `pagefind`; the next Refresh
+   all publishes the page again;
+4. ends with `POST /v1/sync` listing the units to keep, which deletes any stray.
 
 No rendering is involved, so a site that lost its files is refilled without the PWA. A `503` is
 retried; any other failure is logged and left to the next run.

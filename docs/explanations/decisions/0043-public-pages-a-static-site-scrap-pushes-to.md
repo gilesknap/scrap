@@ -37,11 +37,19 @@ carry.
 - **The PWA renders; there is no second renderer.** A public page is the PWA's own view of the
   page, written out by `pagehtml.ts` in a new publish mode as one HTML file. Because it reads the
   rendered page, the public copy cannot drift from what scrap shows: tables, the Claude card, and
-  maths too, since the publish mode keeps KaTeX's rendered markup (the classes and spans the PWA
-  shows) rather than the TeX, and links `/assets/katex.css`, which scrap pushes with KaTeX's fonts
-  from its own static build. The PWA uploads the file to scrap on a new authenticated endpoint;
-  scrap checks it, adds the page's files (below) and pushes the lot to the receiver. The PWA never
-  talks to the receiver, and only scrap holds the token.
+  maths too, since the publish mode writes each formula as `katex.renderToString` with the PWA's
+  own options (KaTeX's exact markup, not the browser's serialisation) rather than the TeX. The
+  page's CSS moves out of the file: it links `/assets/page.css` and `/assets/katex.css`, which
+  scrap pushes with KaTeX's fonts from its own static build, and has no `<style>` element. The PWA
+  uploads the file to scrap (`PUT /api/pages/{id}/published`); scrap checks it, adds the page's
+  files (below) and pushes the lot to the receiver. The PWA never talks to the receiver, and only
+  scrap holds the token.
+- **Only the owner's PWA publishes.** The publishing routes are under `/api`, the owner's PWA
+  session behind Cloudflare Access or Tailscale. They are not served under `/mcp`, so an MCP
+  bearer token cannot publish HTML. `GET /api/public` lists the public pages (and, with
+  `?links_to=`, those linking to a page) for the PWA's link decisions and Refresh all, and
+  `POST /api/public/rebuild` builds the index units once after a batch. The routes, their bodies
+  and their errors are in the contract.
 - **Turned down: a renderer in Python on the server.** The first plan had scrap render public
   pages itself, from the Markdown, with the HTML download, the print view, KaTeX and SVG
   sanitising reused (#497's first comments). It would publish without the PWA, after an MCP edit
@@ -49,10 +57,17 @@ carry.
   extensions, maths, task lists, embeds and the Claude card would have to be rebuilt in Python and
   kept in step with the PWA by hand, which is exactly what made the gist skill fragile. Refresh
   all (below) covers what only a server renderer would have caught.
-- **The flag.** `page.public`, 0 or 1 (migration `0020_public_pages.sql`), set through
-  `edit_meta(public=...)` like the other fields, so each change is a revision
-  (`page_meta_rev.public_before` and `public_after`) that `revert` can undo. A page is made public
-  one at a time; pages can be made private in bulk. The PWA shows a Public badge.
+- **The flag.** `page.public`, 0 or 1 (migration `0020_public_pages.sql`), set by
+  `PATCH /api/pages/{id}` or MCP `edit_meta(public=...)` like the other fields, so each change is
+  a revision (`page_meta_rev.public_before` and `public_after`) that `revert` can undo. A page is
+  made public one at a time; pages can be made private in bulk. Turning it on by either route
+  only sets the flag; turning it off unpublishes at once. Undelete and revert keep the flag. The
+  PWA shows a Public badge, and "Public · not published yet" while `published_at` is null (a
+  page made public over MCP, say); Refresh all publishes it. That is a null timestamp, not stale
+  tracking.
+- **A publish re-checks the flag.** Under scrap's lock a publish reads the page again and is
+  refused (`409 not_public`) unless the page is public and not in the trash, so a render that
+  raced an unpublish can never put the page back.
 - **When a page is published.**
   - Turning Public on, after one OK or Cancel warning that the page's tags and Claude's write-up
     and summary go public too.
@@ -90,11 +105,16 @@ carry.
   - The links scrap adds itself (Linked from, Related) only where the other page is public.
   - Left out: Claude's notes (a photo's description, the read text, the drawing), revisions, the
     extracted text of files, and every `/api` or other private address.
+  - **Drawings (Excalidraw) are not published in this version.** The publish mode leaves them
+    out, and a photo with a drawing on it is published as the photo alone. Publishing drawings is
+    a follow-up.
+  - External links (`http:` and `https:`) stay, except those to scrap's own origins
+    (`SCRAP_PUBLIC_URL` and the like), which are refused; `/api/...` is always refused.
 - **Images and attached files are files of the page, not inlined.** The publish mode writes each
   `<img src>` and file link as a placeholder, `scrap-blob:<sha>` (the regex
   `scrap-blob:[0-9a-f]{64}`), and scrap replaces it only where it is the whole value of an `img`'s
-  `src` or an `a`'s `href`. The element decides the kind: an `img` is an image, an `a` a file. A
-  drawing (Excalidraw) is published as its rendered image. Each one becomes an absolute path,
+  `src` or an `a`'s `href`. The element decides the kind: an `img` is an image, an `a` a file.
+  Each one becomes an absolute path,
   `/p/<slug>/<name>`, under a new name: `img-<n>-<hex>.jpg`, `.png` or `.svg` for an image and
   `file-<n>-<hex>.<ext>` for another file, where `<hex>` is 10 hex digits of the SHA-256 of the
   bytes published. Neither the stored sha nor the uploaded file name is published (a link's label
@@ -109,26 +129,38 @@ carry.
   why, before pushing anything. The receiver gives a request 30 s, body included, so a unit must
   also be small enough to upload in that time.
 - **No script on a page, checked twice.** The publish mode writes a fixed meta CSP into the page,
-  `default-src 'none'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; font-src 'self'`,
-  with no `script-src`, and scrap checks it is there. scrap checks the uploaded HTML against
-  pagehtml's allow-list (elements, attributes, `href` and `src` values, and `style` only inside
-  KaTeX's markup, limited to the properties KaTeX itself writes) and refuses a mismatch with `422`; it never cleans
-  it. nginx sends `script-src 'none'` on everything under `/p/` and `/t/`; only the home page may
-  run a script, Pagefind's. The receiver limits what each unit may hold: a page only its
+  `default-src 'none'; img-src 'self' data:; style-src 'self'; style-src-attr 'unsafe-inline';
+  font-src 'self'`, with no `script-src` (inline styles only as attributes, for KaTeX), and scrap
+  checks it is there. scrap parses the upload with a WHATWG-conformant parser (html5lib), matches
+  elements and attributes by namespace and name, and checks it against pagehtml's allow-list
+  (elements, attributes, `href` and `src` values, no `<style>` element, and `style` attributes
+  only inside KaTeX's markup, limited to the attributes and properties KaTeX itself writes, taken
+  from `katex.mjs`). A mismatch is refused with `422`; scrap never cleans the HTML. The `katex`
+  class gate is visual hygiene, not a security boundary: the boundary is the CSP with
+  `script-src 'none'`, the allow-list, and an upload reachable only from the owner's PWA
+  session. nginx sends `script-src 'none'` on everything under `/p/` and `/t/`; only the home
+  page may run a script, Pagefind's. The receiver limits what each unit may hold: a page only its
   `index.html`, `img-*` and `file-*`; `.js` and `.wasm` only in `pagefind`; CSS and fonts only in
   `assets`; tag and home units HTML only.
 - **scrap keeps what it pushed.** For each public page scrap keeps the unit as last pushed under
-  `<data>/cache/publish/p/<slug>/`: `index.html`, its `img-*` and `file-*`, and `files.json`
-  (each name's stored sha, kind and SHA-256). It is derived data, not backed up. From these copies
-  scrap builds the home page, the tag pages and the Pagefind index (the `pagefind[bin]` Python
-  package, at a pinned version), with plain Python templates and no Markdown. Builds are
-  deterministic (sorted order, no timestamps), so an unchanged unit keeps its digest.
-- **Reconciling.** At startup and every 10 minutes scrap reads the receiver's manifest, compares
-  each unit's digest with the one it last pushed and stored (not with a fresh build), and pushes
-  again from the kept bytes whatever is missing or differs, then asks the receiver to delete
-  every unit it does not mean to keep. Nothing is rendered, so a site that lost its files is
-  refilled without the PWA. A kept copy that is missing or damaged is not pushed: its unit is
-  deleted, and the next Refresh all puts it back.
+  `<data>/cache/publish/p/<slug>/`: `index.html`, its `img-*` and `file-*`, `files.json` (each
+  name's stored sha, kind and SHA-256) and `meta.json` (the page's id, title, tags at publish
+  time and `published_at`). It is derived data, not backed up. From these copies scrap builds the
+  home page (newest `published_at` first), the tag pages and the Pagefind index (the
+  `pagefind[bin]` Python package, at a pinned version), with plain Python templates and no
+  Markdown. Pagefind indexes each page with its KaTeX markup removed and the formula's TeX in its
+  place. Builds are deterministic (sorted order, no timestamps), so an unchanged unit keeps its
+  digest.
+- **Reconciling.** At startup scrap first builds the derived units (home, the tag pages, search
+  and assets) fresh and pushes any whose digest changed, which covers a new KaTeX, new templates
+  or a new Pagefind after an upgrade. Then, at startup and every 10 minutes, it keeps only the
+  copies of pages that are public and not in the trash (deleting the rest, and their units),
+  reads the receiver's manifest, compares each unit's digest with the one it last pushed and
+  stored (not with a fresh build), pushes again from the kept bytes whatever is missing or
+  differs, and asks the receiver to delete every stray unit. Nothing is rendered, so a site that
+  lost its files is refilled without the PWA. A kept copy that is missing or damaged is deleted
+  with its unit, and home, tags and search are rebuilt; the next Refresh all publishes the page
+  again.
 - **One lock in scrap.** Every publish, unpublish and reconcile step runs under a single lock,
   and reconcile reads the kept copies again under it before each push, so an unpublish can never
   be undone by a reconcile that read the copy just before it was deleted. The receiver has its
@@ -143,8 +175,9 @@ carry.
 - **Kubernetes first.** The chart gets a `public` section, off by default:
   - a `scrap-public` namespace under Pod Security `restricted`;
   - a NetworkPolicy per port: nginx's port (8080) takes traffic from the chart's
-    `public.networkPolicy.webFrom`, the receiver's port (8081) only from scrap's pods, and the public
-    pods have no egress at all;
+    `public.networkPolicy.webFrom`, the receiver's port (8081) only from scrap's pods, and the
+    public pods have no egress at all. `webFrom` defaults to `[]`, which admits anyone to nginx's port
+    (it is the public side); set it to narrow that to the ingress controller;
   - the token in a Secret the chart names but never creates (as for scrap's other secrets),
     mounted as a file in both scrap and the receiver;
   - nginx alone behind an Ingress; the receiver has a cluster-internal Service only,
@@ -163,9 +196,10 @@ carry.
   plainly.
 - **Headers.** The home page's HTML gets a strict CSP that allows only scripts from the site
   (Pagefind's and `scrap-search.js`; there is no inline script), with `connect-src 'self'` for the
-  index Pagefind fetches. Pages and tag pages get the same with `script-src 'none'`. A page's
-  images and files get the headers ADR 42 gives stored files: a sandboxing CSP that loads nothing,
-  and for a PDF `sandbox` alone, so a browser's PDF viewer works.
+  index Pagefind fetches. Pages and tag pages get `script-src 'none'`, and styles only from
+  `/assets/` plus KaTeX's style attributes (`style-src 'self'; style-src-attr 'unsafe-inline'`).
+  A page's images and files get the headers ADR 42 gives stored files: a sandboxing CSP that
+  loads nothing, and for a PDF `sandbox` alone, so a browser's PDF viewer works.
 - **The scrap-to-gist skill is removed** from the repo: `skills/scrap-to-gist/`, its tests, its
   `install.sh` entry and its docs. `install.sh` does not delete a copy already installed in
   `~/.claude/skills/scrap-to-gist`: it is the owner's to remove.
@@ -186,6 +220,7 @@ carry.
   revert or by the trash) keeps a live link to a 404 until Refresh all, the PWA's re-render of
   linking pages, or that page's next save. That is accepted: there is no stale tracking.
 - A public page's photos are its 2048-pixel previews, and at most 20 images and files go with it.
+  Drawings stay private until the follow-up that publishes them.
 - Any change to what `pagehtml.ts` writes in publish mode must keep to the allow-list scrap
   checks, or publishing fails with `422`: the two change together.
 - The site can be lost and rebuilt at any time; scrap's data folder holds the copy that matters.
