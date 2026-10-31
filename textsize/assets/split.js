@@ -1,3 +1,0 @@
-var e=/⟦(?:image|file) (\d+)(?::[^⟦⟧\n]*)?⟧/g,t=t=>t.split(`
-`).flatMap(t=>{let n=t.replace(e,(e,t)=>t===`1`?e:``);return n.trim()||!t.trim()?[n]:[]}).join(`
-`),n=e=>e.files.map((n,r)=>{let i=!r&&e.text&&e.place?t(e.text):r?void 0:e.text,a={...!r&&{text:i,url:e.url},source:e.source,files:[n]},o=[`tags`,`page`,`to`],s=[`kind`,`hint`,`due`,`priority`,`place`];for(let t of r?o:[...o,...s])e[t]&&Object.assign(a,{[t]:e[t]});return a});export{n as t};
