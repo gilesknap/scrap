@@ -14,7 +14,7 @@ from dataclasses import dataclass, field
 from typing import Any
 from urllib.parse import quote
 
-from .markdown import Link, rewrite
+from .markdown import Link, rewrite, wiki_parts
 from .public import public_urls
 from .store import Store
 
@@ -43,8 +43,9 @@ class Extras:
         def full(link: Link) -> str | None:
             if link.kind != "wiki" or link.embed:
                 return None
-            label = (link.label or link.target).replace("[", "(").replace("]", ")")
-            return f"[{label}]({base}/p/{quote(link.target, safe='')})"
+            target, label = wiki_parts(link.target)  # [[slug|label]], or \| in a table
+            label = (label or target).replace("[", "(").replace("]", ")")
+            return f"[{label}]({base}/p/{quote(target, safe='')})"
 
         return rewrite(text, full)
 

@@ -134,6 +134,25 @@ def test_slug_links_are_full_addresses_only_when_set(client, cast, monkeypatch):
     assert md(client, fenced).count(f"[[{slug}]]") == 3  # code and an embed: as typed
 
 
+def test_labelled_slug_links_keep_the_label_out_of_the_address(
+    client, cast, monkeypatch
+):
+    """[[slug|label]] downloads as [label](.../p/slug), in a table cell (\\|) too
+    (#491)."""
+    slug = cast[0]["slug"]
+    page = add(
+        client,
+        f"Labels\nsee [[{slug}|the alpha page]] and [[{slug}]]\n\n"
+        f"| a | b |\n| --- | --- |\n| [[{slug}\\|in a table]] | x |",
+    )
+    monkeypatch.setenv("SCRAP_PUBLIC_URL", "https://scrap.example/")
+    text = md(client, page)
+    address = f"(https://scrap.example/p/{slug})"
+    assert f"see [the alpha page]{address} and [{slug}]{address}" in text
+    assert f"| [in a table]{address} | x |" in text
+    assert "%7C" not in text and "[[" not in text
+
+
 def test_export_keeps_the_notes_and_the_rest_out_of_the_pages(
     client, cast, data, tmp_path
 ):
