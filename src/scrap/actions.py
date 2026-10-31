@@ -15,6 +15,7 @@ import html
 import logging
 import re
 import sqlite3
+from datetime import date
 from typing import Any
 
 from .markdown import tasks
@@ -22,13 +23,26 @@ from .query import CONTROL
 from .store import CLAUDE, MCP, ConflictError, InvalidError, Store
 from .store.roles import may_rekind
 
-__all__ = ["MAX_ITEMS", "MAX_ITEM", "accepted", "append", "clean_items", "clean_intent"]
+__all__ = [
+    "MAX_ITEMS",
+    "MAX_ITEM",
+    "MEDIUM_ITEMS",
+    "accepted",
+    "append",
+    "clean_due",
+    "clean_items",
+    "clean_intent",
+    "due_day",
+    "set_due",
+]
 
 log = logging.getLogger(__name__)
 
 MAX_ITEMS = 30  # boxes added to a page at most
 MAX_ITEM = 200  # characters in one
 INTENT, HIGH = "list-of-actions", "high"
+MEDIUM_ITEMS = 3  # entries that let a photo of handwriting pass at medium confidence
+DUE = re.compile(r"\d{4}-\d{2}-\d{2}|\d{2}-\d{2}")  # YYYY-MM-DD, or MM-DD (no year)
 LINK = re.compile(r"!?\[([^\]]*)\]\([^)]*\)")  # [label](address): label only
 # List, quote and heading marks, numbers, checkbox marks and strike-through, leading
 LEAD = re.compile(r"^(?:[-+*#>|=]+|\d{1,3}[.)]|\[[ xX]?\]|~~|\s)+")
@@ -70,9 +84,67 @@ def clean_items(raw: Any) -> list[tuple[str, bool]]:
     return out
 
 
-def accepted(intent: str, confidence: str, items: list[tuple[str, bool]]) -> bool:
-    """Whether a reading is a confident list of actions with entries."""
-    return intent == INTENT and confidence == HIGH and bool(items)
+def accepted(
+    intent: str,
+    confidence: str,
+    items: list[tuple[str, bool]],
+    *,
+    handwritten: bool = False,
+) -> bool:
+    """Whether a reading is a confident list of actions with entries. For a photo of
+    a whiteboard, handwriting or a document (handwritten) medium confidence passes too
+    with at least MEDIUM_ITEMS entries: doubt marks "(?)" and doodles make the model
+    less sure of a plain to-do list (#465). Low never passes."""
+    if intent != INTENT or not items:
+        return False
+    return confidence == HIGH or (
+        handwritten and confidence == "medium" and len(items) >= MEDIUM_ITEMS
+    )
+
+
+def clean_due(raw: Any) -> str:
+    """The date the page gives for its list, as the model answered: YYYY-MM-DD, or
+    MM-DD when the page writes no year; else empty."""
+    value = raw.strip() if isinstance(raw, str) else ""
+    return value if DUE.fullmatch(value) else ""
+
+
+def due_day(raw: Any, today: date) -> str | None:
+    """A todo's due day (YYYY-MM-DD) from the model's due, or None when it gave none
+    or an impossible date. A date with no year (MM-DD) is its next occurrence on or
+    after today (29 February: the next leap year)."""
+    value = clean_due(raw)
+    if not value:
+        return None
+    try:
+        if len(value) == 10:
+            return date.fromisoformat(value).isoformat()
+        month, dom = int(value[:2]), int(value[3:])
+        for year in range(today.year, today.year + 9):
+            try:
+                found = date(year, month, dom)
+            except ValueError:
+                continue
+            if found >= today:
+                return found.isoformat()
+    except ValueError:
+        pass
+    return None
+
+
+def set_due(store: Store, page_id: str, due: str) -> bool:
+    """Give a todo the due date the page names, as a revision by Claude that revert
+    undoes; whether it did. Nothing (False) unless the page is a todo with no due date
+    yet: one the user dated is never changed."""
+    try:
+        page = store.page(page_id)
+        if page["kind"] != "todo" or page.get("due"):
+            return False
+        done = store.edit_meta([page_id], CLAUDE, MCP, fields={"due": due})
+    except (ConflictError, InvalidError, KeyError) as error:
+        log.info("due date skipped: %s", error)
+        return False
+    return bool(done["pages"][0]["changed"])
 
 
 def boxes(items: list[tuple[str, bool]]) -> str:
