@@ -158,6 +158,20 @@ BLOCK = "```math\n\\Large\n{}\n```\n\n&nbsp;\n"
         ),
         ("<span>$x$</span>", "&lt;span>$`\\large x`$&lt;/span>\n"),
         (f"x\n{PICTURE}\n\n&nbsp;", f"x\n{PICTURE}\n\n&nbsp;\n"),
+        # $$...$$ filling whole lines after a paragraph line is centred in scrap: a
+        # math block, with no hard break before it
+        (
+            "Multiply out:\n$$\n(x+1)^2\n$$\nso $x=2$.",
+            "Multiply out:\n" + BLOCK.format("(x+1)^2") + "\nso $`\\large x=2`$.\n",
+        ),
+        ("Text\n$$x$$\nmore", "Text\n" + BLOCK.format("x") + "\nmore\n"),
+        ("Text\n    $$x$$", "Text\\\n    $`\\displaystyle\\Large x`$\n"),
+        ("$$a\n$$b\n$$", "$`\\displaystyle\\Large a\n`$b\\\n\\$\\$\n"),
+        ("Text\n$$a$$ b", "Text\\\n$`\\displaystyle\\Large a`$ b\n"),
+        (
+            "> Text\n> $$\n> y\n> $$",
+            "> Text\n> ```math\n> \\Large\n> y\n> ```\n>\n> &nbsp;\n>\n",
+        ),
     ],
 )
 def test_convert(text, want):

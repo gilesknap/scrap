@@ -85,6 +85,7 @@ class Converter:
         self.links = links
         self.host = scrap_host
         self.maths: list[str] = []
+        self.spans: list[tuple[int, int]] = []  # where inline() found maths in its src
 
     def link(self, slug: str) -> str:
         if slug in self.links:
@@ -175,6 +176,7 @@ class Converter:
                 )
                 kind = "line" if whole else "double" if double else "inline"
                 out.append(self.inline_math(tex, kind))
+                self.spans.append((i, end))
                 i = text = end
             elif wiki and src.startswith("[[", i):
                 end = i + 2
@@ -225,6 +227,28 @@ class Converter:
         """A paragraph's lines, converted with their prefixes put back."""
         texts = self.inline("\n".join(t for _, t in para), breaks=True).split("\n")
         return [p + t for (p, _), t in zip(para, texts, strict=True)]
+
+    def fills_lines(
+        self, para: list[tuple[str, str]], lines: list[str], i: int, j: int, prefix: str
+    ) -> bool:
+        """Whether lines i to j (a $$ block after a paragraph line, so inline maths in
+        scrap) are one $$...$$ and nothing else. scrap draws that centred, as display
+        maths, so it becomes a math block too."""
+        cont = cont_of(prefix)
+        seg = [lines[i][len(prefix) :]] + [
+            strip_prefix(x, cont) for x in lines[i + 1 : j]
+        ]
+        if indent_of(lines[i]) >= 4:
+            return False  # indented, it continues the paragraph
+        if any(x.startswith("\x00") for x in lines[i:j]):
+            return False  # a fence in it would end the paragraph in scrap
+        before = "\n".join(t for _, t in para) + "\n"
+        joined = before + "\n".join(seg).rstrip()
+        # read as scrap reads the paragraph: one formula from the $$ to the end
+        probe = Converter({}, "x")
+        probe.inline(joined)
+        start = len(before) + len(seg[0]) - len(seg[0].lstrip())
+        return (start, len(joined)) in probe.spans
 
     def blocks(self, lines: list[str], fences: list[tuple[str, str]]) -> list[str]:
         out: list[str] = []
@@ -280,8 +304,14 @@ class Converter:
             block: tuple[str, str, int] | None = None  # (tex, first prefix, next line)
             if m := re.fullmatch("\x00M(\\d+)\x00", line):
                 block = (fences[int(m[1])][1], fences[int(m[1])][0], i + 1)
-            elif stripped.startswith("$$") and not para:
+            elif stripped.startswith("$$"):
                 block = dollar_block(lines, i, prefix, stripped)
+                if (
+                    block
+                    and para
+                    and not self.fills_lines(para, lines, i, block[2], prefix)
+                ):
+                    block = None
             elif AMS_OPEN.match(text) and (indent_of(line) < 4 or LIST.match(after)):
                 block = ams_block(lines, i, prefix, text)
             if block:
