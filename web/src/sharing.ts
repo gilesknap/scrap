@@ -184,8 +184,10 @@ export function attach(b: HTMLButtonElement, s: Sharing) {
       if (!canShareFile(name, type)) return toast("Sharing files is not supported here");
       const got = await fetchFile(href, name);
       // An SVG (its own preview) goes as a PNG: many apps refuse SVG
-      const files = [got.type.startsWith(SVG) ? await svgAsPng(got) : got];
-      await shareFiles(title, files, "Photo ready");
+      const out = got.type.startsWith(SVG) ? await svgAsPng(got) : got;
+      // It could not be drawn: the SVG, which this phone may not share, is saved instead
+      if (out.type === SVG && !canShareFile(out.name, out.type)) return saveBlob(out, out.name);
+      await shareFiles(title, [out], "Photo ready");
     });
   const menu = h("div", { className: "share-menu", popover: "auto" });
   if (!s.link || !menu.showPopover) {

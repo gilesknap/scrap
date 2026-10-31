@@ -16,30 +16,60 @@ export function pngSize(width: number, height: number): [number, number] | null 
 /** The name with its extension (if any) replaced by ext. */
 export const withExt = (name: string, ext: string) => `${name.replace(/\.[^./]*$/, "")}.${ext}`;
 
-/** The SVG's own size: its width and height in px, else its viewBox's. */
-function ownSize(text: string, img: HTMLImageElement): [number, number] {
-  const root = new DOMParser().parseFromString(text, SVG).documentElement;
+const DEFAULT: [number, number] = [300, 150]; // a browser's size for an image with none
+
+/** The size an SVG is drawn from, given its root's width, height and viewBox attributes and the
+ * size the browser loaded it at (0 if none). Where the root says a width or height (in any
+ * unit), the browser's size; else a px width and height, or one of them with the viewBox's
+ * shape; else the viewBox; else the browser's size; else 300 x 150. */
+export function svgSize(
+  attr: (name: string) => string | null,
+  natural: [number, number],
+): [number, number] {
+  const [nw, nh] = natural;
+  const has = (a: string) => !!attr(a)?.trim();
+  if ((has("width") || has("height")) && nw > 0 && nh > 0) return natural;
   const px = (a: string) => {
-    const v = root.getAttribute(a)?.trim() ?? "";
-    return /^[\d.]+(px)?$/.test(v) ? Number.parseFloat(v) : 0;
+    const v = attr(a)?.trim() ?? "";
+    return /^\d*\.?\d+(px)?$/.test(v) ? Number.parseFloat(v) : 0;
   };
-  const box = (root.getAttribute("viewBox") ?? "")
+  const [w, h] = [px("width"), px("height")];
+  const box = (attr("viewBox") ?? "")
     .trim()
     .split(/[\s,]+/)
     .map(Number);
-  const w = px("width") || box[2] || img.naturalWidth;
-  const h = px("height") || box[3] || img.naturalHeight;
-  return [w, h];
+  const [bw, bh] = box.length === 4 && box[2] > 0 && box[3] > 0 ? [box[2], box[3]] : [0, 0];
+  if (w > 0 && h > 0) return [w, h];
+  if (bw) {
+    if (w > 0) return [w, (w * bh) / bw];
+    if (h > 0) return [(h * bw) / bh, h];
+    return [bw, bh];
+  }
+  if (nw > 0 && nh > 0) return natural;
+  return DEFAULT;
+}
+
+/** Load the SVG as an image: on load (WebKit's decode() of an SVG is not to be relied on). */
+async function load(url: string): Promise<HTMLImageElement> {
+  const img = new Image();
+  await new Promise((done, fail) => {
+    img.onload = done;
+    img.onerror = () => fail(new Error("not an image"));
+    img.src = url;
+  });
+  await img.decode?.().catch(() => {}); // ready to draw, where the browser can say so
+  return img;
 }
 
 /** Draw the SVG on white (a transparent diagram stays legible on a dark chat) as a PNG. */
 async function draw(svg: Blob): Promise<Blob> {
   const url = URL.createObjectURL(svg);
   try {
-    const img = new Image();
-    img.src = url;
-    await img.decode();
-    const size = pngSize(...ownSize(await svg.text(), img));
+    const img = await load(url);
+    const root = new DOMParser().parseFromString(await svg.text(), SVG).documentElement;
+    const size = pngSize(
+      ...svgSize((a) => root.getAttribute(a), [img.naturalWidth, img.naturalHeight]),
+    );
     if (!size) throw new Error("no size");
     const [w, h] = size;
     const canvas = document.createElement("canvas");
