@@ -60,6 +60,19 @@ class Ctx:
     def link(self, slug: str) -> str:
         return f"{self.base}/p/{slug}"
 
+    def blob_download(self, sha: str) -> str:
+        """A file's address for an MCP client: /mcp/blobs/<sha>, behind the same
+        headers as /mcp (the bearer token, and the proxy's service token)."""
+        return f"{self.base}/mcp/blobs/{sha}"
+
+    def drawing_download(self, cid: str, sha: str) -> str:
+        """A photo's whole drawing as an .excalidraw file, for an MCP client."""
+        return f"{self.base}/mcp/captures/{cid}/photos/{sha}/drawing.excalidraw"
+
+    def page_download(self, page_id: str) -> str:
+        """A page as .md, or .zip with its files, for an MCP client."""
+        return f"{self.base}/mcp/pages/{page_id}/download"
+
     def row(
         self, hit: dict[str, Any], tags: list[str], image: dict[str, Any] | None
     ) -> dict[str, Any]:
@@ -88,6 +101,7 @@ class Ctx:
                 "image_url": f"{self.base}/api/blobs/{image['sha256']}",
                 "thumbnail_url": f"{self.base}/api/blobs/{image['sha256']}"
                 "/preview?size=480",
+                "image_download_url": self.blob_download(image["sha256"]),
             }
         return out
 

@@ -119,8 +119,8 @@ backup:
 What each part does:
 
 - `ingest` turns on Claude ingest, reading the API key from `scrap-secrets`.
-- `mcp.tokenSecret` makes `/mcp` require `Authorization: Bearer <token>`. The web app, the API
-  and `/healthz` are not affected.
+- `mcp.tokenSecret` makes `/mcp`, and the downloads under it, require
+  `Authorization: Bearer <token>`. The web app, the API and `/healthz` are not affected.
 - `identityHeader` records the signed-in email, which Cloudflare Access adds to each request,
   as the author of a change. Changes made through `/mcp` are always author `claude`.
 - `SCRAP_PUBLIC_URL` is the address you reach scrap at. `/mcp`, the web app and the API answer `421`
@@ -256,7 +256,10 @@ accepts a machine credential instead.
    `scrap-mcp`. Remove any email policy from this application.
 
 Cloudflare matches the most specific application, so `/mcp` uses the service-token policy and
-every other path uses the email PIN. You check that in the next section.
+every other path uses the email PIN. You check that in the next section. The path covers what is
+under it too: the downloads MCP clients fetch (images, files, drawings and page downloads under
+`/mcp/blobs/...`, `/mcp/pages/...` and `/mcp/captures/...`) take the same service token and
+bearer token, with no extra Access application.
 
 ## 6. Check it works
 

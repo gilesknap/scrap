@@ -30,6 +30,9 @@ class BodyLimit:
         await self.app(scope, counted, send)
 
 
+FILES = ("/api/blobs/", "/mcp/blobs/")  # stored files and previews, either path
+
+
 class TextGzip:
     """Gzip what compresses: the PWA's scripts, styles and pages, and the API's JSON
     (a drawing is up to 5 MB of it). Not files (blobs, previews, downloads: photos and
@@ -42,7 +45,7 @@ class TextGzip:
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         path = scope.get("path", "")
-        files = path.startswith("/api/blobs/") or path.endswith("/download")
+        files = path.startswith(FILES) or path.endswith("/download")
         ranged = any(k == b"range" for k, _ in scope.get("headers", ()))
         if scope["type"] != "http" or files or ranged:
             await self.app(scope, receive, send)

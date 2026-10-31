@@ -138,7 +138,8 @@ def tokens() -> list[str]:
 
 
 class BearerAuth:
-    """ASGI middleware: /mcp (only) needs `Authorization: Bearer <token>`, one of
+    """ASGI middleware: /mcp and everything under it (only; mcp_files' downloads
+    too) needs `Authorization: Bearer <token>`, one of
     `tokens`, else 401 with `WWW-Authenticate: Bearer`. It runs ahead of the Host and
     Origin checks and of every tool. Compared in constant time; the token is never
     logged or echoed."""
