@@ -340,8 +340,9 @@ These commands replace the earlier single `/s <verb>` skill (`/s post`, `/s tidy
 (a skill and a command of the same name clash) and `~/.claude/skills/scrap-post` after installing
 these. The `scrap-to-gist` skill, which earlier releases installed, is removed
 too ([ADR 43](../explanations/decisions/0043-public-pages-a-static-site-scrap-pushes-to.md):
-public pages take its place); the installer leaves an installed copy alone, so delete
-`~/.claude/skills/scrap-to-gist` when you no longer want it. Only the scrap tools are used. `<SCRAP_URL>` in the
+public pages, still being built, are planned to take its place); the installer leaves an
+installed copy alone, so delete `~/.claude/skills/scrap-to-gist` when you no longer want it.
+Only the scrap tools are used. `<SCRAP_URL>` in the
 commands is a placeholder (the hint they give when the tools are missing, and the shape of the
 page URL they report); the real URL comes from the `write` tool, built from `SCRAP_PUBLIC_URL`.
 

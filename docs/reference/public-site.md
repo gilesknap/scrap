@@ -303,7 +303,7 @@ writes one HTML file, which scrap then checks ([](#what-scrap-sends-for-a-page))
 the PWA's side (the toggle, the badge, the dialogs) is on the sim's design branch,
 `design/497-public-pages`.
 
-Marked *default* below: a choice the owner may still change, kept in one place so it is easy to.
+Marked *default* below: a choice the owner may still change, kept in one place so it is easy to change.
 
 **Included**
 

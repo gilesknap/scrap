@@ -90,7 +90,7 @@ opened directly.
   `gh gist create` takes it as a text file, so a page with SVG diagrams can be published as a gist
   of text files alone, with no clone or push for binaries.
   Update (2026-10-31): removed by [](0043-public-pages-a-static-site-scrap-pushes-to.md), with
-  the scrap-to-gist skill; public pages go to a static site instead.
+  the scrap-to-gist skill; public pages are planned to go to a static site instead.
 - A client with the MCP headers can add files to any page, unless `SCRAP_MCP_UPLOAD=0`.
 - An SVG stored before #480 was not sanitised; `STRICT_HEADERS` still keeps it from running or
   fetching anything when it is opened.
