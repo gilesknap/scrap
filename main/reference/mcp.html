@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>MCP server &#8212; scrap 1.2.1.dev1+ge7b45adaf documentation</title>
+    <title>MCP server &#8212; scrap 1.2.1.dev2+g09d965aaf documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=4bc4f72b"></script>
+    <script src="../_static/documentation_options.js?v=eee61f0a"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -1331,13 +1331,18 @@ revision: who made it (<code class="docutils literal notranslate"><span class="p
 the kind (and whether it was fixed) and tags before and after, and the default fields a new kind
 added. Changes by the same author from the same source within <code class="docutils literal notranslate"><span class="pre">SCRAP_REVISION_WINDOW</span></code> seconds
 (default 300) of a revision being made fold into it, as long as nothing else changed the page’s
-kind or tags between, so a burst of edits is one revision; a burst that ends where it started
-leaves none. A revert, and a change in a batch, never folds, nor is folded into. A page’s first
-revision records the state it had before (pages need no backfill). Revisions keep kind and tag
-names only: never a copy of the text or of a file, nor what a model derived (summaries, image
-descriptions, the tags ingest gives a photo, the kind task boxes file a note as), which can be
-made again. Text keeps its own revisions (<code class="docutils literal notranslate"><span class="pre">page_rev</span></code>, every title or body change), which
-<code class="docutils literal notranslate"><span class="pre">revisions</span></code> lists, <code class="docutils literal notranslate"><span class="pre">text_rev</span></code> reads and <code class="docutils literal notranslate"><span class="pre">revert</span></code> with <code class="docutils literal notranslate"><span class="pre">to_rev</span></code> restores (see Page text).</p></li>
+kind or tags between and they change the same things, so a burst of edits is one revision: kind
+and tag changes fold together (with the default fields a new kind adds), and an <code class="docutils literal notranslate"><span class="pre">edit_meta</span></code> of
+<code class="docutils literal notranslate"><span class="pre">fields</span></code> folds only into one of the same fields (<code class="docutils literal notranslate"><span class="pre">media_type</span></code> and its <code class="docutils literal notranslate"><span class="pre">subtype</span></code> count as one), so
+a status set just after a kind change is a revision of its own, which a revert undoes keeping the
+kind; a burst that ends where it started and set no field leaves none (one that set a field and
+put it back keeps its revision). A revert, and a change in a batch, never folds, nor is folded
+into. A page’s first revision records the state it had before (pages need no backfill). Revisions
+keep kind and tag names only: never a copy of the text or of a file, nor what a model derived
+(summaries, image descriptions, the tags ingest gives a photo, the kind task boxes file a note
+as), which can be made again. Text keeps its own revisions (<code class="docutils literal notranslate"><span class="pre">page_rev</span></code>, every title or body
+change), which <code class="docutils literal notranslate"><span class="pre">revisions</span></code> lists, <code class="docutils literal notranslate"><span class="pre">text_rev</span></code> reads and <code class="docutils literal notranslate"><span class="pre">revert</span></code> with <code class="docutils literal notranslate"><span class="pre">to_rev</span></code> restores (see Page
+text).</p></li>
 <li><p><strong>Claude’s tags.</strong> A tag that scrap’s Claude enrichment added (<code class="docutils literal notranslate"><span class="pre">read</span></code>’s <code class="docutils literal notranslate"><span class="pre">by_model.tags</span></code>) and
 that <code class="docutils literal notranslate"><span class="pre">edit_meta</span></code>, <code class="docutils literal notranslate"><span class="pre">rename_tag</span></code> or <code class="docutils literal notranslate"><span class="pre">revert</span></code> then takes off counts as off: enrichment never adds
 it back, as when the user removes it in the PWA. Putting it back makes it the user’s tag.</p></li>
@@ -1425,9 +1430,11 @@ snapshot, not many: the burst’s text replaces that revision, keeping when it w
 a new number</strong> (rev + 1, never one used before). <code class="docutils literal notranslate"><span class="pre">rev</span></code> is also the PWA’s edit token, so an
 editor that loaded the page between two edits of a burst gets a conflict (409) on saving, never
 a silent overwrite; the burst leaves a gap in the numbers. Never folded into: a page’s first
-revision, a revision by anyone else or from another source (a PWA edit between ends the burst), and one holding the
-body of an earlier revision (a text <code class="docutils literal notranslate"><span class="pre">revert</span></code>’s, whatever its title). A text <code class="docutils literal notranslate"><span class="pre">revert</span></code> itself
-never folds. Claude’s latest revision may be an append to its own page: an edit then folds
+revision, a revision by anyone else or from another source (a PWA edit between ends the
+burst), one holding the body of an earlier revision (a text <code class="docutils literal notranslate"><span class="pre">revert</span></code>’s, whatever its title),
+and one with a file whose address (<code class="docutils literal notranslate"><span class="pre">/api/blobs/&lt;sha&gt;</span></code>) the new text no longer has: deleting an
+embed keeps the revision that had it, so the file counts as removed from the page, not as
+attached but never placed. A text <code class="docutils literal notranslate"><span class="pre">revert</span></code> itself never folds. Claude’s latest revision may be an append to its own page: an edit then folds
 into it, losing only the snapshot just after the append (its text stays in the page, and in
 the append’s capture). The author is <code class="docutils literal notranslate"><span class="pre">claude</span></code> for every MCP session, so two sessions editing
 one page within the window fold into each other.</p></li>
