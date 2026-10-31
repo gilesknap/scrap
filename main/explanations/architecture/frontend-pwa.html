@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>The PWA &#8212; scrap 1.0.1.dev3+g97eda272e documentation</title>
+    <title>The PWA &#8212; scrap 1.0.1.dev4+g29cf73157 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../../_static/documentation_options.js?v=6f3ee512"></script>
+    <script src="../../_static/documentation_options.js?v=b14894da"></script>
     <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -978,7 +978,8 @@ precached by the service worker, so they work offline.</p>
 view’s signal on each navigation. <code class="docutils literal notranslate"><span class="pre">go()</span></code> in <code class="docutils literal notranslate"><span class="pre">app.ts</span></code> records Back marks in <code class="docutils literal notranslate"><span class="pre">history.state</span></code>;
 Back in the top bar goes to the linking page, else the list, else a parent (<code class="docutils literal notranslate"><span class="pre">back.ts</span></code>).</p></li>
 <li><p><strong>Precached chunks</strong> (<code class="docutils literal notranslate"><span class="pre">OFFLINE</span></code> in <code class="docutils literal notranslate"><span class="pre">web/vite.config.ts</span></code>): <code class="docutils literal notranslate"><span class="pre">back</span></code>, <code class="docutils literal notranslate"><span class="pre">composer</span></code>, <code class="docutils literal notranslate"><span class="pre">downscale</span></code>,
-<code class="docutils literal notranslate"><span class="pre">editor</span></code>, <code class="docutils literal notranslate"><span class="pre">figure</span></code> (a photo’s panel and its drawing preview; it imports <code class="docutils literal notranslate"><span class="pre">ingest</span></code>), <code class="docutils literal notranslate"><span class="pre">page</span></code>, <code class="docutils literal notranslate"><span class="pre">pageedit</span></code>, <code class="docutils literal notranslate"><span class="pre">render</span></code>, <code class="docutils literal notranslate"><span class="pre">sharing</span></code>, <code class="docutils literal notranslate"><span class="pre">refine</span></code>, <code class="docutils literal notranslate"><span class="pre">searches</span></code>.</p></li>
+<code class="docutils literal notranslate"><span class="pre">editor</span></code>, <code class="docutils literal notranslate"><span class="pre">figure</span></code> (a photo’s panel and its drawing preview; it imports <code class="docutils literal notranslate"><span class="pre">ingest</span></code>), <code class="docutils literal notranslate"><span class="pre">math</span></code>
+(KaTeX, its CSS and WOFF2 fonts), <code class="docutils literal notranslate"><span class="pre">page</span></code>, <code class="docutils literal notranslate"><span class="pre">pageedit</span></code>, <code class="docutils literal notranslate"><span class="pre">render</span></code>, <code class="docutils literal notranslate"><span class="pre">sharing</span></code>, <code class="docutils literal notranslate"><span class="pre">refine</span></code>, <code class="docutils literal notranslate"><span class="pre">searches</span></code>.</p></li>
 <li><p><strong>Not precached</strong>: the Excalidraw board chunk and its fonts (served from <code class="docutils literal notranslate"><span class="pre">/excalidraw/fonts/</span></code>,
 not a CDN) and Mermaid. Offline, a drawing does not open and a Mermaid block stays as code.</p></li>
 <li><p><strong>Filters</strong> is an in-place panel (<code class="docutils literal notranslate"><span class="pre">refine.ts</span></code>), not a modal or sheet.</p></li>
@@ -1074,7 +1075,13 @@ loaded by <code class="docutils literal notranslate"><span class="pre">md.ts</sp
 sides agree on the output (<a class="reference internal" href="../decisions/0014-markdown-parsed-by-a-library-on-both-sides.html"><span class="std std-doc">14. Page text is Markdown, parsed by a library on both sides</span></a>).
 After rendering, <code class="docutils literal notranslate"><span class="pre">diagrams()</span></code> looks for <code class="docutils literal notranslate"><span class="pre">pre</span> <span class="pre">&gt;</span> <span class="pre">code.language-mermaid</span></code> blocks and only then loads
 <code class="docutils literal notranslate"><span class="pre">mermaid.ts</span></code>. Mermaid runs with <code class="docutils literal notranslate"><span class="pre">securityLevel:</span> <span class="pre">&quot;strict&quot;</span></code>, follows the app theme, is bundled (no
-CDN) and leaves any block it cannot parse as code.</p>
+CDN) and leaves any block it cannot parse as code.
+Maths works the same way: <code class="docutils literal notranslate"><span class="pre">mathrules.ts</span></code> turns <code class="docutils literal notranslate"><span class="pre">$...$</span></code>, <code class="docutils literal notranslate"><span class="pre">$$...$$</span></code> and top-level amsmath
+environments into <code class="docutils literal notranslate"><span class="pre">.math</span></code> elements holding their TeX (the server’s <code class="docutils literal notranslate"><span class="pre">maths.py</span></code> follows the same
+rules, so a formula’s <code class="docutils literal notranslate"><span class="pre">_</span></code> or <code class="docutils literal notranslate"><span class="pre">[[</span></code> is never emphasis or a link to search), and <code class="docutils literal notranslate"><span class="pre">math()</span></code> loads
+<code class="docutils literal notranslate"><span class="pre">math.ts</span></code> (KaTeX, <code class="docutils literal notranslate"><span class="pre">trust:</span> <span class="pre">false</span></code>) only for a page that has some, or a <code class="docutils literal notranslate"><span class="pre">```math</span></code> block. A
+formula KaTeX cannot draw keeps its TeX. Shared cases in <code class="docutils literal notranslate"><span class="pre">tests/maths_cases.json</span></code> hold both
+parsers to the same answers.</p>
 </section>
 <section id="excalidraw">
 <h2>Excalidraw<a class="headerlink" href="#excalidraw" title="Link to this heading">#</a></h2>

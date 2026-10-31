@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Capture from your phone (the PWA) &#8212; scrap 1.0.1.dev3+g97eda272e documentation</title>
+    <title>Capture from your phone (the PWA) &#8212; scrap 1.0.1.dev4+g29cf73157 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=6f3ee512"></script>
+    <script src="../_static/documentation_options.js?v=b14894da"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -1457,6 +1457,12 @@ the tap is not saved: tap again. Boxes do not tick offline or in <strong>Preview
 <li><p><strong><code class="docutils literal notranslate"><span class="pre">[[slug]]</span></code>, <code class="docutils literal notranslate"><span class="pre">[[slug|label]]</span></code></strong> link to another page (in a table cell <code class="docutils literal notranslate"><span class="pre">[[slug\|label]]</span></code>).</p></li>
 <li><p>A <code class="docutils literal notranslate"><span class="pre">```mermaid</span></code> block is drawn as a <a class="reference external" href="https://mermaid.js.org">Mermaid</a> diagram; offline, or with
 a mistake, it shows as code.</p></li>
+<li><p><strong>Maths</strong> (LaTeX, drawn by <a class="reference external" href="https://katex.org">KaTeX</a>): <code class="docutils literal notranslate"><span class="pre">$x^2$</span></code> inline, <code class="docutils literal notranslate"><span class="pre">$$...$$</span></code> for a
+displayed formula (on lines of its own, or in a line), a <code class="docutils literal notranslate"><span class="pre">```math</span></code> block, or an environment
+such as <code class="docutils literal notranslate"><span class="pre">\begin{align}</span> <span class="pre">...</span> <span class="pre">\end{align}</span></code> on lines of its own. Money stays text: an opening <code class="docutils literal notranslate"><span class="pre">$</span></code> must
+not be followed by a space, a closing <code class="docutils literal notranslate"><span class="pre">$</span></code> must not follow a space nor be followed by a digit, so
+<code class="docutils literal notranslate"><span class="pre">$5</span> <span class="pre">and</span> <span class="pre">$10</span></code> is not maths (write <code class="docutils literal notranslate"><span class="pre">\$</span></code> for a <code class="docutils literal notranslate"><span class="pre">$</span></code> that would be). A formula with a mistake shows
+its TeX. Share’s HTML file has each formula’s TeX, as typed.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">[top](#my-heading)</span></code> scrolls to <code class="docutils literal notranslate"><span class="pre">##</span> <span class="pre">My</span> <span class="pre">Heading</span></code> (lower case, hyphens for spaces).</p></li>
 <li><p>HTML is shown as typed, never run. Images show only when they are this server’s own photos
 (another site’s image shows as a link named by its alt text, else its alt text). Links open only
@@ -1668,7 +1674,7 @@ the photo, with the description and text in the Markdown.</p></li>
 <li><p>It follows the phone’s light or dark theme and needs the server.</p></li>
 <li><p>Excalidraw is loaded only when a drawing is first shown (about 430 kB compressed; then cached
 by the browser), never for capture or search. Mermaid loads the same way, for a page with a
-diagram. Excalidraw’s fonts come from scrap itself, never a CDN; Chinese, Japanese and Korean
+diagram, and KaTeX for a page with maths (it is kept for offline use). Excalidraw’s fonts come from scrap itself, never a CDN; Chinese, Japanese and Korean
 handwriting falls back to a system font. <code class="docutils literal notranslate"><span class="pre">npm</span> <span class="pre">--prefix</span> <span class="pre">web</span> <span class="pre">run</span> <span class="pre">size</span></code> prints current figures.</p></li>
 </ul>
 </section>
@@ -1819,7 +1825,8 @@ from another folder without restarting, point <code class="docutils literal notr
 <ul class="simple">
 <li><p>Page text: <a class="reference external" href="https://github.com/markdown-it/markdown-it">markdown-it</a> and its
 <a class="reference external" href="https://github.com/markdown-it/markdown-it-footnote">footnote plugin</a> (MIT); diagrams:
-<a class="reference external" href="https://github.com/mermaid-js/mermaid">Mermaid</a> (MIT).</p></li>
+<a class="reference external" href="https://github.com/mermaid-js/mermaid">Mermaid</a> (MIT); maths:
+<a class="reference external" href="https://github.com/KaTeX/KaTeX">KaTeX</a> and its fonts (MIT).</p></li>
 <li><p>Drawing viewer: <a class="reference external" href="https://github.com/excalidraw/excalidraw">Excalidraw</a> (MIT). Its fonts are
 served as they come from the package, without licence texts: Excalifont, Virgil, Nunito, Lilita
 One, Cascadia Code and Liberation Sans (SIL OFL 1.1), Comic Shanns (MIT) and the interface font
