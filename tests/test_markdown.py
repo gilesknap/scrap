@@ -156,3 +156,25 @@ def test_a_megabyte_page_is_indexed():
     start = time.monotonic()
     assert "a label" in plain(text)
     assert time.monotonic() - start < 30  # about 3 s on the canary
+
+
+@pytest.mark.parametrize(
+    ("text", "out"),
+    [
+        ("[[a-page]]", "[a-page](</a-page>)"),
+        ("[[a-page|A page]]", "[A page](</a-page>)"),
+        ("[[a-page#intro]]", "[a-page#intro](</a-page>)"),
+        ("[[a-page#intro|Intro]]", "[Intro](</a-page>)"),
+        ("[[Some Title]]", "[[Some Title]]"),  # the PWA shows these as text
+        ("[[|lbl]]", "[[|lbl]]"),
+        ("[[#h]]", "[[#h]]"),
+        ("![[a-page]]", "![[a-page]]"),  # an embed
+        ("[x](/p/a-page)", "[x](/p/a-page)"),  # not a wiki link
+        ("| [[a-page\\|A]] | x |\n| - | - |", "| [A](</a-page>) | x |\n| - | - |"),
+        ("| [[a-page\\|a\\|b]] |\n| - |", "| [a\\|b](</a-page>) |\n| - |"),
+    ],
+)
+def test_wiki_link_to_an_address(text, out):
+    """[[slug]] links as Markdown links; anything the PWA doesn't link kept (#491)."""
+    href = lambda slug: f"</{slug}>"  # noqa: E731
+    assert rewrite(text, lambda link: markdown.wiki_link(link, href)) == out

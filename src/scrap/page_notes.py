@@ -14,7 +14,7 @@ from dataclasses import dataclass, field
 from typing import Any
 from urllib.parse import quote
 
-from .markdown import Link, rewrite, wiki_parts
+from .markdown import rewrite, wiki_link
 from .public import public_urls
 from .store import Store
 
@@ -40,14 +40,10 @@ class Extras:
             return text
         base = self.address
 
-        def full(link: Link) -> str | None:
-            if link.kind != "wiki" or link.embed:
-                return None
-            target, label = wiki_parts(link.target)  # [[slug|label]], or \| in a table
-            label = (label or target).replace("[", "(").replace("]", ")")
-            return f"[{label}]({base}/p/{quote(target, safe='')})"
+        def href(slug: str) -> str:
+            return f"{base}/p/{quote(slug, safe='')}"
 
-        return rewrite(text, full)
+        return rewrite(text, lambda link: wiki_link(link, href))
 
 
 def file_text(conn: sqlite3.Connection, cid: str, sha: str) -> tuple[str, bool] | None:

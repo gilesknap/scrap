@@ -137,20 +137,25 @@ def test_slug_links_are_full_addresses_only_when_set(client, cast, monkeypatch):
 def test_labelled_slug_links_keep_the_label_out_of_the_address(
     client, cast, monkeypatch
 ):
-    """[[slug|label]] downloads as [label](.../p/slug), in a table cell (\\|) too
-    (#491)."""
+    """[[slug|label]] downloads as [label](.../p/slug), in a table cell (\\|) too,
+    and [[slug#heading]] as .../p/slug; a target that is no slug is kept (#491)."""
     slug = cast[0]["slug"]
     page = add(
         client,
         f"Labels\nsee [[{slug}|the alpha page]] and [[{slug}]]\n\n"
-        f"| a | b |\n| --- | --- |\n| [[{slug}\\|in a table]] | x |",
+        f"| a | b |\n| --- | --- |\n| [[{slug}\\|in a table]] | x |\n"
+        f"| [[{slug}\\|a\\|b]] | y |\n\n"
+        f"to [[{slug}#intro|Intro]], [[{slug}#intro]]; [[Some Title]] [[#h]] [[|lbl]]",
     )
     monkeypatch.setenv("SCRAP_PUBLIC_URL", "https://scrap.example/")
     text = md(client, page)
     address = f"(https://scrap.example/p/{slug})"
     assert f"see [the alpha page]{address} and [{slug}]{address}" in text
     assert f"| [in a table]{address} | x |" in text
-    assert "%7C" not in text and "[[" not in text
+    assert f"| [a\\|b]{address} | y |" in text  # a bare | would end the cell
+    assert f"to [Intro]{address}, [{slug}#intro]{address};" in text
+    assert "[[Some Title]] [[#h]] [[|lbl]]" in text  # the PWA shows these as text
+    assert "%7C" not in text and "%23" not in text
 
 
 def test_export_keeps_the_notes_and_the_rest_out_of_the_pages(

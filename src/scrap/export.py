@@ -31,7 +31,7 @@ from urllib.parse import quote
 
 from .backup import _derived, _drawing_name, _fenced, _sha_name, localise
 from .drawing import excalidraw_file
-from .markdown import Link, rewrite, wiki_parts
+from .markdown import rewrite, wiki_link
 from .page_notes import NOTES_HEADING, Extras, _notes, _quoted
 from .store import Store
 from .store.todo import read as read_todo
@@ -115,15 +115,7 @@ def _here(slug: str) -> str:
 
 
 def _sidecar_links(text: str) -> str:
-    def local(link: Link) -> str | None:
-        if link.kind != "wiki" or link.embed:
-            return None
-        target, label = wiki_parts(link.target)
-        slug = target.split("#")[0]
-        label = (label or target).replace("[", "(").replace("]", ")")
-        return f"[{label}]({_here(slug)})" if slug else None
-
-    return rewrite(text, local)
+    return rewrite(text, lambda link: wiki_link(link, _here))
 
 
 def _page(store: Store, conn: sqlite3.Connection, row: sqlite3.Row) -> Page:

@@ -22,10 +22,19 @@ from mdit_py_plugins.footnote import footnote_plugin
 from .maths import maths_plugin
 from .public import origin
 
-__all__ = ["Link", "page_path", "plain", "rewrite", "wiki_parts", "wiki_targets"]
+__all__ = [
+    "Link",
+    "page_path",
+    "plain",
+    "rewrite",
+    "wiki_link",
+    "wiki_parts",
+    "wiki_targets",
+]
 
 Rule = Callable[[StateInline, bool], bool]
-PAGE_PATH = re.compile(r"/p/([a-z0-9-]+)")  # a page's path (render.ts PAGE), fullmatch
+SLUG = re.compile(r"[a-z0-9-]+")  # a page's slug (render.ts WIKI, PAGE), fullmatch
+PAGE_PATH = re.compile(rf"/p/({SLUG.pattern})")  # a page's path (PAGE), fullmatch
 
 
 def _wiki(state: StateInline, silent: bool) -> bool:
@@ -166,7 +175,8 @@ def plain(text: str) -> str:
 @dataclass
 class Link:
     kind: Literal["wiki", "link", "image"]
-    target: str  # a wiki link's target, else the address (percent-encoded)
+    target: str  # a wiki link's inner text (split it with wiki_parts), else the address
+    # (percent-encoded)
     label: str  # as typed: a wiki link's label, a link's text, an image's alt text
     embed: bool  # an image, or ![[target]]
     in_table: bool  # in a table cell: a pipe must be escaped
@@ -284,6 +294,29 @@ def rewrite(
         done = e
     out.append(text[done:])
     return "".join(out)
+
+
+def wiki_link(link: Link, href: Callable[[str], str]) -> str | None:
+    """A [[slug]] or [[slug|label]] link (to a #heading too) as a Markdown link to
+    href(slug); None (kept as typed) for any other link, an embed, or a target the PWA
+    shows as plain text, whose part before any # is not a slug ([[Some Title]],
+    [[#heading]]). A bracket in the label becomes a parenthesis, and in a table cell
+    its pipes are escaped, since a bare one would end the cell.
+
+    >>> wiki = Link("wiki", "a-page#intro|Intro", "", embed=False, in_table=False)
+    >>> wiki_link(wiki, lambda slug: f"/p/{slug}")
+    '[Intro](/p/a-page)'
+    """
+    if link.kind != "wiki" or link.embed:
+        return None
+    target, label = wiki_parts(link.target)
+    slug = target.split("#")[0].strip()
+    if not SLUG.fullmatch(slug):
+        return None
+    label = (label or target).replace("[", "(").replace("]", ")")
+    if link.in_table:
+        label = label.replace("|", "\\|")
+    return f"[{label}]({href(slug)})"
 
 
 TASK = re.compile(r"\[([ xX])\](?: |$)")
