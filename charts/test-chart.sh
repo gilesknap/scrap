@@ -105,11 +105,51 @@ if echo "$ingresses" | grep -Eq 'scrap-receiver|name: receiver|8081'; then
 elif echo "$ingresses" | grep 'namespace: scrap-public|' | grep -q '|                name: scrap-public|'; then
     ok "the only public Ingress is nginx's"
 else bad "no Ingress for nginx"; fi
-np=$(grep '|kind: NetworkPolicy|' "$out/docs" | grep 'namespace: scrap-public|' || true)
-if [ -n "$np" ] && echo "$np" | grep -q '|    - Egress|' && echo "$np" | grep -q '|  egress: \[\]|' &&
-    echo "$np" | grep -q 'kubernetes.io/metadata.name: default|'; then
-    ok "the public NetworkPolicy denies egress and admits scrap's namespace"
-else bad "the public NetworkPolicy is missing, allows egress or misses scrap's namespace"; fi
+# The public NetworkPolicy, exactly: the receiver's port (8081) only from scrap's
+# own pods in the release namespace, nginx's (8080) from webFrom (anyone when it
+# is empty), and no egress at all.
+np_spec() { # helm-args... -> the NetworkPolicy's spec
+    helm template scrap "$chart" --namespace scrap -s templates/public.yaml "$@" |
+        awk '/^---/ { np = 0 } /^kind: NetworkPolicy$/ { np = 1 } np && /^spec:$/ { on = 1 }
+            np && on { print }'
+}
+np_head='spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: scrap-public
+      app.kubernetes.io/instance: scrap
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: scrap
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: scrap
+              app.kubernetes.io/instance: scrap
+      ports:
+        - port: receiver
+    - ports:
+        - port: web'
+np_from='      from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx'
+if [ "$(np_spec -f "$chart/ci/public-values.yaml")" = "$np_head
+$np_from
+  egress: []" ] && [ "$(np_spec -f "$chart/ci/public-namespace-values.yaml")" = "$np_head
+  egress: []" ]; then
+    ok "the public NetworkPolicy: 8081 from scrap's pods only, 8080 from webFrom, no egress"
+else bad "the public NetworkPolicy is not exactly as it should be"; fi
+# ... and the named ports are those numbers
+pubdep=$(grep '|kind: Deployment|' "$out/docs" | grep 'namespace: scrap-public|' || true)
+if echo "$pubdep" | grep -q '|            - name: web|              containerPort: 8080|' &&
+    echo "$pubdep" | grep -q '|            - name: receiver|              containerPort: 8081|'; then
+    ok "the web port is 8080 and the receiver port 8081"
+else bad "the public ports are not web 8080 and receiver 8081"; fi
 recv=$(grep '|kind: Deployment|' "$out/docs" | grep 'namespace: scrap-public|' || true)
 # The token: a Secret volume mounted in the receiver alone, read as a file
 if ! echo "$recv" | grep -Eq 'secretKeyRef|name: RECEIVER_TOKEN\|' &&
@@ -128,11 +168,15 @@ if helm template scrap "$chart" -f "$chart/ci/public-values.yaml" --set public.c
     grep -q 'kind: Namespace|'; then
     ok "createNamespace makes a Pod Security restricted namespace"
 else bad "createNamespace does not make a restricted namespace"; fi
+scrap_dep=$(grep '|kind: Deployment|' "$out/docs" | grep 'namespace: scrap-public|' -v || true)
 if grep -A1 'name: SCRAP_PUBLISH_TO$' "$pub" | grep -q 'value: "http://scrap-receiver.scrap-public.svc:8081"' &&
     grep -A1 'name: SCRAP_PUBLISH_SITE$' "$pub" | grep -q 'value: "https://pages.example.org"' &&
-    grep -A3 'name: SCRAP_PUBLISH_TOKEN$' "$pub" | grep -q 'secretKeyRef'; then
-    ok "scrap gets SCRAP_PUBLISH_TO, _SITE and the token from a secretKeyRef"
-else bad "scrap lacks SCRAP_PUBLISH_TO, _SITE or the token's secretKeyRef"; fi
+    grep -A1 'name: SCRAP_PUBLISH_TOKEN_FILE$' "$pub" | grep -q 'value: /run/secrets/scrap-publish/token' &&
+    ! grep -q 'name: SCRAP_PUBLISH_TOKEN$' "$pub" &&
+    echo "$scrap_dep" | grep -q 'mountPath: /run/secrets/scrap-publish|' &&
+    echo "$scrap_dep" | grep -q 'secretName: scrap-publish|'; then
+    ok "scrap gets SCRAP_PUBLISH_TO, _SITE and the token as a mounted file"
+else bad "scrap lacks SCRAP_PUBLISH_TO or _SITE, or its token is not a mounted file"; fi
 # An upgrade with backups off (gc.enabled unset) renders, with no gc CronJob.
 if helm template scrap "$chart" --set backup.enabled=false | grep -q -- '-gc$'; then
     bad "backup off still renders a gc CronJob"

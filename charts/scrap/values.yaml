@@ -241,7 +241,7 @@ public:
   # characters). The receiver runs in public.namespace and scrap in the release
   # namespace, and a pod reads only its own namespace's Secrets, so create the
   # Secret, with the same name and key, in BOTH. The receiver reads it as a
-  # mounted file (RECEIVER_TOKEN_FILE), scrap as SCRAP_PUBLISH_TOKEN. The chart
+  # mounted file (RECEIVER_TOKEN_FILE), scrap too (SCRAP_PUBLISH_TOKEN_FILE). The chart
   # never creates it. Required when enabled.
   tokenSecret:
     name: ""

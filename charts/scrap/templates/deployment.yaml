@@ -42,16 +42,14 @@ spec:
             {{- include "scrap.appEnv" . | nindent 12 }}
             {{- if .Values.public.enabled }}
             # Public pages: the receiver scrap pushes them to, the site's address,
-            # and the upload token (from the same-named Secret in this namespace)
+            # and the upload token as a mounted file (from the same-named Secret in
+            # this namespace), never an environment variable
             - name: SCRAP_PUBLISH_TO
               value: {{ include "scrap.publishTo" . | quote }}
             - name: SCRAP_PUBLISH_SITE
               value: {{ .Values.public.site | trimSuffix "/" | quote }}
-            - name: SCRAP_PUBLISH_TOKEN
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Values.public.tokenSecret.name }}
-                  key: {{ .Values.public.tokenSecret.key }}
+            - name: SCRAP_PUBLISH_TOKEN_FILE
+              value: /run/secrets/scrap-publish/token
             {{- end }}
           {{- with .Values.extraEnvFrom }}
           envFrom:
@@ -87,6 +85,11 @@ spec:
               mountPath: /data
             - name: tmp
               mountPath: /tmp
+            {{- if .Values.public.enabled }}
+            - name: publish-token
+              mountPath: /run/secrets/scrap-publish
+              readOnly: true
+            {{- end }}
       volumes:
         - name: data
           persistentVolumeClaim:
@@ -94,3 +97,13 @@ spec:
         - name: tmp
           emptyDir:
             sizeLimit: 1Gi
+        {{- if .Values.public.enabled }}
+        - name: publish-token
+          secret:
+            secretName: {{ .Values.public.tokenSecret.name }}
+            # Readable by the scrap user whatever podSecurityContext's fsGroup is
+            defaultMode: 0444
+            items:
+              - key: {{ .Values.public.tokenSecret.key }}
+                path: token
+        {{- end }}

@@ -451,12 +451,14 @@ for ns in scrap scrap-public; do
 done
 ```
 
-The receiver reads the token as a mounted file (`RECEIVER_TOKEN_FILE`); scrap gets it as
-`SCRAP_PUBLISH_TOKEN`.
+Both pods read the token as a mounted file, never an environment variable: the receiver through
+`RECEIVER_TOKEN_FILE`, scrap through `SCRAP_PUBLISH_TOKEN_FILE`.
 
 `public.createNamespace: true` makes the chart create the namespace instead, with the same
-labels (Argo CD can do the same with `CreateNamespace=true`). Then the Secret can only be made
-after the first install, and the receiver waits for it. **`helm uninstall` (or an Argo CD prune)
+labels. Argo CD's `CreateNamespace=true` does not do it: that creates only the Application's
+destination namespace (scrap's), so `scrap-public` must exist first or come from
+`public.createNamespace`. With the chart creating it, the Secret can only be made after the first
+install, and the receiver waits for it. **`helm uninstall` (or an Argo CD prune)
 then deletes the namespace, and the Secret in it**, which is why it is off by default.
 
 Then:
@@ -479,7 +481,7 @@ public:
 The install fails if `public.enabled` is set without `public.tokenSecret.name` or `public.site`.
 scrap's pod then gets `SCRAP_PUBLISH_TO` (the receiver's Service,
 `http://<fullname>-receiver.<public.namespace>.svc:8081`, `scrap-receiver.scrap-public` for a release named `scrap`), `SCRAP_PUBLISH_SITE` and
-`SCRAP_PUBLISH_TOKEN` (see the [settings](../reference/api.md)). The site is `noindex`: every
+`SCRAP_PUBLISH_TOKEN_FILE` (see the [settings](../reference/api.md)). The site is `noindex`: every
 answer has `X-Robots-Tag: noindex, nofollow` and `robots.txt` disallows all, unless
 `public.indexing` is `true`.
 

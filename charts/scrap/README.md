@@ -99,9 +99,9 @@ pod moves.
 
 The upload token is a Secret you create, at least 32 characters, named by
 `public.tokenSecret.name` and `.key`, in **both** namespaces (each pod reads only its own
-namespace's Secrets); the receiver mounts it as a file. `public.site` is the site's base URL (`SCRAP_PUBLISH_SITE`). The install
+namespace's Secrets); both pods mount it as a file. `public.site` is the site's base URL (`SCRAP_PUBLISH_SITE`). The install
 fails without either. scrap then gets `SCRAP_PUBLISH_TO`, `SCRAP_PUBLISH_SITE` and
-`SCRAP_PUBLISH_TOKEN`. Behind Cloudflare Access, the site's host needs its own Access application
+`SCRAP_PUBLISH_TOKEN_FILE`. Behind Cloudflare Access, the site's host needs its own Access application
 with the Bypass action: a wildcard application covers every subdomain. See the guide.
 
 ## Operating

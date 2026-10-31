@@ -265,6 +265,6 @@ chart's values in [](../how-to/deploy-kubernetes.md).
 | `SCRAP_NOTIFY_URL` | unset | If set, the first pause of an episode POSTs one fixed line naming its reason here (an ntfy topic works), and so does `scrap gc --delete` when it starts a month's *Orphaned assets* page (where it has network: not the single server's gc container) |
 | `SCRAP_PUBLISH_TO` | unset | Public pages (issue 497): the URL of the `scrap-public` upload receiver that public pages are pushed to, e.g. `http://scrap-receiver.scrap-public.svc:8081` (the chart sets it when `public.enabled`). Unset: no page is published |
 | `SCRAP_PUBLISH_SITE` | unset | Public pages (issue 497): the public site's base URL, e.g. `https://pages.example.org`, that public pages are served at (`/p/<slug>`) |
-| `SCRAP_PUBLISH_TOKEN` | unset | Public pages (issue 497): the bearer token for the upload receiver (at least 32 characters; the receiver's `RECEIVER_TOKEN`). The chart sets it from `public.tokenSecret` |
-| `SCRAP_PUBLISH_TOKEN_FILE` | unset | Public pages (issue 497): a file holding that token, for a mounted secret, instead of `SCRAP_PUBLISH_TOKEN` |
+| `SCRAP_PUBLISH_TOKEN` | unset | Public pages (issue 497): the bearer token for the upload receiver (at least 32 characters; the receiver's `RECEIVER_TOKEN`) |
+| `SCRAP_PUBLISH_TOKEN_FILE` | unset | Public pages (issue 497): a file holding that token, for a mounted secret, instead of `SCRAP_PUBLISH_TOKEN`. The chart mounts `public.tokenSecret` and sets this |
 | `TZ` | the host's; `UTC` in the image | The server's time zone, e.g. `Europe/London`. It decides what "today" is for the search filters `due:today`, `due:tomorrow` and `due:yesterday`. The image has the tz database, so the setting works there |
