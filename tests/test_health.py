@@ -158,6 +158,19 @@ def test_wiki_targets_are_page_links_outside_code():
     assert wiki_targets("no links") == []
 
 
+def test_wiki_targets_take_a_heading_link_s_page():
+    """#498: [[slug#heading]] is slug's link, as the PWA and wiki_link take it; with
+    no slug before the # ([[#x]]), or not a slug, it stays a link to no page."""
+    text = (
+        "[[a-page#intro]] [[b-page#x|Label]] [[c-page]] [link](/p/d-page#h)"
+        " [[a-page]] [[#top]] [[Some Title#x]] [[e-page#]] [[f-page #x]] [[g-page# x]]"
+    )
+    assert wiki_targets(text) == [
+        "a-page", "b-page", "c-page", "d-page", "#top", "Some Title", "e-page",
+        "f-page ", "g-page",
+    ]  # fmt: skip  # a space before the # is no slug: plain text in the PWA too
+
+
 HERE = "https://scrap.example.ts.net:8446"
 LAN = "http://192.168.1.10:8000"
 
@@ -217,6 +230,18 @@ def test_a_page_s_full_address_links_it(store, monkeypatch):
     monkeypatch.setenv("SCRAP_PUBLIC_URL", HERE)  # LAN no longer this server's
     assert found(store, "is:orphan") == {b, c, e}
     assert store.backlinks(slug["b"]) == []
+
+
+def test_a_heading_link_links_its_page(store):
+    """#498: [[slug#heading]] is a backlink and no dangling link, and its target is
+    no orphan; [[#heading]] alone is dangling."""
+    a = note(store, "Alpha")
+    slug = store.page(a)["slug"]
+    b = note(store, f"Beta\n\nsee [[{slug}#intro]] and [[{slug}#x|its x]]")
+    c = note(store, "Gamma\n\nonly [[#intro]]")
+    assert [x["id"] for x in store.backlinks(slug)] == [b]
+    assert found(store, "has:dangling") == {c}
+    assert found(store, "is:orphan") == {c}
 
 
 def test_orphan_is_a_page_with_no_link_pick_or_topic(store):

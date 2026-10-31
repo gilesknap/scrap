@@ -28,13 +28,15 @@ __all__ = [
     "plain",
     "rewrite",
     "wiki_link",
+    "wiki_page",
     "wiki_parts",
     "wiki_targets",
 ]
 
 Rule = Callable[[StateInline, bool], bool]
-# A page's slug, fullmatch: render.ts WIKI's slug part, before any #. A download's or
-# export's [[slug#heading]] links to the page, though the PWA shows it as text for now.
+# A page's slug, fullmatch: render.ts WIKI's slug part, before any #. [[slug#heading]]
+# links to the page (wiki_page) everywhere: the PWA, downloads, exports, links and
+# backlinks; the #heading is dropped, as the PWA does not yet scroll to another page's.
 SLUG = re.compile(r"[a-z0-9-]+")
 PAGE_PATH = re.compile(rf"/p/({SLUG.pattern})")  # a page's path (PAGE), fullmatch
 
@@ -100,6 +102,20 @@ def wiki_parts(inner: str) -> tuple[str, str]:
     return target.strip(), label.strip()
 
 
+def wiki_page(target: str) -> str:
+    """The page a wiki link's target names: its part before any #heading, or the
+    target as typed if that part is empty ([[#heading]], no page). A slug only if
+    SLUG matches it; any other is a link the PWA draws as plain text. Not stripped:
+    a space before the # ([[a-page #x]]) is no slug, as render.ts WIKI has it.
+
+    >>> wiki_page("a-page#intro"), wiki_page("a-page"), wiki_page("#intro")
+    ('a-page', 'a-page', '#intro')
+    >>> wiki_page("a-page #x"), wiki_page("a-page# x")
+    ('a-page ', 'a-page')
+    """
+    return target.split("#")[0] or target
+
+
 def page_path(href: str, origins: Iterable[str] = ()) -> str | None:
     """The slug a link's address names a page here by, else None: /p/<slug> as a path
     (`/p/<slug>`) or on one of origins (a full address, `https://<host>/p/<slug>`, as
@@ -118,8 +134,9 @@ def page_path(href: str, origins: Iterable[str] = ()) -> str | None:
 
 def wiki_targets(text: str, origins: Iterable[str] = ()) -> list[str]:
     """The targets of a text's page links, each once in order: [[target]] and
-    [[target|label]], and a Markdown link or <autolink> to /p/<slug>, as a path or on
-    one of origins (page_path); not an embed (![[...]], an image), and none in code.
+    [[target|label]] (a [[slug#heading]]'s is slug: wiki_page), and a Markdown link or
+    <autolink> to /p/<slug>, as a path or on one of origins (page_path); not an embed
+    (![[...]], an image), and none in code.
     Any [[...]] the parser takes as a page link counts, including forms the PWA draws
     as plain text ([[Some Title]]), so has:dangling finds links that don't work."""
     if "[[" not in text and "/p/" not in text:  # most pages: no parse
@@ -129,7 +146,7 @@ def wiki_targets(text: str, origins: Iterable[str] = ()) -> list[str]:
     for t in parser().parse(text):
         for c in t.children or []:
             if c.type == "wiki" and not c.markup:
-                target = wiki_parts(c.content)[0]
+                target = wiki_page(wiki_parts(c.content)[0])
             elif c.type == "link_open":
                 target = page_path(str(c.attrGet("href") or ""), origins)
             else:
@@ -313,7 +330,7 @@ def wiki_link(link: Link, href: Callable[[str], str]) -> str | None:
     if link.kind != "wiki" or link.embed:
         return None
     target, label = wiki_parts(link.target)
-    slug = target.split("#")[0].strip()
+    slug = wiki_page(target)
     if not SLUG.fullmatch(slug):
         return None
     label = (label or target).replace("[", "(").replace("]", ")")

@@ -377,11 +377,11 @@ there: a check that keeps finding a page you are happy with is the check to chan
 
 | Search | Finds |
 | --- | --- |
-| `is:orphan` | No page link either way (`[[slug]]` or a Markdown link to its address), no related pages and no topic; not an Orphaned assets page |
+| `is:orphan` | No page link either way (`[[slug]]`, `[[slug#heading]]` or a Markdown link to its address), no related pages and no topic; not an Orphaned assets page |
 | `is:untagged` | No tags (topic pages and gc's Orphaned assets pages aside) |
 | `is:stale` | An open todo not edited (text, title, kind or tags) for 60 days, not due today or later |
 | `is:duplicate` | A photo or file shared with another page (not in the trash, not an Orphaned assets page; a photo whose embed you deleted from a page no longer counts for it) |
-| `has:dangling` | A `[[...]]` or Markdown link to a page's address in its text, outside code, to no page or one in the trash (including forms the app shows as plain text, such as `[[Some Title]]`) |
+| `has:dangling` | A `[[...]]` or Markdown link to a page's address in its text, outside code, to no page or one in the trash (including forms the app shows as plain text, such as `[[Some Title]]`; `[[slug#heading]]` links to the page `slug`) |
 | `is:outdated` | A board's write-up older than the board's photos, text, title, kind or tags, or made with an older prompt, or linking a page in the trash or gone (restore the page and it clears). Lists only board write-ups, which wait for you |
 
 Related pages and topic syntheses are not listed: the nightly and weekly passes refresh them on
@@ -464,6 +464,7 @@ Page text is Markdown as GitHub writes it:
   saved at once, no editor. If the page changed elsewhere meanwhile it is shown as it is now and
   the tap is not saved: tap again. Boxes do not tick offline or in **Preview**, nor in code.
 - **`[[slug]]`, `[[slug|label]]`** link to another page (in a table cell `[[slug\|label]]`).
+  `[[slug#heading]]` links to that page too (it opens at the top, not at the heading).
 - A ` ```mermaid ` block is drawn as a [Mermaid](https://mermaid.js.org) diagram; offline, or with
   a mistake, it shows as code.
 - **Maths** (LaTeX, drawn by [KaTeX](https://katex.org)): `$x^2$` inline, `$$...$$` for a

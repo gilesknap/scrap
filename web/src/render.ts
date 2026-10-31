@@ -1,6 +1,7 @@
 // Page text as HTML: Markdown by markdown-it (a chunk of its own, kept for offline use), with
 // GitHub's tables, task lists, ~~strikethrough~~, bare links and footnotes, plus [[slug]] and
-// [[slug|label]] links to other pages. Raw HTML is shown as text; a line break stays one.
+// [[slug|label]] links to other pages (also [[slug#heading]], to the page). Raw HTML is shown
+// as text; a line break stays one.
 // Links are http(s), mailto, a page or screen here (/search?q=..., /todos; a full address of
 // one opens in the app, as [[slug]] does) or a heading of this page; images only this
 // server's own files, each marked with its file's data-sha for the page to make a figure of.
@@ -23,7 +24,9 @@ const SCREEN = /^\/(search|todos|topics)?$/;
 /** A path the app opens in place: a page here, or one of its screens. */
 const inApp = (path: string) => PAGE.test(path) || SCREEN.test(path);
 const FOOTNOTE = /^#fn(ref)?\d+(:\d+)?$/;
-const WIKI = /^([a-z0-9-]+)(?:\\?\|(.+))?$/;
+// [[slug]], [[slug#heading]], each with an optional |label: a link to the page (the #heading
+// dropped, as the app does not yet scroll to another page's; markdown.py wiki_page)
+const WIKI = /^([a-z0-9-]+)(?:#[^|]*?)?(?:\\?\|(.+))?$/;
 
 const md = markdownit({ html: false, breaks: true, linkify: true });
 md.linkify.set({ fuzzyLink: false, fuzzyEmail: false }).add("ftp:", null).add("//", null);
@@ -35,7 +38,8 @@ md.core.ruler.push("scrap", tidy);
 md.renderer.rules.table_open = () => '<div class="table"><table>\n';
 md.renderer.rules.table_close = () => "</table></div>\n";
 
-/** [[slug]] and [[slug|label]] (the label may be formatted; in a table cell, [[slug\|label]]).
+/** [[slug]] and [[slug|label]], either to a #heading too (the label may be formatted; in a table
+ * cell, [[slug\|label]]).
  * One scan to the next bracket or line end, so no text is read twice. */
 function wiki(state: StateInline, silent: boolean): boolean {
   const { src, pos, posMax } = state;
@@ -55,7 +59,7 @@ function wiki(state: StateInline, silent: boolean): boolean {
       state.md.inline.tokenize(state);
       state.linkLevel--;
       state.posMax = posMax;
-    } else state.push("text", "", 0).content = m[1];
+    } else state.push("text", "", 0).content = src.slice(pos + 2, end); // as typed, any #heading
     state.push("link_close", "a", -1);
   }
   state.pos = end + 2;
