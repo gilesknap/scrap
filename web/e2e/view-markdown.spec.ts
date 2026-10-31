@@ -128,7 +128,7 @@ test("tables, task lists, code, page links, a figure and a diagram", async ({ pa
 test.describe("on a computer (a wide window)", () => {
   test.use({ viewport: { width: 1024, height: 1280 }, isMobile: false, hasTouch: false });
 
-  test("a narrow table's box hugs it, left-aligned, so its shading reaches the border (#473)", async ({
+  test("a narrow table's box hugs it, at the start of the line, so its shading reaches the border (#473)", async ({
     page,
   }) => {
     const text = [
@@ -147,14 +147,17 @@ test.describe("on a computer (a wide window)", () => {
     const body = page.locator(".body.md");
     const box = body.locator(".table");
     await expect(box.locator("th")).toHaveCount(3);
-    const b = await box.evaluate((el) => el.getBoundingClientRect().toJSON());
-    const t = await box.locator("table").evaluate((el) => el.getBoundingClientRect().width);
-    const p = await body
-      .locator("p")
-      .first()
-      .evaluate((el) => el.getBoundingClientRect().left);
-    expect(Math.abs(b.width - (t + 2)), `box ${b.width}, table ${t}`).toBeLessThanOrEqual(2);
-    expect(Math.abs(b.left - p), `box at ${b.left}, text at ${p}`).toBeLessThanOrEqual(2);
+    // One call, so a relayout can't fall between the measurements
+    const m = await box.evaluate((el) => {
+      const b = el.getBoundingClientRect();
+      const t = el.querySelector("table")?.getBoundingClientRect();
+      const p = el.closest(".body.md")?.querySelector("p")?.getBoundingClientRect();
+      return { box: b.width, table: t?.width ?? 0, left: b.left, text: p?.left ?? -1 };
+    });
+    expect(Math.abs(m.box - (m.table + 2)), `box ${m.box}, table ${m.table}`).toBeLessThanOrEqual(
+      2,
+    );
+    expect(Math.abs(m.left - m.text), `box at ${m.left}, text at ${m.text}`).toBeLessThanOrEqual(2);
   });
 });
 

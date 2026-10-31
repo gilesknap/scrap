@@ -181,7 +181,7 @@
   border-top: 1px solid var(--line);
 }
 /* A table scrolls sideways in its own box: the page never does, even at 320 px. The box hugs
-   the table, left-aligned, so a narrow table's header shading reaches its border (#473) */
+   the table, at the start of the line, so a narrow table's header shading reaches its border (#473) */
 .md .table {
   width: fit-content;
   max-width: 100%;
