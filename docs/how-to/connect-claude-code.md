@@ -239,7 +239,7 @@ above when that can happen.
 - A tool error such as "only a page written over MCP can be appended to", or a title over 200
   characters, a body over 200 kB or more than 20 tags: the call is refused and nothing is saved.
 
-## 3. Install the `sc` commands and the `scrap-links` skill
+## 3. Install the `sc` commands and the skills
 
 `commands/` in this repository holds Claude Code slash commands that give you short scrap
 commands. Each is one Markdown file with a one-line description, and each is its own command, so
@@ -283,6 +283,15 @@ scrap, not only in the `sc` commands: a todo, note or search result is shown as
 `ln -sfn "$PWD"/skills/scrap-links ~/.claude/skills/`. To check it is loaded, start a new Claude
 Code session: `scrap-links` is listed when you ask "what skills do you have",
 and asking "what todos are for today" lists every todo as a link.
+
+It also installs the `scrap-to-gist` skill (`skills/scrap-to-gist`), into
+`~/.claude/skills/scrap-to-gist` in the same way. Ask Claude to "put this scrap page in a gist" and
+it publishes the page as a secret GitHub gist that looks as it does in scrap: maths at the same
+size and alignment, `[[slug]]` links pointing at the scrap page, and `\cancel` (which GitHub cannot
+draw) replaced by images of scrap's rendering. Ask it to update the gist and it changes the gist
+and the scrap page together. It needs `gh` logged in with a token that can create gists (a
+fine-grained token often cannot; Claude then asks for a token with the `gist` scope), and, for
+`\cancel`, Chrome or Chromium (run headless) and internet access.
 
 These commands replace the earlier single `/s <verb>` skill (`/s post`, `/s tidy`, and so on), the
 `s-` and `sc-` skill sets that briefly preceded them, and the older `scrap-post` skill. Delete
