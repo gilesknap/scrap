@@ -77,7 +77,6 @@ test("the history is the page's: after typing a tag, Undo is off until the text 
   // A kind picked is no typing: Undo stays on
   await page.locator(".editor .kinds").getByText("Todo").click();
   await expect(undo).toBeEnabled();
-  await expect(undo).toBeEnabled();
   await undo.click();
   await expect(text).toHaveValue("milk");
   await expect(undo).toBeDisabled(); // the next undo would be the tag's
@@ -90,6 +89,20 @@ test("the history is the page's: after typing a tag, Undo is off until the text 
   await expect(undo).toBeDisabled();
   await expect(tag).toHaveValue("dairy");
   await expect(text).toHaveValue("milk");
+});
+
+test("the keyboard's own undo (Ctrl+Z) back to the start turns the key off", async ({ page }) => {
+  const { text, key } = await open(page);
+  await text.focus();
+  await page.keyboard.insertText("milk");
+  await key("Bullet: make the line a bullet").click();
+  await expect(key("Undo")).toBeEnabled();
+  await text.press("ControlOrMeta+z");
+  await expect(text).toHaveValue("milk");
+  await expect(key("Undo")).toBeEnabled(); // more to undo
+  await text.press("ControlOrMeta+z");
+  await expect(text).toHaveValue("");
+  await expect(key("Undo")).toBeDisabled(); // back as it opened
 });
 
 test("a file added is set as code, outside the history: Undo goes off, and stops there", async ({

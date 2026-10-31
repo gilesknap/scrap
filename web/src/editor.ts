@@ -279,7 +279,8 @@ const typed = (el: EventTarget | null) =>
  * title), the text then, since the history is the page's and an undo past that point would
  * take back the other field's typing; after text set by code (a file added, which the history
  * doesn't hold), the text then. Off on a fresh editor, on after input typed in the text box,
- * off again when an undo brings the text back to the floor or changes nothing. Should an
+ * off again when an undo (the key's, or the phone's or computer's own: Ctrl+Z, a shake) brings
+ * the text back to the floor or changes nothing. Should an
  * undo still reach another field, it is redone at once and the key goes off. reset(): the
  * text was replaced as a whole (Discard it); stop(): the editor closed. */
 function undoKey(text: HTMLTextAreaElement) {
@@ -292,18 +293,27 @@ function undoKey(text: HTMLTextAreaElement) {
       if (e.target !== text) elsewhere = true;
     };
     document.addEventListener("input", watch, true);
+    own = true;
     document.execCommand("undo");
-    if (elsewhere) document.execCommand("redo"); // another field's: put it back
+    // Another field's: put it back. Should the redo fail, nothing more can be done here; the
+    // key goes off either way
+    const redone = elsewhere && document.execCommand("redo");
+    own = false;
     document.removeEventListener("input", watch, true);
-    if (elsewhere || text.value === was || text.value === floor) {
+    if (elsewhere || redone || text.value === was || text.value === floor) {
       floor = text.value;
       key.disabled = true;
     }
   });
   key.disabled = true;
   // Capturing, so it sees every field's input, whatever stops it later
+  let own = false; // the key's own undo (and redo), which its click judges
   const oninput = (e: Event) => {
-    if (e.target === text && e.isTrusted) key.disabled = false;
+    const history = (e as InputEvent).inputType?.startsWith("history");
+    // The phone's or the computer's own undo or redo (Ctrl+Z, a shake): on unless back at the floor
+    if (e.target === text && e.isTrusted && history) {
+      if (!own) key.disabled = text.value === floor;
+    } else if (e.target === text && e.isTrusted) key.disabled = false;
     else if (e.target === text || typed(e.target)) {
       floor = text.value;
       key.disabled = true;

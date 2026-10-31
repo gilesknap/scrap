@@ -593,10 +593,10 @@ scrap and try again*.
   alone.
 - **Undo.** The last key, **Undo**, takes back the last change to the text (typing or one of the
   keys), and again for the one before, in order (most Android keyboards have no undo of their
-  own). It is greyed out until there is something to take back, and again once you are back to
-  the text the editor opened with. It stops at a photo or file added (remove that with its chip's
-  ✕) and at typing in another field (a tag, the title): only what you typed in the text since
-  then is taken back. There is no Redo. Ctrl+Z does the same on a computer.
+  own). It is greyed out until there is something to take back. It stops when the text is back to
+  how it opened, or to how it was when you last typed in a tag or the title or added a photo or
+  file, even if you deleted and retyped before that point. For older text use **Cancel**, or
+  restore a saved revision. There is no Redo. Ctrl+Z does the same on a computer.
 - **Drafts.** The composer and Edit keep a draft on the phone as you type (tags and photos too),
   returning after Back, a reload or a closed app: the composer's as the draft row, an edit as
   **Edit draft** on its page (**Discard it** drops either). Back closes the editor, not the app.
