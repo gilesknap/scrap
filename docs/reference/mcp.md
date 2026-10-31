@@ -327,6 +327,9 @@ drawing: it is one). A write-up (`writeup`, or a board's) sends it the same way:
 text, where a photo's JPEG would go. A gist renders SVG from its raw URLs
 (`![](https://gist.githubusercontent.com/<user>/<id>/raw/file.svg)`), and `gh gist create` takes
 it as a text file, so a page with SVG diagrams can be published as a gist of text files alone.
+Update (2026-10-31): the scrap-to-gist skill that published pages as gists is removed by
+[ADR 43](../explanations/decisions/0043-public-pages-a-static-site-scrap-pushes-to.md), which
+publishes public pages to a static site instead.
 
 ## Writing
 

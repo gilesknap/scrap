@@ -1,8 +1,9 @@
 #!/bin/sh
 # Install the scrap slash commands (the sc-*.md files beside this script) into
-# ~/.claude/commands and the skills (skills/scrap-links and skills/scrap-to-gist in the
-# repo) into ~/.claude/skills/<name>:
+# ~/.claude/commands and the skill (skills/scrap-links in the repo) into
+# ~/.claude/skills/scrap-links:
 #   curl -fsSL https://github.com/gilesknap/scrap/releases/latest/download/install.sh | sh
+# A scrap-to-gist skill installed by an earlier release (removed by ADR 43) is left alone.
 # The copy attached to a release installs that release's files: the release job rewrites
 # the default_ref line to its tag. Run from the repo, it installs main. SCRAP_REF=<tag|branch>
 # overrides either. CLAUDE_COMMANDS_DIR and CLAUDE_SKILLS_DIR override the destinations.
@@ -23,7 +24,7 @@ mkdir -p "$dest"
 cp "$tmp"/*/commands/*.md "$dest"/
 rm -f "$dest/sc-session.md"  # folded into /sc-summarise all
 echo "Installed: $(cd "$tmp"/*/commands && echo *.md) -> $dest"
-for name in scrap-links scrap-to-gist; do
+for name in scrap-links; do
     skill=$(echo "$tmp"/*/skills/$name)
     if [ -d "$skill" ]; then
         mkdir -p "$skills"
