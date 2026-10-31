@@ -3,6 +3,7 @@
 from .capture import CaptureMixin
 from .core import Core
 from .edits import EditsMixin
+from .grep import GrepMixin
 from .imports import ImportMixin
 from .meta import MetaMixin
 from .pages import PagesMixin
@@ -22,6 +23,7 @@ class Store(
     PhotosMixin,
     MetaMixin,
     RevisionsMixin,
+    GrepMixin,
     SearchMixin,
     TrashMixin,
     Core,
