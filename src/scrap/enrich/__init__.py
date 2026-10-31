@@ -30,7 +30,6 @@ from .checking import (
     checked_writeup,
     cited,
     clean_tag,
-    record,
 )
 from .constants import (
     AUTO_FILES,
@@ -242,7 +241,6 @@ __all__ = [
     "page_images",
     "page_message",
     "quoted",
-    "record",
     "related_message",
     "related_prompt",
     "system_prompt",

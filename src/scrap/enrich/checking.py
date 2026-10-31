@@ -1,15 +1,13 @@
-"""Enrich: the model's output within bounds, and the run's record."""
+"""Enrich: the model's output within bounds."""
 
-import json
 import re
-import sqlite3
 import unicodedata
 from collections.abc import Sequence
 from typing import Any
 
-from .. import actions, claude
+from .. import actions
 from ..query import CONTROL, MEDIA
-from ..store import MAX_TAG, WIKI_LINK, now, topics
+from ..store import MAX_TAG, WIKI_LINK, topics
 from ..store.constants import MD_LINK
 from .constants import (
     MAX_INVENTED,
@@ -208,26 +206,3 @@ def checked_topics(
         "new": new,
         "add": [{"topic": t, "sources": s} for t, s in add.items() if s],
     }
-
-
-def record(
-    conn: sqlite3.Connection,
-    run_id: int,
-    done: claude.Completion | None,
-    table: str = "enrich_run",
-    **fields: Any,
-) -> None:
-    """Finish an enrich_run row (or a topic_run's: table): its outcome, and the
-    response, usage and cost."""
-    if done is not None:
-        fields.update(
-            served_model=done.served_model,
-            response=json.dumps(
-                {"content": done.content, "stop_reason": done.stop_reason}
-            ),
-            usage=json.dumps(done.usage),
-            cost_microusd=claude.cost_microusd(done.served_model, done.usage),
-        )
-    fields["finished_at"] = now()
-    names = ", ".join(f"{k} = ?" for k in fields)
-    conn.execute(f"UPDATE {table} SET {names} WHERE id = ?", (*fields.values(), run_id))
