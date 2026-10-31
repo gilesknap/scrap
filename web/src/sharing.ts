@@ -5,6 +5,7 @@ import { copyRich, copyText } from "./clipboard";
 import type { Icon } from "./icons";
 import { icon } from "./icons";
 import { articleHtml, makeHtml } from "./pagehtml";
+import { SVG, svgAsPng } from "./svgpng";
 import { h, toast } from "./ui";
 
 // Icons only this menu draws, kept out of the app shell's icons.ts (its budget), drawn as
@@ -181,7 +182,9 @@ export function attach(b: HTMLButtonElement, s: Sharing) {
       if (!file) return navigator.share({ title, text });
       const [href, name, type] = file;
       if (!canShareFile(name, type)) return toast("Sharing files is not supported here");
-      const files = [await fetchFile(href, name)];
+      const got = await fetchFile(href, name);
+      // An SVG (its own preview) goes as a PNG: many apps refuse SVG
+      const files = [got.type.startsWith(SVG) ? await svgAsPng(got) : got];
       await shareFiles(title, files, "Photo ready");
     });
   const menu = h("div", { className: "share-menu", popover: "auto" });

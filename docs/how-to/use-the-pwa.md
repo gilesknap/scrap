@@ -561,7 +561,9 @@ scrap and try again*.
   drag to pan, swipe (or arrows) for other photos. **Fit**, **100%**, **Download** and **Share**
   are along the bottom; the cross at top right, or Back, closes. **Share** asks **Link** (the
   photo's page) or **Photo** (the original if JPEG, PNG, GIF or WebP up to 20 MB, otherwise a JPEG
-  up to 2048 px from the server). If a big photo takes too long to download, **Photo ready**
+  up to 2048 px from the server; an SVG diagram is drawn as a PNG on a white background, 1024 to
+  2048 px on its longest side, since many apps can't take an SVG, or sent as the `.svg` if the
+  browser can't draw it). If a big photo takes too long to download, **Photo ready**
   offers **Share** again.
 
 ## Editing and deleting

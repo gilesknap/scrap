@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { shareable } from "../src/api";
 import { dispositionName, menuSpot } from "../src/sharing";
+import { pngSize, withExt } from "../src/svgpng";
 import { pageLink } from "../src/ui";
 
 const SHA = "ab".repeat(32);
@@ -27,6 +28,29 @@ describe("sharing", () => {
       `${SHA.slice(0, 12)}.png`,
       "image/png",
     ]);
+  });
+
+  it("shares an SVG as a PNG drawn from it, named to match (#486)", () => {
+    const preview = `/api/blobs/${SHA}/preview?size=2048`;
+    expect(shareable(file("image/svg+xml", 1000, "flow.svg"))).toEqual([
+      preview,
+      "flow.png",
+      "image/png",
+    ]);
+    expect(shareable(file("image/svg+xml", 1000, null))[1]).toBe(`${SHA.slice(0, 12)}.png`);
+    // if it can't be drawn, the SVG goes as it is, named .svg
+    expect(withExt("flow.png", "svg")).toBe("flow.svg");
+    expect(withExt("diagram", "png")).toBe("diagram.png");
+    expect(withExt("a.b/c", "png")).toBe("a.b/c.png");
+  });
+
+  it("draws an SVG with its longest side 1024 to 2048 px", () => {
+    expect(pngSize(400, 300)).toEqual([1024, 768]);
+    expect(pngSize(1500, 500)).toEqual([1500, 500]);
+    expect(pngSize(4000, 1000)).toEqual([2048, 512]);
+    expect(pngSize(100000, 1)).toEqual([2048, 1]);
+    expect(pngSize(0, 10)).toBeNull();
+    expect(pngSize(Number.NaN, 10)).toBeNull();
   });
 
   it("names a file with its type's extension", () => {
