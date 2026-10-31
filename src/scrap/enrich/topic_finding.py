@@ -17,11 +17,11 @@ from typing import Any
 from .. import claude
 from ..ingest import resume
 from ..ingest.constants import budget_day_micros
+from ..runs import failed, record, start_run
 from ..store import Store, now, queue_topic, roles, topics, transaction
-from .checking import checked_topics, record
+from .checking import checked_topics
 from .constants import DISCOVERY_SCHEMA, TOPIC_DUE, TOPIC_INDEX
 from .relating import run_pass
-from .synthesis import failed
 from .topic_prompts import discovery_message, discovery_prompt, topic_prompt
 from .types import Call
 
@@ -82,11 +82,8 @@ def discover(
         "backend": claude.backend(),
     }  # fmt: skip
     with store.connect() as conn, transaction(conn):
-        run_id = conn.execute(
-            "INSERT INTO topic_run (model, prompt_version, request, started_at)"
-            " VALUES (?, ?, ?, ?) RETURNING id",
-            (model, version, json.dumps(request), now()),
-        ).fetchone()[0]
+        run_id = start_run(conn, "topic_run", model=model, prompt_version=version,
+                           request=json.dumps(request))  # fmt: skip
     try:
         done = call(
             model, system, messages, DISCOVERY_SCHEMA, None,
@@ -98,7 +95,8 @@ def discover(
         except ValueError as error:
             raise claude.CallError("invalid", str(error), completion=done) from None
     except claude.CallError as error:
-        failed(store, run_id, error, "topic_run")
+        with store.connect() as conn, transaction(conn):
+            failed(conn, "topic_run", run_id, error)
         return error, found
 
     def cited(ns: list[int]) -> list[dict[str, str]]:

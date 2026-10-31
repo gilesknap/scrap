@@ -18,6 +18,8 @@ from ..ingest import (
 )
 from ..markdown import plain
 from ..query import subtype_of
+from ..runs import failed as run_failed
+from ..runs import record, start_run
 from ..store import (
     MAX_TAGS,
     Store,
@@ -28,7 +30,7 @@ from ..store import (
     transaction,
 )
 from .auto_files import files_sent
-from .checking import checked, record
+from .checking import checked
 from .constants import (
     ASKED_SUMMARY,
     CLAIM,
@@ -282,11 +284,9 @@ class Enricher:
             "backend": claude.backend(),
         }  # fmt: skip
         with self.store.connect() as conn, transaction(conn):
-            run_id = conn.execute(
-                "INSERT INTO enrich_run (page_id, job_id, model, prompt_version,"
-                " request, started_at) VALUES (?, ?, ?, ?, ?, ?) RETURNING id",
-                (page_id, jid, model, version, json.dumps(request), now()),
-            ).fetchone()[0]
+            run_id = start_run(conn, "enrich_run", page_id=page_id, job_id=jid,
+                               model=model, prompt_version=version,
+                               request=json.dumps(request))  # fmt: skip
         try:
             done = self.call(
                 model, system, messages, SCHEMA, None,
@@ -339,14 +339,8 @@ class Enricher:
             )
 
     def failed(self, jid: int, run_id: int, error: claude.CallError) -> None:
-        refused = error.completion is not None and (
-            error.completion.stop_reason == "refusal"
-        )
-        status = "invalid" if error.cls == "invalid" else "error"
-        status = "refused" if refused else status
         with self.store.connect() as conn, transaction(conn):
-            record(conn, run_id, error.completion, status=status,
-                         error_class=error.cls, error=str(error)[:500])  # fmt: skip
+            run_failed(conn, "enrich_run", run_id, error)
         self._job_failed(jid, error)
 
     def _job_failed(self, jid: int, error: claude.CallError) -> None:

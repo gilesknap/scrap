@@ -1,15 +1,15 @@
-"""Enrich: the model's output within bounds, and the run's record."""
+"""Enrich: the model's output within bounds, and a write-up's run recorded."""
 
 import json
 import re
-import sqlite3
 import unicodedata
 from collections.abc import Sequence
 from typing import Any
 
 from .. import actions, claude
 from ..query import CONTROL, MEDIA
-from ..store import MAX_TAG, WIKI_LINK, now, topics
+from ..runs import record
+from ..store import MAX_TAG, WIKI_LINK, Store, now, topics, transaction, writeups
 from ..store.constants import MD_LINK
 from .constants import (
     MAX_INVENTED,
@@ -210,24 +210,26 @@ def checked_topics(
     }
 
 
-def record(
-    conn: sqlite3.Connection,
+def written(
+    store: Store,
     run_id: int,
-    done: claude.Completion | None,
-    table: str = "enrich_run",
-    **fields: Any,
+    page_id: str,
+    done: claude.Completion,
+    version: str,
+    out: dict[str, Any],
+    guidance: str | None,
 ) -> None:
-    """Finish an enrich_run row (or a topic_run's: table): its outcome, and the
-    response, usage and cost."""
-    if done is not None:
-        fields.update(
-            served_model=done.served_model,
-            response=json.dumps(
-                {"content": done.content, "stop_reason": done.stop_reason}
-            ),
-            usage=json.dumps(done.usage),
-            cost_microusd=claude.cost_microusd(done.served_model, done.usage),
-        )
-    fields["finished_at"] = now()
-    names = ", ".join(f"{k} = ?" for k in fields)
-    conn.execute(f"UPDATE {table} SET {names} WHERE id = ?", (*fields.values(), run_id))
+    """A write-up's (or a topic's synthesis's) run, ok, and, unless its page is in the
+    trash now, the write-up as a new current version, the page indexed again."""
+    with store.connect() as conn, transaction(conn):
+        record(conn, run_id, done, status="ok", output=json.dumps(out))
+        alive = conn.execute(
+            "SELECT 1 FROM page WHERE id = ? AND deleted_at IS NULL", (page_id,)
+        ).fetchone()
+        if alive:
+            writeups.put(
+                conn, page_id, now(), producer=done.served_model, run_id=run_id,
+                prompt_version=version, summary=out["summary"], text=out["text"],
+                guidance=guidance,
+            )  # fmt: skip
+            store.reindex(conn, page_id)

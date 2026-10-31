@@ -12,33 +12,20 @@ import json
 from typing import Any
 
 from .. import claude
+from ..runs import failed, start_run
 from ..store import (
     Store,
     model_summary,
-    now,
     roles,
     topics,
     transaction,
     writeups,
 )
-from .checking import checked_writeup, record
+from .checking import checked_writeup, written
 from .constants import MAX_TOPIC_SOURCES, TOPIC_INPUT, TOPIC_SCHEMA, TOPIC_SOURCE
 from .prompts import page_images
 from .topic_prompts import source_text, topic_message, topic_prompt
 from .types import Call
-
-
-def failed(store: Store, run_id: int, error: claude.CallError, table: str) -> None:
-    """Record a failed call's run: refused, invalid or error."""
-    refused = error.completion is not None and (
-        error.completion.stop_reason == "refusal"
-    )
-    status = (
-        "refused" if refused else ("invalid" if error.cls == "invalid" else "error")
-    )
-    with store.connect() as conn, transaction(conn):
-        record(conn, run_id, error.completion, table, status=status,
-               error_class=error.cls, error=str(error)[:500])  # fmt: skip
 
 
 def inputs(
@@ -102,11 +89,9 @@ def synthesise(
         "guidance": guidance, "backend": claude.backend(),
     }  # fmt: skip
     with store.connect() as conn, transaction(conn):
-        run_id = conn.execute(
-            "INSERT INTO enrich_run (page_id, job_id, model, prompt_version, request,"
-            " started_at) VALUES (?, ?, ?, ?, ?, ?) RETURNING id",
-            (page_id, job_id, model, version, json.dumps(request), now()),
-        ).fetchone()[0]
+        run_id = start_run(conn, "enrich_run", page_id=page_id, job_id=job_id,
+                           model=model, prompt_version=version,
+                           request=json.dumps(request))  # fmt: skip
     try:
         done = call(
             model, system, messages, TOPIC_SCHEMA, None,
@@ -117,18 +102,8 @@ def synthesise(
         except ValueError as error:
             raise claude.CallError("invalid", str(error), completion=done) from None
     except claude.CallError as error:
-        failed(store, run_id, error, "enrich_run")
+        with store.connect() as conn, transaction(conn):
+            failed(conn, "enrich_run", run_id, error)
         return error
-    with store.connect() as conn, transaction(conn):
-        record(conn, run_id, done, status="ok", output=json.dumps(out))
-        alive = conn.execute(
-            "SELECT 1 FROM page WHERE id = ? AND deleted_at IS NULL", (page_id,)
-        ).fetchone()
-        if alive:
-            writeups.put(
-                conn, page_id, now(), producer=done.served_model, run_id=run_id,
-                prompt_version=version, summary=out["summary"], text=out["text"],
-                guidance=guidance,
-            )  # fmt: skip
-            store.reindex(conn, page_id)
+    written(store, run_id, page_id, done, version, out, guidance)
     return None

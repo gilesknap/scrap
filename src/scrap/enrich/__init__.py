@@ -23,6 +23,7 @@ the ingest worker's thread; everything shares its queue pause and daily budget. 
 docs/explanations/ingest.md.
 """
 
+from ..runs import record
 from .checking import (
     checked,
     checked_related,
@@ -30,7 +31,6 @@ from .checking import (
     checked_writeup,
     cited,
     clean_tag,
-    record,
 )
 from .constants import (
     AUTO_FILES,

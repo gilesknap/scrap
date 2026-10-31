@@ -7,8 +7,9 @@ from typing import Any
 from .. import claude
 from ..ingest import PAUSES, notify, pause, resume, spent_today
 from ..ingest.constants import budget_day_micros
+from ..runs import failed, record, start_run
 from ..store import Store, model_summary, now, transaction, writeups
-from .checking import checked_related, record
+from .checking import checked_related
 from .constants import RELATED_FILES, RELATED_SCHEMA, STALE
 from .finding import CANDIDATES
 from .prompts import page_files, page_images, related_message, related_prompt
@@ -56,11 +57,9 @@ def relate(
         "backend": claude.backend(),
     }  # fmt: skip
     with store.connect() as conn, transaction(conn):
-        run_id = conn.execute(
-            "INSERT INTO enrich_run (page_id, job_id, model, prompt_version, request,"
-            " started_at) VALUES (?, ?, ?, ?, ?, ?) RETURNING id",
-            (page_id, job_id, model, version, json.dumps(request), now()),
-        ).fetchone()[0]
+        run_id = start_run(conn, "enrich_run", page_id=page_id, job_id=job_id,
+                           model=model, prompt_version=version,
+                           request=json.dumps(request))  # fmt: skip
     try:
         done = call(
             model, system, messages, RELATED_SCHEMA, None,
@@ -71,15 +70,8 @@ def relate(
         except ValueError as error:
             raise claude.CallError("invalid", str(error), completion=done) from None
     except claude.CallError as error:
-        refused = error.completion is not None and (
-            error.completion.stop_reason == "refusal"
-        )
-        status = (
-            "refused" if refused else ("invalid" if error.cls == "invalid" else "error")
-        )
         with store.connect() as conn, transaction(conn):
-            record(conn, run_id, error.completion, status=status,
-                   error_class=error.cls, error=str(error)[:500])  # fmt: skip
+            failed(conn, "enrich_run", run_id, error)
         return error
     with store.connect() as conn, transaction(conn):
         record(conn, run_id, done, status="ok", output=json.dumps({"related": picks}))

@@ -11,6 +11,8 @@ from io import BytesIO
 from typing import Any
 
 from .. import actions, claude, claude_cli, preview, sanitise, svg
+from ..runs import failed as run_failed
+from ..runs import record, start_run
 from ..store import (
     MAX_TAGS,
     PAGE_KINDS,
@@ -230,14 +232,12 @@ class Worker:
                     " ON CONFLICT DO NOTHING",
                     (sent, size, now()),
                 )
-            run_id = conn.execute(
-                "INSERT INTO model_run (capture_id, source_sha256, job_id, purpose,"
-                " model, prompt_version, sent_sha256, image_width, image_height,"
-                " request, started_at) VALUES (?, ?, ?, 'ingest', ?, ?, ?, ?, ?, ?, ?)"
-                " RETURNING id",
-                (cid, photo, jid, model, version, sent, width or None,
-                 height or None, json.dumps(request), now()),
-            ).fetchone()[0]  # fmt: skip
+            run_id = start_run(
+                conn, "model_run", capture_id=cid, source_sha256=photo, job_id=jid,
+                purpose="ingest", model=model, prompt_version=version,
+                sent_sha256=sent, image_width=width or None,
+                image_height=height or None, request=json.dumps(request),
+            )  # fmt: skip
         try:
             done = self.call(model, system, messages, claude.SCHEMA, self._blob)
             raw = done.output if words is None else {**done.output, "elements": []}
@@ -253,45 +253,10 @@ class Worker:
             keep_text=bool(words),
         )  # fmt: skip
 
-    def _record(
-        self,
-        conn: sqlite3.Connection,
-        run_id: int,
-        done: claude.Completion | None,
-        **fields: Any,
-    ) -> None:
-        if done is not None:
-            fields.update(
-                served_model=done.served_model,
-                response=json.dumps(
-                    {"content": done.content, "stop_reason": done.stop_reason}
-                ),
-                usage=json.dumps(done.usage),
-                cost_microusd=claude.cost_microusd(done.served_model, done.usage),
-            )
-        fields["finished_at"] = now()
-        names = ", ".join(f"{k} = ?" for k in fields)
-        conn.execute(
-            f"UPDATE model_run SET {names} WHERE id = ?", (*fields.values(), run_id)
-        )
-
     def failed(self, job: sqlite3.Row, run_id: int, error: claude.CallError) -> None:
-        refused = error.completion is not None and (
-            error.completion.stop_reason == "refusal"
-        )
-        status = (
-            "refused" if refused else "invalid" if error.cls == "invalid" else "error"
-        )
         announce = False
         with self.store.connect() as conn, transaction(conn):
-            self._record(
-                conn,
-                run_id,
-                error.completion,
-                status=status,
-                error_class=error.cls,
-                error=str(error)[:500],
-            )
+            run_failed(conn, "model_run", run_id, error)
             if not self._running(conn, job["id"]):
                 return  # purged, or given back at shutdown
             if error.cls in PAUSES:
@@ -323,7 +288,7 @@ class Worker:
             if row is None:
                 return  # purged while the call ran: the run went with it
             options = json.loads(row[0])  # as now: Reprocess may confirm meanwhile
-            self._record(conn, run_id, done, status="ok", output=json.dumps(out))
+            record(conn, run_id, done, "model_run", status="ok", output=json.dumps(out))
             if not self._running(conn, jid):
                 return  # given back at shutdown: it runs again
             stamp, producer = now(), done.served_model
