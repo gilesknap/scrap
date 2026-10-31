@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Capture from your phone (the PWA) &#8212; scrap 1.1.2.dev5+gdb376e64c documentation</title>
+    <title>Capture from your phone (the PWA) &#8212; scrap 1.1.2.dev6+gc42c92b97 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=20ffe4d1"></script>
+    <script src="../_static/documentation_options.js?v=2cfe92ec"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -1495,7 +1495,14 @@ here and is not counted.</p></li>
 </section>
 <section id="sharing-a-page">
 <h3>Sharing a page<a class="headerlink" href="#sharing-a-page" title="Link to this heading">#</a></h3>
-<p><strong>Share</strong> asks <strong>Link</strong>, <strong>Text</strong>, <strong>HTML</strong> and <strong>Zip</strong> (both saved like Download where the browser cannot share them: Chrome on Android cannot share a zip) or <strong>Download</strong>. Tap <strong>Share</strong> again or elsewhere to close.</p>
+<p><strong>Share</strong> asks <strong>Link</strong>, <strong>Text</strong>, <strong>Print / Save as PDF</strong>, <strong>HTML</strong> and <strong>Zip</strong> (both saved like Download where the browser cannot share them: Chrome on Android cannot share a zip) or <strong>Download</strong>. Where the browser cannot share an HTML file, HTML is <strong>Download HTML</strong>. Tap <strong>Share</strong> again or elsewhere to close.</p>
+<p>On a computer with no share sheet (Firefox, Chrome on Linux) <strong>Share</strong> copies instead: <strong>Copy
+link</strong>, <strong>Copy as Markdown</strong> (the Text below), <strong>Copy as rich text</strong> (the title and text as
+formatted text, with the Markdown as its plain text, to paste into an email or a document; no
+meta line, tags, Claude’s card or files, and photos are named, not included), then <strong>Print /
+Save as PDF</strong>, <strong>Download HTML</strong>, <strong>Download</strong> and <strong>Pin to Search</strong>. Each copy says so, for
+example <em>Link copied</em>; where the browser can’t put formatted text on the clipboard, Copy as rich
+text copies the plain text and says <em>Text copied</em>.</p>
 <div class="pst-scrollable-table-container"><table class="table">
 <thead>
 <tr class="row-odd"><th class="head"><p>Choice</p></th>
@@ -1509,13 +1516,16 @@ here and is not counted.</p></li>
 <tr class="row-odd"><td><p><strong>Text</strong></p></td>
 <td><p>Title and text as typed, without lines that only show a photo; no link to scrap</p></td>
 </tr>
-<tr class="row-even"><td><p><strong>HTML</strong></p></td>
+<tr class="row-even"><td><p><strong>Print / Save as PDF</strong></p></td>
+<td><p>The browser’s print dialog, which can also save a PDF</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>HTML</strong></p></td>
 <td><p>The page as you see it, as one <code class="docutils literal notranslate"><span class="pre">.html</span></code> file that opens anywhere with no scrap: your text, Claude’s card with the labels the page gives it (nothing added), and the file names; task boxes show as <code class="docutils literal notranslate"><span class="pre">[x]</span></code> or <code class="docutils literal notranslate"><span class="pre">[</span> <span class="pre">]</span></code>, and Ask, Download and the other buttons, and the notes that say what Claude is waiting for, are left out. Photos are inlined as 480 pixel previews (no location or camera details), up to about 4 MB in all; past that, the rest are named in brackets. PDFs and other files are named, not included; links to other pages of scrap lose their link. No script, and nothing in it is fetched. It is built from the page on screen, so it shows what the page shows now. If the browser cannot share files it is saved</p></td>
 </tr>
-<tr class="row-odd"><td><p><strong>Zip</strong></p></td>
+<tr class="row-even"><td><p><strong>Zip</strong></p></td>
 <td><p>The same Markdown, or zip, as Download, handed to the share sheet (where it can’t take a zip, as on Chrome for Android, it is saved instead and says so), but with each photo as a preview (up to 2048 pixels, with no location or camera details) instead of the original. If the browser cannot share files, or refuses the zip, it is saved like Download, with the original photos (which keep their location and camera details)</p></td>
 </tr>
-<tr class="row-even"><td><p><strong>Download</strong></p></td>
+<tr class="row-odd"><td><p><strong>Download</strong></p></td>
 <td><p>Markdown, or a zip of the Markdown and its files (the originals) when it has any</p></td>
 </tr>
 </tbody>
@@ -1529,7 +1539,7 @@ read from a PDF or text file follows the file’s link, in a block cut at 20,000
 <code class="docutils literal notranslate"><span class="pre">SCRAP_PUBLIC_URL</span></code> is set, <code class="docutils literal notranslate"><span class="pre">[[slug]]</span></code> links are written as full addresses so they work outside
 scrap. The export of every page (<a class="reference internal" href="export-your-pages.html"><span class="std std-doc">Export your pages</span></a>) keeps Claude’s notes in a file of their
 own instead.</p>
-<p>Where the browser cannot share, there is no Share and <strong>Download</strong> is in the toolbar. While it
+<p>Where a phone’s browser cannot share, there is no Share and <strong>Download</strong> is in the toolbar. While it
 fetches the button says <em>Preparing…</em>; a finished Download says <em>Downloaded</em> with name and size; a
 failure says <em>Download failed</em> or <em>Share failed</em> and why, for about 8 seconds. Closing the share
 sheet is no failure. If the browser cannot share a file, <strong>Photo</strong> says <em>Sharing files is not
@@ -1672,6 +1682,8 @@ If the drawing changed elsewhere meanwhile, saving says so: <strong>Save mine</s
 version (theirs stays in History), or <strong>Discard mine, show theirs</strong>.</p></li>
 <li><p><strong>More, History</strong> lists every version (Claude’s, yours, restored) with <strong>Restore</strong>, which makes
 an old version current again as a new copy. Nothing is overwritten.</p></li>
+<li><p><strong>More, Share</strong> sends the drawing as a PNG, where the phone can share files; elsewhere there is
+no Share, and <strong>Export PNG</strong> saves it.</p></li>
 <li><p><strong>More, Export</strong> saves <code class="docutils literal notranslate"><span class="pre">.excalidraw</span></code>, PNG or SVG. The page’s <strong>Download</strong> zip includes it beside
 the photo, with the description and text in the Markdown.</p></li>
 <li><p>It follows the phone’s light or dark theme and needs the server.</p></li>
