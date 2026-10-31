@@ -1,6 +1,7 @@
 """commands/install.sh installs the commands of the ref it was released at (M3, #238):
 the release job rewrites its `default_ref=main` line to the tag."""
 
+import os
 import subprocess
 from pathlib import Path
 
@@ -61,9 +62,10 @@ def test_scrap_ref_overrides(tmp_path):
 
 @pytest.mark.parametrize("has_skill", [True, False])
 def test_it_installs_the_commands_and_the_skill(tmp_path, has_skill):
-    """One install step copies commands/*.md and skills/scrap-links from the archive.
+    """One install step copies commands/*.md and the skills from the archive.
 
     An older ref without skills/ installs the commands and keeps an existing skill.
+    The scrap-to-gist scripts stay executable.
     """
     bin_dir = tmp_path / "bin"
     bin_dir.mkdir()
@@ -77,6 +79,10 @@ def test_it_installs_the_commands_and_the_skill(tmp_path, has_skill):
         + (
             'mkdir -p "$d/skills/scrap-links"\n'
             'echo skill > "$d/skills/scrap-links/SKILL.md"\n'
+            'mkdir -p "$d/skills/scrap-to-gist"\n'
+            'echo gist > "$d/skills/scrap-to-gist/SKILL.md"\n'
+            'echo "#!/bin/sh" > "$d/skills/scrap-to-gist/render_tex_png.sh"\n'
+            'chmod +x "$d/skills/scrap-to-gist/render_tex_png.sh"\n'
             if has_skill
             else ""
         )
@@ -101,3 +107,8 @@ def test_it_installs_the_commands_and_the_skill(tmp_path, has_skill):
     assert (cmds / "sc-find.md").read_text() == "cmd\n"
     want = "skill\n" if has_skill else "old\n"
     assert (skills / "scrap-links" / "SKILL.md").read_text() == want
+    gist = skills / "scrap-to-gist"
+    assert gist.exists() == has_skill
+    if has_skill:
+        assert (gist / "SKILL.md").read_text() == "gist\n"
+        assert os.access(gist / "render_tex_png.sh", os.X_OK)
