@@ -1,7 +1,7 @@
 """Page text parsed as Markdown (markdown-it-py: CommonMark, plus GFM tables,
-strikethrough and footnotes, and Obsidian's [[target|label]] links), as the PWA renders
-it with markdown-it: raw HTML is text, a line break stays one. Used for the text the
-search index holds (`plain`) and for link rewriting (`rewrite`), so code
+strikethrough and footnotes, Obsidian's [[target|label]] links, and maths: maths.py), as
+the PWA renders it with markdown-it: raw HTML is text, a line break stays one. Used for
+the text the search index holds (`plain`) and for link rewriting (`rewrite`), so code
 is never mistaken for a link, and no part of it backtracks on hostile text."""
 
 import re
@@ -19,6 +19,7 @@ from markdown_it.rules_inline import link as link_rule
 from markdown_it.token import Token
 from mdit_py_plugins.footnote import footnote_plugin
 
+from .maths import maths_plugin
 from .public import origin
 
 __all__ = ["Link", "page_path", "plain", "rewrite", "wiki_parts", "wiki_targets"]
@@ -75,6 +76,7 @@ def parser() -> MarkdownIt:
     md = MarkdownIt("commonmark", {"html": False, "breaks": True})
     md.enable(["table", "strikethrough"])
     md.use(footnote_plugin)
+    md.use(maths_plugin)
     md.inline.ruler.at("link", _spanned(link_rule))
     md.inline.ruler.at("image", _spanned(image_rule))
     md.inline.ruler.before("link", "wiki", _wiki)
@@ -126,10 +128,14 @@ def wiki_targets(text: str, origins: Iterable[str] = ()) -> list[str]:
     return list(found)
 
 
+# Inline tokens whose content is words to search: text, code and maths (its TeX)
+TEXT = ("text", "text_special", "code_inline", "math_inline", "math_inline_double")
+
+
 def _text(children: list[Token]) -> str:
     out: list[str] = []
     for t in children:
-        if t.type in ("text", "text_special", "code_inline"):
+        if t.type in TEXT:
             out.append(t.content)
         elif t.type in ("softbreak", "hardbreak"):
             out.append("\n")
@@ -148,7 +154,7 @@ def plain(text: str) -> str:
     for t in parser().parse(text):
         if t.type == "inline":
             out.append(_text(t.children or []))
-        elif t.type in ("fence", "code_block"):
+        elif t.type in ("fence", "code_block", "math_block", "amsmath"):
             out.append(t.content)
         elif t.type in ("th_close", "td_close"):
             out.append(" ")

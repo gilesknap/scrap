@@ -201,6 +201,7 @@ export function bodyView(text: string, raw: boolean): HTMLElement {
   const el = h("div", { className: "body md", dir: "auto" });
   el.innerHTML = md.markdown(text);
   void md.diagrams(el);
+  void md.math(el);
   return el;
 }
 

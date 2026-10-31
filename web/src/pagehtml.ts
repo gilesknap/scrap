@@ -128,6 +128,20 @@ export async function inline(
 /** The photo's name for the file: its alt text, else a plain word. */
 const named = (n: N) => (attr(n, "alt") || "").trim() || "photo";
 
+/** Maths (render.ts, drawn or not by math.ts) as its TeX, as typed: KaTeX's markup needs its
+ * CSS and fonts, which the file does not carry. Null if n is not maths. */
+function mathOf(n: N): string | null {
+  const cls = ` ${attr(n, "class") ?? ""} `;
+  if (!cls.includes(" math ")) return null;
+  const tex = esc(attr(n, "data-tex") ?? textOf(n).trim());
+  // A $$...$$ in a line is a span: it stays in its paragraph, as inline code
+  if (tag(n) === "span") {
+    const fence = cls.includes(" display ") ? "$$" : "$";
+    return `<code class="math">${fence}${tex}${fence}</code>`;
+  }
+  return `<pre class="math">${tex.startsWith("\\begin") ? tex : `$$\n${tex}\n$$`}</pre>`;
+}
+
 /** A section that was text, as the elements its Markdown makes (by node, from prose()). */
 type Swaps = Map<N, N>;
 
@@ -135,6 +149,8 @@ function render(n: N, shown: Map<N, string | null>, swaps: Swaps = new Map()): s
   if (n.nodeType === TEXT) return esc(n.data ?? "");
   if (!el(n) || control(n)) return "";
   const t = tag(n);
+  const math = mathOf(n);
+  if (math !== null) return math;
   // The meta line's parts (pagehead.ts) are told apart by CSS the file does not carry, so they
   // would fuse ("Todo1 of 2"): the file spells the "·" out, as the text a reader or copy gets
   const apart = t === "span" && ` ${attr(n, "class") ?? ""} `.includes(" parts ");

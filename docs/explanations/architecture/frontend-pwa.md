@@ -62,7 +62,8 @@ flowchart LR
   view's signal on each navigation. `go()` in `app.ts` records Back marks in `history.state`;
   Back in the top bar goes to the linking page, else the list, else a parent (`back.ts`).
 - **Precached chunks** (`OFFLINE` in `web/vite.config.ts`): `back`, `composer`, `downscale`,
-  `editor`, `figure` (a photo's panel and its drawing preview; it imports `ingest`), `page`, `pageedit`, `render`, `sharing`, `refine`, `searches`.
+  `editor`, `figure` (a photo's panel and its drawing preview; it imports `ingest`), `math`
+  (KaTeX, its CSS and WOFF2 fonts), `page`, `pageedit`, `render`, `sharing`, `refine`, `searches`.
 - **Not precached**: the Excalidraw board chunk and its fonts (served from `/excalidraw/fonts/`,
   not a CDN) and Mermaid. Offline, a drawing does not open and a Mermaid block stays as code.
 - **Filters** is an in-place panel (`refine.ts`), not a modal or sheet.
@@ -139,6 +140,12 @@ sides agree on the output ([](../decisions/0014-markdown-parsed-by-a-library-on-
 After rendering, `diagrams()` looks for `pre > code.language-mermaid` blocks and only then loads
 `mermaid.ts`. Mermaid runs with `securityLevel: "strict"`, follows the app theme, is bundled (no
 CDN) and leaves any block it cannot parse as code.
+Maths works the same way: `mathrules.ts` turns `$...$`, `$$...$$` and top-level amsmath
+environments into `.math` elements holding their TeX (the server's `maths.py` follows the same
+rules, so a formula's `_` or `[[` is never emphasis or a link to search), and `math()` loads
+`math.ts` (KaTeX, `trust: false`) only for a page that has some, or a ` ```math ` block. A
+formula KaTeX cannot draw keeps its TeX. Shared cases in `tests/maths_cases.json` hold both
+parsers to the same answers.
 
 ## Excalidraw
 

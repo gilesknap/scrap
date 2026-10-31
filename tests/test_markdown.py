@@ -88,6 +88,14 @@ def test_rewrite_keeps_what_it_is_told_to_and_the_rest_as_typed():
         "\\",
         "x [[y]]\n",
         "| [[y]] |\n",
+        # maths (maths.py): unclosed openers, each read only to the next
+        "$a",
+        "$$a$",
+        "$$a\n# h\n",
+        "> $$a\n> # h\n",
+        "- $$a\n",
+        "\\begin{align}\n",
+        "- \\begin{align}\n",
     ],
 )
 def test_hostile_text_takes_linear_time(pattern):

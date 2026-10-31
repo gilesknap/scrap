@@ -4,12 +4,14 @@
 // Links are http(s), mailto, a page or screen here (/search?q=..., /todos; a full address of
 // one opens in the app, as [[slug]] does) or a heading of this page; images only this
 // server's own files, each marked with its file's data-sha for the page to make a figure of.
-// A ```mermaid block is drawn as a diagram, by Mermaid, a chunk of its own loaded only then.
+// A ```mermaid block is drawn as a diagram, by Mermaid, a chunk of its own loaded only then;
+// maths ($...$, $$...$$, ```math; mathrules.ts) by KaTeX, the same way (math.ts).
 // The server parses text the same way for search (src/scrap/markdown.py). The stored text is
 // never changed. On a Later page, a link on its own line is drawn as a card (cards()).
 import markdownit, { type StateCore, type StateInline, type Token } from "markdown-it";
 import footnote from "markdown-it-footnote";
 import { icon } from "./icons";
+import maths from "./mathrules";
 
 const IMAGE = /^\/api\/blobs\/([0-9a-f]{64})(\/preview\?size=(480|2048))?$/;
 const EXTERNAL = /^(https?:\/\/|mailto:)/i;
@@ -26,6 +28,7 @@ const WIKI = /^([a-z0-9-]+)(?:\\?\|(.+))?$/;
 const md = markdownit({ html: false, breaks: true, linkify: true });
 md.linkify.set({ fuzzyLink: false, fuzzyEmail: false }).add("ftp:", null).add("//", null);
 md.use(footnote);
+md.use(maths);
 md.inline.ruler.before("link", "wiki", wiki);
 md.core.ruler.push("scrap", tidy);
 // A table scrolls sideways in a box of its own, not the page
@@ -240,6 +243,15 @@ export async function diagrams(el: HTMLElement) {
   if (!blocks.length) return;
   const mod = await import("./mermaid").catch(() => null);
   await mod?.draw(blocks);
+}
+
+/** Draw the maths in el (mathrules.ts, and ```math blocks) by KaTeX, loaded only for them;
+ * offline, or a formula it can't draw, stays as its TeX. */
+export async function math(el: HTMLElement) {
+  const found = [...el.querySelectorAll<HTMLElement>(".math, pre > code.language-math")];
+  if (!found.length) return;
+  const mod = await import("./math").catch(() => null);
+  mod?.draw(found);
 }
 
 /** A link's path as a line to read: its words, not its escapes ("wiki / Integrated

@@ -1,0 +1,31 @@
+{
+  "note": "Shared by tests/test_markdown_math.py (maths.py) and web/tests/math.test.ts (mathrules.ts): each text, and the maths both parsers find in it, in order, as [kind, TeX] (inline: $..$; double: $$..$$ in a line; block: $$ lines or an amsmath environment). None: it stays text.",
+  "cases": [
+    ["so $x^2$ is", [["inline", "x^2"]]],
+    ["$x$ is 5", [["inline", "x"]]],
+    ["$a_1 * b_2 * [[c]]$ and [[real]]", [["inline", "a_1 * b_2 * [[c]]"]]],
+    ["a $$\\frac{1}{2}$$ b", [["double", "\\frac{1}{2}"]]],
+    ["$a<b$", [["inline", "a<b"]]],
+    ["from 5$ to $x$", [["inline", "x"]]],
+    ["two: $a$ and $b$.", [["inline", "a"], ["inline", "b"]]],
+    ["$$\na_1 = b\n$$", [["block", "a_1 = b"]]],
+    ["$$x$$", [["block", "x"]]],
+    ["$$\n_x_ [[page]] *y*\n$$", [["block", "_x_ [[page]] *y*"]]],
+    ["> $$\n> a_1\n> $$", [["block", "a_1"]]],
+    ["- $$\n  a_1\n  $$", [["block", "a_1"]]],
+    ["\\begin{align}\na &= b\n\\end{align}", [["block", "\\begin{align}\na &= b\n\\end{align}"]]],
+    ["\\begin{equation}\n\\begin{pmatrix} a \\end{pmatrix}\n\\end{equation}", [["block", "\\begin{equation}\n\\begin{pmatrix} a \\end{pmatrix}\n\\end{equation}"]]],
+    ["$5 and $10", []],
+    ["It cost $5, then $10.", []],
+    ["from $10-$20", []],
+    ["between $ 5 and 10 $", []],
+    ["a lone $", []],
+    ["escaped \\$x\\$", []],
+    ["$$5 and $$10", []],
+    ["$$\nnot closed\n\nby a blank line $$", []],
+    ["$$a\n$$b\n$$", [["double", "a"]]],
+    ["\\begin{align}\na\n\\begin{align}\nb", []],
+    ["    $$x$$", []],
+    ["`$x$`", []]
+  ]
+}
