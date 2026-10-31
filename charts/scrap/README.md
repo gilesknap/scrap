@@ -85,6 +85,24 @@ also turns on Claude enrichment of text pages.
 `identityHeader` to the header your authenticating proxy sends for the user (it defaults to
 `Tailscale-User-Login`).
 
+## Public pages
+
+Off by default. `public.enabled` runs the public site of the pages marked Public (issue 497)
+from the `ghcr.io/gilesknap/scrap-public` image, in a namespace of its own (`public.namespace`,
+default `scrap-public`, labelled Pod Security `restricted`; `public.createNamespace: false` if it
+exists). One pod holds nginx, which serves the site read only, and an upload receiver that scrap
+pushes the pages to. Only nginx gets an Ingress (`public.ingress`). A NetworkPolicy admits only
+scrap's pods to the receiver and `public.networkPolicy.webFrom` (empty: anyone) to nginx, and
+denies all egress. The site is an `emptyDir` (`public.sizeLimit`); scrap pushes it back after the
+pod moves.
+
+The upload token is a Secret you create, at least 32 characters, named by
+`public.tokenSecret.name` and `.key`, in **both** namespaces (each pod reads only its own
+namespace's Secrets). `public.site` is the site's base URL (`SCRAP_PUBLISH_SITE`). The install
+fails without either. scrap then gets `SCRAP_PUBLISH_TO`, `SCRAP_PUBLISH_SITE` and
+`SCRAP_PUBLISH_TOKEN`. Behind Cloudflare Access, the site's host needs its own Access application
+with the Bypass action: a wildcard application covers every subdomain. See the guide.
+
 ## Operating
 
 - Check it works without exposing it: `kubectl -n scrap port-forward svc/scrap 8000:80`, then
@@ -120,3 +138,5 @@ It lints the chart, renders every value set in `ci/`, validates the output with 
 (Kubernetes 1.30.0 and 1.36.5 by default; override with `K8S_VERSIONS`) and asserts that no Secret
 or ConfigMap is rendered, there is one replica with `Recreate`, names fit the Kubernetes limits,
 bad values are refused, and every environment variable the chart sets is a documented app setting.
+For public pages it also checks that the token is never a plain value, no Ingress points at the
+receiver, and the public NetworkPolicy exists and denies egress.

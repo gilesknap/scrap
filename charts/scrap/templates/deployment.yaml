@@ -40,6 +40,19 @@ spec:
               containerPort: 8000
           env:
             {{- include "scrap.appEnv" . | nindent 12 }}
+            {{- if .Values.public.enabled }}
+            # Public pages: the receiver scrap pushes them to, the site's address,
+            # and the upload token (from the same-named Secret in this namespace)
+            - name: SCRAP_PUBLISH_TO
+              value: {{ include "scrap.publishTo" . | quote }}
+            - name: SCRAP_PUBLISH_SITE
+              value: {{ .Values.public.site | trimSuffix "/" | quote }}
+            - name: SCRAP_PUBLISH_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.public.tokenSecret.name }}
+                  key: {{ .Values.public.tokenSecret.key }}
+            {{- end }}
           {{- with .Values.extraEnvFrom }}
           envFrom:
             {{- toYaml . | nindent 12 }}

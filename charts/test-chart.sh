@@ -19,7 +19,10 @@ bad() {
 for values in "$chart"/ci/*-values.yaml; do
     name=$(basename "$values" -values.yaml)
     release=scrap
-    if [ "$name" = long-names ]; then release=a-release-name-of-fifty-three-characters-the-maximum; fi
+    # public's names gain suffixes, so it is rendered with the longest name too
+    if [ "$name" = long-names ] || [ "$name" = public ]; then
+        release=a-release-name-of-fifty-three-characters-the-maximum
+    fi
     if ! helm lint --strict --quiet "$chart" -f "$values" >"$out/lint" 2>&1; then
         cat "$out/lint"
         bad "$name: helm lint"
@@ -41,10 +44,11 @@ for values in "$chart"/ci/*-values.yaml; do
     # The chart never creates Secrets or ConfigMaps, and the key only ever
     # comes from a secretKeyRef.
     if grep -Eq '^kind: (Secret|ConfigMap)$' "$m"; then bad "$name: renders a Secret/ConfigMap"; fi
-    if grep -A1 -E 'name: (ANTHROPIC_API_KEY|SCRAP_NOTIFY_URL|SCRAP_MCP_TOKEN)$' "$m" | grep -Eq 'value:'; then
+    if grep -A1 -E 'name: (ANTHROPIC_API_KEY|SCRAP_NOTIFY_URL|SCRAP_MCP_TOKEN|SCRAP_PUBLISH_TOKEN|RECEIVER_TOKEN)$' "$m" | grep -Eq 'value:'; then
         bad "$name: a secret setting rendered as a plain value"
     fi
-    if ! { grep -q '^  replicas: 1$' "$m" && grep -q 'type: Recreate' "$m"; }; then
+    if [ "$(grep -c '^  replicas: 1$' "$m")" != "$(grep -c '^kind: Deployment$' "$m")" ] ||
+        [ "$(grep -c 'type: Recreate' "$m")" != "$(grep -c '^kind: Deployment$' "$m")" ]; then
         bad "$name: not one replica with Recreate"
     fi
     # Kubernetes name limits: a CronJob's name 52, other names and label values 63
@@ -77,6 +81,49 @@ expect_refused "gc.enabled=true with backups off" --set backup.enabled=false --s
 expect_refused "gc.trashDays=0" --set gc.trashDays=0
 expect_refused "gc.jobDays=0.5" --set gc.jobDays=0.5
 expect_refused "gc.trashDays over 36500" --set gc.trashDays=36501
+expect_refused "public.enabled without tokenSecret.name" --set public.enabled=true \
+    --set public.site=https://pages.example.org
+expect_refused "public.enabled without site" --set public.enabled=true \
+    --set public.tokenSecret.name=s
+expect_refused "a public token as a value" --set public.token=not-a-token
+expect_refused "a public site that is not a URL" --set public.site=pages.example.org
+expect_refused "an unknown public key" --set public.replicas=2
+
+# Public pages (issue 497). Off by default: nothing of it renders, and scrap gets no
+# SCRAP_PUBLISH_* settings.
+if helm template scrap "$chart" | grep -Eq 'scrap-public|SCRAP_PUBLISH_'; then
+    bad "public pages render while public.enabled is off"
+else ok "public pages are off by default"; fi
+pub="$out/public-checks.yaml"
+helm template scrap "$chart" -f "$chart/ci/public-values.yaml" >"$pub"
+# Each object as one line: kind, namespace, name, then its text joined with |
+awk 'function end_doc() { if (doc != "") print doc; doc = "" }
+    /^---/ { end_doc(); next } { doc = doc $0 "|" } END { end_doc() }' "$pub" >"$out/docs"
+ingresses=$(grep '|kind: Ingress|' "$out/docs" || true)
+if echo "$ingresses" | grep -Eq 'scrap-receiver|name: receiver|8081'; then
+    bad "an Ingress points at the receiver"
+elif echo "$ingresses" | grep 'namespace: scrap-public|' | grep -q '|                name: scrap-public|'; then
+    ok "the only public Ingress is nginx's"
+else bad "no Ingress for nginx"; fi
+np=$(grep '|kind: NetworkPolicy|' "$out/docs" | grep 'namespace: scrap-public|' || true)
+if [ -n "$np" ] && echo "$np" | grep -q '|    - Egress|' && echo "$np" | grep -q '|  egress: \[\]|' &&
+    echo "$np" | grep -q 'kubernetes.io/metadata.name: default|'; then
+    ok "the public NetworkPolicy denies egress and admits scrap's namespace"
+else bad "the public NetworkPolicy is missing, allows egress or misses scrap's namespace"; fi
+if grep '|kind: Namespace|' "$out/docs" | grep -q 'pod-security.kubernetes.io/enforce: restricted|'; then
+    ok "the public namespace enforces Pod Security restricted"
+else bad "the public namespace is not Pod Security restricted"; fi
+recv=$(grep '|kind: Deployment|' "$out/docs" | grep 'namespace: scrap-public|' || true)
+if [ "$(echo "$recv" | grep -o 'secretKeyRef' | wc -l)" = 1 ] &&
+    echo "$recv" | grep -q 'name: RECEIVER_TOKEN|' &&
+    [ "$(echo "$recv" | grep -o 'readOnlyRootFilesystem: true' | wc -l)" = 2 ]; then
+    ok "only the receiver gets the token; both containers have read-only roots"
+else bad "the token reaches nginx, or a public container's root is writable"; fi
+if grep -A1 'name: SCRAP_PUBLISH_TO$' "$pub" | grep -q 'value: "http://scrap-receiver.scrap-public.svc:8081"' &&
+    grep -A1 'name: SCRAP_PUBLISH_SITE$' "$pub" | grep -q 'value: "https://pages.example.org"' &&
+    grep -A3 'name: SCRAP_PUBLISH_TOKEN$' "$pub" | grep -q 'secretKeyRef'; then
+    ok "scrap gets SCRAP_PUBLISH_TO, _SITE and the token from a secretKeyRef"
+else bad "scrap lacks SCRAP_PUBLISH_TO, _SITE or the token's secretKeyRef"; fi
 # An upgrade with backups off (gc.enabled unset) renders, with no gc CronJob.
 if helm template scrap "$chart" --set backup.enabled=false | grep -q -- '-gc$'; then
     bad "backup off still renders a gc CronJob"
@@ -116,6 +163,7 @@ docs=$repo/docs/reference/api.md
 {
     helm template scrap "$chart" -f "$chart/ci/ingest-values.yaml"
     helm template scrap "$chart" -f "$chart/ci/mcp-auth-values.yaml"
+    helm template scrap "$chart" -f "$chart/ci/public-values.yaml"
 } |
     grep -oE 'name: (SCRAP|ANTHROPIC)_[A-Z_]+' | sed 's/name: //' | sort -u >"$out/env"
 while read -r var; do

@@ -1,0 +1,136 @@
+# scrap-public's web server: the public site, read only, GET and HEAD only.
+# The entrypoint (`scrap-public web`) fills in the @...@ values and writes the result
+# to /tmp/nginx.conf: the root filesystem is read only.
+#
+# The root is /site/www, which holds only the units' symlinks. The receiver's own
+# folders (/site/units, /site/staging) are outside it, and its API (/v1/...) is
+# a different port and process, so neither is reachable here.
+
+worker_processes 1;
+pid /tmp/nginx.pid;
+error_log stderr warn;
+
+events {
+    worker_connections 512;
+}
+
+http {
+    server_tokens off;
+    autoindex off;
+    sendfile on;
+    tcp_nopush on;
+    access_log /dev/stdout;
+    client_max_body_size 1k;
+
+    client_body_temp_path /tmp/nginx-body;
+    proxy_temp_path /tmp/nginx-proxy;
+    fastcgi_temp_path /tmp/nginx-fastcgi;
+    uwsgi_temp_path /tmp/nginx-uwsgi;
+    scgi_temp_path /tmp/nginx-scgi;
+
+    # Only the types a unit may hold (receiver.py's EXTENSIONS)
+    types {
+        text/html html;
+        text/css css;
+        text/javascript js mjs;
+        application/json json;
+        application/wasm wasm;
+        text/plain txt;
+        text/markdown md;
+        application/pdf pdf;
+        text/csv csv;
+        application/zip zip;
+        application/epub+zip epub;
+        application/vnd.openxmlformats-officedocument.wordprocessingml.document docx;
+        application/vnd.openxmlformats-officedocument.spreadsheetml.sheet xlsx;
+        application/vnd.openxmlformats-officedocument.presentationml.presentation pptx;
+        application/vnd.oasis.opendocument.text odt;
+        application/vnd.oasis.opendocument.spreadsheet ods;
+        application/vnd.oasis.opendocument.presentation odp;
+        image/png png;
+        image/jpeg jpg jpeg;
+        image/gif gif;
+        image/webp webp;
+        image/avif avif;
+        image/svg+xml svg;
+        image/x-icon ico;
+        font/woff woff;
+        font/woff2 woff2;
+    }
+    # Pagefind's index files (pagefind, pf_*) and bin
+    default_type application/octet-stream;
+    charset utf-8;
+    charset_types text/css text/javascript text/plain text/markdown text/csv application/json image/svg+xml;
+
+    # The CSP: the site's for HTML and the files it loads. A page's attachments
+    # (/p/<slug>/file-*) follow ADR 42's rule for stored files: sandboxed and loading
+    # nothing, but a PDF keeps sandbox alone, as a browser's PDF viewer needs more.
+    map $uri $scrap_csp {
+        "~^/p/[a-z0-9-]+/file-[^/]*\.pdf$" "sandbox";
+        "~^/p/[a-z0-9-]+/file-" "sandbox; default-src 'none'; style-src 'unsafe-inline'; img-src data:; font-src data:";
+        default "default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline' 'self'; script-src 'self' 'wasm-unsafe-eval'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'";
+    }
+
+    # HTML is checked each time, so a republished page shows at once; files for 5 min
+    map $sent_http_content_type $scrap_cache {
+        ~^text/html "no-cache";
+        default "public, max-age=300";
+    }
+
+    server {
+        listen 8080 default_server;
+        root /site/www;
+
+        if ($request_method !~ ^(GET|HEAD)$) {
+            return 405;
+        }
+
+        # One set of headers for every answer (no location adds its own, so all
+        # inherit these)
+        add_header Content-Security-Policy $scrap_csp always;
+        add_header X-Content-Type-Options nosniff always;
+        add_header Referrer-Policy no-referrer always;
+        add_header X-Robots-Tag "@X_ROBOTS_TAG@" always;
+        add_header Cache-Control $scrap_cache always;
+
+        error_page 404 /404.html;
+        location = /404.html {
+            internal;
+            root /site/www/home;
+        }
+
+        location = /robots.txt {
+            default_type text/plain;
+            return 200 "@ROBOTS_TXT@";
+        }
+
+        location = / {
+            try_files /home/index.html =404;
+        }
+        location = /tags {
+            try_files /home/tags.html =404;
+        }
+
+        # A page or a tag page: /p/<slug> and /t/<key>, with or without the slash
+        location ~ "^/(p/[a-z0-9-]{1,120}|t/[a-z0-9-]{1,80})/?$" {
+            try_files /$1/index.html =404;
+        }
+        # A file of one: each segment as the receiver allows, at most 4
+        location ~ "^/(p/[a-z0-9-]{1,120}|t/[a-z0-9-]{1,80})/((?:[A-Za-z0-9_][A-Za-z0-9._-]{0,99}/){0,3}[A-Za-z0-9_][A-Za-z0-9._-]{0,99})$" {
+            try_files /$1/$2 =404;
+        }
+        # The search index
+        location ~ "^/pagefind/((?:[A-Za-z0-9_][A-Za-z0-9._-]{0,99}/){0,3}[A-Za-z0-9_][A-Za-z0-9._-]{0,99})$" {
+            try_files /pagefind/$1 =404;
+        }
+        # A file of the home page's unit (tags.html, a stylesheet) at the top level
+        location ~ "^/([A-Za-z0-9_][A-Za-z0-9._-]{0,99})$" {
+            try_files /home/$1 =404;
+        }
+
+        # Everything else: /v1/..., /home/..., /units/..., dotfiles
+        location / {
+            return 404;
+        }
+    }
+}

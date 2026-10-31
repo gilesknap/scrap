@@ -142,7 +142,7 @@ and open <http://127.0.0.1:8000/> for the PWA. The PWA needs HTTPS to install on
 Every value is described in
 [`values.yaml`](https://github.com/gilesknap/scrap/blob/main/charts/scrap/values.yaml); unknown
 top-level keys, and unknown keys under `image`, `ingest`, `persistence`, `ingress`,
-`mcp`, `gc`, `enrichRelated` and `enrichTopics` (and under `backup`, including `backup.monthly`)
+`mcp`, `gc`, `enrichRelated`, `enrichTopics` and `public` (and under `backup`, including `backup.monthly`)
 are refused, so a typo there fails the install instead of being ignored. Other groups (`service`,
 `networkPolicy`, `serviceAccount`, `resources` and the security contexts) are not checked, so a typo
 inside them is silently ignored. The main ones:
@@ -168,6 +168,7 @@ inside them is silently ignored. The main ones:
 | `mcp.tokenSecret.name`, `.key` | none, `SCRAP_MCP_TOKEN` | An existing Secret and the key in it holding the bearer token(s) `/mcp` requires (`SCRAP_MCP_TOKEN`, comma separated for several). Never a token as a value; the chart creates no Secret. Empty name: no token needed. See {ref}`k8s-mcp-token`. |
 | `identityHeader` | `Tailscale-User-Login` | `SCRAP_IDENTITY_HEADER`: the header recorded as the author, e.g. `X-Auth-Request-User` behind oauth2-proxy. |
 | `extraEnv`, `extraEnvFrom` | none | Anything else for the container, such as `SCRAP_PUBLIC_URL` (see {ref}`k8s-mcp`) or `SCRAP_ENRICH`. |
+| `public.enabled`, `.site`, `.tokenSecret.*`, `.ingress.*`, `.networkPolicy.webFrom` | off | Public pages: the public site and its upload receiver in their own namespace ({ref}`k8s-public-pages`). |
 | `nodeSelector`, `tolerations`, `affinity`, `podAnnotations` | none | Scheduling and annotations. |
 | `nameOverride`, `fullnameOverride`, `serviceAccount.*`, `terminationGracePeriodSeconds`, `backup.resources` | see `values.yaml` | Naming, the ServiceAccount, the stop timeout (`30`) and the backup job's resources. |
 
@@ -410,6 +411,72 @@ probes use, answers to any name), and roll the pod after changing it.
 ### Port-forward
 
 For a quick try, `kubectl -n scrap port-forward svc/scrap 8000:80`. Nothing is exposed beyond your own machine.
+
+(k8s-public-pages)=
+## Public pages
+
+scrap can publish the pages you mark Public (issue 497) to a static site on the internet, for
+example `https://pages.example.org`. The site is served by nginx from a separate image,
+`ghcr.io/gilesknap/scrap-public`, which also holds a small upload receiver. scrap pushes each
+public page to the receiver; nothing on the public side can reach scrap. The chart's `public`
+section, off by default, runs it:
+
+- a namespace of its own (`public.namespace`, default `scrap-public`) labelled Pod Security
+  `restricted` (`public.createNamespace: false` if you made it; give it the same labels);
+- one Deployment with two containers sharing the site volume: `web` (nginx, the site mounted read
+  only) and `receiver` (the only one given the token), both non-root with read-only root
+  filesystems;
+- two ClusterIP Services, and an Ingress for nginx alone (`public.ingress`); the receiver is never
+  on an Ingress;
+- a NetworkPolicy: the receiver's port only from scrap's pods (the release namespace and scrap's
+  labels), nginx's port from `public.networkPolicy.webFrom` (empty: anyone, as nginx serves only
+  public files; set it to your ingress controller's namespace to narrow it), and no egress at all.
+
+The site lives in an `emptyDir` (`public.sizeLimit`, default `3Gi`: the receiver's 2 GiB quota
+plus room for an upload). It starts empty when the pod moves, and scrap fills it again: it checks
+the receiver's manifest at start and every 10 minutes and pushes what is missing.
+
+The upload token is a Secret you create, never a value. The receiver runs in the public namespace
+and scrap in its own, and a pod reads only its own namespace's Secrets, so create it, with the
+same name and key, in **both**:
+
+```sh
+token=$(openssl rand -hex 32)
+for ns in scrap scrap-public; do
+  kubectl create namespace "$ns" --dry-run=client -o yaml | kubectl apply -f -
+  kubectl -n "$ns" create secret generic scrap-publish --from-literal=token="$token"
+done
+```
+
+Then:
+
+```yaml
+public:
+  enabled: true
+  site: https://pages.example.org     # SCRAP_PUBLISH_SITE
+  tokenSecret:
+    name: scrap-publish
+    key: token
+  ingress:
+    className: nginx                  # or your controller's
+    hosts: [pages.example.org]
+    tls:
+      - hosts: [pages.example.org]
+        secretName: pages-tls
+```
+
+The install fails if `public.enabled` is set without `public.tokenSecret.name` or `public.site`.
+scrap's pod then gets `SCRAP_PUBLISH_TO` (the receiver's Service,
+`http://<fullname>-receiver.<public.namespace>.svc:8081`, `scrap-receiver.scrap-public` for a release named `scrap`), `SCRAP_PUBLISH_SITE` and
+`SCRAP_PUBLISH_TOKEN` (see the [settings](../reference/api.md)). The site is `noindex`: every
+answer has `X-Robots-Tag: noindex, nofollow` and `robots.txt` disallows all, unless
+`public.indexing` is `true`.
+
+**Behind Cloudflare Access**: if your domain has a wildcard Access application
+(`*.example.org`), it covers every subdomain, the public site's too, and visitors meet a login.
+Give the site's host (`pages.example.org`) its own Access application with a policy whose Action
+is **Bypass**, so anyone may reach it. A more specific application takes precedence over the
+wildcard.
 
 ## Upgrades
 
@@ -947,7 +1014,8 @@ PersistentVolume by hand.
 
 - Run more than one replica, or any high availability: SQLite has a single writer.
 - Create Secrets, take the API key as a value, or log in users.
-- Expose scrap to the internet, or add authentication.
+- Expose scrap to the internet, or add authentication. Public pages ({ref}`k8s-public-pages`)
+  put only the static site of the pages you mark Public on the internet, never scrap.
 - Copy backups off the cluster.
 - Restrict egress (ingest needs `api.anthropic.com`, and any public site a saved link points to
   while `SCRAP_ENRICH` is on; notifications need your notify URL).

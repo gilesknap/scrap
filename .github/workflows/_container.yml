@@ -6,6 +6,26 @@ on:
         description: >
           If true, pushes each platform's image to the registry by digest only (no
           tag). _container_publish.yml then tags them together as one multi-arch image.
+      name:
+        type: string
+        default: scrap
+        description: >
+          The image's name: ghcr.io/<owner>/<name>. Only the scrap image runs the
+          scrap checks below; any other runs its test-script.
+      context:
+        type: string
+        default: .
+        description: The build context
+      file:
+        type: string
+        default: Dockerfile
+        description: The Dockerfile, from the repository root
+      test-script:
+        type: string
+        default: ""
+        description: >
+          A script run with the built image's tag as its argument (docker is the
+          runtime), e.g. scrap-public/test-image.sh
 
 jobs:
   # Each platform builds on a runner of its own architecture, so arm64 is native
@@ -48,18 +68,21 @@ jobs:
         env:
           DOCKER_BUILD_RECORD_UPLOAD: false
         with:
-          context: .
+          context: ${{ inputs.context }}
+          file: ${{ inputs.file }}
           platforms: linux/${{ matrix.arch }}
           # Need load and tags so we can test it below
           load: true
           tags: tag_for_testing
 
       - name: Test cli works in cached runtime image
+        if: inputs.name == 'scrap'
         run: docker run --rm tag_for_testing --version
 
       # A tracked file left out of the build context makes setuptools_scm see a
       # dirty tree and version a release as the next dev build (#449)
       - name: Test the image's version is clean, and is the tag on a tag build
+        if: inputs.name == 'scrap'
         env:
           TAG: ${{ github.ref_type == 'tag' && github.ref_name || '' }}
         run: |
@@ -76,23 +99,32 @@ jobs:
           fi
 
       - name: Test the image carries the built PWA
+        if: inputs.name == 'scrap'
         run: >
           docker run --rm --entrypoint python tag_for_testing -c
           "import scrap.pwa as a; assert (a.STATIC / 'index.html').is_file()"
 
       - name: Test the image can verify HTTPS certificates
+        if: inputs.name == 'scrap'
         run: >
           docker run --rm --entrypoint python tag_for_testing -c
           "import ssl; assert ssl.get_default_verify_paths().capath, 'no CA dir';
           ctx = ssl.create_default_context(cafile='/etc/ssl/certs/ca-certificates.crt');
           assert ctx.cert_store_stats()['x509_ca'] > 100, 'no CA certificates'"
 
+      - name: Run the image's test script
+        if: inputs.test-script != ''
+        env:
+          TEST_SCRIPT: ${{ inputs.test-script }}
+          RUNTIME: docker
+        run: ./"$TEST_SCRIPT" tag_for_testing
+
       - name: Create labels for the image
         id: meta
         if: inputs.push-digests
         uses: docker/metadata-action@v6
         with:
-          images: ghcr.io/${{ github.repository }}
+          images: ghcr.io/${{ github.repository_owner }}/${{ inputs.name }}
 
       - name: Push the image by digest
         id: push
@@ -102,10 +134,11 @@ jobs:
           DOCKER_BUILD_RECORD_UPLOAD: false
         # Same build as above, so it comes from the builder's cache
         with:
-          context: .
+          context: ${{ inputs.context }}
+          file: ${{ inputs.file }}
           platforms: linux/${{ matrix.arch }}
           labels: ${{ steps.meta.outputs.labels }}
-          outputs: type=image,name=ghcr.io/${{ github.repository }},push-by-digest=true,name-canonical=true,push=true
+          outputs: type=image,name=ghcr.io/${{ github.repository_owner }}/${{ inputs.name }},push-by-digest=true,name-canonical=true,push=true
 
       - name: Save the digest
         if: inputs.push-digests
@@ -119,7 +152,7 @@ jobs:
         if: inputs.push-digests
         uses: actions/upload-artifact@v7
         with:
-          name: image-digest-${{ matrix.arch }}
+          name: image-digest.${{ inputs.name }}.${{ matrix.arch }}
           path: ${{ runner.temp }}/digests/*
           if-no-files-found: error
           retention-days: 7

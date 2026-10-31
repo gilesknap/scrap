@@ -119,6 +119,61 @@
       }
     },
     "networkPolicy": {"type": "object"},
+    "public": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {"type": "boolean"},
+        "namespace": {"type": "string", "pattern": "^[a-z0-9]([-a-z0-9]{0,61}[a-z0-9])?$"},
+        "createNamespace": {"type": "boolean"},
+        "image": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "repository": {"type": "string", "minLength": 1},
+            "tag": {"type": "string"},
+            "pullPolicy": {"enum": ["Always", "IfNotPresent", "Never"]}
+          }
+        },
+        "site": {"type": "string", "pattern": "^(https?://[^/?#\\s]+/?)?$"},
+        "tokenSecret": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "name": {"type": "string"},
+            "key": {"type": "string", "minLength": 1}
+          }
+        },
+        "indexing": {"type": "boolean"},
+        "ingress": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": {"type": "boolean"},
+            "className": {"type": "string"},
+            "annotations": {"type": "object"},
+            "hosts": {"type": "array", "items": {"type": "string"}},
+            "tls": {"type": "array"}
+          }
+        },
+        "networkPolicy": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "webFrom": {"type": "array"}
+          }
+        },
+        "sizeLimit": {"type": "string", "minLength": 1},
+        "resources": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "web": {"type": "object"},
+            "receiver": {"type": "object"}
+          }
+        }
+      }
+    },
     "serviceAccount": {"type": "object"},
     "podAnnotations": {"type": "object"},
     "podSecurityContext": {"type": "object"},
