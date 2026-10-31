@@ -2,16 +2,27 @@
 Below pages_api, photos_api, captures_api, writeup_api and middleware, which import
 it."""
 
+import io
 import mimetypes
 import os
 
 from starlette.datastructures import UploadFile
 from starlette.requests import Request
 
+from . import svg
 from .store import CLAUDE, Store
 from .store.helpers import file_kind
 
 IDENTITY_HEADER = "Tailscale-User-Login"
+
+
+def by_mcp(request: Request) -> bool:
+    """Whether a request came by an /mcp/... path (mcp_files' mirror of an upload,
+    behind BearerAuth): an MCP client's, so Claude's."""
+    path = request.scope.get("path", "")
+    if (root := request.scope.get("root_path", "")) and path.startswith(root):
+        path = path[len(root) :]  # as BearerAuth does
+    return path.startswith("/mcp/")
 
 
 def author(request: Request) -> str:
@@ -19,7 +30,10 @@ def author(request: Request) -> str:
     # tagged devices, and anything else without it, send none. Only this header is
     # trusted, so a proxy that sets another (X-Auth-Request-User) names it here. No
     # header makes a change Claude's: one naming claude (MCP's author) counts as none
-    # (#153), and a web change's revision is source web whatever its author.
+    # (#153), and a web change's revision is source web whatever its author. One
+    # by an /mcp/... path is Claude's (by_mcp), whatever header it carries.
+    if by_mcp(request):
+        return CLAUDE
     name = os.environ.get("SCRAP_IDENTITY_HEADER", "").strip() or IDENTITY_HEADER
     who = request.headers.get(name, "")
     return "tagged" if who.strip().lower() in ("", CLAUDE) else who
@@ -52,9 +66,15 @@ def mimes(uploads: list[UploadFile]) -> list[str]:
 def put_files(
     store: Store, uploads: list[UploadFile], types: list[str]
 ) -> list[tuple[str, str, int, str | None]]:
-    """Store the uploads in files/: (sha256, mime, size, filename) each."""
+    """Store the uploads in files/: (sha256, mime, size, filename) each. An SVG is
+    stored sanitised (svg.sanitise; InvalidError if it is not one, TooLargeError
+    over svg.MAX_SVG), so the file kept is never the markup sent."""
     blobs = []
     for upload, mime in zip(uploads, types, strict=True):
-        sha, size = store.put_blob(upload.file)
+        if svg.is_svg(mime):
+            clean = svg.sanitise(upload.file.read(svg.MAX_SVG + 1))
+            sha, size = store.put_blob(io.BytesIO(clean))
+        else:
+            sha, size = store.put_blob(upload.file)
         blobs.append((sha, mime, size, upload.filename or None))
     return blobs

@@ -22,6 +22,7 @@ from pillow_heif import register_heif_opener
 
 from .claude import backend
 from .store import InvalidError, Store
+from .svg import is_svg
 
 __all__ = [
     "SIZES",
@@ -30,7 +31,9 @@ __all__ = [
     "claude_jpeg",
     "claude_size",
     "for_claude",
+    "own",
     "preview",
+    "raster",
 ]
 
 SIZES = (480, 2048)  # longest side: lists, and the page and viewer
@@ -46,6 +49,12 @@ WAIT = 20  # seconds a request waits for the decoder before a 503
 Image.MAX_IMAGE_PIXELS = 200_000_000  # Pillow's own bomb check: far past the budget
 register_heif_opener()  # iPhone HEIC photos
 _decoder = threading.Lock()  # one decode at a time: two big ones would not fit
+
+
+def raster(mime: str) -> bool:
+    """Whether a stored type is an image Pillow decodes here: any image/* but SVG,
+    which is markup (#480): it is its own preview (own) and goes to Claude as text."""
+    return mime.startswith("image/") and not is_svg(mime)
 
 
 class BusyError(Exception):
@@ -136,8 +145,8 @@ def for_claude(store: Store, sha: str) -> tuple[bytes, int, int]:
     """A stored photo as the JPEG sent to Claude (upright, HEIC converted, sized by
     claude_size) and its width and height. Waits for the decoder."""
     src, mime = store.blob(sha)
-    if not mime.startswith("image/"):
-        raise InvalidError("not an image")
+    if not raster(mime):
+        raise InvalidError("not an image" if not is_svg(mime) else "an SVG is text")
     return claude_jpeg(src)
 
 
@@ -158,9 +167,22 @@ def _paths(store: Store, sha: str, size: int) -> tuple[Path, Path]:
     if size not in SIZES:
         raise InvalidError(f"size must be one of {SIZES}")
     src, mime = store.blob(sha)  # checks sha is a SHA-256 we hold
-    if not mime.startswith("image/"):
-        raise InvalidError("not an image")
+    if not raster(mime):
+        raise InvalidError("not an image" if not is_svg(mime) else "an SVG is its own")
     return src, store.dir / "cache" / "previews" / str(size) / sha[:2] / f"{sha}.jpg"
+
+
+def own(store: Store, sha: str, size: int) -> Path | None:
+    """A stored SVG itself, if sha is one (None if not): the browser scales it to any
+    size, so it is its own preview, with no rasteriser (#480). One uploaded or
+    imported since #480 was sanitised (svg.sanitise); one stored before was not,
+    and is served as it is, as every SVG is, with blobs_api.STRICT_HEADERS: sandboxed,
+    and a CSP that lets it load nothing but its own inline styles and data: URLs.
+    size is checked as for a photo (SIZES), and ignored."""
+    if size not in SIZES:
+        raise InvalidError(f"size must be one of {SIZES}")
+    src, mime = store.blob(sha)
+    return src if is_svg(mime) else None
 
 
 def cached(store: Store, sha: str, size: int) -> Path | None:

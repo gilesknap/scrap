@@ -32,7 +32,8 @@ log = logging.getLogger(__name__)
 SAFE = ("GET", "HEAD", "OPTIONS")
 DEFAULT_PORT = {"http": "80", "https": "443"}
 EXEMPT = ("/mcp", "/healthz")  # /mcp has its own check; probes come by any name
-# (/mcp/... downloads, mcp_files, are GETs checked here like any other route)
+# (/mcp/... downloads, mcp_files, are GETs checked here like any other route, and
+# its upload, a POST, has its Origin checked as any other write: no cross-site form)
 
 
 def split(netloc: str) -> tuple[str, str] | None:

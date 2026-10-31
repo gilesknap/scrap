@@ -6,6 +6,7 @@ from collections.abc import Sequence
 from typing import Any
 
 from .. import claude, fetch
+from ..ingest import svgread
 from ..markdown import plain
 from ..query import CONTROL
 from ..store import unlink
@@ -250,13 +251,20 @@ def writeup_message(
     sent: Sequence[str | None],
     guidance: str | None,
     readout: bool = False,
+    markups: Sequence[str | None] = (),
 ) -> list[dict[str, Any]]:
     """The write-up call's user turn: each board image sent (sent: the JPEG's
-    SHA-256 for the first MAX_BOARDS, None for one that could not be), numbered,
-    then the page (kind, title, tags, its own text), what was read from its board
-    images, and the owner's guidance, all quoted."""
+    SHA-256 for the first MAX_BOARDS, None for one that could not be; markups: an
+    SVG's markup instead, sent as text, #480), numbered, then the page (kind,
+    title, tags, its own text), what was read from its board images, and the
+    owner's guidance, all quoted."""
     content: list[dict[str, Any]] = []
-    for n, sha in enumerate(sent, start=1):
+    markups = list(markups) + [None] * (len(sent) - len(markups))
+    for n, (sha, markup) in enumerate(zip(sent, markups, strict=True), start=1):
+        if markup is not None:
+            content.append({"type": "text", "text": f"Image {n}:"})
+            content += svgread.blocks(markup, svgread.IMAGE_NOTE)
+            continue
         if sha is None:
             continue
         content.append({"type": "text", "text": f"Image {n}:"})
@@ -265,7 +273,8 @@ def writeup_message(
             "source": {"type": "blob", "sha256": sha},
             "transformations": {"oversized_image": "error"},
         })  # fmt: skip
-    attached = [n for n, sha in enumerate(sent, start=1) if sha is not None]
+    pairs = list(zip(sent, markups, strict=True))
+    attached = [n for n, (sha, m) in enumerate(pairs, start=1) if sha or m is not None]
     images = [{"description": b["description"], "text": b["text"]} for b in boards]
     lines = [
         f"Kind: {page['kind']}",

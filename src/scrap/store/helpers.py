@@ -131,13 +131,15 @@ def file_kind(mime: str) -> str | None:
     return "pdf" if base == "application/pdf" else "text"
 
 
-def embeds(blobs: list[tuple[str, str, int, str | None]], text: str) -> list[str]:
+def embeds(
+    blobs: list[tuple[str, str, int, str | None]], text: str, alt: str = ""
+) -> list[str]:
     """Markdown that shows each image of a capture in its page's text, in order (once
     each, none the text shows already): a page's photos are shown there, the text the
-    user then owns."""
+    user then owns. alt: each one's alt text (one line, no brackets: the caller's)."""
     images = dict.fromkeys(sha for sha, mime, *_ in blobs if mime.startswith("image/"))
     return [
-        f"![](/api/blobs/{sha}/preview?size=2048)"
+        f"![{alt}](/api/blobs/{sha}/preview?size=2048)"
         for sha in images
         if f"](/api/blobs/{sha}" not in text
     ]

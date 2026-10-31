@@ -7,6 +7,7 @@ from .context import Ctx
 from .drawing import register_drawing
 from .editing import register_editing
 from .history import register_history
+from .images import register_images
 from .meta import register_meta
 from .reading import register_reading
 from .writeup import register_writeup
@@ -18,6 +19,7 @@ __all__ = [
     "register_drawing",
     "register_editing",
     "register_history",
+    "register_images",
     "register_meta",
     "register_reading",
     "register_writeup",

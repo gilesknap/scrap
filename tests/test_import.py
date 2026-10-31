@@ -393,3 +393,29 @@ def test_the_cli_imports_a_zip(tmp_path, store, capsys):
     assert "imported 0 pages" in out and "3 here already" in out
     with pytest.raises(SystemExit, match="no folder or zip"):
         main(["import", "--data-dir", str(store.dir), str(tmp_path / "nothing")])
+
+
+def test_an_imported_svg_is_sanitised_and_a_refused_one_reported(tmp_path, store):
+    from scrap import svg
+    from test_svg import EVIL
+
+    files: dict[str, str | bytes] = {
+        "Geometry.md": "# Geometry\n\n![[tri.svg]]\n\n![[bad.svg]]\n",
+        "tri.svg": EVIL,
+        "bad.svg": b'<!DOCTYPE svg [<!ENTITY a "x">]><svg/>',
+    }
+    source = importer.source(write(tmp_path / "vault", files))
+    plan = importer.plan(source, store)
+    assert [i.split(":")[0] for i in plan.issues["SVG refused"]] == ["bad.svg"]
+    done = importer.run(store, source, plan)
+    source.close()
+    assert done.new == 1  # the page, without the refused file
+    (sha,) = rows(store, "SELECT sha256 FROM capture_blob WHERE filename = 'tri.svg'")[
+        0
+    ]
+    assert store.blob(sha)[0].read_bytes() == svg.sanitise(EVIL)
+    body = page(store, "geometry")["body"]
+    assert f"/api/blobs/{sha})" in body and "![[bad.svg]]" in body  # kept as typed
+    assert rows(
+        store, "SELECT count(*) FROM capture_blob WHERE filename = 'bad.svg'"
+    ) == [(0,)]

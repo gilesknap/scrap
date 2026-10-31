@@ -68,9 +68,14 @@ def create_app(data_dir: Path | str | None = None) -> FastAPI:
     store.prompts = enrich.prompt_versions()  # what is:outdated compares with
     limit = upload_limit()
     worker = ingest.Worker(store) if ingest.enabled() else None
+
     # MCP at /mcp: stateless (each POST stands alone: a restart drops no session),
     # JSON replies, Host and Origin checked against loopback and $SCRAP_PUBLIC_URL
-    tools = mcp_server.server(store)
+    def wake() -> None:  # the worker as it is then (a test may swap it)
+        if app.state.worker:
+            app.state.worker.wake()
+
+    tools = mcp_server.server(store, wake)
     mcp_routes = tools.streamable_http_app(
         streamable_http_path="/mcp",
         stateless_http=True,
@@ -153,10 +158,6 @@ def create_app(data_dir: Path | str | None = None) -> FastAPI:
 
     pages_api.add_routes(app, store, limit)
 
-    def wake() -> None:
-        if app.state.worker:
-            app.state.worker.wake()
-
     viewed_api.add_routes(app, store)
     writeup_api.add_routes(app, store, wake)
     topic_api.add_routes(app, store, wake)
@@ -168,7 +169,8 @@ def create_app(data_dir: Path | str | None = None) -> FastAPI:
     search_api.add_routes(app, store)
     blobs_api.add_routes(app, store)
     trash_api.add_routes(app, store)
-    mcp_files.add_routes(app, store)  # after the /api routes it mirrors
+    # after the /api routes it mirrors; its upload only with SCRAP_MCP_UPLOAD on
+    mcp_files.add_routes(app, store, mcp_server.upload())
 
     app.router.routes.extend(mcp_routes)  # before the PWA's catch-all mount
     pwa.add_routes(app)

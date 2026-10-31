@@ -500,7 +500,8 @@ test("photos the server can't preview fall back to the file", async ({ page }) =
     multipart: {
       id: ulid(),
       text: "Unpreviewable",
-      file: { name: "x.svg", mimeType: "image/svg+xml", buffer: Buffer.from("<svg/>") },
+      // Not SVG: that is its own preview (#480); a photo Pillow can't decode
+      file: { name: "x.png", mimeType: "image/png", buffer: Buffer.from("not an image") },
     },
   });
   const { slug } = await r.json();
@@ -509,7 +510,7 @@ test("photos the server can't preview fall back to the file", async ({ page }) =
     page.locator(".list li", { hasText: "Unpreviewable" }).locator(".noimg"),
   ).toBeVisible();
   await page.goto(`/p/${slug}`);
-  await expect(page.locator(".md a.file", { hasText: "x.svg" })).toBeVisible();
+  await expect(page.locator(".md a.file", { hasText: "x.png" })).toBeVisible();
   await expect(page.locator("figure.orig img")).toHaveCount(0);
 });
 

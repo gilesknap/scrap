@@ -13,9 +13,9 @@ import posixpath
 import re
 from urllib.parse import unquote
 
-from .. import markdown
+from .. import markdown, svg
 from ..markdown import Link, wiki_parts
-from ..store import slug_base
+from ..store import InvalidError, TooLargeError, slug_base
 from .model import DRAWINGS, PREVIEWABLE, STORED, Page, Plan
 from .sources import Source
 
@@ -105,11 +105,17 @@ class Linker:
                 self.plan.note("too large", rel, f"over {self.plan.limit >> 20} MB")
                 return None
             try:
-                digest = hashlib.sha256()
-                with self.src.open(rel) as f:
-                    while chunk := f.read(1 << 20):
-                        digest.update(chunk)
-                sha = digest.hexdigest()
+                if svg.is_svg(mime(rel)):  # stored sanitised: that is what it names
+                    sha = hashlib.sha256(svg_bytes(self.src, rel)).hexdigest()
+                else:
+                    digest = hashlib.sha256()
+                    with self.src.open(rel) as f:
+                        while chunk := f.read(1 << 20):
+                            digest.update(chunk)
+                    sha = digest.hexdigest()
+            except (InvalidError, TooLargeError) as e:  # an SVG svg.sanitise refuses
+                self.plan.note("SVG refused", rel, str(e)[:80])
+                return None
             except Exception as e:  # OSError, a bad zip entry (BadZipFile, zlib)
                 self.plan.note("unreadable", rel, str(e)[:80] or type(e).__name__)
                 return None
@@ -197,6 +203,13 @@ class Linker:
                 self.plan.note("missing file", page.path, target or "attachments")
             else:
                 self.asset(page, rel)
+
+
+def svg_bytes(src: Source, rel: str) -> bytes:
+    """An SVG of the import, sanitised as any SVG upload is (svg.sanitise: #480);
+    InvalidError or TooLargeError if it refuses it."""
+    with src.open(rel) as f:
+        return svg.sanitise(f.read(svg.MAX_SVG + 1))
 
 
 def mime(rel: str) -> str:

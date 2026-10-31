@@ -10,7 +10,7 @@ from datetime import UTC, date, datetime
 from io import BytesIO
 from typing import Any
 
-from .. import actions, claude, claude_cli, preview, sanitise
+from .. import actions, claude, claude_cli, preview, sanitise, svg
 from ..store import (
     MAX_TAGS,
     PAGE_KINDS,
@@ -23,7 +23,7 @@ from ..store import (
 )
 from ..store.helpers import file_kind
 from ..store.roles import IS_FIRST, UNFILED, first_capture
-from . import files
+from . import files, svgread
 from .constants import PAUSES, POLL, REV, TITLE_CAS, budget_day_micros
 from .jobs import (
     charge,
@@ -177,6 +177,14 @@ class Worker:
             files.process(self.store, job, mime[0])  # read here: no Claude, no budget
             self._after_file = True
             return
+        words, markup = None, ""  # an SVG's (svgread): read before the budget check
+        if mime is not None and svg.is_svg(mime[0]):
+            try:
+                markup, words = svgread.read(self.store, job)
+            except Exception as error:  # gone, unreadable: as an image that is
+                with self.store.connect() as conn, transaction(conn):
+                    charge(conn, jid, "image", now(), str(error))
+                return
         with self.store.connect() as conn, transaction(conn):
             over = spent_today(conn, now()) >= self.budget
             announce = over and pause(conn, jid, "budget", now())
@@ -184,22 +192,28 @@ class Worker:
             notify("budget")
         if over:
             return
-        try:
-            jpeg, width, height = preview.for_claude(self.store, photo)
-        except Exception as error:  # decode or HEIC failure, too large
-            with self.store.connect() as conn, transaction(conn):
-                charge(conn, jid, "image", now(), str(error))
-            return
+        width = height = size = 0  # an SVG's run has no image size (NULL)
+        jpeg, sent = b"", None
+        if words is None:
+            try:
+                jpeg, width, height = preview.for_claude(self.store, photo)
+            except Exception as error:  # decode or HEIC failure, too large
+                with self.store.connect() as conn, transaction(conn):
+                    charge(conn, jid, "image", now(), str(error))
+                return
         with self.store.connect() as conn:  # the text Claude's boxes may follow (rev)
             base = conn.execute(
                 f"SELECT {REV}, c.received_at FROM capture c"
                 " JOIN page p ON p.id = c.page_id WHERE c.id = ?", (cid,),
             ).fetchone()  # fmt: skip
         taken = captured_on(base and base[1])
-        sent, size = self.store.put_blob(BytesIO(jpeg))
         model = claude.model_name()
         system, version = claude.prompt()
-        messages = claude.photo_messages(sent, width, height, taken)
+        if words is None:
+            sent, size = self.store.put_blob(BytesIO(jpeg))
+            messages = claude.photo_messages(sent, width, height, taken)
+        else:  # an SVG: its markup as text, no image (svgread)
+            messages = svgread.messages(markup, taken)
         request = {
             "backend": claude.backend(),
             "model": model,
@@ -210,29 +224,34 @@ class Worker:
             "schema": claude.SCHEMA,
         }
         with self.store.connect() as conn, transaction(conn):
-            conn.execute(
-                "INSERT INTO blob VALUES (?, 'image/jpeg', ?, ?)"
-                " ON CONFLICT DO NOTHING",
-                (sent, size, now()),
-            )
+            if sent is not None:
+                conn.execute(
+                    "INSERT INTO blob VALUES (?, 'image/jpeg', ?, ?)"
+                    " ON CONFLICT DO NOTHING",
+                    (sent, size, now()),
+                )
             run_id = conn.execute(
                 "INSERT INTO model_run (capture_id, source_sha256, job_id, purpose,"
                 " model, prompt_version, sent_sha256, image_width, image_height,"
                 " request, started_at) VALUES (?, ?, ?, 'ingest', ?, ?, ?, ?, ?, ?, ?)"
                 " RETURNING id",
-                (cid, photo, jid, model, version, sent, width, height,
-                 json.dumps(request), now()),
+                (cid, photo, jid, model, version, sent, width or None,
+                 height or None, json.dumps(request), now()),
             ).fetchone()[0]  # fmt: skip
         try:
             done = self.call(model, system, messages, claude.SCHEMA, self._blob)
+            raw = done.output if words is None else {**done.output, "elements": []}
             try:
-                output = sanitise.model_output(done.output, width, height)
+                output = sanitise.model_output(raw, width or 1, height or 1)
             except ValueError as error:
                 raise claude.CallError("invalid", str(error), completion=done) from None
         except claude.CallError as error:
             self.failed(job, run_id, error)
             return
-        self.succeeded(job, run_id, done, output, (width, height), base and base[0])
+        self.succeeded(
+            job, run_id, done, output, (width, height), base and base[0],
+            keep_text=bool(words),
+        )  # fmt: skip
 
     def _record(
         self,
@@ -290,10 +309,12 @@ class Worker:
         out: dict[str, Any],
         size: tuple[int, int],
         base_rev: int | None = None,
+        keep_text: bool = False,
     ) -> None:
         """Record a reading and apply it to the page. base_rev: the page's text
         revision when the photo was sent (None: as it is now), which a list of actions
-        is appended to only if the text is still at it."""
+        is appended to only if the text is still at it. keep_text: the image's text
+        is read already (an SVG's words, svgread), so the model's is not put."""
         jid, cid, photo = job["id"], job["capture_id"], job["source_sha256"]
         with self.store.connect() as conn, transaction(conn):
             row = conn.execute(
@@ -306,10 +327,11 @@ class Worker:
             if not self._running(conn, jid):
                 return  # given back at shutdown: it runs again
             stamp, producer = now(), done.served_model
-            put_derived(
-                conn, cid, photo, "ocr", producer, stamp, run_id=run_id,
-                text=out["text"],
-            )  # fmt: skip
+            if not keep_text:
+                put_derived(
+                    conn, cid, photo, "ocr", producer, stamp, run_id=run_id,
+                    text=out["text"],
+                )  # fmt: skip
             put_derived(
                 conn, cid, photo, "description", producer, stamp, run_id=run_id,
                 text=out["description"], data={"kind": out["kind"]},

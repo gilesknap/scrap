@@ -157,6 +157,7 @@ Tools in orange are listed only while `SCRAP_MCP_CONTENT_EDIT` is on (default). 
 | Add | `write` | a new page, or a section appended to a page written over MCP (`append_to`); source `mcp`, author `claude` |
 | Kind and tags | `edit_meta`, `rename_tag` | any page; bulk changes record a batch id; `dry_run` first ([ADR 0019](../decisions/0019-kinds-and-tags-editable-with-revisions.md)) |
 | Text and drawings | `edit_page`, `edit_drawing` | `edit_page`: one passage found exactly once, or the whole body given its current `rev` ([ADR 0022](../decisions/0022-page-text-editable-over-mcp-with-revisions.md)); `edit_drawing`: a new current version of an image's drawing, given the `base_version` read ([](../../reference/mcp.md)) |
+| Images and files | `add_svg` (and the upload below) | an SVG Claude writes, sanitised, embedded at the end or right after the line an exact anchor ends on (inside its list item or quote), as a text revision by `claude`; listed only while `SCRAP_MCP_UPLOAD` is on (default), whatever `SCRAP_MCP_CONTENT_EDIT` ([ADR 0042](../decisions/0042-mcp-clients-add-svg-and-files.md)) |
 | History | `revisions`, `revert` | `revert` undoes metadata by revision or batch, or text with `to_rev` |
 | Trash | `trash`, `trash_pages`, `undelete` | the user's deletes land in trash, as do pages the user asks Claude to delete (`trash_pages`, at most 50 a call, as a batch `undelete` brings back); nothing over MCP deletes for good or empties the trash ([ADR 0025](../decisions/0025-trash-and-recent-changes-over-mcp.md), [ADR 0034](../decisions/0034-claude-can-move-pages-to-the-trash.md)); every move is in `revisions`; `trash` gives each page's `purge_at`, as nightly gc purges it after N days ([ADR 0030](../decisions/0030-trash-purged-after-n-days.md)) |
 
@@ -206,10 +207,12 @@ sequenceDiagram
   | `GET /mcp/pages/{key}/download` | bearer, then `Host` | `GET /api/pages/{key}/download` |
   | `GET /mcp/captures/{cid}/photos/{sha}/drawing`, `/versions` | bearer, then `Host` | the `/api` drawing GETs |
   | `GET /mcp/captures/{cid}/photos/{sha}/drawing.excalidraw` | bearer, then `Host` | (`/mcp` only) the drawing as a file |
+  | `POST /mcp/pages/{key}/captures` (only with `SCRAP_MCP_UPLOAD` on) | bearer, then `Host`, and `Origin` if sent (`hostguard`) | `POST /api/pages/{key}/captures`, but Claude's: author `claude`, source `mcp` |
   | `/api/...`, the PWA | the proxy (email login); `Host`, and `Origin` on writes | |
 
   With no token set they are open, as `/mcp` is; behind Access the `/mcp` application's path
-  covers them.
+  covers them. The one write, the upload ([ADR 0042](../decisions/0042-mcp-clients-add-svg-and-files.md)),
+  is a separate list in `mcp_files.py` (`WRITES`), served only with `SCRAP_MCP_UPLOAD` on.
 - Limits per write: body 200 000 bytes, 20 tags, 200-character title, 200 pages per bulk
   `edit_meta`, request 2 MB.
 
@@ -253,6 +256,15 @@ flowchart TD
   still fail. The damage is bounded: every edit is a revision, `revert` undoes it, and
   trashed pages stay recoverable for 30 days. If you read pages you do not trust in a session
   with these tools, set `SCRAP_MCP_CONTENT_EDIT=0` (the edit tools are then not listed at all).
+- **SVG is markup.** An SVG anyone uploads (`add_svg`, the `/mcp` upload, the PWA's Add photo,
+  an import)
+  is parsed with no DOCTYPE (one that only names the SVG DTD is dropped unread) and stored
+  sanitised: no script, `foreignObject`, animation, event handler, `ping`, or link, `url()`,
+  `image-set()` or quoted URL out of the file, no CSS @-rule but `@font-face`, `@media` and
+  `@keyframes` (`svg.py`). Every stored file but a PDF is served with
+  `Content-Security-Policy: sandbox; default-src 'none'; style-src 'unsafe-inline'; img-src
+  data:; font-src data:` and `nosniff`, and shown in `<img>`; its markup goes to
+  Claude as text, quoted like any page text.
 - **Reading is not acting.** A session that holds cluster or other powerful credentials should not
   mount the scrap MCP server, since pages may contain injected text.
 

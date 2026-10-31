@@ -4,14 +4,27 @@
 import sqlite3
 from typing import Any
 
-from .constants import ENQUEUE, REV_INSERT, ULID
+from .constants import ENQUEUE, MCP, REV_INSERT, ULID
 from .core import Core
 from .db import transaction
 from .errors import InvalidError
 from .helpers import boxes_before, check_page, embeds, file_kind, now
+from .placing import with_embeds
 from .roles import takes_photos
 
 Blob = tuple[str, str, int, str | None]  # sha256, mime, size, filename
+MAX_ALT = 300  # characters of an embed's alt text
+
+
+def alt_text(alt: str) -> str:
+    """Alt text for an embed: one line, at most MAX_ALT characters, no brackets or
+    backslashes, so it stays inside ![...].
+
+    >>> alt_text(" A [right]\\n triangle ")
+    'A (right) triangle'
+    """
+    alt = " ".join(alt.split())[:MAX_ALT]
+    return alt.replace("[", "(").replace("]", ")").replace("\\", "/")
 
 
 def addable(mime: str) -> bool:
@@ -63,6 +76,9 @@ class PhotosMixin(Core):
         author: str,
         source: str = "pwa",
         created_at: str | None = None,
+        *,
+        after: str | None = None,
+        alt: str = "",
     ) -> tuple[dict[str, Any], bool]:
         """Add images and files: PDFs, text, Markdown (blobs: already in files/) to a
         page as a new capture cid: a photo capture if any is an image (so its images are
@@ -73,7 +89,13 @@ class PhotosMixin(Core):
         They are queued for ingest as a capture's are: the images of a photo capture
         for Claude, a file to be read for search (#234). Returns the page, with
         appended_on (the revision the embeds went onto; None on a retry or with no
-        image), and whether it is new: a retry with the same cid changes nothing."""
+        image), and whether it is new: a retry with the same cid changes nothing.
+        after: put the embeds right after the line that text ends on, inside its
+        list item or quote (placing.place), instead of at the end (placed: after,
+        or end if no place there kept the page as it was; None without after);
+        alt:
+        their alt text. Source mcp (an MCP client's: add_svg, or the /mcp upload)
+        makes the revision Claude's (source mcp: is:claude-edited)."""
         cid = cid.upper()
         if not ULID.fullmatch(cid):
             raise InvalidError("id must be a ULID")
@@ -89,12 +111,12 @@ class PhotosMixin(Core):
                 page = self.page_in(conn, row[0])
                 if key not in (page["id"], page["slug"]):
                     raise InvalidError("id is already another page's capture")
-                return {**page, "appended_on": None}, False
+                return {**page, "appended_on": None, "placed": None}, False
             page = self._page_row(conn, key)
             if not takes_photos(conn, page["id"]):  # a topic (roles.takes_photos)
                 raise InvalidError("Photos can't be added to a topic page")
-            new = embeds(blobs, page["body"])
-            body = "\n\n".join(x for x in (page["body"].rstrip(), *new) if x)
+            new = embeds(blobs, page["body"], alt_text(alt))
+            body, placed = with_embeds(page["body"], new, after)
             if new:
                 body = check_page(body)  # before anything is written
             attach(
@@ -102,25 +124,28 @@ class PhotosMixin(Core):
             )
             if new:  # a revision, as _put_text's, but no enrich: the photos' reading
                 self._append_text(
-                    conn, page, body, author, stamp
+                    conn, page, body, author, stamp, MCP if source == MCP else "web"
                 )  # brings what follows
             added = self.page_in(conn, page["id"])
-            return {**added, "appended_on": page["rev"] if images else None}, True
+            return {**added, "appended_on": page["rev"] if images else None,
+                    "placed": placed}, True  # fmt: skip
 
     def _append_text(
         self, conn: sqlite3.Connection, page: sqlite3.Row, body: str, author: str,
-        stamp: str,
+        stamp: str, rev_source: str = "web",
     ) -> None:  # fmt: skip
-        """The page's text with the embeds appended, as text revision rev + 1. Not a
-        save: no enrich is queued (it would run before the photos are read; their
-        reading brings the write-up and related calls)."""
+        """The page's text with the embeds added, as text revision rev + 1 (source
+        web, or mcp for an MCP client's). Not a save: no enrich is queued (it would
+        run before the photos are read; their reading brings the write-up and
+        related calls)."""
         conn.execute(
             "UPDATE page SET body = ?, updated_at = ? WHERE id = ?",
             (body, stamp, page["id"]),
         )
-        conn.execute(  # photos come only from the PWA
+        conn.execute(  # from the PWA, or an MCP client (add_svg, the /mcp upload)
             REV_INSERT,
-            (page["id"], page["rev"] + 1, page["title"], body, author, "web", stamp),
-        )
+            (page["id"], page["rev"] + 1, page["title"], body, author, rev_source,
+             stamp),
+        )  # fmt: skip
         self._body(conn, page["id"], boxes_before(page))
         self.reindex(conn, page["id"])

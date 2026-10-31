@@ -1,6 +1,7 @@
 """Planning an import, running it and reporting on it."""
 
 import hashlib
+import io
 import mimetypes
 import posixpath
 from collections import Counter
@@ -9,6 +10,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
 
+from .. import svg
 from ..store import (
     MAX_PAGE,
     MAX_TAGS,
@@ -20,7 +22,7 @@ from ..store import (
 )
 from ..store.constants import ENRICH_KINDS, PINNED_SLUG
 from ..store.helpers import file_kind
-from .linker import Linker, is_page
+from .linker import Linker, is_page, svg_bytes
 from .model import DRAWINGS, STORED, Page, Plan
 from .reading import read, ulid
 from .sources import RefusedError, Source
@@ -169,8 +171,11 @@ def run(
         for rel in page.images + page.files:
             if rel in blobs:
                 continue
-            with src.open(rel) as f:
-                sha, size = store.put_blob(f)
+            if svg.is_svg(mimetypes.guess_type(rel)[0] or ""):
+                sha, size = store.put_blob(io.BytesIO(svg_bytes(src, rel)))
+            else:
+                with src.open(rel) as f:
+                    sha, size = store.put_blob(f)
             if sha != plan.sha[rel]:  # the page's text names the planned bytes
                 raise RefusedError(f"{rel} changed since it was read: import again")
             name = None if STORED.fullmatch(rel) else posixpath.basename(rel)

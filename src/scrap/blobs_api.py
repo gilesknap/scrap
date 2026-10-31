@@ -16,11 +16,24 @@ from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 
 from . import backup, export, preview
 from .store import Store
+from .svg import SVG
 
 BLOB_HEADERS = {
     "X-Content-Type-Options": "nosniff",
     "Content-Security-Policy": "sandbox",  # an uploaded HTML file cannot run scripts
     "Cache-Control": "private, max-age=31536000, immutable",
+}
+# A stored file, opened as a page, may load nothing at all (#480): its own inline
+# styles and data: images and fonts only, as well as sandboxed (so no script). For an
+# SVG the sanitiser (svg.py) already strips what fetches; this holds for one stored
+# before it, one it misses, and any other file that is markup (an imported .xml with
+# an <svg> root, say). An image or a text file shows as before. A PDF keeps
+# BLOB_HEADERS: a browser's PDF viewer needs more. (BLOB_HEADERS also serves the JPEG
+# previews scrap makes itself.)
+STRICT_HEADERS = {
+    **BLOB_HEADERS,
+    "Content-Security-Policy": "sandbox; default-src 'none'; style-src 'unsafe-inline';"
+    " img-src data:; font-src data:",
 }
 
 
@@ -79,8 +92,11 @@ def add_routes(app: FastAPI, store: Store) -> None:
     @app.get("/api/blobs/{sha}/preview")
     async def blob_preview(sha: str, size: int = 2048) -> Response:
         """A JPEG preview of a stored photo (HEIC too), turned upright, at most size
-        (480 or 2048) pixels a side; made on first request, then cached. 503 while
-        the decoder is busy for long."""
+        (480 or 2048) pixels a side; made on first request, then cached. An SVG is
+        its own preview: the file itself, which scales (#480). 503 while the decoder
+        is busy for long."""
+        if (svg := await run_in_threadpool(preview.own, store, sha, size)) is not None:
+            return FileResponse(svg, media_type=SVG, headers=STRICT_HEADERS)
         busy = JSONResponse(
             {"detail": preview.BusyError.__doc__}, 503, {"Retry-After": "5"}
         )
@@ -109,7 +125,8 @@ def add_routes(app: FastAPI, store: Store) -> None:
     def blob(sha: str, download: bool = False) -> FileResponse:
         """A stored original, byte for byte; ?download=1 saves it under its name."""
         path, mime = store.blob(sha)
-        headers = dict(BLOB_HEADERS)
+        pdf = mime.split(";", 1)[0].strip().lower() == "application/pdf"
+        headers = dict(BLOB_HEADERS if pdf else STRICT_HEADERS)
         if download:
             name = backup.file_name(store.blob_name(sha), sha, mime)
             headers["Content-Disposition"] = attachment(name)
