@@ -30,3 +30,9 @@ For a scrap on another machine, use `allow-ip = <that machine's IP address>` in
 1. On that machine, make scrap listen beyond loopback (`--host 0.0.0.0`, as in [](../tutorials/install-lan.md)). An IP address is always accepted as a `Host`; to have page links in Claude's replies use it, also add `http://<IP address>:8000` to `SCRAP_PUBLIC_URL` and restart scrap.
 2. Run `claude-sandbox --recreate`.
 3. Add scrap with `http://<IP address>:8000/mcp`.
+
+## Tokens and Cloudflare Access
+
+For a scrap that needs a bearer token or Cloudflare Access service-token headers, send them with a
+`headersHelper` and an env file under `~/.config/terminal-config`, which the jail already sees. See
+{ref}`mcp-secrets`.
