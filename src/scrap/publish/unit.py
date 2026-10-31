@@ -3,7 +3,8 @@ a plain tar of regular files and its ``Scrap-Digest``.
 
 The digest is the sha256, in hex, of one line per file in sorted path order,
 ``path NUL sha256hex(content) LF``. The receiver recomputes it from what it
-unpacked and answers 400 when it differs. See scrap-public/client_contract.md.
+unpacked and answers 400 when it differs. The contract is
+docs/reference/public-site.md, which also says what each kind of unit may hold.
 
 Stdlib only: the receiver's tests build their uploads with it too.
 """

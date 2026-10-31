@@ -56,19 +56,22 @@ http {
         image/x-icon ico;
         font/woff woff;
         font/woff2 woff2;
+        font/ttf ttf;
     }
     # Pagefind's index files (pagefind, pf_*) and bin
     default_type application/octet-stream;
     charset utf-8;
     charset_types text/css text/javascript text/plain text/markdown text/csv application/json image/svg+xml;
 
-    # The CSP: the site's for HTML and the files it loads. A page's attachments
-    # (/p/<slug>/file-*) follow ADR 42's rule for stored files: sandboxed and loading
+    # The CSP, by path (docs/reference/public-site.md). A page's images and
+    # attachments follow ADR 42's rule for stored files: sandboxed and loading
     # nothing, but a PDF keeps sandbox alone, as a browser's PDF viewer needs more.
+    # Pages and tag pages run no script; only home (Pagefind) does.
     map $uri $scrap_csp {
-        "~^/p/[a-z0-9-]+/file-[^/]*\.pdf$" "sandbox";
-        "~^/p/[a-z0-9-]+/file-" "sandbox; default-src 'none'; style-src 'unsafe-inline'; img-src data:; font-src data:";
-        default "default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline' 'self'; script-src 'self' 'wasm-unsafe-eval'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'";
+        "~*^/p/[a-z0-9-]+/file-[^/]*\.pdf$" "sandbox";
+        "~^/p/[a-z0-9-]+/(img|file)-" "sandbox; default-src 'none'; style-src 'unsafe-inline'; img-src data:; font-src data:";
+        "~^/[pt]/" "default-src 'none'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; font-src 'self'; script-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'";
+        default "default-src 'none'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; font-src 'self'; script-src 'self' 'wasm-unsafe-eval'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'";
     }
 
     # HTML is checked each time, so a republished page shows at once; files for 5 min
@@ -119,16 +122,13 @@ http {
         location ~ "^/(p/[a-z0-9-]{1,120}|t/[a-z0-9-]{1,80})/((?:[A-Za-z0-9_][A-Za-z0-9._-]{0,99}/){0,3}[A-Za-z0-9_][A-Za-z0-9._-]{0,99})$" {
             try_files /$1/$2 =404;
         }
-        # The search index
-        location ~ "^/pagefind/((?:[A-Za-z0-9_][A-Za-z0-9._-]{0,99}/){0,3}[A-Za-z0-9_][A-Za-z0-9._-]{0,99})$" {
-            try_files /pagefind/$1 =404;
-        }
-        # A file of the home page's unit (tags.html, a stylesheet) at the top level
-        location ~ "^/([A-Za-z0-9_][A-Za-z0-9._-]{0,99})$" {
-            try_files /home/$1 =404;
+        # The search index, and the shared assets (KaTeX's CSS and fonts)
+        location ~ "^/(pagefind|assets)/((?:[A-Za-z0-9_][A-Za-z0-9._-]{0,99}/){0,3}[A-Za-z0-9_][A-Za-z0-9._-]{0,99})$" {
+            try_files /$1/$2 =404;
         }
 
-        # Everything else: /v1/..., /home/..., /units/..., dotfiles
+        # Everything else, the rest of the top level included: /home/..., /v1/...,
+        # /units/..., dotfiles
         location / {
             return 404;
         }

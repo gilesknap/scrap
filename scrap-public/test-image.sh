@@ -89,50 +89,81 @@ header() { # URL NAME -> the header's value
     curl -sS -o /dev/null -D - "$1" | tr -d '\r' | sed -n "s/^$2: //Ip"
 }
 
-mkdir -p "$work/page/files" "$work/home"
+mkdir -p "$work/page" "$work/home" "$work/tag" "$work/pagefind/fragment" "$work/assets/fonts"
 echo '<p>a public page</p>' >"$work/page/index.html"
-echo '%PDF-1.7' >"$work/page/files/report.pdf"
 echo '%PDF-1.7' >"$work/page/file-1-0123456789.pdf"
 echo '# notes' >"$work/page/file-2-0123456789.md"
+echo '<svg xmlns="http://www.w3.org/2000/svg"/>' >"$work/page/img-1-0123456789.svg"
 echo '<p>home</p>' >"$work/home/index.html"
 echo '<p>tags</p>' >"$work/home/tags.html"
 echo '<p>not here</p>' >"$work/home/404.html"
+echo '<p>a tag</p>' >"$work/tag/index.html"
+echo 'export {}' >"$work/pagefind/pagefind.js"
+echo 'x' >"$work/pagefind/fragment/en_1.pf_fragment"
+echo '.katex{}' >"$work/assets/katex.css"
+echo 'ttf' >"$work/assets/fonts/KaTeX_Main.ttf"
+mkdir -p "$work/bad"
+echo '<p>x</p>' >"$work/bad/index.html"
+echo 'alert(1)' >"$work/bad/app.js"
 
 check "a bad token is 401" [ "$(put p/a-page "$work/page" "x$token")" = 401 ]
 check "PUT p/a-page through the receiver" [ "$(put p/a-page "$work/page")" = 200 ]
 check "PUT home through the receiver" [ "$(put home "$work/home")" = 200 ]
-check "the manifest lists both" sh -c "curl -fsS -H 'Authorization: Bearer $token' \
-    '$rcv/v1/manifest' | grep -q '\"p/a-page\"' "
+check "PUT t/a-tag-0123abcd" [ "$(put t/a-tag-0123abcd "$work/tag")" = 200 ]
+check "PUT pagefind" [ "$(put pagefind "$work/pagefind")" = 200 ]
+check "PUT assets" [ "$(put assets "$work/assets")" = 200 ]
+check "a page holding a script is refused" [ "$(put p/bad "$work/bad")" = 422 ]
+check "the manifest lists them" sh -c "curl -fsS -H 'Authorization: Bearer $token' \
+    '$rcv/v1/manifest' | grep -q '\"assets\"' "
 
 check "/p/a-page is the page" [ "$(curl -fsS "$web/p/a-page")" = '<p>a public page</p>' ]
 check "/p/a-page/ is the page" [ "$(curl -fsS "$web/p/a-page/")" = '<p>a public page</p>' ]
 check "/ is home/index.html" [ "$(curl -fsS "$web/")" = '<p>home</p>' ]
 check "/tags is home/tags.html" [ "$(curl -fsS "$web/tags")" = '<p>tags</p>' ]
-check "an attached file is served" [ "$(curl -fsS "$web/p/a-page/files/report.pdf")" = '%PDF-1.7' ]
+check "/t/<key> is the tag page" [ "$(curl -fsS "$web/t/a-tag-0123abcd")" = '<p>a tag</p>' ]
+check "an attached file is served" \
+    [ "$(curl -fsS "$web/p/a-page/file-1-0123456789.pdf")" = '%PDF-1.7' ]
+check "/pagefind/ serves the index" \
+    [ "$(curl -fsS "$web/pagefind/fragment/en_1.pf_fragment")" = x ]
+check "/assets/ serves the CSS" [ "$(curl -fsS "$web/assets/katex.css")" = '.katex{}' ]
 check "a missing page is 404" [ "$(status "$web/p/nope")" = 404 ]
 check "a 404 shows home/404.html" [ "$(curl -sS "$web/p/nope")" = '<p>not here</p>' ]
 check "HEAD works" [ "$(status -I "$web/p/a-page")" = 200 ]
+for path in /tags.html /index.html /404.html /home /anything.html; do
+    check "only /, /tags and /robots.txt at the top: $path is 404" [ "$(status "$web$path")" = 404 ]
+done
 
-csp="default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline' 'self'; script-src 'self' 'wasm-unsafe-eval'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
-check "CSP" [ "$(header "$web/p/a-page" content-security-policy)" = "$csp" ]
-check "CSP on a 404 too" [ "$(header "$web/p/nope" content-security-policy)" = "$csp" ]
+csp_home="default-src 'none'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; font-src 'self'; script-src 'self' 'wasm-unsafe-eval'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+csp_page="default-src 'none'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; font-src 'self'; script-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+strict="sandbox; default-src 'none'; style-src 'unsafe-inline'; img-src data:; font-src data:"
+check "a page's CSP runs no script" [ "$(header "$web/p/a-page" content-security-policy)" = "$csp_page" ]
+check "a tag page's CSP runs no script" \
+    [ "$(header "$web/t/a-tag-0123abcd" content-security-policy)" = "$csp_page" ]
+check "home's CSP allows Pagefind" [ "$(header "$web/" content-security-policy)" = "$csp_home" ]
+check "/pagefind/ has home's CSP" \
+    [ "$(header "$web/pagefind/pagefind.js" content-security-policy)" = "$csp_home" ]
+check "/assets/ has home's CSP" \
+    [ "$(header "$web/assets/katex.css" content-security-policy)" = "$csp_home" ]
+check "a 404 has home's CSP" [ "$(header "$web/p/nope" content-security-policy)" = "$csp_home" ]
 check "a PDF attachment keeps sandbox alone" \
     [ "$(header "$web/p/a-page/file-1-0123456789.pdf" content-security-policy)" = sandbox ]
-strict="sandbox; default-src 'none'; style-src 'unsafe-inline'; img-src data:; font-src data:"
 check "another attachment is sandboxed and loads nothing" \
     [ "$(header "$web/p/a-page/file-2-0123456789.md" content-security-policy)" = "$strict" ]
+check "an image is sandboxed and loads nothing" \
+    [ "$(header "$web/p/a-page/img-1-0123456789.svg" content-security-policy)" = "$strict" ]
 check "an attachment keeps nosniff" \
     [ "$(header "$web/p/a-page/file-2-0123456789.md" x-content-type-options)" = nosniff ]
 check "Markdown is text/markdown" \
     [ "$(header "$web/p/a-page/file-2-0123456789.md" content-type)" = "text/markdown; charset=utf-8" ]
+check "a .ttf is font/ttf" [ "$(header "$web/assets/fonts/KaTeX_Main.ttf" content-type)" = font/ttf ]
 check "nosniff" [ "$(header "$web/p/a-page" x-content-type-options)" = nosniff ]
 check "no referrer" [ "$(header "$web/p/a-page" referrer-policy)" = no-referrer ]
 check "noindex" [ "$(header "$web/p/a-page" x-robots-tag)" = "noindex, nofollow" ]
 check "HTML is no-cache" [ "$(header "$web/p/a-page" cache-control)" = no-cache ]
 check "files are max-age=300" \
-    [ "$(header "$web/p/a-page/files/report.pdf" cache-control)" = "public, max-age=300" ]
+    [ "$(header "$web/p/a-page/file-1-0123456789.pdf" cache-control)" = "public, max-age=300" ]
 check "a PDF is application/pdf" \
-    [ "$(header "$web/p/a-page/files/report.pdf" content-type)" = application/pdf ]
+    [ "$(header "$web/p/a-page/file-1-0123456789.pdf" content-type)" = application/pdf ]
 check "no server version" [ "$(header "$web/" server)" = nginx ]
 check "robots.txt disallows all" sh -c "curl -fsS '$web/robots.txt' | grep -qx 'Disallow: /'"
 check "INDEXING=on: no X-Robots-Tag" [ -z "$(header "$idx/p/a-page" x-robots-tag)" ]
@@ -158,6 +189,15 @@ check "the site volume is read only in the web container" \
 check "DELETE p/a-page" [ "$(curl -sS -o /dev/null -w '%{http_code}' -X DELETE \
     -H "Authorization: Bearer $token" "$rcv/v1/units/p/a-page")" = 204 ]
 check "a deleted page is 404" [ "$(status "$web/p/a-page")" = 404 ]
+
+# A clean stop on SIGTERM (what Kubernetes sends): exit 0, well within the grace
+# shellcheck disable=SC2329 # run through check
+stopped() { # CONTAINER
+    "$rt" stop -t 10 "$1" >/dev/null &&
+        [ "$("$rt" inspect -f '{{.State.ExitCode}}' "$1")" = 0 ]
+}
+check "the receiver stops cleanly on SIGTERM" stopped "$run_id-rcv"
+check "nginx stops cleanly on SIGTERM" stopped "$run_id-web"
 
 if [ "$fail" != 0 ]; then
     "$rt" logs "$run_id-rcv" 2>&1 | tail -20
