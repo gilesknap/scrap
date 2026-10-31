@@ -62,8 +62,9 @@ class Ctx:
 
     def blob_download(self, sha: str) -> str:
         """A file's address for an MCP client: /mcp/blobs/<sha>, behind the same
-        headers as /mcp (the bearer token, and the proxy's service token)."""
-        return f"{self.base}/mcp/blobs/{sha}"
+        headers as /mcp (the bearer token, and the proxy's service token); download=1
+        names the file, so `curl -OJ` saves it under its own name."""
+        return f"{self.base}/mcp/blobs/{sha}?download=1"
 
     def drawing_download(self, cid: str, sha: str) -> str:
         """A photo's whole drawing as an .excalidraw file, for an MCP client."""

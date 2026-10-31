@@ -12,8 +12,9 @@ from fastapi import FastAPI, Response
 from fastapi.routing import APIRoute
 
 from . import drawing
-from .backup import file_name
-from .blobs_api import attachment
+from .backup import _drawing_name, file_name
+from .blobs_api import BLOB_HEADERS, attachment
+from .captures_api import photo
 from .store import Store
 
 PREFIX = "/mcp"
@@ -42,6 +43,9 @@ def add_routes(app: FastAPI, store: Store) -> None:
         raise RuntimeError(f"mcp_files: no GET route {sorted(missing)}")
     for path in MIRRORED:
         route = found[path]
+        if route.dependencies or route.status_code is not None:
+            # not copied below: a route-level auth dependency must not drop out
+            raise RuntimeError(f"mcp_files: {path} has dependencies or a status code")
         app.add_api_route(
             mirror(path), route.endpoint, methods=["GET"],
             response_model=route.response_model, response_class=route.response_class,
@@ -55,12 +59,14 @@ def add_routes(app: FastAPI, store: Store) -> None:
     def drawing_file(cid: str, sha: str) -> Response:
         """A photo's current drawing, whole, as an .excalidraw file (as a page's
         download has it); 404 if it has none."""
-        current = drawing.current(store, cid.upper(), sha.lower())
-        stem = file_name(store.blob_name(sha.lower()), sha.lower(), "")
-        name = f"{stem.rpartition('.')[0] or stem}.excalidraw"
+        cid, sha = photo(cid, sha)
+        current = drawing.current(store, cid, sha)
+        file = file_name(store.blob_name(sha), sha, "")
+        name = _drawing_name(file.rpartition(".")[0] or file, set())  # as backup's
         return Response(
             drawing.excalidraw_file(current["data"]),
             media_type="application/vnd.excalidraw+json",
             headers={"Content-Disposition": attachment(name),
+                     "X-Content-Type-Options": BLOB_HEADERS["X-Content-Type-Options"],
                      "Cache-Control": "no-store"},
         )  # fmt: skip

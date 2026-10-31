@@ -223,7 +223,8 @@ above when that can happen.
 `read` gives each image and file a `download_url`, an image with a drawing a
 `drawing_download_url` (the whole drawing as an `.excalidraw` file), and the page a
 `download_url` (the page as `.md`, or with its files as `.zip`); `search` rows have
-`image_download_url` and `drawing` a `download_url`. They are under `/mcp`
+`image_download_url` and `drawing` a `download_url` (the page and drawing ones are `null` for a
+page in the trash). They are under `/mcp`
 (`/mcp/blobs/<sha>`, `/mcp/pages/<id>/download`, ...), so they need the same headers as the
 MCP connection: the bearer token if scrap has one, and behind Cloudflare Access the service
 token, which the `/mcp` application already covers. No other Access application or setting is

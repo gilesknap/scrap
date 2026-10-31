@@ -7,7 +7,7 @@ import zipfile
 from urllib.parse import urlsplit
 
 import pytest
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.testclient import TestClient
 
 from scrap import ingest, mcp_files
@@ -85,6 +85,7 @@ def test_the_drawing_downloads_whole_as_an_excalidraw_file(drawn):
     r = client.get(url, headers=bearer(SECRET))
     assert r.status_code == 200
     assert r.headers["content-type"] == "application/vnd.excalidraw+json"
+    assert r.headers["x-content-type-options"] == "nosniff"
     assert r.headers["content-disposition"].startswith(
         'attachment; filename="board.excalidraw"'
     )
@@ -123,7 +124,9 @@ def test_without_a_token_downloads_are_open_as_mcp_is(tmp_path):
     files = [("file", ("a.txt", text, "text/plain"))]
     ref = client.post("/api/captures", data={"id": new_ulid()}, files=files).json()
     sha = client.get(f"/api/pages/{ref['page_id']}").json()["captures"][0]["blobs"]
-    r = client.get(f"/mcp/blobs/{sha[0]['sha256']}", headers={"Accept-Encoding": "gzip"})
+    r = client.get(
+        f"/mcp/blobs/{sha[0]['sha256']}", headers={"Accept-Encoding": "gzip"}
+    )
     assert r.status_code == 200 and r.content == text
     assert "content-encoding" not in r.headers  # a file, as on /api: not gzipped
 
@@ -145,7 +148,7 @@ def test_tools_give_download_urls_that_serve(drawn, tmp_path):
     got = ok(store, "read", page=page)
     image, file = got["images"][0], got["files"][0]
     assert image["url"] == f"{BASE}/api/blobs/{sha}"  # the browser's, as before
-    assert image["download_url"] == f"{BASE}/mcp/blobs/{sha}"
+    assert image["download_url"] == f"{BASE}/mcp/blobs/{sha}?download=1"
     drawing = f"{BASE}/mcp/captures/{cid}/photos/{sha}/drawing.excalidraw"
     assert image["drawing_download_url"] == drawing
     assert file["drawing_download_url"] is None
@@ -155,11 +158,76 @@ def test_tools_give_download_urls_that_serve(drawn, tmp_path):
     assert ok(store, "drawing", page=page)["download_url"] == drawing
     for url in (image["download_url"], file["download_url"], drawing,
                 got["page"]["download_url"]):  # fmt: skip
-        assert client.get(urlsplit(url).path, headers=bearer(SECRET)).status_code == 200
-    assert client.get(urlsplit(file["download_url"]).path,
-                      headers=bearer(SECRET)).content == b"hello"  # fmt: skip
+        assert fetch(client, url).status_code == 200
+    saved = fetch(client, file["download_url"])
+    assert saved.content == b"hello"
+    # download=1: `curl -OJ` saves it under its own name
+    assert 'filename="notes.txt"' in saved.headers["content-disposition"]
+
+
+def fetch(client, url):
+    """GET a tool's URL (its path and query) with the bearer token."""
+    parts = urlsplit(url)
+    return client.get(f"{parts.path}?{parts.query}", headers=bearer(SECRET))
+
+
+def test_a_trashed_page_gives_no_page_or_drawing_download(drawn, tmp_path):
+    client, sha, cid, page = drawn
+    assert client.delete(f"/api/pages/{page}").status_code == 204
+    got = ok(Store(tmp_path), "read", page=page)
+    assert got["page"]["trashed"] and got["page"]["download_url"] is None
+    image = got["images"][0]
+    assert image["drawing_download_url"] is None
+    # what they would have been are 404s, as on /api; the file itself still serves
+    for url in (f"/mcp/pages/{page}/download",
+                f"/mcp/captures/{cid}/photos/{sha}/drawing.excalidraw"):  # fmt: skip
+        assert client.get(url, headers=bearer(SECRET)).status_code == 404
+    assert fetch(client, image["download_url"]).status_code == 200
+
+
+@pytest.mark.parametrize("method", ["put", "post", "delete", "patch"])
+def test_downloads_take_no_writes(drawn, method):
+    client, sha, cid, page = drawn
+    for url in (
+        f"/mcp/blobs/{sha}",
+        f"/mcp/pages/{page}/download",
+        f"/mcp/captures/{cid}/photos/{sha}/drawing",
+        f"/mcp/captures/{cid}/photos/{sha}/drawing.excalidraw",
+    ):
+        r = client.request(method, url, headers=bearer(SECRET), json={})
+        assert r.status_code == 405, (method, url)
+        assert client.request(method, url, headers=LOCAL).status_code == 401
+    # the drawing is as it was
+    current = client.get(f"/api/captures/{cid}/photos/{sha}/drawing").json()
+    assert current["version"] == 1
+
+
+def test_downloads_under_a_root_path(drawn):
+    client, sha, *_ = drawn
+    rooted = TestClient(client.app, root_path="/scrap")
+    url = f"/scrap/mcp/blobs/{sha}"
+    assert rooted.get(url, headers=LOCAL).status_code == 401
+    r = rooted.get(url, headers=bearer(SECRET))
+    assert r.status_code == 200 and r.content == client.get(f"/api/blobs/{sha}").content
 
 
 def test_a_missing_route_to_mirror_stops_scrap(tmp_path):
     with pytest.raises(RuntimeError, match="no GET route"):
         mcp_files.add_routes(FastAPI(), Store(tmp_path))
+
+
+def stubs(**extra):
+    """An app with every mirrored GET as a stub; extra goes to the first one's."""
+    app = FastAPI()
+    for n, path in enumerate(mcp_files.MIRRORED):
+        app.get(path, **(extra if n == 0 else {}))(lambda: {})
+    return app
+
+
+@pytest.mark.parametrize(
+    "extra", [{"dependencies": [Depends(lambda: None)]}, {"status_code": 202}]
+)
+def test_a_route_the_mirror_would_not_copy_faithfully_stops_scrap(tmp_path, extra):
+    mcp_files.add_routes(stubs(), Store(tmp_path))  # plain routes mirror
+    with pytest.raises(RuntimeError, match="dependencies or a status code"):
+        mcp_files.add_routes(stubs(**extra), Store(tmp_path))

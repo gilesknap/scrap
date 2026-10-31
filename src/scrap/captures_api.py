@@ -50,6 +50,11 @@ class Reprocess(BaseModel):
     replace_human: bool = False  # the user confirmed replacing their own drawing
 
 
+def photo(cid: str, sha: str) -> tuple[str, str]:
+    """A photo's (capture id, sha256) as stored: upper and lower case."""
+    return cid.upper(), sha.lower()
+
+
 def add_routes(app: FastAPI, store: Store) -> None:
     @app.post("/api/captures/{cid}/reprocess")
     def reprocess(cid: str, ask: Reprocess) -> dict[str, int]:
@@ -59,9 +64,6 @@ def add_routes(app: FastAPI, store: Store) -> None:
         if app.state.worker:
             app.state.worker.wake()
         return added
-
-    def photo(cid: str, sha: str) -> tuple[str, str]:
-        return cid.upper(), sha.lower()
 
     @app.get("/api/captures/{cid}/files/{sha}/text")
     def file_text(cid: str, sha: str) -> dict[str, Any]:

@@ -138,9 +138,9 @@ def register_reading(mcp: MCPServer, ctx: Ctx) -> None:
         service token): each image's and file's download_url (the original),
         drawing_download_url (an image's whole drawing as an .excalidraw file, null
         if none) and page.download_url (the page as <slug>.md, or with its files as
-        <slug>.zip). state null: not queued, a type scrap does not read
-        or a file attached before scrap read files (POST /api/captures/{id}/reprocess
-        queues it); drawing is
+        <slug>.zip); both null for a page in the trash. state null: not queued, a
+        type scrap does not read or a file attached before scrap read files (POST
+        /api/captures/{id}/reprocess queues it); drawing is
         null or a summary of an image's drawing (the drawing tool returns it). links
         are the pages it links to, with [[slug]] or a page URL; backlinks those
         linking to it.
@@ -159,6 +159,7 @@ def register_reading(mcp: MCPServer, ctx: Ctx) -> None:
     def shaped(p: dict[str, Any]) -> dict[str, Any]:
         """read's result for a page as store.page returns it."""
         fields = p["fields"]
+        trashed = p["deleted_at"] is not None  # its download and drawings are 404s
         images, files = [], []
         for c in p["captures"]:
             for b in c["blobs"]:
@@ -173,7 +174,7 @@ def register_reading(mcp: MCPServer, ctx: Ctx) -> None:
                     if is_image else None,
                     "download_url": ctx.blob_download(b["sha256"]),
                     "drawing_download_url": ctx.drawing_download(c["id"], b["sha256"])
-                    if ingest.get("drawing") else None,
+                    if ingest.get("drawing") and not trashed else None,
                     "description": ingest.get("description"),
                     "text": ingest.get("text"), "image_kind": ingest.get("image_kind"),
                     "has_drawing": bool(ingest.get("drawing")),
@@ -187,8 +188,8 @@ def register_reading(mcp: MCPServer, ctx: Ctx) -> None:
         return {
             "page": {
                 "id": p["id"], "slug": p["slug"], "url": link(p["slug"]),
-                "download_url": ctx.page_download(p["id"]),
-                "trashed": p["deleted_at"] is not None, "deleted_at": p["deleted_at"],
+                "download_url": None if trashed else ctx.page_download(p["id"]),
+                "trashed": trashed, "deleted_at": p["deleted_at"],
                 "purge_at": purge_at(p["deleted_at"], trash_days(), bool(topic)),
                 "kind": p["kind"], "status": fields.get("status"), "tags": p["tags"],
                 "due": p["due"], "priority": p["priority"],
