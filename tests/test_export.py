@@ -364,3 +364,12 @@ def test_an_empty_store_exports_an_empty_vault(client, tmp_path, data):
     assert export(Store(data), tmp_path / "md") == 0
     zf = zipfile.ZipFile(io.BytesIO(client.get("/api/store/download").content))
     assert zf.namelist() == []
+
+
+def test_sidecar_links_skip_what_the_pwa_shows_as_text():
+    """Model text's [[Some Title]] is kept, not made a link to no file; a table
+    cell's label keeps its pipe escaped (#491)."""
+    text = "[[Some Title]] [[a#h|A]]\n\n| [[a\\|x\\|y]] |\n| - |"
+    assert export_module._sidecar_links(text) == (
+        "[[Some Title]] [A](../a.md)\n\n| [x\\|y](../a.md) |\n| - |"
+    )

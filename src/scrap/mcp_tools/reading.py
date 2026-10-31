@@ -138,10 +138,12 @@ def register_reading(mcp: MCPServer, ctx: Ctx) -> None:
         service token): each image's and file's download_url (the original),
         drawing_download_url (an image's whole drawing as an .excalidraw file, null
         if none) and page.download_url (the page as <slug>.md, or with its files as
-        <slug>.zip); both null for a page in the trash. state null: not queued, a
-        type scrap does not read or a file attached before scrap read files (POST
-        /api/captures/{id}/reprocess queues it); drawing is
-        null or a summary of an image's drawing (the drawing tool returns it). links
+        <slug>.zip, with Claude's notes and Linked from after the body when there are
+        any; add ?notes=0 to leave the notes out; for the text alone use
+        content.body_markdown); both null for a page in the trash. state null: not
+        queued, a type scrap does not read or a file attached before scrap read
+        files (POST /api/captures/{id}/reprocess queues it); drawing is null or a
+        summary of an image's drawing (the drawing tool returns it). links
         are the pages it links to, with [[slug]] or a page URL; backlinks those
         linking to it.
         by_model is what a model (scrap's Claude enrichment), not the user, wrote
