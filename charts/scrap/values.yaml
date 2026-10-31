@@ -223,10 +223,12 @@ networkPolicy:
 # and nothing in the namespace may connect out. Off by default.
 public:
   enabled: false
-  # The namespace the public side runs in, labelled Pod Security "restricted".
+  # The namespace the public side runs in. Create it first, labelled Pod Security
+  # "restricted", with the token Secret in it (docs/how-to/deploy-kubernetes.md).
   namespace: scrap-public
-  # false: the namespace exists already (create it with the same labels).
-  createNamespace: true
+  # true: the chart creates the namespace, with those labels. Then helm uninstall
+  # (or an Argo CD prune) deletes the namespace and the Secret in it too.
+  createNamespace: false
   image:
     repository: ghcr.io/gilesknap/scrap-public
     # Defaults to the chart's appVersion, as scrap's own image does.
@@ -238,8 +240,9 @@ public:
   # The upload token: name an existing Secret and the key holding it (at least 32
   # characters). The receiver runs in public.namespace and scrap in the release
   # namespace, and a pod reads only its own namespace's Secrets, so create the
-  # Secret, with the same name and key, in BOTH. The chart never creates it.
-  # Required when enabled.
+  # Secret, with the same name and key, in BOTH. The receiver reads it as a
+  # mounted file (RECEIVER_TOKEN_FILE), scrap as SCRAP_PUBLISH_TOKEN. The chart
+  # never creates it. Required when enabled.
   tokenSecret:
     name: ""
     key: token

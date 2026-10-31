@@ -14,7 +14,7 @@ metadata:
 ---
 {{- end }}
 # nginx (web) and the upload receiver in one pod, sharing the site volume: nginx
-# mounts it read only. Only the receiver gets the token.
+# mounts it read only. Only the receiver mounts the token, as a file.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -88,11 +88,9 @@ spec:
               value: "tcp:0.0.0.0:8081"
             - name: RECEIVER_SITE
               value: /site
-            - name: RECEIVER_TOKEN
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Values.public.tokenSecret.name }}
-                  key: {{ .Values.public.tokenSecret.key }}
+            # The token as a mounted file, never an environment variable
+            - name: RECEIVER_TOKEN_FILE
+              value: /run/secrets/scrap-public/token
           ports:
             - name: receiver
               containerPort: 8081
@@ -115,6 +113,9 @@ spec:
               mountPath: /site
             - name: receiver-tmp
               mountPath: /tmp
+            - name: token
+              mountPath: /run/secrets/scrap-public
+              readOnly: true
       volumes:
         - name: site
           emptyDir:
@@ -125,6 +126,13 @@ spec:
         - name: receiver-tmp
           emptyDir:
             sizeLimit: 64Mi
+        - name: token
+          secret:
+            secretName: {{ .Values.public.tokenSecret.name }}
+            defaultMode: 0440
+            items:
+              - key: {{ .Values.public.tokenSecret.key }}
+                path: token
 ---
 # nginx: the only Service an Ingress points at
 apiVersion: v1

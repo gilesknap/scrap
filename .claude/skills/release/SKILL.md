@@ -52,6 +52,12 @@ You orchestrate; subagents do the work. How a tag publishes is in
     tests, web and the deploy-script checks pass, so it is the tests' gate too.
   - **Chart** `publish chart` publishes the chart to
     `oci://ghcr.io/gilesknap/charts/scrap` at version `<tag>`.
+  - **CI** `container-public-publish / manifest` publishes the public site's
+    image, `ghcr.io/gilesknap/scrap-public:<tag>`, behind the same gates. Watch
+    it too when the cluster runs public pages (`public.enabled`). The first
+    release that publishes it creates the package private: make
+    `scrap-public` public in its GitHub package settings, or the cluster
+    cannot pull it.
 - Watch those two with `gh run view <run-id> -R gilesknap/scrap --json jobs`.
   Docs and the GitHub Release (`release / artifacts`) finish later; check
   them at the end (step 7), but don't hold the deploy for them.

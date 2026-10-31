@@ -110,15 +110,24 @@ if [ -n "$np" ] && echo "$np" | grep -q '|    - Egress|' && echo "$np" | grep -q
     echo "$np" | grep -q 'kubernetes.io/metadata.name: default|'; then
     ok "the public NetworkPolicy denies egress and admits scrap's namespace"
 else bad "the public NetworkPolicy is missing, allows egress or misses scrap's namespace"; fi
-if grep '|kind: Namespace|' "$out/docs" | grep -q 'pod-security.kubernetes.io/enforce: restricted|'; then
-    ok "the public namespace enforces Pod Security restricted"
-else bad "the public namespace is not Pod Security restricted"; fi
 recv=$(grep '|kind: Deployment|' "$out/docs" | grep 'namespace: scrap-public|' || true)
-if [ "$(echo "$recv" | grep -o 'secretKeyRef' | wc -l)" = 1 ] &&
-    echo "$recv" | grep -q 'name: RECEIVER_TOKEN|' &&
+# The token: a Secret volume mounted in the receiver alone, read as a file
+if ! echo "$recv" | grep -Eq 'secretKeyRef|name: RECEIVER_TOKEN\|' &&
+    echo "$recv" | grep -q 'name: RECEIVER_TOKEN_FILE|' &&
+    [ "$(echo "$recv" | grep -o 'secretName: scrap-publish|' | wc -l)" = 1 ] &&
+    [ "$(echo "$recv" | grep -o 'mountPath: /run/secrets/scrap-public|' | wc -l)" = 1 ] &&
     [ "$(echo "$recv" | grep -o 'readOnlyRootFilesystem: true' | wc -l)" = 2 ]; then
-    ok "only the receiver gets the token; both containers have read-only roots"
-else bad "the token reaches nginx, or a public container's root is writable"; fi
+    ok "only the receiver mounts the token, as a file; both containers have read-only roots"
+else bad "the token is an env var or reaches nginx, or a public container's root is writable"; fi
+# By default the chart leaves the namespace (and the Secret in it) alone
+if grep -q '|kind: Namespace|' "$out/docs"; then
+    bad "public renders a Namespace without createNamespace"
+else ok "public.createNamespace is off by default"; fi
+if helm template scrap "$chart" -f "$chart/ci/public-values.yaml" --set public.createNamespace=true |
+    awk '/^---/{d=""} {d=d $0 "|"} /pod-security.kubernetes.io\/enforce: restricted/{print d}' |
+    grep -q 'kind: Namespace|'; then
+    ok "createNamespace makes a Pod Security restricted namespace"
+else bad "createNamespace does not make a restricted namespace"; fi
 if grep -A1 'name: SCRAP_PUBLISH_TO$' "$pub" | grep -q 'value: "http://scrap-receiver.scrap-public.svc:8081"' &&
     grep -A1 'name: SCRAP_PUBLISH_SITE$' "$pub" | grep -q 'value: "https://pages.example.org"' &&
     grep -A3 'name: SCRAP_PUBLISH_TOKEN$' "$pub" | grep -q 'secretKeyRef'; then

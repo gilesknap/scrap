@@ -421,11 +421,11 @@ example `https://pages.example.org`. The site is served by nginx from a separate
 public page to the receiver; nothing on the public side can reach scrap. The chart's `public`
 section, off by default, runs it:
 
-- a namespace of its own (`public.namespace`, default `scrap-public`) labelled Pod Security
-  `restricted` (`public.createNamespace: false` if you made it; give it the same labels);
+- it runs in a namespace of its own (`public.namespace`, default `scrap-public`), labelled Pod
+  Security `restricted`, which you create first (below);
 - one Deployment with two containers sharing the site volume: `web` (nginx, the site mounted read
-  only) and `receiver` (the only one given the token), both non-root with read-only root
-  filesystems;
+  only) and `receiver` (the only one given the token, mounted as a file), both non-root with
+  read-only root filesystems;
 - two ClusterIP Services, and an Ingress for nginx alone (`public.ingress`); the receiver is never
   on an Ingress;
 - a NetworkPolicy: the receiver's port only from scrap's pods (the release namespace and scrap's
@@ -436,17 +436,28 @@ The site lives in an `emptyDir` (`public.sizeLimit`, default `3Gi`: the receiver
 plus room for an upload). It starts empty when the pod moves, and scrap fills it again: it checks
 the receiver's manifest at start and every 10 minutes and pushes what is missing.
 
-The upload token is a Secret you create, never a value. The receiver runs in the public namespace
-and scrap in its own, and a pod reads only its own namespace's Secrets, so create it, with the
-same name and key, in **both**:
+First create the public namespace, labelled Pod Security `restricted`, and the upload token. The
+token is a Secret you create, never a value. The receiver runs in the public namespace and scrap
+in its own, and a pod reads only its own namespace's Secrets, so create it, with the same name
+and key, in **both**:
 
 ```sh
+kubectl create namespace scrap-public
+kubectl label namespace scrap-public pod-security.kubernetes.io/enforce=restricted \
+  pod-security.kubernetes.io/audit=restricted pod-security.kubernetes.io/warn=restricted
 token=$(openssl rand -hex 32)
 for ns in scrap scrap-public; do
-  kubectl create namespace "$ns" --dry-run=client -o yaml | kubectl apply -f -
   kubectl -n "$ns" create secret generic scrap-publish --from-literal=token="$token"
 done
 ```
+
+The receiver reads the token as a mounted file (`RECEIVER_TOKEN_FILE`); scrap gets it as
+`SCRAP_PUBLISH_TOKEN`.
+
+`public.createNamespace: true` makes the chart create the namespace instead, with the same
+labels (Argo CD can do the same with `CreateNamespace=true`). Then the Secret can only be made
+after the first install, and the receiver waits for it. **`helm uninstall` (or an Argo CD prune)
+then deletes the namespace, and the Secret in it**, which is why it is off by default.
 
 Then:
 

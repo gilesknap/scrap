@@ -89,8 +89,9 @@ also turns on Claude enrichment of text pages.
 
 Off by default. `public.enabled` runs the public site of the pages marked Public (issue 497)
 from the `ghcr.io/gilesknap/scrap-public` image, in a namespace of its own (`public.namespace`,
-default `scrap-public`, labelled Pod Security `restricted`; `public.createNamespace: false` if it
-exists). One pod holds nginx, which serves the site read only, and an upload receiver that scrap
+default `scrap-public`) that you create first, labelled Pod Security `restricted`.
+`public.createNamespace: true` has the chart create it, but then `helm uninstall` deletes the
+namespace and the token Secret in it. One pod holds nginx, which serves the site read only, and an upload receiver that scrap
 pushes the pages to. Only nginx gets an Ingress (`public.ingress`). A NetworkPolicy admits only
 scrap's pods to the receiver and `public.networkPolicy.webFrom` (empty: anyone) to nginx, and
 denies all egress. The site is an `emptyDir` (`public.sizeLimit`); scrap pushes it back after the
@@ -98,7 +99,7 @@ pod moves.
 
 The upload token is a Secret you create, at least 32 characters, named by
 `public.tokenSecret.name` and `.key`, in **both** namespaces (each pod reads only its own
-namespace's Secrets). `public.site` is the site's base URL (`SCRAP_PUBLISH_SITE`). The install
+namespace's Secrets); the receiver mounts it as a file. `public.site` is the site's base URL (`SCRAP_PUBLISH_SITE`). The install
 fails without either. scrap then gets `SCRAP_PUBLISH_TO`, `SCRAP_PUBLISH_SITE` and
 `SCRAP_PUBLISH_TOKEN`. Behind Cloudflare Access, the site's host needs its own Access application
 with the Bypass action: a wildcard application covers every subdomain. See the guide.

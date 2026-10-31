@@ -1,0 +1,7 @@
+# Public pages with the chart creating their namespace (Pod Security restricted).
+public:
+  enabled: true
+  createNamespace: true
+  site: https://pages.example.org/
+  tokenSecret:
+    name: scrap-publish
