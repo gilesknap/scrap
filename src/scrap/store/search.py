@@ -133,16 +133,7 @@ class SearchMixin(Core):
         if not q.terms and not q.filters:
             return []
         where, args = self._where(q)
-        # sort: first, then the default order (a page's chunks share its sort key, so
-        # its best chunk still comes first). Pages with no due date or priority last.
-        order = ""
-        sort = q.sort or (("title", False) if q.group == "letter" else None)  # A-Z
-        if sort:
-            key, desc = sort
-            way = "DESC" if desc else "ASC"
-            order = f"{SORT_SQL[key]} {way} NULLS LAST, p.id {way}, "
-        sections, section_args = group_order(q)  # group: first of all
-        order = sections + order
+        order, section_args = self._order(q)
         hits: dict[str, dict[str, Any]] = {}  # a page once, at its best chunk
         with self.connect() as conn:
             if q.group == "area":
@@ -265,6 +256,21 @@ class SearchMixin(Core):
             ).fetchall()
         own = Counter(tag for _, tag in rows)
         return [[t, n, own[t]] for t, n in sorted(tag_counts(rows).items())]
+
+    def _order(self, q: Query) -> tuple[str, list[Any]]:
+        """The start of search's ORDER BY on page p (each term ending ", "), and its
+        args: group: first, then sort:, then the caller's own order."""
+        # sort: first, then the default order (a page's chunks share its sort key, so
+        # its best chunk still comes first). Pages with no due date or priority last.
+        order = ""
+        sort = q.sort or (("title", False) if q.group == "letter" else None)  # A-Z
+        if sort:
+            key, desc = sort
+            way = "DESC" if desc else "ASC"
+            order = f"{SORT_SQL[key]} {way} NULLS LAST, p.id {way}, "
+        sections, section_args = group_order(q)  # group: first of all
+        order = sections + order
+        return order, section_args
 
     def _where(self, q: Query) -> tuple[str, list[Any]]:
         """SQL conditions on page p for a query's words and filters, and their args."""
