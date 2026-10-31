@@ -28,7 +28,7 @@ def convert(text: str) -> str:
     return once
 
 
-PICTURE = '<p align="center"><picture>\n<img src="a.png">\n</picture></p>'
+PICTURE = '<p align="center"><picture>\n<img src="https://gist.githubusercontent.com/u/1/raw/z-a-light.png">\n</picture></p>'
 BLOCK = "```math\n\\Large\n{}\n```\n\n&nbsp;\n"
 
 

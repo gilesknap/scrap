@@ -30,19 +30,20 @@ description: Publish a scrap page (Markdown + LaTeX maths) as a GitHub gist that
    ```
    This uses the normal `gh` login. If it fails with HTTP 403, the token cannot create gists (fine-grained tokens often lack the gist permission): ask the user for a token with the `gist` scope and pass it for each gist command only, for example `GH_TOKEN="$(tr -d '[:space:]' < <file the user names>)" gh gist create …`. Never store it or print it.
 5. **Only if step 2 warned about `\cancel`**: GitHub does not draw it (the struck-out part does not show at all), so swap in an image of how scrap renders it.
-   - Write the block's TeX, with a leading `\Large`, to `eq.tex`. Then run `<skill>/render_tex_png.sh eq.tex '#1f2328' NAME-light.png` and `<skill>/render_tex_png.sh eq.tex '#f0f6fc' NAME-dark.png` (they can run in parallel). This needs Chrome or Chromium (headless; set `CHROME` if it is not on `PATH`) and internet access (KaTeX comes from a CDN). It prints the CSS width: use it as it is in `<img width>`, which matches the size of the `\Large` math blocks around it.
+   - Name the images `z-NAME-light.png` and `z-NAME-dark.png`. A gist lists its files alphabetically (case-insensitive) and the first file becomes the gist's title in listings; there is no way to reorder them, so the `z-` prefix keeps `gist.md` first.
+   - Write the block's TeX, with a leading `\Large`, to `eq.tex`. Then run `<skill>/render_tex_png.sh eq.tex '#1f2328' z-NAME-light.png` and `<skill>/render_tex_png.sh eq.tex '#f0f6fc' z-NAME-dark.png` (they can run in parallel). This needs Chrome or Chromium (headless; set `CHROME` if it is not on `PATH`) and internet access (KaTeX comes from a CDN). It prints the CSS width: use it as it is in `<img width>`, which matches the size of the `\Large` math blocks around it.
    - The gist API takes only text files, so add the PNGs with git, over HTTPS with gh as the credential helper, never SSH. With `GIT_CONFIG_GLOBAL=/dev/null` git has no identity, so the commit uses the GitHub account's. From the folder holding the PNGs (prefix `GH_TOKEN=…` to the `gh` and `git` lines as in step 4 if you needed it there):
      ```
      id=<gist id>
      git_gh() { GIT_CONFIG_GLOBAL=/dev/null git -c credential.helper= -c 'credential.helper=!gh auth git-credential' "$@"; }
      git_gh clone "https://gist.github.com/$id.git" gist-repo
-     cp NAME-light.png NAME-dark.png gist-repo/
+     cp z-NAME-light.png z-NAME-dark.png gist-repo/
      login=$(gh api user --jq .login); uid=$(gh api user --jq .id)
-     git_gh -C gist-repo add NAME-light.png NAME-dark.png
+     git_gh -C gist-repo add z-NAME-light.png z-NAME-dark.png
      git_gh -C gist-repo -c user.name="$login" -c user.email="$uid+$login@users.noreply.github.com" commit -m "Add images"
      git_gh -C gist-repo push
      ```
-   - In `gist.md`, replace the math block with a centred `<p align="center"><picture>` that has a `<source media="(prefers-color-scheme: dark)" srcset="…">` for the dark PNG, plus an `<img width="…" alt="…" src="…">` for the light PNG, with the maths in words as `alt`. Both URLs are `https://gist.githubusercontent.com/<user>/<id>/raw/<file>.png`. Keep the `&nbsp;` paragraph after it.
+   - In `gist.md`, replace the math block with a centred `<p align="center"><picture>` that has a `<source media="(prefers-color-scheme: dark)" srcset="…">` for the dark PNG, plus an `<img width="…" alt="…" src="…">` for the light PNG, with the maths in words as `alt`. Both URLs are raw URLs, `https://gist.githubusercontent.com/<user>/<id>/raw/z-NAME-light.png` and `…/raw/z-NAME-dark.png`: only a raw URL renders as an image (a relative path such as `![](z-NAME-light.png)` becomes a link to the file, not an image). Keep the `&nbsp;` paragraph after it.
    - Upload the changed `gist.md` as in step 6.
 6. **Update** in place with PATCH (keeps the URL) rather than recreating:
    ```
@@ -70,8 +71,18 @@ The script finds maths with scrap's own rules (a copy of `src/scrap/maths.py` in
 
 - The body font size can't be changed: GitHub strips all styling from markdown. Suggest browser zoom on gist.github.com, or an HTML page if exact looks matter.
 - `\cancel` doesn't render, so the script flags it (see step 5).
+- Images in a gist render only from their raw URL, `https://gist.githubusercontent.com/<user>/<id>/raw/<file>`. A relative path such as `![](file.png)` becomes a link to the file, not an image.
+- A gist lists its files alphabetically (case-insensitive), and the first becomes its title in listings; files can't be reordered by hand. Give extra files names that sort after the `.md` (the `z-` prefix of step 5).
+
+## Diagrams as SVG
+
+SVG works in a gist: the raw URL serves `image/svg+xml`, and both `![](raw-url)` and `<img src="raw-url" width="…">` render. SVG is text, so it needs no git clone or push: add it with `gh gist create -d "<title>" gist.md z-diagram.svg` (or later in the PATCH of step 6, as another entry under `files`). Create the gist first, then PATCH `gist.md` with the raw URLs once you know its id. Keep git for PNGs only.
 - Maths in a footnote (`[^1]: …`) is never drawn: move it into the body, or write it in words. `--check` names it "inside a footnote".
 - A ```math block in a list that also has inline maths is shown as code, so the script writes display maths in a list item as ``$`\displaystyle\Large …`$`` on its own line (left-aligned) instead.
+
+## Not handled yet
+
+- The page's own images, photos, drawings and files, aren't copied to the gist yet: scrap's `/api/blobs/...` image links in the body won't render there.
 
 ## Keeping scrap and gist in step
 
