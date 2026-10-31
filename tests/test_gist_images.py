@@ -21,7 +21,9 @@ gi = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(gi)
 
 SECRET = "s3cr3t-token-value"
-JPEG, PNG, SVG, PDF, FAIL, BIG, BUSY, LOOP, GONE = (c * 64 for c in "abcdef012")
+JPEG, PNG, SVG, PDF, FAIL, BIG, BUSY, LOOP, GONE, CF, DENY = (
+    c * 64 for c in "abcdef01234"
+)
 PREVIEWS = {  # sha -> (content type, bytes) of its preview
     JPEG: ("image/jpeg", b"\xff\xd8 jpeg preview"),
     PNG: ("image/jpeg", b"\xff\xd8 png's preview"),  # every raster preview is a JPEG
@@ -60,6 +62,10 @@ class Scrap(BaseHTTPRequestHandler):
             return self.reply("application/json", b'{"detail":"not an image"}', 400)
         if sha == FAIL:
             return self.reply("text/plain", b"oops", 500)
+        if sha == CF:  # Cloudflare's refusal, before scrap sees the request
+            return self.reply("text/plain", f"error code: 1010 {SECRET}".encode(), 403)
+        if sha == DENY:  # scrap's own refusal: bad headers
+            return self.reply("application/json", b'{"detail":"forbidden"}', 403)
         self.reply("text/plain", b"no", 404)
 
     def reply(self, ctype, data, code=200, extra=None):
@@ -164,6 +170,7 @@ def test_it_downloads_previews_only_with_the_helper_headers(tmp_path, base):
     assert paths() == want
     # the headers went with every request, and were never shown or written
     for _, sent in Scrap.seen:
+        assert sent["user-agent"] == "scrap-to-gist/1"  # not urllib's: Cloudflare 1010
         assert sent["authorization"] == f"Bearer {SECRET}"
         assert sent["cf-access-client-secret"] == f"cf-{SECRET}"
     assert not leaked(tmp_path, done)
@@ -434,3 +441,42 @@ def test_a_proxy_is_never_used(tmp_path, base):
     assert [p for p, _ in Scrap.seen[seen_before:]] == [
         f"/mcp/blobs/{JPEG}/preview?size=2048"
     ]
+
+
+def test_our_user_agent_wins_over_the_users(tmp_path, base):
+    """One User-Agent, ours, whatever case the user's headers give it in."""
+    conf = {
+        "mcpServers": {
+            "scrap": {
+                "url": base,
+                "headers": {"user-agent": "Python-urllib/3.12", "X-T": "t"},
+            }
+        }
+    }
+    (tmp_path / ".claude.json").write_text(json.dumps(conf))
+    done = run(tmp_path, f"![](/api/blobs/{JPEG})")
+    assert done.returncode == 0, done.stderr
+    [(_, sent)] = Scrap.seen
+    assert sent["user-agent"] == "scrap-to-gist/1"
+    assert sent["x-t"] == "t"
+    assert gi.with_user_agent({"USER-AGENT": "x", "A": "b"}) == {
+        "A": "b",
+        "User-Agent": "scrap-to-gist/1",
+    }
+
+
+def test_a_cloudflare_403_is_told_apart_from_scrap_s(tmp_path, base):
+    """Cloudflare's "error code: 1010" names Cloudflare, not the headers; only the
+    code is shown, never the body."""
+    done = with_helper(tmp_path, f"![](/api/blobs/{CF})", base)
+    assert done.returncode == 1
+    assert "Cloudflare blocked this client before it reached scrap" in done.stderr
+    assert "error code 1010" in done.stderr
+    assert "check the MCP headers" not in done.stderr
+    assert not leaked(tmp_path, done)  # the rest of the body is never printed
+    done = with_helper(tmp_path, f"![](/api/blobs/{DENY})", base)
+    assert done.returncode == 1
+    assert "HTTP 403" in done.stderr
+    assert "check the MCP headers" in done.stderr
+    assert "Cloudflare" not in done.stderr
+    assert "forbidden" not in done.stderr

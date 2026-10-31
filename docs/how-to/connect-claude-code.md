@@ -347,7 +347,10 @@ scrap shows them: only the 2048-pixel previews are fetched, never the originals,
 position is published. That needs scrap 1.2.0 or later (its `/mcp` downloads, "Downloading files"
 above). The images are fetched only from the `url` of the `scrap` entry in your `~/.claude.json`,
 with that entry's headers (the `headersHelper` of {ref}`mcp-secrets`, or its `headers`); a
-project's `.mcp.json` is never read. With an older scrap the images are left out, with a note.
+project's `.mcp.json` is never read, and with a `User-Agent` of `scrap-to-gist/1` (Cloudflare refuses
+Python's default one, with error code 1010). The images are fetched before the gist is created, so
+an image that cannot be fetched stops Claude before anything is published. With an older scrap the
+images are left out, with a note.
 Claude asks before publishing photos that look personal: anyone with a gist's link can see its
 images.
 
