@@ -65,7 +65,11 @@ HEADING = re.compile(r" {0,3}#{1,6}(?:\s|$)")
 TABLE_DELIM = re.compile(r"\s*\|?\s*:?-+:?\s*(?:\|\s*:?-+:?\s*)*\|?\s*$")
 HR = re.compile(r" {0,3}(?:(?:\*[ \t]*){3,}|(?:_[ \t]*){3,})$")
 SETEXT = re.compile(r" {0,3}(?:=+|-+)[ \t]*$")
-AUTOLINK = re.compile(r"<[A-Za-z][A-Za-z0-9+.\-]{1,31}:[^\s<>]*>")
+AUTOLINK = re.compile(
+    r"<[A-Za-z][A-Za-z0-9+.\-]{1,31}:[^\s<>]*>"  # a URL
+    r"|<[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?"
+    r"(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*>"  # an email address
+)
 LINK_DEST = re.compile(
     r"\]\((?:<[^>\n]*>|[^\s()<]*(?:\([^\s()]*\)[^\s()<]*)*)"
     r"(?:\s+(?:\"[^\"\n]*\"|'[^'\n]*'))?\)"
@@ -95,13 +99,13 @@ def columns(s: str) -> int:
     return len(s.expandtabs(4))
 
 
-def split_prefix(line: str) -> tuple[str, str]:
-    """(container prefix, text): the quote markers, a list marker and indent."""
+def split_at(line: str, lm: re.Match[str] | None) -> tuple[str, str]:
+    """(container prefix, text), with lm the list marker the line starts an item with
+    (None: a marker it has is text, as in "2. b" continuing a paragraph)."""
     q = quote(line)
     rest = line[len(q) :]
-    m = LIST.match(rest)
-    if m:
-        return line[: len(q) + m.end()], rest[m.end() :]
+    if lm:
+        return line[: len(q) + lm.end()], rest[lm.end() :]
     indent = len(rest) - len(rest.lstrip(" \t"))
     return line[: len(q) + indent], rest[indent:]
 
@@ -207,15 +211,42 @@ def ams_block(
     return None
 
 
-def interrupts(after: str, in_list: bool) -> bool:
+# List markers at any indent; list_match() limits the indent
+LIST_ANY = re.compile(r"[ \t]*(?:(?:[-*+]|\d{1,9}[.)])(?:[ \t]+|$))+")
+
+
+def list_match(after: str, list_w: int) -> re.Match[str] | None:
+    """The list marker(s) a line (after its quote markers) starts with, if it starts
+    an item: indented at most 3 columns past the content of the list item it is in
+    (list_w; 0 outside a list). More than that, it is the item's text or code."""
+    m = LIST_ANY.match(after)
+    lead = after[: len(after) - len(after.lstrip(" \t"))]
+    return m if m and columns(lead) <= list_w + 3 else None
+
+
+def track_list(line: str, list_w: int, in_para: bool) -> tuple[int, re.Match | None]:
+    """The content column of the list item line is in, after line, and its marker
+    (if it starts an item: in a paragraph, only one that can end it). A line less
+    indented than the item's content, not a paragraph's continuation, leaves the
+    item, for an outer one or out of the list."""
+    after = line[len(quote(line)) :]
+    lm = list_match(after, list_w)
+    if lm and (not in_para or interrupts(after, list_w)):
+        return columns(lm[0]), lm
+    if not in_para and indent_of(line) < list_w:
+        return indent_of(line), None
+    return list_w, None
+
+
+def interrupts(after: str, list_w: int) -> bool:
     """Whether a line (after its quote markers) starts a list item that can end a
     paragraph: one that is not empty, and outside a list an ordered one only from 1
-    (inside one, any sibling item ends the item before)."""
-    lm = LIST.match(after)
+    (inside one, any sibling or nested item ends the item before)."""
+    lm = list_match(after, list_w)
     return bool(
         lm
         and after[lm.end() :].strip()
-        and (in_list or re.match(r" *(?:[-*+]|1[.)])", after))
+        and (list_w > 0 or re.match(r" *(?:[-*+]|1[.)])", after))
     )
 
 
@@ -237,10 +268,9 @@ def protect_code(
             open_para = False
             continue
         after = line[len(quote(line)) :]
-        lm = LIST.match(after)
         if open_para and (
             quotes(line) > depth
-            or interrupts(after, list_w > 0)
+            or interrupts(after, list_w)
             or (
                 TABLE_DELIM.match(lines[i + 1] if i + 1 < len(lines) else "")
                 and "|" in line
@@ -249,8 +279,8 @@ def protect_code(
             open_para = False  # a new quote or list item ends the paragraph
         if not open_para:
             depth = quotes(line)
+        list_w, lm = track_list(line, list_w, open_para)
         if lm:
-            list_w = columns(lm[0])  # the item's content indent
             gaps = re.findall(r"(?:[-*+]|\d[.)])([ \t]*)", lm[0])
             if max(columns(g) for g in gaps) >= 5 and after[lm.end() :].strip():
                 # content 5 or more spaces after a marker is indented code
@@ -258,8 +288,6 @@ def protect_code(
                 out.append(CODE.format(len(code) - 1))
                 i, open_para = i + 1, False
                 continue
-        elif not open_para and indent_of(line) < list_w:
-            list_w = 0  # out of the list
         if not open_para and not lm and indent_of(line) >= list_w + 4:
             j = i  # indented code (it cannot interrupt a paragraph)
             while j < len(lines) and (
@@ -272,7 +300,7 @@ def protect_code(
             out.append(CODE.format(len(code) - 1))
             i, open_para = j, False
             continue
-        prefix, text = split_prefix(line)
+        prefix, text = split_at(line, lm)
         span = None
         if not open_para and text.strip().startswith("$$"):
             span = dollar_block(lines, i, prefix, text.strip())

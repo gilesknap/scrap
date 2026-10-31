@@ -55,7 +55,7 @@ BLOCK = "```math\n\\Large\n{}\n```\n\n&nbsp;\n"
             BLOCK.format("\\begin{align}\na &= b\n\\end{align}"),
         ),
         ("> $$\n> a\n> $$", "> ```math\n> \\Large\n> a\n> ```\n>\n> &nbsp;\n>\n"),
-        ("- $$\n  a\n  $$", "- ```math\n  \\Large\n  a\n  ```\n\n  &nbsp;\n"),
+        ("- $$\n  a\n  $$", "- $`\\displaystyle\\Large a`$\n"),
         # two formulas on one line are not one block
         (
             "$$a$$ and $$b$$",
@@ -93,7 +93,7 @@ BLOCK = "```math\n\\Large\n{}\n```\n\n&nbsp;\n"
         ),
         (
             "Intro:\n- $$\n  z\n  $$",
-            "Intro:\n- ```math\n  \\Large\n  z\n  ```\n\n  &nbsp;\n",
+            "Intro:\n- $`\\displaystyle\\Large z`$\n",
         ),
         ("Costs $a\n- b$ c", "Costs \\$a\n- b\\$ c\n"),
         ("two\n2. not a list $x$", "two\\\n2. not a list $`\\large x`$\n"),
@@ -165,6 +165,31 @@ BLOCK = "```math\n\\Large\n{}\n```\n\n&nbsp;\n"
             "Multiply out:\n" + BLOCK.format("(x+1)^2") + "\nso $`\\large x=2`$.\n",
         ),
         ("Text\n$$x$$\nmore", "Text\n" + BLOCK.format("x") + "\nmore\n"),
+        # nested list items indented 4 or more end the item before; code in an item
+        # stays code
+        (
+            "- Book the hall\n    - Tuesday or\n    - Thursday\n- Next",
+            "- Book the hall\n    - Tuesday or\n    - Thursday\n- Next\n",
+        ),
+        (
+            "2. Step\n    1. sub $x$\n    2. sub2",
+            "2. Step\n    1. sub $`\\large x`$\n    2. sub2\n",
+        ),
+        ("- a\n    - b\n        - c\n- d", "- a\n    - b\n        - c\n- d\n"),
+        ("- a\n\n      - code $x$", "- a\n\n      - code $x$\n"),
+        # display maths in a list item stays in the item, left-aligned
+        (
+            "1. So $x = 2$.\n   $$x = 2,\\ 3$$\n2. Check",
+            "1. So $`\\large x = 2`$.\\\n"
+            "   $`\\displaystyle\\Large x = 2,\\ 3`$\n2. Check\n",
+        ),
+        ("- Then\n  ```math\n  y\n  ```", "- Then\\\n  $`\\displaystyle\\Large y`$\n"),
+        (
+            "- \\begin{align}\n  a &= b\n  \\end{align}",
+            "- $`\\displaystyle\\Large \\begin{align} a &= b \\end{align}`$\n",
+        ),
+        # an email autolink is kept
+        ("Mail <ann@example.com> or <b>", "Mail <ann@example.com> or &lt;b>\n"),
         ("Text\n    $$x$$", "Text\\\n    $`\\displaystyle\\Large x`$\n"),
         ("$$a\n$$b\n$$", "$`\\displaystyle\\Large a\n`$b\\\n\\$\\$\n"),
         ("Text\n$$a$$ b", "Text\\\n$`\\displaystyle\\Large a`$ b\n"),
@@ -245,6 +270,24 @@ def test_check(tmp_path):
         failed = run(tmp_path, "--check", "gist.md", f"{name}.html")
         assert failed.returncode == 1, name
         assert "raw maths" in failed.stdout, name
+    # what is missing is named; a footnote's maths and a ```math block left as code
+    # are said to be so
+    notes = (
+        '<p>A <math-renderer class="js-inline-math">$\\large y$</math-renderer></p>\n'
+        '<section data-footnotes="" class="footnotes"><ol><li><p>area '
+        '$<code class="notranslate">\\large x^2</code>$.</p></li></ol></section>'
+        '<pre lang="math" class="notranslate"><code class="notranslate">\\Large\nz\n'
+        "</code></pre>\n"
+    )
+    (tmp_path / "notes.md").write_text(
+        "A $`\\large y`$\n\n[^1]: area $`\\large x^2`$.\n\n```math\n\\Large\nz\n```\n"
+    )
+    (tmp_path / "notes.html").write_text(notes)
+    failed = run(tmp_path, "--check", "notes.md", "notes.html")
+    assert failed.returncode == 1
+    assert "not recognised: x^2 (inside a footnote" in failed.stdout
+    assert "not recognised: z\n" in failed.stdout
+    assert "math block shown as code: z" in failed.stdout
     # a path with backslashes in the text is not maths
     (tmp_path / "path.html").write_text(
         f"<p>a {inline} b C:\\Users\\me $5</p>\n{block}\n"

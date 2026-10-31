@@ -70,6 +70,8 @@ The script finds maths with scrap's own rules (a copy of `src/scrap/maths.py` in
 
 - The body font size can't be changed: GitHub strips all styling from markdown. Suggest browser zoom on gist.github.com, or an HTML page if exact looks matter.
 - `\cancel` doesn't render, so the script flags it (see step 5).
+- Maths in a footnote (`[^1]: …`) is never drawn: move it into the body, or write it in words. `--check` names it "inside a footnote".
+- A ```math block in a list that also has inline maths is shown as code, so the script writes display maths in a list item as ``$`\displaystyle\Large …`$`` on its own line (left-aligned) instead.
 
 ## Keeping scrap and gist in step
 

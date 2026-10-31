@@ -10,6 +10,8 @@ from src/scrap/maths.py and web/src/mathrules.ts, the cases in tests/maths_cases
 $...$ and $$...$$ in a line, $$ ... $$ on lines of their own, a top-level amsmath
 environment, and ```math fences. Code (inline code spans, ``` and ~~~ fences, indented
 code) is never changed.
+Known limit: as in scrap, money followed by a code span holding a $ ("$5 and `$x`")
+reads as maths up to that $.
 Deliberate differences: a line such as "$$a$$ and $$b$$" is two formulas here, where
 scrap reads one block "a$$ and $$b" (which KaTeX cannot draw); and a $ in a bare URL
 (https://..., www....) never starts maths, so the link survives.
@@ -20,6 +22,8 @@ Transforms (all idempotent, so re-running on its own output is safe):
     needed only when a link uses it)
   * display maths ($$ blocks, amsmath environments, ```math fences; centred in scrap)
     -> a ```math block that starts \\Large, followed by an &nbsp; paragraph
+  * display maths in a list item -> $`\\displaystyle\\Large ...`$ on its own line
+    (GitHub shows a ```math block as code in a list that has inline maths)
   * a line that is only "$\\displaystyle ...$" -> $`\\displaystyle\\Large ...`$
     (left-aligned, as in scrap)
   * other inline $...$ -> $`\\large ...`$, and $$...$$ within a line ->
@@ -43,6 +47,7 @@ import html
 import os
 import re
 import sys
+from collections import Counter
 
 # scrap_markdown.py is beside this script (also when it is loaded by path)
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -69,15 +74,23 @@ from scrap_markdown import (  # noqa: E402
     escaped,
     indent_of,
     interrupts,
+    list_match,
     math_at,
     protect_code,
     quote,
     quotes,
-    split_prefix,
+    split_at,
     strip_prefix,
+    track_list,
 )
 
 # --- inline -------------------------------------------------------------------------
+
+
+def _size_off(tex: str) -> str:
+    """A math block's TeX: no \\large or \\Large first, no blank lines round it."""
+    tex = re.sub(r"^[ \t]*\\(?:large|Large)(?![A-Za-z])[ \t]*", "", tex.strip("\n"))
+    return tex.strip("\n")
 
 
 class Converter:
@@ -213,8 +226,7 @@ class Converter:
 
     def math_block(self, tex: str, first: str, cont: str) -> list[str]:
         # one \Large first (an earlier one dropped), no blank lines round the TeX
-        tex = re.sub(r"^[ \t]*\\(?:large|Large)(?![A-Za-z])[ \t]*", "", tex.strip("\n"))
-        tex = tex.strip("\n")
+        tex = _size_off(tex)
         self.maths.append(tex)
         lines = ["\\Large", *(tex.rstrip().split("\n") if tex.strip() else [])]
         # a fence longer than any run of backticks the TeX starts a line with
@@ -254,7 +266,7 @@ class Converter:
         out: list[str] = []
         para: list[tuple[str, str]] = []  # a paragraph's lines: (prefix, text)
         depth = 0  # the paragraph's quote depth
-        in_list = after_blank = False
+        list_w = 0  # the content column of the list item we are in (0: none)
 
         def flush() -> None:
             if not para:
@@ -273,18 +285,15 @@ class Converter:
                 out.append(line)
                 i += 1
                 continue
-            prefix, text = split_prefix(line)
-            stripped = text.strip()
             after = line[len(quote(line)) :]
-            was_in_list = in_list
-            if blank(line):
-                after_blank = True
-            else:
-                if LIST.match(after):
-                    in_list = True
-                elif after_blank and not after[:1].isspace():
-                    in_list = was_in_list = False
-                after_blank = False
+            fence = re.fullmatch("\x00M(\\d+)\x00", line)
+            # (a math fence's placeholder stands for its first line)
+            ctx = fences[int(fence[1])][0] + "```" if fence else line
+            was_list_w, lm = list_w, None
+            if not blank(line):
+                list_w, lm = track_list(ctx, list_w, bool(para))
+            prefix, text = split_at(line, lm)
+            stripped = text.strip()
             nxt = lines[i + 1] if i + 1 < len(lines) else ""
             table = "|" in text and TABLE_DELIM.match(nxt[len(quote(nxt)) :])
             # what ends a paragraph: a blank line, a new quote, a list item that is not
@@ -293,7 +302,7 @@ class Converter:
             if para and (
                 blank(line)
                 or quotes(line) > depth
-                or interrupts(after, was_in_list)
+                or interrupts(ctx[len(quote(ctx)) :], was_list_w)
                 or HEADING.match(text)
                 or HR.match(after)
                 or (table and not TABLE_DELIM.match(para[min(1, len(para) - 1)][1]))
@@ -302,8 +311,8 @@ class Converter:
             ):
                 flush()
             block: tuple[str, str, int] | None = None  # (tex, first prefix, next line)
-            if m := re.fullmatch("\x00M(\\d+)\x00", line):
-                block = (fences[int(m[1])][1], fences[int(m[1])][0], i + 1)
+            if fence:
+                block = (fences[int(fence[1])][1], fences[int(fence[1])][0], i + 1)
             elif stripped.startswith("$$"):
                 block = dollar_block(lines, i, prefix, stripped)
                 if (
@@ -314,6 +323,21 @@ class Converter:
                     block = None
             elif AMS_OPEN.match(text) and (indent_of(line) < 4 or LIST.match(after)):
                 block = ams_block(lines, i, prefix, text)
+            words = " ".join(_size_off(block[0]).split()) if block else ""
+            if block and list_w and words and not re.search(r"[$`]", words):
+                # GitHub leaves a ```math block in a list that has inline maths as
+                # code: keep it in the item, as display-style maths on its own line
+                tex, first, i = block
+                q = quote(first)
+                rest = first[len(q) :]
+                if list_match(rest, was_list_w):
+                    flush()
+                if para:
+                    para.append((q, rest + f"$${words}$$"))
+                else:
+                    depth = quotes(first)
+                    para.append((first, f"$${words}$$"))
+                continue
             if block:
                 flush()
                 tex, first, j = block
@@ -387,11 +411,48 @@ def convert(
     return s.rstrip("\n") + "\n", c.maths
 
 
+def _plain(tex: str) -> str:
+    """TeX as --check compares it: no $ or size commands, spaces collapsed."""
+    for _ in range(3):  # GitHub escapes < in maths twice (&amp;lt;)
+        tex = html.unescape(tex)
+    tex = tex.strip().strip("$").strip().strip("`").strip()
+    tex = re.sub(r"^(?:\\(?:displaystyle|large|Large)(?![A-Za-z])\s*)+", "", tex)
+    tex = re.sub(r"\\{3,}", r"\\\\", tex)  # GitHub writes a TeX \\ as \\\
+    return " ".join(tex.split())
+
+
+def _text(part: str) -> str:
+    return " ".join(html.unescape(re.sub(r"<[^>]+>", "", part)).split())
+
+
+FOOTNOTE = (
+    " (inside a footnote: GitHub does not draw maths there; move it into the body "
+    "or write it in words)"
+)
+
+
 def check(md: str, page: str) -> int:
     """Compare the maths in md with what GitHub's markdown API (gfm mode) recognised
-    in page, its HTML, and report maths left as raw text."""
+    in page, its HTML, and name the maths it left as raw text."""
     _, maths = convert(md, {}, "x")
-    found = len(re.findall(r"<math-renderer", page))
+    drawn = re.findall(r"<math-renderer[^>]*>(.*?)</math-renderer>", page, flags=re.S)
+    print(f"{len(drawn)} maths recognised by GitHub, {len(maths)} in the markdown")
+    section = page.partition("<section data-footnotes")[2].partition("</section>")[0]
+    in_notes = {
+        _plain(x) for x in re.findall(r"\$<code[^>]*>(.*?)</code>\$", section, re.S)
+    }
+
+    def where(tex: str) -> str:
+        return FOOTNOTE if tex in in_notes else ""
+
+    missing = Counter(_plain(t) for t in maths) - Counter(_plain(t) for t in drawn)
+    for tex in missing.elements():
+        print(f"not recognised: {tex}{where(tex)}")
+    # a ```math block GitHub left as code (it does so in a list with inline maths)
+    for tex in re.findall(
+        r'<pre lang="math"[^>]*><code[^>]*>(.*?)</code></pre>', page, re.S
+    ):
+        print(f"math block shown as code: {_plain(tex)}")
     rest = re.sub(r"<math-renderer.*?</math-renderer>", "", page, flags=re.S)
     rest = re.sub(r"<pre.*?</pre>", "", rest, flags=re.S)
     # $`x`$ that GitHub did not take: a code span with a $ either side, or a stray
@@ -402,10 +463,10 @@ def check(md: str, page: str) -> int:
     # and a $ next to a backtick, or a $...$ pair with TeX in it
     raw += re.findall(r"[^\n]{0,20}(?:`\$|\$`)[^\n]{0,20}", text)
     raw += re.findall(r"\$[^$\n]*[\\^_{}][^$\n]*\$", text)
-    print(f"{found} maths recognised by GitHub, {len(maths)} in the markdown")
     for r in raw:
-        print(f"raw maths: {html.unescape(r)}")
-    return 0 if found == len(maths) and not raw else 1
+        r = _text(r)
+        print(f"raw maths: {r}{where(_plain(r))}")
+    return 1 if missing or raw else 0
 
 
 def main() -> None:
