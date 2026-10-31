@@ -100,7 +100,8 @@ flowchart LR
   as a waiting upload's row says it). Tap it to carry on, or **✕** to discard
   (with **Undo**). The buttons and **New todo** always start fresh and replace an older draft,
   with **Undo** to put it back. One draft at a time. It is also kept as you type, so a closed or
-  killed app brings it back.
+  killed app brings it back. A capture still open in another browser tab is left alone: it
+  becomes the draft only when you leave it, or once that tab is closed.
 
 ## Share into scrap
 

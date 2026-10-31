@@ -18,7 +18,8 @@ import {
   todoSays,
   toSend,
 } from "./editor";
-import { DRAFT, FRESH, promote, recover } from "./fresh";
+import { DRAFT, promote, recover } from "./fresh";
+import { fresh } from "./freshlock";
 import { embedBytes, tooLong } from "./pagecap";
 import { placed, wire } from "./pending";
 import type { Capture } from "./queue";
@@ -56,8 +57,11 @@ export async function compose(picked: File[], as?: string, resume = false, given
   const stored = await drafts.get<Draft>(DRAFT).catch(() => undefined);
   const kept = resume ? stored : undefined;
   // A fresh one beside a kept draft is saved under a key of its own, and takes the kept one's
-  // place only if left by Back with something in it (Undo puts the older one back)
+  // place only if left by Back with something in it (Undo puts the older one back). Its key is
+  // its own, locked while it is open, so another tab's recover() leaves it be (fresh.ts)
   const hold = !resume && !!stored;
+  const slot = hold ? await fresh() : undefined;
+  let promoting: Promise<unknown> | undefined;
   const text = h("textarea", { rows: 5, value: kept?.text ?? "" });
   // Its photos and files: a token each in the text, with a chip under it (pending.ts)
   const em = embedded(text);
@@ -107,7 +111,7 @@ export async function compose(picked: File[], as?: string, resume = false, given
     before: [kind.el, todoLine.el, tagLine.el],
     after: [bar],
     foot: em.chips,
-    key: hold ? FRESH : DRAFT,
+    key: slot?.key ?? DRAFT,
     draft: (): Draft => ({
       text: em.value(),
       kind: kind.value(),
@@ -124,8 +128,8 @@ export async function compose(picked: File[], as?: string, resume = false, given
     left: () => {
       // Its row is on Capture: elsewhere (Todos), say where
       const where = location.pathname === "/" ? "" : ": it's on Capture";
-      if (!hold) return toast(`Kept as a draft${where}`);
-      void promote((older) =>
+      if (!slot) return toast(`Kept as a draft${where}`);
+      promoting = promote(slot.key, (older) =>
         older ? `Kept as a draft, in place of the older one${where}` : `Kept as a draft${where}`,
       );
     },
@@ -139,6 +143,9 @@ export async function compose(picked: File[], as?: string, resume = false, given
       todoLine.refresh();
     },
     onsave: () => void store(false),
+    // Its lock is let go once it is closed (after Back's move into the kept draft); a closed or
+    // killed tab's goes with the tab, its draft then found by the next open's recover()
+    onclose: () => slot && void Promise.resolve(promoting).finally(slot.release),
   });
   const { save } = ed;
   const close = async () => {

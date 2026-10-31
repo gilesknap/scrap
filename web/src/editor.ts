@@ -271,6 +271,7 @@ export function editor(o: {
   left?: () => void; // left by Back with changes (kept as the draft): say so, if not as here
   ondiscard: () => void; // put the fields back as they were
   onsave: () => void;
+  onclose?: () => void; // closed, however (Back, Save, Cancel), after left() if it was called
 }): Editor {
   o.text.dir = "auto"; // right-to-left text lays out as such
   lists(o.text); // Enter continues a list (listedit.ts)
@@ -342,6 +343,8 @@ export function editor(o: {
     // Its draft may have changed (kept, dropped): e.g. Capture's draft row draws it again
     document.dispatchEvent(new Event("draftchange"));
     closing?.();
+    // After Back's left() too (it runs straight after this, in the same turn)
+    if (o.onclose) queueMicrotask(o.onclose);
   };
   // Closing pops the editor's history entry. The phone's Back pops it too: that keeps the
   // draft, and the page under the editor stays as it is.
