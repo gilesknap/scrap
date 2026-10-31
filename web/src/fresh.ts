@@ -39,11 +39,13 @@ const ifFree = (key: string, fn: () => Promise<boolean>): Promise<boolean> => {
 };
 
 /** A fresh draft left behind by an app that was closed or killed (no tab holds its lock): the
- * kept draft now. The oldest such, one per call: another is found on the next open, each with
- * Undo for the one it replaced. Whether one was. */
+ * kept draft now. Whether one was. */
 export async function recover(): Promise<boolean> {
   const keys = await drafts.keys(FRESH).catch((): string[] => []);
-  for (const key of keys.sort()) {
+  // Several left behind (tabs killed mid-capture): the oldest, one per open, so each later one
+  // goes over the last with Undo for it, and none is lost unasked. (getAllKeys is in key
+  // order, and the keys are ulids: oldest first; an older build's bare FRESH before them all.)
+  for (const key of keys) {
     const said = (older: boolean) =>
       older
         ? "Recovered your unsaved capture, in place of the older draft"

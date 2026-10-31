@@ -5,6 +5,26 @@ const row = (p: Page) => p.locator(".capture .draft");
 const draft = (p: Page, first: string) => row(p).getByRole("button", { name: `Draft: ${first}` });
 const text = (p: Page) => p.getByPlaceholder("Note or link");
 
+/** The fresh captures' drafts kept in IndexedDB (fresh.ts): their texts. */
+const freshTexts = (p: Page) =>
+  p.evaluate(
+    () =>
+      new Promise<string[]>((ok, fail) => {
+        const req = indexedDB.open("scrap");
+        req.onerror = () => fail(req.error);
+        req.onsuccess = () => {
+          const all = req.result
+            .transaction("drafts")
+            .objectStore("drafts")
+            .getAll(IDBKeyRange.bound("new-fresh", "new-fresh\uffff"));
+          all.onsuccess = () => {
+            ok(all.result.map((d: { text: string }) => d.text));
+            req.result.close();
+          };
+        };
+      }),
+  );
+
 /** Keep a draft (Back with it typed), then open a fresh capture over it and type. */
 async function keptAndFresh(p: Page, kept: string, typed: string) {
   await p.goto("/");
@@ -14,10 +34,10 @@ async function keptAndFresh(p: Page, kept: string, typed: string) {
   await expect(draft(p, kept)).toBeVisible();
   await p.getByRole("button", { name: "Note" }).click();
   await text(p).fill(typed);
-  await p.waitForTimeout(800); // the draft is kept a moment after typing
+  await expect.poll(() => freshTexts(p)).toContain(typed); // kept a moment after typing
 }
 
-test("a fresh capture open in one tab is left be by another, and Back and Undo work in both", async ({
+test("a fresh capture open in one tab is left alone by another, and Back and Undo work in both", async ({
   page: a,
   context,
 }) => {
@@ -27,7 +47,6 @@ test("a fresh capture open in one tab is left be by another, and Back and Undo w
   const b = await context.newPage();
   await b.goto("/");
   await expect(draft(b, "Kept in A")).toBeVisible();
-  await b.waitForTimeout(500); // recover() has had its turn
   await expect(b.locator(".toast", { hasText: "Recovered" })).toHaveCount(0);
   await expect(draft(b, "Kept in A")).toBeVisible();
 
@@ -56,7 +75,7 @@ test("a fresh capture open in one tab is left be by another, and Back and Undo w
   // Nothing left over for either tab to recover later
   await b.reload();
   await expect(draft(b, "Kept in A")).toBeVisible();
-  await b.waitForTimeout(500);
+  await expect.poll(() => freshTexts(b)).toEqual([]);
   await expect(b.locator(".toast", { hasText: "Recovered" })).toHaveCount(0);
 });
 

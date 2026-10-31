@@ -101,7 +101,9 @@ flowchart LR
   (with **Undo**). The buttons and **New todo** always start fresh and replace an older draft,
   with **Undo** to put it back. One draft at a time. It is also kept as you type, so a closed or
   killed app brings it back. A capture still open in another browser tab is left alone: it
-  becomes the draft only when you leave it, or once that tab is closed.
+  becomes the draft only when you leave it, or once that tab is closed. Several left behind (tabs
+  closed mid-capture) come back one per open, each over the last with **Undo**. Tabs share the
+  one draft, so an **Undo** in an older tab can replace a newer draft from another.
 
 ## Share into scrap
 

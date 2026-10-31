@@ -86,7 +86,7 @@ export const drafts = {
   keys: (prefix: string) =>
     run<string[]>(
       "readonly",
-      (s) => s.getAllKeys(IDBKeyRange.bound(prefix, `${prefix}￿`)),
+      (s) => s.getAllKeys(IDBKeyRange.bound(prefix, `${prefix}\uffff`)),
       "drafts",
     ),
   /** In one transaction: the draft under from, if there is one, takes to's place. Gives it and

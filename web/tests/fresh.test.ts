@@ -2,7 +2,7 @@ import "fake-indexeddb/auto";
 import { beforeEach, expect, it, vi } from "vitest";
 import { drafts } from "../src/db";
 import { DRAFT, FRESH, promote, recover } from "../src/fresh";
-import { fresh } from "../src/freshlock";
+import { fresh, leave } from "../src/freshlock";
 import { stash } from "../src/stash";
 import { toast } from "../src/ui";
 
@@ -124,7 +124,7 @@ it("leaves a fresh draft whose lock is held (another tab's, open) and takes it o
     const open = await fresh(); // tab A's composer
     expect(locks.held.size).toBe(1);
     await drafts.put(open.key, { text: "typing in A" });
-    expect(await recover()).toBe(false); // tab B opens: A's draft is left be
+    expect(await recover()).toBe(false); // tab B opens: A's draft is left alone
     expect(await drafts.get(DRAFT)).toEqual({ text: "kept" });
     expect(await drafts.get(open.key)).toEqual({ text: "typing in A" });
     expect(said).not.toHaveBeenCalled();
@@ -140,6 +140,36 @@ it("leaves a fresh draft whose lock is held (another tab's, open) and takes it o
     expect(await drafts.get(DRAFT)).toEqual({ text: "typing in A" });
     expect(locks.held.size).toBe(0); // recover() lets go straight after
   } finally {
+    vi.stubGlobal("navigator", before);
+  }
+});
+
+it("left by Back, a fresh draft keeps its lock until it is in the kept draft's place", async () => {
+  const locks = fakeLocks();
+  const before = globalThis.navigator;
+  vi.stubGlobal("navigator", { locks });
+  const move = drafts.move;
+  let moved = () => {};
+  const slow = vi.spyOn(drafts, "move").mockImplementationOnce(async (from, to) => {
+    await new Promise<void>((r) => {
+      moved = r;
+    });
+    return move(from, to);
+  });
+  try {
+    await drafts.put(DRAFT, { text: "kept" });
+    const slot = await fresh();
+    await drafts.put(slot.key, { text: "left by Back" });
+    leave(slot, () => "kept");
+    await vi.waitFor(() => expect(slow).toHaveBeenCalled());
+    expect(locks.held.size).toBe(1); // mid-move: another tab's recover() leaves it alone
+    expect(await recover()).toBe(false);
+    moved();
+    await vi.waitFor(() => expect(locks.held.size).toBe(0));
+    expect(await drafts.get(DRAFT)).toEqual({ text: "left by Back" });
+    expect(await drafts.get(slot.key)).toBeUndefined();
+  } finally {
+    slow.mockRestore();
     vi.stubGlobal("navigator", before);
   }
 });
