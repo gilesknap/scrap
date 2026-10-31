@@ -286,12 +286,12 @@ and asking "what todos are for today" lists every todo as a link.
 
 It also installs the `scrap-to-gist` skill (`skills/scrap-to-gist`), into
 `~/.claude/skills/scrap-to-gist` in the same way. Ask Claude to "put this scrap page in a gist" and
-it publishes the page as a secret GitHub gist that looks as it does in scrap: maths at the same
-size and alignment, `[[slug]]` links pointing at the scrap page, and `\cancel` (which GitHub cannot
-draw) replaced by images of scrap's rendering. Ask it to update the gist and it changes the gist
-and the scrap page together. It needs `gh` logged in with a token that can create gists (a
-fine-grained token often cannot; Claude then asks for a token with the `gist` scope), and, for
-`\cancel`, Chrome or Chromium (run headless) and internet access.
+it publishes the page as a secret GitHub gist that looks as it does in scrap: maths centred or
+left-aligned as in scrap and sized to match the text, `[[slug]]` links pointing at the scrap page,
+and `\cancel` (which GitHub cannot draw) replaced by images of scrap's rendering. Ask it to update
+the gist and it changes the gist and the scrap page together. It needs `gh` logged in with a
+token that can create gists (a fine-grained token often cannot; Claude then asks for a token with
+the `gist` scope), and, for `\cancel`, Chrome or Chromium (run headless) and internet access.
 
 These commands replace the earlier single `/s <verb>` skill (`/s post`, `/s tidy`, and so on), the
 `s-` and `sc-` skill sets that briefly preceded them, and the older `scrap-post` skill. Delete
