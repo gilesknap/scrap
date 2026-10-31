@@ -20,7 +20,7 @@ scrap running on the host, such as the one from "Try it" in the README on port 8
    claude mcp list
    ```
 
-4. Install the `sc` commands and the `scrap-links` skill as in [](connect-claude-code.md).
+4. Install the `sc` commands and the skills as in [](connect-claude-code.md).
 
 ## Remote scrap
 
