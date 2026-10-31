@@ -27,7 +27,8 @@ from .search import SearchMixin
 MAX_PATTERN = 200  # characters of a grep pattern
 MAX_MEM = 8 << 20  # bytes RE2 may use to compile one pattern
 SECONDS = 2.0  # the whole scan's budget, checked before each search
-WINDOW = 16 << 10  # bytes of text one search reads, rounded up to a line's end
+WINDOW = 16 << 10  # bytes of text a search finds a match starting in
+AHEAD = 4 << 10  # bytes past its window a search reads to finish a match
 MAX_LINES = 5  # matching lines returned a page
 MAX_COUNT = 1000  # matching lines counted a page: match_count stops there
 LINE = 200  # characters of a matching line returned
@@ -77,10 +78,12 @@ def scan(
 ) -> tuple[list[dict[str, Any]], int]:
     """The lines of text a pattern matches (those a match starts on, matches not
     overlapping): the first MAX_LINES as {**where, line (1-based), text}, and how
-    many, up to MAX_COUNT. Each search is of a window of whole lines, WINDOW bytes
-    or so, and the next starts after the match (or its line), so each byte is
-    searched about once and one search costs at most a window: a match longer than
-    a window is missed. The deadline is checked before every search."""
+    many, up to MAX_COUNT. The text is searched in windows of WINDOW bytes: a
+    search takes the first match starting in its window, reading up to AHEAD bytes
+    past it to finish one, and the next starts after the match (or its line), else
+    at the next window. So each byte is read about once and one search costs at
+    most WINDOW + AHEAD bytes; a match running more than AHEAD past its window's
+    end may be missed or cut short. The deadline is checked before every search."""
     data = text.encode()  # RE2 works in UTF-8: once, not per search
     if not data:
         return [], 0
@@ -90,11 +93,14 @@ def scan(
     count, pos = 0, 0
     while count < MAX_COUNT and pos <= end:
         late(deadline)
-        stop = data.find(b"\n", pos + WINDOW)  # the window ends at a line's end
-        stop = len(data) if stop < 0 else stop
-        m = pat.search(data, pos, stop)
-        if m is None or m.start() > end:
-            pos = stop + 1  # the next window: the line after this one's last
+        stop = min(pos + WINDOW, len(data))
+        while stop < len(data) and data[stop] & 0xC0 == 0x80:
+            stop += 1  # not inside a character
+        m = pat.search(data, pos, min(stop + AHEAD, len(data)))
+        if m is None or m.start() > min(stop, end):
+            if stop >= len(data):
+                break
+            pos = stop  # the next window
             continue
         if not starts:
             starts = [0]

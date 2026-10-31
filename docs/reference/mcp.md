@@ -128,9 +128,10 @@ a case-insensitive substring; with `regex=true` a regex in
 and case is kept (`(?i)` ignores it). RE2 has no backreferences or lookaround; `\w`, `\b`, `\d` and
 `\s` are ASCII only (`caf\w\b` does not match `café`: use `\pL` or `\p{L}` for a letter); and the
 end of the text is `\z`, not `\Z`. RE2 matches in linear time and bounds the memory a pattern
-compiles to. Each search reads a window of whole lines about 16 KB long, so a match longer than
-that is missed, and the whole scan has a time budget (below), checked before every search, so
-a costly pattern is stopped rather than left to run.
+compiles to. The text is searched 16 KiB at a time, each search reading up to 4 KiB past its
+part to finish a match, so a match running further than that past a part's end may be missed,
+and the whole scan has a time budget (below), checked before every search, so a costly pattern
+is stopped rather than left to run.
 
 `query` still chooses the pages, and their order: its filters and words apply as they do without
 `grep`, and `grep` must match as well. An empty `query` scans every page, newest changed first.

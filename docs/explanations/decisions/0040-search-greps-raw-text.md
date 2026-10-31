@@ -38,11 +38,14 @@ have a table?" took a SQL scan in the pod (#473).
   DFA gives up, the constant is the pattern's size: `a.{999}b.{999}a` reads about 100 KB a
   second. The cost: no backreferences or lookaround (refused as an invalid regex), and `\w`,
   `\b`, `\d`, `\s` are ASCII only.
-- So that the scan stays linear too, each search reads a window of whole lines about 16 KiB long,
-  and the next starts after the match (or its line): each byte is read about once, and one
-  search costs at most a window. A match longer than a window is missed. Matches do not overlap.
+- So that the scan stays linear too, the text is searched in 16 KiB windows (one long line is
+  split like any other text). A search takes the first match that starts in its window, reading
+  up to 4 KiB past the window's end to finish it, and the next search starts after that match
+  (or its line), else at the next window: each byte is read about once, and one search reads at
+  most 20 KiB. A match running more than 4 KiB past its window's end may be missed or cut short.
+  Matches do not overlap.
 - Guards: a pattern of at most 200 characters; a 2-second budget for the whole scan, checked
-  before every search, so a call ends within the budget and one window's search (a tool error
+  before every search, so a call ends within the budget and one search of 20 KiB (a tool error
   past it); at most 1,000 matching lines counted and 5 returned a page, each line cut to about
   200 characters; the scan stops once it has the page of results asked for; pages are read 50
   at a time. An invalid regex is a tool error.

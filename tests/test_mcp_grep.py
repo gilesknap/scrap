@@ -1,7 +1,9 @@
 """MCP search's grep (#474): raw text matched as a substring or a regex, narrowed by
 the query, with matching lines; the trash left out and the guards."""
 
+import bisect
 import random
+import re
 import string
 import time
 
@@ -161,13 +163,90 @@ def test_a_costly_regex_ends_within_the_budget(pattern, text):
 
 def test_a_long_text_is_searched_in_windows(monkeypatch):
     monkeypatch.setattr(greps, "WINDOW", 10)
+    monkeypatch.setattr(greps, "AHEAD", 4)
     pat = greps.compile_pattern("x", False)
     text = "\n".join(["aaaa"] * 30 + ["xx", "a", "x"] + ["aaaa"] * 30) + "\n"
     found, count = greps.scan(pat, text, {}, time.monotonic() + 10)
     assert count == 2 and [m["line"] for m in found] == [31, 33]
-    # a match longer than a window is missed
-    assert greps.scan(greps.compile_pattern("(?s)a{4}.a{4}.a{4}.a{4}", True),
-                      "aaaa\n" * 4, {}, time.monotonic() + 10)[1] == 0  # fmt: skip
+    # a match running more than AHEAD past its window's end is missed
+    long = greps.compile_pattern("(?s)a{4}.a{4}.a{4}.a{4}", True)
+    assert greps.scan(long, "aaaa\n" * 4, {}, time.monotonic() + 10)[1] == 0
+
+
+def lines_of(text: str, pattern: str) -> list[int]:
+    found, count = greps.scan(
+        greps.compile_pattern(pattern, True), text, {}, time.monotonic() + 10
+    )
+    assert count == len(found)
+    return [m["line"] for m in found]
+
+
+def test_a_match_over_a_windows_end(monkeypatch):
+    lines = [f"{n:099d}" for n in range(400)]  # 100 bytes a line
+    n = greps.WINDOW // 100  # the line the first window ends in (0-based)
+    lines[n] = lines[n][:80] + "foo" + lines[n][83:]  # starts in the window
+    lines[n + 1] = "bar" + lines[n + 1][3:]
+    text = "\n".join(lines) + "\n"
+    assert lines_of(text, r"foo\d*\nbar") == [n + 1]
+    # a window ending at the newline of a 2-line match's first line
+    lines[n] = lines[n][:96] + "foo"
+    text = "\n".join(lines) + "\n"
+    monkeypatch.setattr(greps, "WINDOW", 100 * n + 99)
+    for p in (r"foo\nbar", r"foo\s+bar", r"(?s)foo.bar", r"foo\n"):
+        assert lines_of(text, p) == [n + 1], p
+
+
+def test_one_long_line_stops_at_the_deadline():
+    pat = greps.compile_pattern(r"a.{999}b.{999}c", True)
+    text = "".join(random.Random(1).choices("ab ", k=400_000))
+    with pytest.raises(InvalidError):
+        greps.scan(pat, text, {}, time.monotonic() - 1)
+    start = time.monotonic()
+    with pytest.raises(InvalidError):  # one window's search past it, not the line's
+        greps.scan(pat, text, {}, start + 0.01)
+    assert time.monotonic() - start < 1
+
+
+def reference(pattern: str, text: str, is_regex: bool) -> list[int]:
+    """scan's lines by brute force with Python's re: the lines matches start on,
+    matches not overlapping, none on the empty line after a final newline."""
+    rx = (re.compile("(?m)" + pattern.replace("\\z", "\\Z"), re.A) if is_regex
+          else re.compile(re.escape(pattern), re.I))  # fmt: skip
+    starts = [0] + [i + 1 for i, c in enumerate(text) if c == "\n"]
+    end = len(text) - 1 if text.endswith("\n") else len(text)
+    out, pos = [], 0
+    while pos <= end and (m := rx.search(text, pos)) and m.start() <= end:
+        n = bisect.bisect_right(starts, m.start())
+        out.append(n)
+        pos = max(starts[n] if n < len(starts) else len(text) + 1, m.end())
+    return out
+
+
+# What RE2 and re agree on (ASCII \b), zero-width or one character: safe at
+# any AHEAD; and longer ones, which need AHEAD to reach their end
+NARROW = ["^", "$", "^$", r"\z", r"\A", r"\b", "x*", "b$", "é$"]
+WIDE = [r"\bab\b", r"a\nb", "(?s)a.b", r"b\n", "a+", r"[^\n]{3}"]
+
+
+def test_windows_find_what_a_whole_text_search_does(monkeypatch):
+    rnd = random.Random(0)
+    monkeypatch.setattr(greps, "MAX_LINES", 10**9)
+    compiled = {p: greps.compile_pattern(p, True) for p in NARROW + WIDE}
+    compiled |= {"=ab": greps.compile_pattern("ab", False),
+                 "=é": greps.compile_pattern("É", False)}  # fmt: skip
+    for window in (1, 2, 3, 5, 8):
+        for ahead in (0, 8):
+            monkeypatch.setattr(greps, "WINDOW", window)
+            monkeypatch.setattr(greps, "AHEAD", ahead)
+            for _ in range(60):
+                text = "".join(rnd.choice("ab\n é") for _ in range(rnd.randint(1, 25)))
+                for key, pat in compiled.items():
+                    if ahead == 0 and key not in NARROW:
+                        continue
+                    pattern, is_regex = key.lstrip("="), not key.startswith("=")
+                    found, _ = greps.scan(pat, text, {}, time.monotonic() + 10)
+                    want = reference(pattern, text, is_regex)
+                    assert [m["line"] for m in found] == want, (key, window, text)
 
 
 def test_a_compile_bomb_is_refused_quickly(store):
