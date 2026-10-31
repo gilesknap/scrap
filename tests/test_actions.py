@@ -4,6 +4,7 @@
 import io
 import json
 from contextlib import closing
+from datetime import date
 from typing import Any
 
 import pytest
@@ -485,3 +486,99 @@ def test_a_folded_claude_revision_still_restores_the_kind(store):
         source=MCP,
     )
     assert store.page(ref["page_id"])["kind"] == "note"
+
+
+# --- medium confidence and due dates (#465)
+
+
+def test_a_medium_confidence_sticky_note_with_doubt_marks_becomes_a_todo(store):
+    ref = photo_page(store)
+    items = [(t, False) for t in STICKY[:7]]  # the 06:42 note: "(?)" on one entry
+    read_photo(store, Fake(picture(**listing(items, confidence="medium"))))
+    page = store.page(ref["page_id"])
+    assert (page["kind"], page["tasks"]) == ("todo", {"done": 0, "total": 7})
+    assert "- [ ] Review PR (?)" in page["body"]
+    assert revs(store, ref["page_id"]) == [(1, "me"), (2, CLAUDE)]
+
+
+@pytest.mark.parametrize(
+    ("kind", "confidence", "n"),
+    [
+        ("whiteboard", "medium", 2),  # too few entries to trust at medium
+        ("whiteboard", "low", 8),
+        ("screenshot", "medium", 8),  # not writing on paper or a board
+        ("photo", "medium", 8),
+    ],
+)
+def test_medium_is_not_enough_for_a_short_list_low_or_a_scene(
+    store, kind, confidence, n
+):
+    ref = photo_page(store)
+    items = [(t, False) for t in STICKY[:n]]
+    answer = picture(kind=kind, **listing(items, confidence=confidence))
+    read_photo(store, Fake(answer))
+    page = store.page(ref["page_id"])
+    assert (page["rev"], page["tasks"]) == (1, {"done": 0, "total": 0})
+
+
+def test_accepted_rule_replays_stored_readings():
+    items = [(t, False) for t in STICKY[:7]]
+    assert not actions.accepted("list-of-actions", "medium", items)  # text: high only
+    assert actions.accepted("list-of-actions", "medium", items, handwritten=True)
+    assert not actions.accepted(
+        "other", "low", items, handwritten=True
+    )  # the deploy note
+    assert not actions.accepted("list-of-actions", "medium", [], handwritten=True)
+
+
+TAKEN = date(2026, 10, 30)
+
+
+@pytest.mark.parametrize(
+    ("given", "want"),
+    [
+        ("2026-11-15", "2026-11-15"),  # a full date as written
+        ("11-15", "2026-11-15"),  # no year: the next occurrence
+        ("10-30", "2026-10-30"),  # today itself
+        ("01-05", "2027-01-05"),  # already past this year: next year
+        ("02-29", "2028-02-29"),  # the next leap year
+        ("", None),  # nothing on the page: no due date
+        ("soon", None),
+        ("2026-13-40", None),
+        ("13-45", None),
+        (None, None),
+    ],
+)
+def test_due_day_resolves_a_date_with_or_without_a_year(given, want):
+    assert actions.due_day(given, TAKEN) == want
+
+
+def test_the_photo_message_gives_the_capture_day_for_relative_words():
+    plain = claude.photo_messages("sha", 40, 30)
+    dated = claude.photo_messages("sha", 40, 30, TAKEN)
+    assert len(dated[0]["content"]) == len(plain[0]["content"]) + 1
+    assert "2026-10-30, a Friday" in dated[0]["content"][-1]["text"]
+    assert "due" in claude.SCHEMA["required"]
+
+
+def test_a_dated_list_gets_its_due_date_and_an_undated_one_none(store):
+    items = [(t, False) for t in STICKY[:3]]
+    dated, undated = photo_page(store), photo_page(store)
+    read_photo(store, Fake(picture(**listing(items), due="11-15")))
+    read_photo(store, Fake(picture(**listing(items), due="")))
+    assert store.page(dated["page_id"])["kind"] == "todo"
+    assert store.page(undated["page_id"])["kind"] == "todo"
+    with closing(connect(store.db)) as conn:
+        rows = dict(conn.execute("SELECT page_id, due FROM page_todo"))
+    year = rows[dated["page_id"]][:4]
+    assert rows[dated["page_id"]] == f"{year}-11-15" and undated["page_id"] not in rows
+
+
+def test_a_user_dated_todo_keeps_its_due_date(store):
+    ref = photo_page(store)
+    store.edit_meta([ref["page_id"]], "me", "web", kind="todo")
+    store.edit_meta([ref["page_id"]], "me", "web", fields={"due": "2030-01-01"})
+    assert not actions.set_due(store, ref["page_id"], "2026-11-15")
+    with closing(connect(store.db)) as conn:
+        due = conn.execute("SELECT due FROM page_todo").fetchone()[0]
+    assert due == "2030-01-01"

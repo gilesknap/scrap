@@ -6,6 +6,7 @@ import logging
 import sqlite3
 import threading
 from collections.abc import Callable
+from datetime import UTC, date, datetime
 from io import BytesIO
 from typing import Any
 
@@ -39,6 +40,18 @@ log = logging.getLogger(__name__)
 
 
 Call = Callable[..., claude.Completion]
+
+
+# What the model calls a photo of writing on paper or a board (not a scene)
+HANDWRITTEN = ("whiteboard", "handwriting", "document")
+
+
+def captured_on(received_at: str | None) -> date:
+    """The day a capture reached the server (UTC), else today."""
+    try:
+        return date.fromisoformat((received_at or "")[:10])
+    except ValueError:
+        return datetime.now(UTC).date()
 
 
 class Worker:
@@ -179,13 +192,14 @@ class Worker:
             return
         with self.store.connect() as conn:  # the text Claude's boxes may follow (rev)
             base = conn.execute(
-                f"SELECT {REV} FROM capture c JOIN page p ON p.id = c.page_id"
-                " WHERE c.id = ?", (cid,),
+                f"SELECT {REV}, c.received_at FROM capture c"
+                " JOIN page p ON p.id = c.page_id WHERE c.id = ?", (cid,),
             ).fetchone()  # fmt: skip
+        taken = captured_on(base and base[1])
         sent, size = self.store.put_blob(BytesIO(jpeg))
         model = claude.model_name()
         system, version = claude.prompt()
-        messages = claude.photo_messages(sent, width, height)
+        messages = claude.photo_messages(sent, width, height, taken)
         request = {
             "backend": claude.backend(),
             "model": model,
@@ -327,8 +341,8 @@ class Worker:
             queue_after_read(conn, cid)  # all read: a board's write-up, else related
             resume(conn, stamp)  # a success ends any pause
             page = conn.execute(
-                f"SELECT p.id, {REV} AS rev, (SELECT sha256 FROM capture_blob WHERE"
-                " capture_id = c.id ORDER BY ord LIMIT 1) AS first,"
+                f"SELECT p.id, {REV} AS rev, c.received_at, (SELECT sha256 FROM"
+                " capture_blob WHERE capture_id = c.id ORDER BY ord LIMIT 1) AS first,"
                 f" {IS_FIRST.format(c='c')} AS original"
                 " FROM capture c"
                 " JOIN page p ON p.id = c.page_id WHERE c.id = ?", (cid,),
@@ -338,10 +352,18 @@ class Worker:
             page is not None
             and page["original"]  # an added photo's boxes would file the page a todo
             and page["first"] == photo
-            and actions.accepted(out["intent"], out["confidence"], items)
+            and actions.accepted(
+                out["intent"],
+                out["confidence"],
+                items,
+                handwritten=out["kind"] in HANDWRITTEN,
+            )
         ):  # a Claude-authored revision of its own, once the reading is stored
             rev = page["rev"] if base_rev is None else base_rev
-            actions.append(self.store, page["id"], rev, items, whiteboard=True)
+            wrote = actions.append(self.store, page["id"], rev, items, whiteboard=True)
+            day = actions.due_day(out.get("due"), captured_on(page["received_at"]))
+            if wrote and day:  # the page names when: the todo is due then
+                actions.set_due(self.store, page["id"], day)
 
     def _page_fields(
         self,

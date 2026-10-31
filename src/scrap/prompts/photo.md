@@ -26,6 +26,12 @@ Return, via the structured output:
   residue in `description` only if it matters.
 - `elements`: for a whiteboard or diagram, a drawing that redraws it (see below); otherwise an
   empty list. Use the same transcriptions, including any (?), in the drawing.
+- `due`: only when the page is a to-do list that says when it is for (a heading such as "Nov 15th
+  Actions", "Today", "Friday", "next week", or a date on the list): that day as `YYYY-MM-DD`,
+  worked out from the day the photo was taken (given with the image; "today" is that day, a
+  weekday is its next one). If the page writes a date with no year, answer `MM-DD`. Otherwise an
+  empty string: never guess a date, and never use the date the photo was taken unless the page
+  says "today".
 
 ## Drawing: Excalidraw elements
 
