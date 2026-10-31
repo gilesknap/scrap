@@ -35,12 +35,14 @@ def digest(files: dict[str, bytes]) -> str:
 
 
 def build_unit(files: dict[str, bytes]) -> tuple[bytes, str]:
-    """A unit's upload body (an uncompressed tar holding only regular files, in
-    sorted order, with fixed owner, mode and time) and its ``Scrap-Digest``.
+    """A unit's upload body (an uncompressed pax tar holding only regular files,
+    in sorted order, with fixed owner, mode and time; the receiver refuses GNU
+    tars) and its ``Scrap-Digest``.
 
-    ``files`` maps a path inside the unit (``index.html``, ``files/report.pdf``) to
-    its content. A path the receiver would refuse raises UnitError; the extension
-    allow-list and the size limits are the receiver's to check."""
+    ``files`` maps a path inside the unit to its content: for a page, one segment
+    such as ``index.html`` or ``file-1-0123456789.pdf``. A path no unit could
+    hold raises UnitError; what each kind of unit may hold and the size limits
+    are the receiver's to check."""
     if not files:
         raise UnitError("a unit holds at least one file")
     for path in files:

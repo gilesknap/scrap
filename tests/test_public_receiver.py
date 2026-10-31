@@ -12,6 +12,7 @@ import sys
 import tarfile
 import threading
 import time
+import tracemalloc
 from collections.abc import Iterator
 from http.client import HTTPConnection
 from pathlib import Path
@@ -361,7 +362,6 @@ def test_unicode_unit_is_422(server: Running) -> None:
         [(member("a.js", tarfile.CHRTYPE, devmajor=1, devminor=3), None)],
         [(member("a.js", tarfile.FIFOTYPE), None)],
         [(member("a.js", tarfile.CONTTYPE), b"x")],
-        [(member("a.js", tarfile.GNUTYPE_SPARSE), b"x")],
         [(member("files", tarfile.DIRTYPE), None), (member("a.js"), b"x")],
         [(member("a.js"), b"x"), (member("a.js"), b"y")],
         [(member("../a.js"), b"x")],
@@ -701,10 +701,11 @@ def test_a_large_pax_header_is_refused_before_it_is_read(server: Running) -> Non
     assert "64 KiB" in payload["detail"]
 
 
-def test_a_large_gnu_long_name_is_refused(server: Running) -> None:
+def test_a_gnu_long_name_is_refused(server: Running) -> None:
+    # Any GNU header type: only pax and ustar are taken
     buffer = io.BytesIO()
     with tarfile.open(fileobj=buffer, mode="w", format=tarfile.GNU_FORMAT) as tar:
-        info = tarfile.TarInfo("a" * (65 * 1024) + ".html")
+        info = tarfile.TarInfo("a" * 200 + ".html")
         info.size = 1
         tar.addfile(info, io.BytesIO(b"x"))
     status, payload = server.put_raw("p/x", buffer.getvalue(), "0" * 64)
@@ -784,7 +785,9 @@ def test_dribbled_headers_meet_the_deadline(tmp_path: Path) -> None:
                     break
             if not closed:
                 s.settimeout(2)
-                assert read_reply(s) == b""  # closed, no answer
+                got = read_reply(s)
+                assert got.startswith(b"HTTP/1.1 408"), got[:80]
+                assert b'"timeout"' in got
         assert time.monotonic() - start < 4
     finally:
         running.stop()
@@ -898,5 +901,213 @@ def test_a_pax_sparse_member_is_refused(server: Running) -> None:
         "GNU.sparse.name": "a.js",
     }
     status, payload = server.put_raw("pagefind", tar_of((info, b"x")), "0" * 64)
-    assert (status, payload["error"]) == (422, "bad_member")
-    assert "regular file" in payload["detail"]
+    assert (status, payload["error"]) == (400, "bad_tar")
+    assert "sparse" in payload["detail"]
+
+
+# -- round 3 probes: GNU and sparse headers, meta runs, unexpected errors, JSON
+# errors before anything, the deadline and the lock
+
+
+def _header(info: tarfile.TarInfo, extended: bool = False) -> bytearray:
+    """A ustar header block for info, with the GNU 'isextended' flag if asked."""
+    block = bytearray(info.tobuf(tarfile.USTAR_FORMAT, "utf-8", "surrogateescape"))
+    if extended:
+        block[482] = 1
+        block[148:156] = b" " * 8
+        block[148:156] = b"%06o\0 " % sum(block[:512])
+    return block
+
+
+def _end() -> bytes:
+    return b"\0" * 1024
+
+
+def test_a_gnu_sparse_header_with_many_blocks_is_refused_cheaply(
+    server: Running,
+) -> None:
+    # 'S' with 20,000 extension blocks: tarfile would read every one into a list
+    info = tarfile.TarInfo("a.js")
+    info.type = tarfile.GNUTYPE_SPARSE
+    blocks = (b"\0" * 504 + b"\1" + b"\0" * 7) * 20_000
+    body = bytes(_header(info, extended=True)) + blocks + _end()
+    tracemalloc.start()
+    try:
+        status, payload = server.put_raw("pagefind", body, "0" * 64)
+        _, peak = tracemalloc.get_traced_memory()
+    finally:
+        tracemalloc.stop()
+    assert (status, payload["error"]) == (400, "bad_tar")
+    assert "GNU" in payload["detail"]
+    assert peak < 8 * 1024 * 1024
+
+
+def test_a_large_pax_sparse_map_is_refused_cheaply(server: Running) -> None:
+    # GNU sparse 1.0 keeps its map in the member's data: a map of a million
+    # entries is never read
+    info = member("a.js")
+    info.pax_headers = {
+        "GNU.sparse.major": "1",
+        "GNU.sparse.minor": "0",
+        "GNU.sparse.name": "a.js",
+        "GNU.sparse.realsize": "1",
+    }
+    sparse_map = b"1000000\n" + b"0\n1\n" * 1_000_000
+    body = tar_of((info, sparse_map))
+    tracemalloc.start()
+    try:
+        status, payload = server.put_raw("pagefind", body, "0" * 64)
+        _, peak = tracemalloc.get_traced_memory()
+    finally:
+        tracemalloc.stop()
+    assert (status, payload["error"]) == (400, "bad_tar")
+    assert "sparse" in payload["detail"]
+    assert peak < 8 * 1024 * 1024
+
+
+def _pax_block(record: bytes) -> bytes:
+    info = tarfile.TarInfo("PaxHeader")
+    info.type = tarfile.XHDTYPE
+    info.size = len(record)
+    padded = record + b"\0" * (-len(record) % 512)
+    return bytes(_header(info)) + padded
+
+
+def _pax_record(key: str, value: str) -> bytes:
+    body = f" {key}={value}\n"
+    n = len(body) + 1
+    while len(str(n)) + len(body) != n:
+        n += 1
+    return f"{n}{body}".encode()
+
+
+@pytest.mark.parametrize(
+    ("run", "status"), [(2, 200), (32, 200), (33, 400), (500, 400)]
+)
+def test_a_run_of_pax_headers_is_capped(server: Running, run: int, status: int) -> None:
+    content = b"<p>x</p>"
+    info = member("index.html")
+    info.size = len(content)
+    body = b"".join(_pax_block(_pax_record("comment", "x")) for _ in range(run))
+    body += bytes(_header(info)) + content + b"\0" * (512 - len(content)) + _end()
+    got, payload = server.put_raw("p/x", body, digest({"index.html": content}))
+    assert got == status, payload
+    if status == 400:
+        assert payload["error"] == "bad_tar"
+
+
+def test_an_unexpected_error_is_a_json_500(
+    server: Running, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def boom(*_args) -> str:
+        raise ValueError("unexpected")
+
+    monkeypatch.setattr(receiver, "unit_digest", boom)
+    tar, dig = build_unit(page())
+    response = server.raw(put_head(len(tar), dig) + tar)
+    assert response.startswith(b"HTTP/1.1 500")
+    assert b'"server_error"' in response and b"Connection: close" in response
+    assert not server.server.site.write_lock.locked()
+
+
+@pytest.mark.parametrize("method", [b"OPTIONS", b"BREW", b"PATCH", b"TRACE"])
+def test_any_method_without_the_token_is_401(server: Running, method: bytes) -> None:
+    response = server.raw(method + b" /v1/manifest HTTP/1.1\r\nHost: x\r\n\r\n")
+    assert response.startswith(b"HTTP/1.1 401")
+    assert b'"unauthorized"' in response
+
+
+@pytest.mark.parametrize("method", [b"OPTIONS", b"BREW"])
+def test_any_method_with_the_token_is_405(server: Running, method: bytes) -> None:
+    response = server.raw(
+        method + b" /v1/manifest HTTP/1.1\r\nHost: x\r\n"
+        b"Authorization: Bearer " + TOKEN.encode() + b"\r\n\r\n"
+    )
+    assert response.startswith(b"HTTP/1.1 405")
+    assert b'"method_not_allowed"' in response
+
+
+@pytest.mark.parametrize(
+    ("request_bytes", "status"),
+    [
+        (b"NONSENSE\r\n\r\n", 400),
+        (b"GET /healthz HTTP/9.9\r\n\r\n", 505),
+        (b"GET /healthz HTTP/1.1\r\nX: " + b"a" * 70_000 + b"\r\n\r\n", 431),
+        (b"GET /" + b"a" * 70_000 + b" HTTP/1.1\r\n\r\n", 414),
+    ],
+)
+def test_malformed_requests_get_json(
+    server: Running, request_bytes: bytes, status: int
+) -> None:
+    response = server.raw(request_bytes)
+    assert status_of(response) == status
+    head, _, body = response.partition(b"\r\n\r\n")
+    assert b"Content-Type: application/json" in head
+    assert "error" in json.loads(body)
+
+
+def test_fsync_after_the_body_is_not_held_to_the_deadline(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # 400 files whose fsyncs take 2 s in all, with a 1 s deadline: the body
+    # arrives in time, so the upload succeeds
+    real = receiver._fsync_file
+
+    def slow(path: Path) -> None:
+        time.sleep(0.005)
+        real(path)
+
+    monkeypatch.setattr(receiver, "_fsync_file", slow)
+    running = Running(tmp_path / "site", timeout=1.0)
+    try:
+        files = {f"fragment/f{i}.pf_fragment": b"x" for i in range(400)}
+        start = time.monotonic()
+        status, payload = running.put("pagefind", files)
+        assert status == 200, payload
+        assert time.monotonic() - start > 1.5
+        assert payload["files"] == 400
+    finally:
+        running.stop()
+
+
+def test_busy_is_answered_before_100_continue(server: Running) -> None:
+    server.server.site.write_lock.acquire()
+    try:
+        tar, dig = build_unit(page())
+        head = put_head(len(tar), dig).replace(
+            b"\r\n\r\n", b"\r\nExpect: 100-continue\r\n\r\n"
+        )
+        response = server.raw(head)
+        assert response.startswith(b"HTTP/1.1 503"), response[:80]
+        assert b"Retry-After: 1" in response
+    finally:
+        server.server.site.write_lock.release()
+
+
+def test_100_continue_holds_the_lock_for_the_upload(server: Running) -> None:
+    tar, dig = build_unit(page())
+    head = put_head(len(tar), dig).replace(
+        b"\r\n\r\n", b"\r\nExpect: 100-continue\r\n\r\n"
+    )
+    with socket.create_connection(("127.0.0.1", server.port), timeout=5) as s:
+        s.sendall(head)
+        assert s.recv(100).startswith(b"HTTP/1.1 100")
+        assert server.server.site.write_lock.locked()
+        assert server.request("DELETE", "/v1/units/p/y")[0] == 503
+        s.sendall(tar)
+        assert s.recv(100).startswith(b"HTTP/1.1 200")
+    for _ in range(100):
+        if not server.server.site.write_lock.locked():
+            break
+        time.sleep(0.01)
+    assert not server.server.site.write_lock.locked()
+
+
+def test_the_tarfile_hooks_are_checked() -> None:
+    receiver.check_tarfile()
+
+    class Bare:
+        pass
+
+    with pytest.raises(SystemExit, match="_proc_member"):
+        receiver.check_tarfile(Bare)

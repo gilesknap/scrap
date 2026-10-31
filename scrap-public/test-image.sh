@@ -101,6 +101,7 @@ echo '<p>a tag</p>' >"$work/tag/index.html"
 echo 'export {}' >"$work/pagefind/pagefind.js"
 echo 'x' >"$work/pagefind/fragment/en_1.pf_fragment"
 echo '.katex{}' >"$work/assets/katex.css"
+echo 'body{}' >"$work/assets/page.css"
 echo 'ttf' >"$work/assets/fonts/KaTeX_Main.ttf"
 mkdir -p "$work/bad"
 echo '<p>x</p>' >"$work/bad/index.html"
@@ -113,6 +114,24 @@ check "PUT t/a-tag-0123abcd" [ "$(put t/a-tag-0123abcd "$work/tag")" = 200 ]
 check "PUT pagefind" [ "$(put pagefind "$work/pagefind")" = 200 ]
 check "PUT assets" [ "$(put assets "$work/assets")" = 200 ]
 check "a page holding a script is refused" [ "$(put p/bad "$work/bad")" = 422 ]
+# The image's own Python enforces the tar limits (its tarfile has the hooks): a
+# pax header block over 64 KiB is refused, as is a GNU-format tar
+zeros=$(head -c 64 /dev/zero | tr '\0' 0)
+big=$(head -c 70000 /dev/zero | tr '\0' x)
+tar --format=pax --pax-option="comment=$big" -cf "$work/big.tar" -C "$work/page" index.html
+code=$(curl -sS -o "$work/out" -w '%{http_code}' -X PUT "$rcv/v1/units/p/big" \
+    -H "Authorization: Bearer $token" -H "Content-Type: application/x-tar" \
+    -H "Scrap-Digest: $zeros" --data-binary "@$work/big.tar")
+check "a pax header over 64 KiB is 400 bad_tar" \
+    sh -c "[ '$code' = 400 ] && grep -q '\"bad_tar\"' '$work/out'"
+long=$(head -c 150 /dev/zero | tr '\0' a).html
+cp "$work/page/index.html" "$work/$long"
+tar --format=gnu -cf "$work/gnu.tar" -C "$work" "$long"
+code=$(curl -sS -o "$work/out" -w '%{http_code}' -X PUT "$rcv/v1/units/t/gnu" \
+    -H "Authorization: Bearer $token" -H "Content-Type: application/x-tar" \
+    -H "Scrap-Digest: $zeros" --data-binary "@$work/gnu.tar")
+check "a GNU long-name tar is 400 bad_tar" \
+    sh -c "[ '$code' = 400 ] && grep -q 'GNU' '$work/out'"
 check "the manifest lists them" sh -c "curl -fsS -H 'Authorization: Bearer $token' \
     '$rcv/v1/manifest' | grep -q '\"assets\"' "
 
@@ -126,6 +145,7 @@ check "an attached file is served" \
 check "/pagefind/ serves the index" \
     [ "$(curl -fsS "$web/pagefind/fragment/en_1.pf_fragment")" = x ]
 check "/assets/ serves the CSS" [ "$(curl -fsS "$web/assets/katex.css")" = '.katex{}' ]
+check "/assets/page.css is served" [ "$(curl -fsS "$web/assets/page.css")" = 'body{}' ]
 check "a missing page is 404" [ "$(status "$web/p/nope")" = 404 ]
 check "a 404 shows home/404.html" [ "$(curl -sS "$web/p/nope")" = '<p>not here</p>' ]
 check "HEAD works" [ "$(status -I "$web/p/a-page")" = 200 ]
@@ -134,7 +154,7 @@ for path in /tags.html /index.html /404.html /home /anything.html; do
 done
 
 csp_home="default-src 'none'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; font-src 'self'; script-src 'self' 'wasm-unsafe-eval'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
-csp_page="default-src 'none'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; font-src 'self'; script-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+csp_page="default-src 'none'; img-src 'self' data:; style-src 'self'; style-src-attr 'unsafe-inline'; font-src 'self'; script-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
 strict="sandbox; default-src 'none'; style-src 'unsafe-inline'; img-src data:; font-src data:"
 check "a page's CSP runs no script" [ "$(header "$web/p/a-page" content-security-policy)" = "$csp_page" ]
 check "a tag page's CSP runs no script" \

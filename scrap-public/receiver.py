@@ -40,6 +40,7 @@ import threading
 import time
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
@@ -73,15 +74,18 @@ PAGEFIND_TYPES = frozenset(
 ASSETS_TYPES = frozenset({"css", "woff", "woff2", "ttf"})
 TAR_TYPES = "application/x-tar"
 CHUNK = 64 * 1024
-# A pax or GNU long-name header block is read into memory whole: none may be larger
+# Only pax and ustar tars. A pax header block is read into memory whole: none may
+# be larger than MAX_META, and no member may have more than MAX_META_RUN of them.
+# GNU's own header types (long names, sparse files) are refused before tarfile
+# parses them: their extension blocks and maps grow without a bound.
 MAX_META = 64 * 1024
-META_TYPES = (
-    tarfile.XHDTYPE,
-    tarfile.XGLTYPE,
-    tarfile.SOLARIS_XHDTYPE,
-    tarfile.GNUTYPE_LONGNAME,
-    tarfile.GNUTYPE_LONGLINK,
-)
+MAX_META_RUN = 32
+META_TYPES = (tarfile.XHDTYPE, tarfile.XGLTYPE, tarfile.SOLARIS_XHDTYPE)
+GNU_TYPES = (tarfile.GNUTYPE_SPARSE, tarfile.GNUTYPE_LONGNAME, tarfile.GNUTYPE_LONGLINK)
+# The private tarfile hooks _TarInfo overrides: without them the limits above do
+# nothing, so the receiver refuses to start (check_tarfile)
+TAR_HOOKS = ("_proc_member", "_proc_gnusparse_00", "_proc_gnusparse_01",
+             "_proc_gnusparse_10")  # fmt: skip
 # The quota counts each file as the disk does: whole 4 KiB blocks, at least one
 BLOCK = 4096
 # After an early refusal: how long, and how much, to read and discard so the client
@@ -211,6 +215,10 @@ class Wire:
 
     def start(self, seconds: float) -> None:
         self.deadline = time.monotonic() + seconds
+
+    def received(self) -> None:
+        """The request is in: what is left (fsync, the swap) has no deadline."""
+        self.deadline = None
 
     def _arm(self) -> None:
         if self.deadline is None:
@@ -405,14 +413,42 @@ def _remove(path: Path) -> None:
         shutil.rmtree(path, ignore_errors=True)
 
 
+def check_tarfile(info: type = tarfile.TarInfo) -> None:
+    """Stop at start if this Python's tarfile lacks the hooks _TarInfo needs."""
+    missing = [h for h in TAR_HOOKS if not callable(getattr(info, h, None))]
+    if missing:
+        raise SystemExit(
+            f"receiver: this Python's tarfile has no {', '.join(missing)}: the tar"
+            " limits would not apply, so it will not start"
+        )
+
+
 class _TarInfo(tarfile.TarInfo):
-    """A member's header, refusing a pax or GNU long-name block over MAX_META
-    before tarfile reads it into memory."""
+    """A member's header, checked before tarfile reads more: GNU header types are
+    refused, a pax block over MAX_META too, and so is a run of more than
+    MAX_META_RUN of them (each one is a level of recursion in tarfile)."""
 
     def _proc_member(self, tar):
-        if self.type in META_TYPES and self.size > MAX_META:
-            raise Refusal(400, "bad_tar", "a tar header block is over 64 KiB")
+        if self.type in GNU_TYPES:
+            raise Refusal(
+                400, "bad_tar", "GNU tar headers are refused: send pax or ustar"
+            )
+        if self.type in META_TYPES:
+            run = getattr(tar, "scrap_meta_run", 0) + 1
+            if run > MAX_META_RUN:
+                raise Refusal(400, "bad_tar", "too many pax header blocks in a row")
+            if self.size > MAX_META:
+                raise Refusal(400, "bad_tar", "a tar header block is over 64 KiB")
+            tar.scrap_meta_run = run
+        else:
+            tar.scrap_meta_run = 0
         return super()._proc_member(tar)
+
+    def _sparse(self, *_args):
+        raise Refusal(400, "bad_tar", "sparse files are refused")
+
+    # pax's GNU sparse formats 0.0, 0.1 and 1.0: refused before any map is read
+    _proc_gnusparse_00 = _proc_gnusparse_01 = _proc_gnusparse_10 = _sparse
 
 
 def unpack(
@@ -474,10 +510,28 @@ def unpack(
         body.drain()  # the tar's end padding
     finally:
         tar.close()
-    for d in sorted(made, key=lambda p: -p.count("/")):
-        _fsync_dir(dest / d)
-    _fsync_dir(dest)
     return hashes
+
+
+def settle(dest: Path, paths: list[str]) -> None:
+    """fsync the unpacked files, then their folders, deepest first. This comes
+    after the body is in, so it is not held to the request's deadline."""
+    for path in paths:
+        _fsync_file(dest / path)
+    folders = {
+        "/".join(p.split("/")[:i]) for p in paths for i in range(1, p.count("/") + 1)
+    }
+    for folder in sorted(folders, key=lambda f: -f.count("/")):
+        _fsync_dir(dest / folder)
+    _fsync_dir(dest)
+
+
+def _fsync_file(path: Path) -> None:
+    fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_CLOEXEC)
+    try:
+        os.fsync(fd)
+    finally:
+        os.close(fd)
 
 
 def _write(tar: tarfile.TarFile, member: tarfile.TarInfo, path: Path) -> str:
@@ -490,8 +544,6 @@ def _write(tar: tarfile.TarFile, member: tarfile.TarInfo, path: Path) -> str:
         while chunk := source.read(CHUNK):
             digest.update(chunk)
             out.write(chunk)
-        out.flush()
-        os.fsync(out.fileno())
     return digest.hexdigest()
 
 
@@ -507,7 +559,12 @@ class Handler(BaseHTTPRequestHandler):
         self.rfile = Wire(self.rfile, self.connection, self.server.config.timeout)
 
     def handle_one_request(self) -> None:
-        # The request's time starts at its first byte; the wait for it is idle time
+        """BaseHTTPRequestHandler's, but every method (OPTIONS and unknown ones
+        too) goes to dispatch, so 401 comes before 405, and the request's time
+        starts at its first byte (the wait for it is idle time)."""
+        self.replied = self.holding = False
+        self.command = self.requestline = ""
+        self.request_version = "HTTP/1.1"
         try:
             first = self.rfile.wait()
         except (TimeoutError, ConnectionError):
@@ -516,7 +573,48 @@ class Handler(BaseHTTPRequestHandler):
             self.close_connection = True
             return
         self.rfile.start(self.server.config.timeout)
-        super().handle_one_request()
+        try:
+            self.raw_requestline = self.rfile.readline(65537)
+            if len(self.raw_requestline) > 65536:
+                self.send_error(414)
+                return
+            if not self.raw_requestline:
+                self.close_connection = True
+                return
+            if not self.parse_request():  # it has answered (send_error)
+                return
+            self.dispatch()
+            self.wfile.flush()
+        except TimeoutError:
+            # The headers did not arrive in time (a body's timeout is answered in
+            # dispatch): 408, then close
+            self.close_connection = True
+            if not self.replied:
+                try:
+                    self.refuse(Refusal(408, "timeout", "the request took too long"))
+                    self.linger()
+                except OSError:
+                    pass
+        finally:
+            if self.holding:
+                self.unlock()
+
+    def send_error(self, code: int, message: str | None = None, explain=None) -> None:
+        """http.server's own refusals (a bad request line, headers too long,
+        414), as JSON like every other error."""
+        errors = {400: "bad_request", 408: "timeout", 414: "uri_too_long",
+                  431: "headers_too_large", 501: "not_implemented",
+                  505: "version_not_supported"}  # fmt: skip
+        self.close_connection = True
+        # A request line it could not read leaves HTTP/0.9, which has no status
+        # line: answer as HTTP/1.1
+        self.request_version = "HTTP/1.1"
+        try:
+            phrase = HTTPStatus(code).phrase
+        except ValueError:
+            phrase = "error"
+        detail = message or phrase
+        self.refuse(Refusal(code, errors.get(code, "bad_request"), detail))
 
     def linger(self) -> None:
         """Close after an early answer: stop sending, then read and discard what
@@ -558,6 +656,7 @@ class Handler(BaseHTTPRequestHandler):
             self.send_header("Connection", "close")
         self.connection.settimeout(WRITE_TIMEOUT)
         self.end_headers()
+        self.replied = True
         if self.command != "HEAD":
             self.wfile.write(data)
 
@@ -640,9 +739,12 @@ class Handler(BaseHTTPRequestHandler):
         return name, unit
 
     def handle_expect_100(self) -> bool:
-        # Answer a bad upload before the client sends its body
+        # Answer a bad upload before the client sends its body, a busy receiver
+        # too: a write takes the lock before 100 Continue, and keeps it
         try:
-            self.checked()
+            name, _ = self.checked()
+            if self.command == "PUT" or name == "sync":
+                self.locked()
         except Refusal as error:
             self.refuse(error, close=True)
             self.linger()
@@ -681,8 +783,12 @@ class Handler(BaseHTTPRequestHandler):
             else:
                 failure = Refusal(500, "server_error", "the receiver could not write")
             self.refuse(failure, close=True)
-
-    do_GET = do_HEAD = do_PUT = do_DELETE = do_POST = do_PATCH = dispatch  # noqa: N815
+        except Exception as error:
+            # Anything else: a JSON 500 rather than http.server's dropped connection
+            self.log_message("unexpected %s: %s", type(error).__name__, error)
+            self.close_connection = True
+            if not self.replied:
+                self.refuse(Refusal(500, "server_error", "something went wrong"))
 
     # -- routes
 
@@ -692,18 +798,27 @@ class Handler(BaseHTTPRequestHandler):
     def on_manifest(self, _unit: None) -> None:
         self.reply(200, self.server.site.manifest(self.server.config.quota))
 
-    def locked(self):
+    def locked(self) -> None:
+        """Take the write lock for this request (once; handle_one_request lets it
+        go), or 503."""
+        if self.holding:
+            return
         if not self.server.site.write_lock.acquire(blocking=False):
             raise Refusal(503, "busy", "another write is in progress; retry")
-        return self.server.site.write_lock
+        self.holding = True
+
+    def unlock(self) -> None:
+        if self.holding:
+            self.holding = False
+            self.server.site.write_lock.release()
 
     def on_unit(self, unit: str) -> None:
         if self.command == "DELETE":
-            lock = self.locked()
+            self.locked()
             try:
                 self.server.site.delete(unit)
             finally:
-                lock.release()
+                self.unlock()
             self.reply(204)
             return
         self.put(unit)
@@ -713,7 +828,7 @@ class Handler(BaseHTTPRequestHandler):
         length = self.length(config.max_body)
         claimed = self.headers.get("Scrap-Digest", "").strip().lower()
         try:
-            lock = self.locked()
+            self.locked()
         except Refusal:
             self.close_connection = True
             raise
@@ -738,6 +853,8 @@ class Handler(BaseHTTPRequestHandler):
                     except Refusal:
                         self.close_connection = True
                 raise
+            self.rfile.received()
+            settle(staged, list(hashes))
             if unit.startswith(NEEDS_INDEX) and "index.html" not in hashes:
                 raise Refusal(422, "no_index", f"the {unit} unit needs an index.html")
             digest = unit_digest({path: sha for path, (sha, _) in hashes.items()})
@@ -756,7 +873,7 @@ class Handler(BaseHTTPRequestHandler):
             site.swap(unit, uid, entry)
         finally:
             _remove(staged)
-            lock.release()
+            self.unlock()
         self.reply(
             200, {"unit": unit, **{k: v for k, v in entry.items() if k != "charged"}}
         )
@@ -767,6 +884,7 @@ class Handler(BaseHTTPRequestHandler):
         raw = b""
         while chunk := body.read(CHUNK):
             raw += chunk
+        self.rfile.received()
         try:
             keep = json.loads(raw)["keep"]
         except (ValueError, KeyError, TypeError):
@@ -780,14 +898,14 @@ class Handler(BaseHTTPRequestHandler):
         bad = [u for u in keep if not UNIT.fullmatch(u)]
         if bad:
             raise Refusal(422, "bad_unit", f"not units: {bad[:5]}")
-        lock = self.locked()
+        self.locked()
         try:
             wanted = set(keep)
             deleted = [u for u in self.server.site.live() if u not in wanted]
             for unit in deleted:
                 self.server.site.delete(unit)
         finally:
-            lock.release()
+            self.unlock()
         self.reply(200, {"deleted": deleted})
 
 
@@ -795,6 +913,7 @@ class Server(ThreadingHTTPServer):
     daemon_threads = True
 
     def __init__(self, config: Config) -> None:
+        check_tarfile()
         self.config = config
         self.site = Site(config.site)
         self.site.start()
@@ -802,6 +921,7 @@ class Server(ThreadingHTTPServer):
 
 
 def main() -> None:
+    check_tarfile()
     config = config_from_env(dict(os.environ))
     server = Server(config)
     host, port = server.server_address[:2]
@@ -817,10 +937,10 @@ def main() -> None:
     try:
         server.serve_forever()
     finally:
-        # Let a write in progress finish (it is atomic either way: an unfinished
-        # one leaves only staging, which the next start empties)
-        if server.site.write_lock.acquire(timeout=config.timeout):
-            server.site.write_lock.release()
+        # Let a write in progress finish, then hold the lock until the process
+        # exits, so no other starts (a write cut short leaves only staging, which
+        # the next start empties)
+        server.site.write_lock.acquire(timeout=config.timeout)
         server.server_close()
 
 
