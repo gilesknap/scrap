@@ -111,6 +111,10 @@ check "a bad token is 401" [ "$(put p/a-page "$work/page" "x$token")" = 401 ]
 check "PUT p/a-page through the receiver" [ "$(put p/a-page "$work/page")" = 200 ]
 check "PUT home through the receiver" [ "$(put home "$work/home")" = 200 ]
 check "PUT t/a-tag-0123abcd" [ "$(put t/a-tag-0123abcd "$work/tag")" = 200 ]
+mkdir -p "$work/tag2"
+cp "$work/tag/index.html" "$work/tag2/index.html"
+cp "$work/tag/index.html" "$work/tag2/more.html"
+check "a tag unit holds index.html only" [ "$(put t/a-tag-0123abcd "$work/tag2")" = 422 ]
 check "PUT pagefind" [ "$(put pagefind "$work/pagefind")" = 200 ]
 check "PUT assets" [ "$(put assets "$work/assets")" = 200 ]
 check "a page holding a script is refused" [ "$(put p/bad "$work/bad")" = 422 ]

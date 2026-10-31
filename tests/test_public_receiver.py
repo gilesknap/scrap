@@ -247,7 +247,6 @@ def test_every_kind_of_unit(server: Running, unit: str) -> None:
         ("p/x", "img-20-abcdef0123.svg"),
         ("p/x", "file-3-0123456789.md"),
         ("p/x", "file-1-0123456789.bin"),
-        ("t/x", "more.html"),
         ("home", "tags.html"),
         ("pagefind", "fragment/en_1.pf_fragment"),
         ("pagefind", "scrap-search.js"),
@@ -276,6 +275,8 @@ def test_each_kind_takes_its_own_files(server: Running, unit: str, name: str) ->
         ("p/x", "file-100-0123456789.pdf"),
         ("p/x", "report.pdf"),
         ("t/x", "style.css"),
+        ("t/x", "more.html"),
+        ("t/x", "page-2.html"),
         ("t/x", "a/b.html"),
         ("t/x", "img-1-0123456789.png"),
         ("home", "search.js"),
@@ -408,7 +409,7 @@ def test_too_many_files_is_413(tmp_path: Path) -> None:
     running = Running(tmp_path / "site", max_files=3)
     try:
         files = {f"{i}.html": b"x" for i in range(3)} | page()
-        status, payload = running.put("t/x", files)
+        status, payload = running.put("home", files)
         assert (status, payload["error"]) == (413, "too_many_files")
     finally:
         running.stop()

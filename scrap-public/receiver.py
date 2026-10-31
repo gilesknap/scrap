@@ -59,8 +59,8 @@ NEEDS_INDEX = ("p/", "t/", "home")
 SEGMENT = re.compile(r"[A-Za-z0-9_][A-Za-z0-9._-]{0,99}")
 MAX_DEPTH = 4
 # What each kind of unit may hold. A page: its index.html, images and attachments,
-# one segment each. A tag and home: HTML only. Scripts and WebAssembly only in
-# pagefind, CSS and fonts only in assets.
+# one segment each. A tag: its index.html only. Home: one-segment HTML. Scripts
+# and WebAssembly only in pagefind, CSS and fonts only in assets.
 PAGE_MEMBER = re.compile(
     r"index\.html"
     r"|img-[1-9][0-9]?-[0-9a-f]{10}\.(?:jpg|png|svg)"
@@ -133,7 +133,9 @@ def member_allowed(unit: str, parts: list[str]) -> bool:
     ext = leaf.rpartition(".")[2].lower() if "." in leaf else ""
     if unit.startswith("p/"):
         return len(parts) == 1 and PAGE_MEMBER.fullmatch(leaf) is not None
-    if unit.startswith("t/") or unit == "home":
+    if unit.startswith("t/"):
+        return parts == ["index.html"]
+    if unit == "home":
         return len(parts) == 1 and ext == "html"
     if unit == "pagefind":
         return ext in PAGEFIND_TYPES
