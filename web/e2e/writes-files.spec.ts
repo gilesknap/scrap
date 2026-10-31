@@ -79,7 +79,7 @@ test("the editor's File puts PDFs in the text, each a row with its card", async 
   const ref = await notePage(page, "Committee notes\nsee the minutes");
   await page.goto(`/p/${ref.slug}`);
   await page.getByRole("button", { name: "Edit" }).click();
-  const bar = '.editor [role="group"][aria-label="Add photo"]';
+  const bar = '.editor [role="group"][aria-label="Add photos and files"]';
   expect((await choose(page, bar, "Camera")).accept).toBe("image/*");
   expect((await choose(page, bar, "Gallery")).accept).toBe("image/*");
   await page.getByLabel("Body").press("Control+End");
@@ -168,7 +168,11 @@ test("a photo and a PDF picked together: both in the text, the PDF a row with it
   const word = `sedgewarbler${Date.now()}`;
   const body = page.getByLabel("Body");
   await body.press("Control+End");
-  const gallery = await choose(page, '.editor [role="group"][aria-label="Add photo"]', "Gallery");
+  const gallery = await choose(
+    page,
+    '.editor [role="group"][aria-label="Add photos and files"]',
+    "Gallery",
+  );
   await gallery.chooser.setFiles([
     { name: "board.png", mimeType: "image/png", buffer: PNG },
     { name: "report.pdf", mimeType: "application/pdf", buffer: pdf([`${word} report`]) },

@@ -86,6 +86,7 @@ flowchart LR
   remove it. Deleting a token removes its photo or file too (also from the draft: one cut to
   move it is kept once pasted back). All of them and the text become one
   capture and one page, each photo or file where its token was. A file's text is read for search.
+  On a computer one **Add files** takes their place, picking photos and files together.
 - **Upload limit.** Photos and files together over the server's limit (50 MB,
   `SCRAP_MAX_UPLOAD_MB`; the app learns it from `/healthz`, so this works offline) make Save say
   so: remove some, or **Save separately** (one capture per photo or file, the text, the kind and

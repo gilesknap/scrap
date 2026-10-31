@@ -1,5 +1,6 @@
 // Home screen: the capture actions (Camera, Gallery, File, Note: how, not what kind; the kind is
-// chosen in the composer; on a computer, Add files and Note), a kept draft over them, and what is still waiting to upload.
+// chosen in the composer; on a computer, Add files and Note), a kept draft over them, and what
+// is still waiting to upload.
 import { view } from "./app";
 import type { Draft } from "./composer";
 import { drafts } from "./db";

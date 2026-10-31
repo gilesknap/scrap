@@ -16,7 +16,7 @@ const PDF = (name: string) => ({
   buffer: Buffer.from("%PDF-1.4\n"),
 });
 const ANY = "image/*,application/pdf,text/plain,text/markdown,.md,.txt";
-const ADD = '.editor [role="group"][aria-label="Add photo"]';
+const ADD = '.editor [role="group"][aria-label="Add photos and files"]';
 
 /** Pick files with scope's Add files: the chooser it opened, its accept and multiple. */
 async function addFiles(page: Page, scope: string, files: ReturnType<typeof photo>[]) {
@@ -63,6 +63,17 @@ test.describe("on a computer", () => {
       "⟦image 1⟧\n\n⟦file 1: minutes.pdf⟧\n\n⟦file 2: agenda.pdf⟧\n\n⟦image 2⟧\n\n",
     );
     await expect(page.locator(".editor .embeds .embed")).toHaveCount(4);
+  });
+
+  test("with a kept draft over the tiles, Add files and Note both still show", async ({ page }) => {
+    // The draft row is the first child of the tiles' row: Note must stay, as the last tile
+    await page.goto("/");
+    await page.getByRole("button", { name: "Note" }).click();
+    await page.getByPlaceholder("Note or link").fill("Desk draft");
+    await page.goBack(); // Back keeps it as the draft
+    await expect(page.locator(".editor")).toBeHidden();
+    await expect(page.locator(".capture .draft")).toBeVisible();
+    await expect(page.locator(".actions > button:visible")).toHaveText(["Add files", "Note"]);
   });
 
   test("a page's Edit has Add files alone, taking a photo and a PDF together", async ({ page }) => {

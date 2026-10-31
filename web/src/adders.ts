@@ -1,8 +1,8 @@
 // Camera, Gallery and File under the editor's text, the composer's and a page's Edit alike
-// (#403); on a computer, Add files in their place (desktop.css): each file picked is a token where the caret is (⟦image 1⟧, ⟦file 1: minutes.pdf⟧),
-// a paragraph of its own, with a chip under the fields (editor.ts embedded()). The files stay
-// on the phone until Save, which sends those still in the text (pending.ts wire()). Part of
-// the editor's chunk.
+// (#403); on a computer, Add files in their place (desktop.css): each file picked is a token
+// where the caret is (⟦image 1⟧, ⟦file 1: minutes.pdf⟧), a paragraph of its own, with a chip
+// under the fields (editor.ts embedded()). The files stay on the phone until Save, which sends
+// those still in the text (pending.ts wire()). Part of the editor's chunk.
 import { ANY, FILES, picker } from "./capture";
 import type { embedded } from "./editor";
 import { offTokens, pend, placeAt } from "./pending";
@@ -10,7 +10,8 @@ import { h } from "./ui";
 
 type Embeds = ReturnType<typeof embedded>;
 
-/** The row of three (or Add files), and add(): files put in text at..to (the caret, else where asked). */
+/** The row of three (or Add files), and add(): files put in text at..to (the caret, else
+ * where asked). */
 export function adders(text: HTMLTextAreaElement, em: Embeds) {
   const add = (more: File[], at = text.selectionStart, to = text.selectionEnd) => {
     const tokens = more.map((f) => {
@@ -25,7 +26,7 @@ export function adders(text: HTMLTextAreaElement, em: Embeds) {
   };
   const bar = h(
     "div",
-    { className: "bar", role: "group", "aria-label": "Add photo" },
+    { className: "bar", role: "group", "aria-label": "Add photos and files" },
     picker("Add files", false, add, "add desk", ANY),
     picker("Camera", true, add, "add"),
     picker("Gallery", false, add, "add"),

@@ -31,7 +31,7 @@ const PNG = Buffer.from(
 async function pick(page: Page) {
   const chooser = page.waitForEvent("filechooser");
   await page
-    .getByRole("group", { name: "Add photo" })
+    .getByRole("group", { name: "Add photos and files" })
     .getByRole("button", { name: "Gallery" })
     .click();
   await (await chooser).setFiles({ name: "board.png", mimeType: "image/png", buffer: PNG });
@@ -119,7 +119,7 @@ for (const { width, root } of sizes) {
     await page.setViewportSize({ width, height: 800 });
     await page.goto(`/p/${ref.slug}`);
     await page.getByRole("button", { name: "Edit" }).click();
-    await expectOneLine(page, '.editor [role="group"][aria-label="Add photo"]', root);
+    await expectOneLine(page, '.editor [role="group"][aria-label="Add photos and files"]', root);
   });
 
   test(`the composer's Camera, Gallery and File: ${root}px text on ${width}px`, async ({
