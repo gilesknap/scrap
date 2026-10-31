@@ -51,7 +51,8 @@ it, and a link to the page. Then a section headed *Claude's notes (written by a 
 wrong)* with whichever the page has: the summary, the tags Claude added, a board's write-up or a
 topic's synthesis, related pages, and for each photo the description (a quote), the text read from
 it (a fenced block) and a link to its drawing. Its links to pages are relative
-(`[label](../<slug>.md)`), so they do not find another `_claude/` file of the same name.
+(`[label](../<slug>.md)`), so they do not find another `_claude/` file of the same name. A
+`[[...]]` whose target is not a slug, such as `[[Some Title]]`, is kept as typed.
 
 ## Examples
 

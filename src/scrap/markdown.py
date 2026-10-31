@@ -33,7 +33,9 @@ __all__ = [
 ]
 
 Rule = Callable[[StateInline, bool], bool]
-SLUG = re.compile(r"[a-z0-9-]+")  # a page's slug (render.ts WIKI, PAGE), fullmatch
+# A page's slug, fullmatch: render.ts WIKI's slug part, before any #. A download's or
+# export's [[slug#heading]] links to the page, though the PWA shows it as text for now.
+SLUG = re.compile(r"[a-z0-9-]+")
 PAGE_PATH = re.compile(rf"/p/({SLUG.pattern})")  # a page's path (PAGE), fullmatch
 
 
@@ -175,8 +177,9 @@ def plain(text: str) -> str:
 @dataclass
 class Link:
     kind: Literal["wiki", "link", "image"]
-    target: str  # a wiki link's inner text (split it with wiki_parts), else the address
+    # a wiki link's inner text (split it with wiki_parts), else the address
     # (percent-encoded)
+    target: str
     label: str  # as typed: a wiki link's label, a link's text, an image's alt text
     embed: bool  # an image, or ![[target]]
     in_table: bool  # in a table cell: a pipe must be escaped
