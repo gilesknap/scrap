@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Capture from your phone (the PWA) &#8212; scrap 1.1.2.dev7+g993f72a06 documentation</title>
+    <title>Capture from your phone (the PWA) &#8212; scrap 1.1.2.dev8+gd7bd8ffad documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=570b6529"></script>
+    <script src="../_static/documentation_options.js?v=475020d8"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -926,6 +926,8 @@ over your tailnet or behind a proxy that authenticates (see <a class="reference 
 </tbody>
 </table>
 </div>
+<p>On a computer Camera, Gallery and File would all open the same file dialog, so there are two
+buttons instead: <strong>Add files</strong> (photos, PDFs, text and Markdown in one pick) and <strong>Note</strong>.</p>
 <p><strong>Save</strong> returns at once: the capture is stored on the phone first and uploaded in the background.
 The four newest pages are listed above the buttons.</p>
 <pre  class="mermaid">
@@ -961,7 +963,8 @@ PDFs, text and Markdown files. Each goes in the text where the cursor is, as a t
 in <strong>Edit</strong>: tap a chip to select its token (cut and paste it to move the photo), or <strong>✕</strong> to
 remove it. Deleting a token removes its photo or file too (also from the draft: one cut to
 move it is kept once pasted back). All of them and the text become one
-capture and one page, each photo or file where its token was. A file’s text is read for search.</p></li>
+capture and one page, each photo or file where its token was. A file’s text is read for search.
+On a computer one <strong>Add files</strong> takes their place, picking photos and files together.</p></li>
 <li><p><strong>Upload limit.</strong> Photos and files together over the server’s limit (50 MB,
 <code class="docutils literal notranslate"><span class="pre">SCRAP_MAX_UPLOAD_MB</span></code>; the app learns it from <code class="docutils literal notranslate"><span class="pre">/healthz</span></code>, so this works offline) make Save say
 so: remove some, or <strong>Save separately</strong> (one capture per photo or file, the text, the kind and
@@ -1160,7 +1163,7 @@ todo, Topics for a topic page, Capture otherwise. Back always goes where its lab
 the page is still loading, that is Capture. A screen returns scrolled where you left it.</p></li>
 <li><p><strong>Layout.</strong> On a narrow phone, a page’s upload badge shortens to its dot and count (● 2). On a
 wide screen the app is one centred column, 800 px wide by default (<a class="reference internal" href="#maximum-column-width">Maximum column width</a>
-changes it, 720 to 960 px). With a mouse the tabs move to the top bar, Camera, Gallery, File and
+changes it, 720 to 960 px). With a mouse the tabs move to the top bar, Add files and
 Note sit over the list, a page’s buttons (Mark done, Edit, Share, Delete) are a row under its
 title, and messages appear at the bottom of the window. Touch devices keep the bars at the
 bottom.</p></li>
@@ -1592,6 +1595,7 @@ you deleted is not sent. Saving needs the network (offline, <strong>Save</strong
 everything, the draft too, to try again); if the page changed elsewhere meanwhile, <strong>Save</strong>
 shows the conflict and nothing is uploaded. <strong>File</strong> takes PDFs, text and Markdown files. A
 topic page has no Camera, Gallery or File. They never change the page’s kind, title or tags.
+On a computer <strong>Add files</strong> (photos and files in one pick) takes the three’s place.
 The three stay on one line; on a narrow phone at a large text size each has its icon over its
 word.</p></li>
 <li><p><strong>Lists.</strong> Enter on a bullet (<code class="docutils literal notranslate"><span class="pre">-</span> </code>), numbered (<code class="docutils literal notranslate"><span class="pre">1.</span> </code>) or task (<code class="docutils literal notranslate"><span class="pre">-</span> <span class="pre">[</span> <span class="pre">]</span> </code>) line starts the next
