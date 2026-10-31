@@ -13,7 +13,7 @@ import { whenSlow } from "./slow";
 import { today } from "./status";
 import { trailOf } from "./swipe";
 import { KIND_ROW } from "./terms";
-import { clearToasts, h, placeToasts, problem, toast } from "./ui";
+import { clearToasts, empty, h, placeToasts, problem, toast } from "./ui";
 
 const todos = () => import("./todos").then((m) => m.todos(pageRow)); // a lazy chunk
 const add = document.getElementById("new") as HTMLButtonElement;
@@ -206,7 +206,9 @@ async function render() {
     return;
   }
   shown = "";
-  view.replaceChildren(h("p", { className: "empty" }, "Not found"));
+  view.replaceChildren(
+    empty("search", "Not found", h("a", { href: "/", className: "button" }, "Back to capture")),
+  );
   restoreScroll(controller.signal);
 }
 

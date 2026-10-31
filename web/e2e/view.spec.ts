@@ -777,6 +777,7 @@ test("every visible text meets AA contrast, in both themes", async ({ page }) =>
     await check(`${colorScheme} search`);
     await page.goto("/p/no-such-page");
     await page.getByText("Not found").waitFor();
+    await expect(page.getByRole("link", { name: "Back to capture" })).toBeVisible();
     await check(`${colorScheme} not found`);
   }
 });

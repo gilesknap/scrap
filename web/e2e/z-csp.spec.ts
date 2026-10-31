@@ -11,8 +11,8 @@ const ulid = () => {
 };
 
 /** Every console message or page error that reports the policy blocking something, less
- * Excalidraw's CDN fallbacks for its fonts (esm.sh), which the policy is meant to keep out:
- * the fonts are served by scrap itself (EXCALIDRAW_ASSET_PATH), and its font subsetting, whose
+ * Excalidraw's font subsetting (the fonts themselves are served by scrap, and vite.config.ts
+ * points Excalidraw's CDN fallback at them, so nothing reaches for esm.sh), whose
  * Emscripten module builds functions with Function(): that needs 'unsafe-eval', which the
  * policy refuses, so Excalidraw skips subsetting (it logs it and exports with whole fonts). */
 function violations(page: Page) {
@@ -20,7 +20,6 @@ function violations(page: Page) {
   const check = (text: string) => {
     if (
       /Content Security Policy|Refused to|\bcsp\b/i.test(text) &&
-      !text.includes("esm.sh") &&
       !text.includes("Skipped glyph subsetting")
     )
       seen.push(text);
