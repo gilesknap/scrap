@@ -1,30 +1,35 @@
 # Public site
 
-The HTTP contract between scrap and the receiver of the public site, and how nginx serves what
-the receiver writes. Why it is built this way is in
+The contract for public pages: what the PWA uploads to scrap, what scrap pushes to the public
+site's receiver, and how nginx serves it. This page is the single source of truth for it; the
+`scrap-public` image and scrap both follow it. Why it is built this way is in
 [](../explanations/decisions/0043-public-pages-a-static-site-scrap-pushes-to.md).
 
-scrap is the only client. The PWA never talks to the receiver, and the receiver is never on a
-public ingress: only nginx is.
+scrap is the receiver's only client. The PWA never talks to the receiver, and the receiver is
+never on a public ingress: only nginx is.
 
 ## Settings
 
-The receiver:
+The `scrap-public` image has two commands, `web` (nginx, port 8080) and `receive` (the
+receiver). In Kubernetes they are two containers of one pod, sharing the site volume at `/site`.
 
-| Variable | Default | Meaning |
-| --- | --- | --- |
-| `RECEIVER_LISTEN` | `tcp:0.0.0.0:8081` | Where it listens: `tcp:<host>:<port>`, or `unix:<path>` (optional, for the later single-server install) |
-| `RECEIVER_TOKEN_FILE` | unset | A file holding the token (surrounding whitespace ignored). Wins over `RECEIVER_TOKEN` |
-| `RECEIVER_TOKEN` | unset | The token itself |
-| `RECEIVER_SITE` | `/site` | The site directory it writes and nginx serves |
+| Variable | Read by | Default | Meaning |
+| --- | --- | --- | --- |
+| `RECEIVER_LISTEN` | `receive` | `tcp:0.0.0.0:8081` | Where it listens, `tcp:<host>:<port>` (a Unix socket may be added for the later single-server install) |
+| `RECEIVER_TOKEN_FILE` | `receive` | unset | A file holding the token (its content, stripped). Wins over `RECEIVER_TOKEN`. This is how the receiver gets it in a deployment: the chart mounts the Secret as a file, never as an environment variable |
+| `RECEIVER_TOKEN` | `receive` | unset | The token itself, for tests and development only |
+| `RECEIVER_SITE` | `receive` | `/site` | The site folder ([layout](#the-site-folder)) |
+| `RECEIVER_QUOTA_BYTES` | `receive` | 2 GiB | The site's quota, in bytes |
+| `INDEXING` | `web` | `off` | `on` lets search engines index the site; `off` sends `X-Robots-Tag: noindex, nofollow` and a `robots.txt` of `Disallow: /`. Anything else stops `web` at start |
 
-The receiver does not start without a token, or with one shorter than 32 characters.
+The receiver does not start without a token, with one shorter than 32 characters, or with one
+holding whitespace.
 
 scrap:
 
 | Variable | Meaning |
 | --- | --- |
-| `SCRAP_PUBLISH_TO` | The receiver's URL, e.g. `http://scrap-public-receiver.scrap-public.svc:8081` |
+| `SCRAP_PUBLISH_TO` | The receiver's base URL, e.g. `http://scrap-receiver.scrap-public.svc:8081` (the chart's Service is `<fullname>-receiver`, here for a release named `scrap`) |
 | `SCRAP_PUBLISH_SITE` | The site's public base URL, e.g. `https://pages.gkcluster.org`, for the links scrap shows |
 | `SCRAP_PUBLISH_TOKEN_FILE`, `SCRAP_PUBLISH_TOKEN` | The same token, as a file or a value; the file wins |
 
@@ -32,150 +37,113 @@ Without `SCRAP_PUBLISH_TO` and a token, publishing is off.
 
 ## Transport and auth
 
-- HTTP/1.1. Each request is served within 30 seconds (reading the body included), or the
-  connection is closed.
-- Every route except `GET /healthz` needs `Authorization: Bearer <token>`. The token is compared
-  with `hmac.compare_digest`. A missing or wrong token gets `401`. The token, and the
-  `Authorization` header, are never logged.
-- Request and response bodies other than a tar are JSON (`application/json`, UTF-8).
+- HTTP/1.1 with keep-alive. A request has 30 seconds in all, its body included (`408`).
+- A client should send `Expect: 100-continue` with every request that has a body, so a refusal
+  that needs only the headers (`401`, `411`, `413`, `415`, `422 bad_unit`) arrives before the
+  body is sent. When the receiver refuses a body it has not read, it closes the connection
+  lingering (it reads and drops what is still arriving for a moment first), so the client sees
+  the answer rather than a reset.
+- Every route except `GET /healthz` needs `Authorization: Bearer <token>`, compared with
+  `hmac.compare_digest`. Without it the answer is `401` with `WWW-Authenticate: Bearer`, before
+  any other check: an unknown path is `401` too, not `404`. The token, and the `Authorization`
+  header, are never logged; the log has the request line and status only.
+- Every error is JSON, `{"error": "<code>", "detail": "<a sentence>"}` ([](#errors)).
+- A wrong method on a known route is `405` with `Allow`.
 
 ## Units
 
-The site is made of **units**. A unit is replaced whole or deleted whole; nothing writes a single
-file inside one.
+The site is made of **units**. A unit is replaced whole or deleted whole; nothing writes one file
+inside a unit.
 
-| Unit | Pattern | Holds | Served at |
-| --- | --- | --- | --- |
-| A page | `p/[a-z0-9-]{1,120}` | `index.html`, and the page's images (`img-*`) and other files (`file-*`) | `/p/<slug>` and `/p/<slug>/<name>` |
-| A tag | `t/[a-z0-9-]{1,80}` | `index.html` | `/t/<key>` |
-| The home page | `home` | `index.html`, `tags.html`, `404.html` | `/`, `/tags`, any missing path |
-| The search index | `pagefind` | Pagefind's files | `/pagefind/...` |
+| Unit | Pattern | Must hold | May hold | Served at |
+| --- | --- | --- | --- | --- |
+| A page | `p/[a-z0-9-]{1,120}` | `index.html` | its images and files (below) | `/p/<slug>`, `/p/<slug>/`, `/p/<slug>/<name>` |
+| A tag | `t/[a-z0-9-]{1,80}` | `index.html` | other `.html` files | `/t/<key>`, `/t/<key>/` |
+| The home page | `home` | `index.html` | `tags.html`, `404.html` | `/`, `/tags`, every 404 |
+| The search index | `pagefind` | at least one file | Pagefind's files and `scrap-search.js` | `/pagefind/<path>` |
+| Shared assets | `assets` | at least one file | KaTeX's CSS and fonts | `/assets/<path>` |
 
-The unit in a URL is matched exactly, against the raw path before any decoding, with the whole
-pattern anchored. A path holding `%`, a `.` segment, `//` or a trailing `/` gets `422`, as does a
-unit that matches no pattern.
+The unit is the raw request path after `/v1/units/`, matched exactly against the pattern (no
+decoding). Anything else, such as `%`, a `.` segment, `//`, a trailing `/`, upper case or a query
+string, is `422 bad_unit`.
 
-## The tar's files
+What each kind may hold. A member that breaks its kind's rule is `422 bad_member`:
 
-A unit's body is a tar (`application/x-tar`, uncompressed). Its members are read one by one,
-never with `extractall`, and each must be:
+| Unit | Members |
+| --- | --- |
+| `p/*` | `index.html`; `img-<n>-<hex>.jpg`, `.png` or `.svg`; `file-<n>-<hex>.<ext>` with `<ext>` one of `pdf`, `txt`, `md`, `csv`, `zip`, `epub`, `docx`, `xlsx`, `pptx`, `odt`, `ods`, `odp`, `bin`. `<n>` is `[1-9][0-9]?`, `<hex>` is `[0-9a-f]{10}`. One segment each: no folders |
+| `t/*` | `.html` files, one segment each |
+| `home` | `.html` files, one segment each (`robots.txt` is not in a unit: nginx makes it) |
+| `pagefind` | `js`, `mjs`, `json`, `wasm`, `pagefind`, `pf_meta`, `pf_index`, `pf_fragment`, `pf_filter` |
+| `assets` | `css`, `woff`, `woff2`, `ttf` |
 
-- a **regular file** (a directory entry is skipped): a symlink, hard link, device, FIFO or any
-  other type is refused;
-- at a **relative path** of 1 to 4 segments separated by `/`, each segment matching
-  `[A-Za-z0-9_][A-Za-z0-9._-]{0,99}` (so no `..`, no leading `.` or `-`, no absolute path);
-- **once**: a path that occurs twice is refused;
-- of an allowed **extension** (the last `.` in the last segment, compared in lower case):
-  `html`, `css`, `js`, `json`, `wasm`, `png`, `jpg`, `jpeg`, `gif`, `webp`, `svg`, `pdf`, `md`,
-  `txt`, and Pagefind's own `pagefind`, `pf_meta`, `pf_index`, `pf_fragment` and `pf_filter`.
+So `.js` and `.wasm` exist only under `/pagefind/`, CSS and fonts only under `/assets/`, and no
+page or tag unit can hold a script or a stylesheet. An attachment is never published as `html`,
+`htm`, `js`, `mjs`, `css` or `svg`: an SVG attachment is published as an image (`img-*.svg`), and
+a type outside the list as `bin`.
 
-A page unit must hold `index.html`, a tag unit `index.html`, and `home` all three of its files.
-A file that breaks any rule refuses the whole unit with `422`, and nothing is written.
+## The tar
 
-## What scrap puts in a unit
+A unit's body is a tar:
 
-The receiver checks only the rules above. These are scrap's, so that what it sends always passes
-them.
+- **uncompressed**, in pax or ustar format;
+- of **regular files only** (`REGTYPE`): a directory entry, symlink, hard link, device, FIFO or
+  sparse file is refused (`422 bad_member`);
+- with **relative paths and no `./` prefix**: 1 to 4 segments joined by `/`, each matching
+  `[A-Za-z0-9_][A-Za-z0-9._-]{0,99}` (so no leading `.`, no `..`, no absolute path), within the
+  unit's own rule above;
+- each path **once**, and no path that is also a folder of another (`a` and `a/b.html`);
+- **not empty** (`422 empty_unit`);
+- with no pax extended header, or GNU long-name or long-link header, over 64 KiB
+  (`400 bad_tar`).
 
-**A page** (`p/<slug>`, the page's slug in scrap). The PWA uploads the page's HTML, from
-`pagehtml.ts` in its publish mode. In it, every `<img src>` and every link to a file of the page
-is a placeholder naming the stored file: `scrap-blob:<sha>`. scrap replaces each placeholder with
-an **absolute** path, `/p/<slug>/<name>` (the page is served at `/p/<slug>` with no trailing
-slash, so a relative link would resolve under `/p/`), and puts the bytes beside `index.html`:
-
-| File | Name | Bytes |
-| --- | --- | --- |
-| A photo | `img-<n>-<hex>.jpg` | The 2048-pixel JPEG preview (EXIF and GPS stripped when it was made) |
-| A PNG or other raster image | `img-<n>-<hex>.jpg` or `.png`, as its preview is | The 2048-pixel preview |
-| An SVG | `img-<n>-<hex>.svg` | The sanitised SVG scrap stores (ADR 42) |
-| Another file (a PDF, a `.md`) | `file-<n>-<hex>.<ext>` | The file as stored, with its extension in lower case |
-
-- `<n>` counts the page's images, and separately its other files, from 1, in the order they first
-  appear in the HTML; the same file used twice is one file.
-- `<hex>` is the first 10 hex digits of the SHA-256 of the bytes published (not the stored
-  file's sha, which is never published, nor its uploaded name; a link's label may show the name).
-- At most **20** images and files together go with one page. Over that, scrap refuses the
-  publish with `422` and a message saying so, and nothing is pushed.
-- A placeholder for a file that is not on the page, a file of a type the receiver does not
-  allow, or any other `/api` or private address left in the HTML refuses the publish.
-
-**A tag** (`t/<key>`). The key is made from the tag, so any tag (spaces, `/`, letters outside
-ASCII) has one:
-
-1. the tag as ASCII: Unicode NFKD, characters without an ASCII form dropped, lower case;
-2. each run of characters other than `a-z` and `0-9` becomes `-`, and `-` is trimmed from both
-   ends; cut to 60 characters and trimmed again;
-3. then `-` and the first 8 hex digits of the SHA-256 of the whole tag (UTF-8).
-
-So `personal/family` is `personal-family-` and 8 hex digits, for example
-`personal-family-1a2b3c4d`; a tag with no ASCII letters or digits is `-` and its 8 digits. The key
-is at most 69 characters, so it always fits the unit pattern, and tags that make the same slug
-still get different keys.
-
-**`home` and `pagefind`.** scrap builds them, and every tag unit, from the copies below with
-plain Python templates and the `pagefind[bin]` Python package (at a pinned version).
-
-## scrap's copies and reconciling
-
-scrap keeps the last HTML uploaded for each public page at
-`<data>/cache/publish/p/<slug>/index.html` (with its placeholders already replaced). It is
-derived data and is not backed up. The site is rebuilt from these copies, never by rendering:
-
-- **After a publish** scrap pushes the page's unit, then the units built from the copies that
-  changed: `home`, the tags of the page (before and after), and `pagefind`.
-- **After an unpublish** (Public off in the PWA or over MCP, a revert, the page going to the
-  trash) scrap sends `DELETE /v1/units/p/<slug>`, deletes its copy, and pushes `home`, the page's
-  tag units (deleting a tag unit no public page has any more) and `pagefind`.
-- **Reconciling**, at startup and every 10 minutes: scrap reads `GET /v1/manifest`, computes the
-  digest of each unit it would send (a page's files copied from its store again), `PUT`s every
-  unit that is missing or differs, and ends with `POST /v1/sync` listing every unit it means
-  to keep. A site that lost its files, such as a restarted pod with an `emptyDir`, is filled
-  again within 10 minutes with nothing from the PWA.
-
-A `503` (busy) is retried; any other failure is logged and left to the next reconcile.
+The extension is what follows the last `.` of the last segment, compared in lower case. The
+receiver reads the tar member by member as it streams in, writing each file itself; it never
+uses `extractall`. Any refusal leaves the site as it was.
 
 ## Limits
 
 | Limit | Value | Over it |
 | --- | --- | --- |
-| Files in a unit | 10,000 | `413` |
-| One file | 20 MiB | `413` |
-| The request body | 256 MiB | `413` (from `Content-Length`, before reading) |
-| The whole site | 2 GiB | `507`, counted as the site's bytes with this unit's new size in place of its old one |
-| A request | 30 s | the connection is closed |
+| Files in a unit | 10,000 | `413 too_many_files` |
+| One file | 20 MiB | `413 file_too_large` |
+| The request body | 256 MiB | `413 body_too_large`, from `Content-Length`, before the body is read |
+| The site | `RECEIVER_QUOTA_BYTES`, 2 GiB | `507 over_quota`, counted over every live unit, the one being replaced at its new size; each file counts as its size rounded up to whole 4 KiB blocks, at least 4096 bytes |
+| A request | 30 s | `408 timeout` |
+
+scrap's own limits are tighter for a page: at most 20 images and files, each at most 20 MiB, and
+at most 200 MiB for the unit ([](#what-scrap-sends-for-a-page)).
 
 ## The digest
 
-Every `PUT` carries a `Scrap-Digest` header: the lowercase hex SHA-256 of, for each file in
-sorted path order (sorted by the path's UTF-8 bytes),
+Every `PUT` carries `Scrap-Digest: <64 lower-case hex>`: the SHA-256 of, for each file in sorted
+path order (byte order; paths are ASCII), the line
 
 ```
 <path> NUL <hex sha256 of the file's content> LF
 ```
 
-that is, `path + "\0" + sha256(content).hexdigest() + "\n"`, concatenated. For example, in
-Python:
+concatenated. In Python:
 
 ```python
-h = hashlib.sha256()
-for path in sorted(files):
-    h.update(path.encode() + b"\0" + hashlib.sha256(files[path]).hexdigest().encode() + b"\n")
-digest = h.hexdigest()
+hashlib.sha256(b"".join(
+    p.encode() + b"\0" + hashlib.sha256(files[p]).hexdigest().encode() + b"\n"
+    for p in sorted(files)
+)).hexdigest()
 ```
 
-The receiver computes it again from the tar. A missing header, or one that does not match, gets
-`400` and nothing is written. The manifest reports each unit's digest, so scrap can tell whether
-a unit already holds what it would send.
+The receiver computes it again from the tar. A missing or different digest is
+`400 digest_mismatch`, and nothing changes. It is also the unit's `digest` in the manifest.
 
 ## Endpoints
 
 ### `GET /healthz`
 
-No auth. `200` with `{"ok": true}` when the site directory is writable.
+No token. Always `200 {"ok": true}` while the receiver runs.
 
 ### `GET /v1/manifest`
 
-What the site holds:
+`200` with what the site holds:
 
 ```json
 {
@@ -194,72 +162,98 @@ ISO 8601, to the second).
 
 ### `PUT /v1/units/{unit}`
 
-Replace a unit (or make it). The body is the tar; `Content-Type: application/x-tar` and
-`Content-Length` are required (`415` and `411` without them; chunked bodies are refused). One
-lock serialises every write (`PUT`, `DELETE` and `sync`); a request that cannot take it at once
-gets `503` with `Retry-After: 1`, and scrap tries again.
+Replace a unit, or make it. Required: `Content-Type: application/x-tar` (`415
+unsupported_media_type`), `Content-Length` (`411 length_required`; a chunked body is `411`
+too, and a length that is not a number `400 bad_request`) and `Scrap-Digest`. Send
+`Expect: 100-continue` ([](#transport-and-auth)).
 
-The swap is atomic, so nginx serves either the old unit or the new one, never a mix:
+One lock serialises every write (`PUT`, `DELETE`, `sync`). A request that cannot take it at once
+gets `503 busy` with `Retry-After: 1`.
 
-1. Each file is written into a new staging directory inside the site directory, and fsynced, as
-   is the directory.
-2. A new symlink pointing at it is made beside the unit's name and moved over the name with
-   `os.replace`; the parent directory is fsynced.
-3. The old unit's directory is deleted.
+The swap is atomic, so nginx serves the old unit or the new one, never a mix or nothing: the
+files are unpacked into `staging/<id>/` and fsynced, moved to `units/<id>/` with the unit's
+manifest entry beside it, then a new symlink at `www/<unit>` replaces the old one with
+`os.replace`, and the old copy is deleted.
 
-Staging directories, and the directories units point at, start with `.`, so nginx never serves
-them by name. A staging directory left by a crash is deleted when the receiver starts.
-
-`200` with the unit's manifest entry.
+`200` with the unit's manifest entry and `"unit"`. Other answers: `400 bad_tar`,
+`400 short_body` (fewer bytes than `Content-Length`), `400 digest_mismatch`,
+`422 bad_member`, `422 no_index`, `422 empty_unit`, `413`, `507`, `408`.
 
 ### `DELETE /v1/units/{unit}`
 
-Remove a unit. `204`, also when it was not there.
+Remove a unit. `204`, also when it was not there, or `503 busy`.
 
 ### `POST /v1/sync`
 
-`{"keep": ["home", "pagefind", "p/a", "t/b", ...]}`: delete every unit not in the list, so the
-site holds no more than scrap means it to. Each entry must match a unit pattern (`422`
-otherwise). A list that is empty, or does not hold `home`, is refused with `422` (a guard against
-wiping the site by mistake). `200` with `{"deleted": [...]}`.
+`{"keep": ["home", "pagefind", "assets", "p/a", "t/b", ...]}` deletes every live unit not in the
+list. It needs `Content-Type: application/json` (`415`) and `Content-Length` (`411`), with a body
+of at most 1 MiB. `200 {"deleted": [...]}`. Refused: a body that is not `{"keep": [strings]}`
+(`400 bad_request`), an empty list (`422 empty_keep`), a list without `home` (`422 no_home`),
+and an entry that is not a unit (`422 bad_unit`).
 
 ## Errors
 
-Every error is JSON, `{"error": "<code>", "detail": "<a sentence>"}`:
-
 | Status | `error` | When |
 | --- | --- | --- |
-| `400` | `digest` | `Scrap-Digest` missing or wrong |
+| `400` | `bad_request` | A malformed `Content-Length`, or a `sync` body that is not `{"keep": [...]}` |
+| `400` | `short_body` | The body ended before `Content-Length` |
 | `400` | `bad_tar` | The body is not a readable tar |
+| `400` | `digest_mismatch` | `Scrap-Digest` missing or wrong |
 | `401` | `unauthorized` | No token, or the wrong one |
 | `404` | `not_found` | No such route |
-| `405` | `method` | A method the route does not take |
-| `411` | `length_required` | `PUT` without `Content-Length` |
-| `413` | `too_large` | Over a limit of files, file size or body |
-| `415` | `media_type` | `PUT` that is not `application/x-tar` |
-| `422` | `bad_unit`, `bad_path`, `bad_sync` | A unit, a member path, a member type or extension, a missing required file, or a `sync` list that is refused |
-| `503` | `busy` | Another write holds the lock |
-| `507` | `quota` | The site would grow past its quota |
+| `405` | `method_not_allowed` | A method the route does not take (with `Allow`) |
+| `408` | `timeout` | The request took over 30 s, or stalled |
+| `411` | `length_required` | No `Content-Length`, or a chunked body |
+| `413` | `body_too_large`, `too_many_files`, `file_too_large` | Over a limit |
+| `415` | `unsupported_media_type` | The wrong `Content-Type` |
+| `422` | `bad_unit` | Not a unit |
+| `422` | `bad_member` | A member's type, path or extension is not allowed, it is there twice, or it is a folder too |
+| `422` | `no_index` | A page, tag or home unit without `index.html` |
+| `422` | `empty_unit` | A tar with no files |
+| `422` | `empty_keep`, `no_home` | A `sync` list that is refused |
+| `503` | `busy` | Another write holds the lock (with `Retry-After: 1`) |
+| `507` | `over_quota` | The site would be over its quota |
 
 `detail` never repeats the token or a header.
 
+## The site folder
+
+`RECEIVER_SITE` holds:
+
+- `www/`: nginx's root, holding only each unit's symlink (`www/p/<slug>`, `www/t/<key>`,
+  `www/home`, `www/pagefind`, `www/assets`) to its copy;
+- `units/<id>/` and `units/<id>.json`: each unit's files and its manifest entry;
+- `staging/`: uploads being unpacked.
+
+`units/` and `staging/` are outside nginx's root, so they are never served. At start the receiver
+empties `staging/`, rebuilds its index of live units from the symlinks, and removes every copy no
+symlink refers to and anything else in `www/`. In Kubernetes the folder is an `emptyDir`: a
+restarted pod starts empty and scrap fills it again ([](#reconciling)).
+
 ## nginx
 
-nginx serves the site directory read only, as files. It takes `GET` and `HEAD` only (`405`
-otherwise), with no `autoindex` and `server_tokens off`.
+nginx serves `www/` read only, as files. It takes `GET` and `HEAD` only (`405` otherwise), with
+`autoindex off` and `server_tokens off`.
 
 | Path | Serves |
 | --- | --- |
 | `/` | `home/index.html` |
 | `/tags` | `home/tags.html` |
-| `/p/<slug>` | `p/<slug>/index.html` |
-| `/p/<slug>/<file>` | `p/<slug>/<file>` |
-| `/t/<key>` | `t/<key>/index.html` |
+| `/robots.txt` | from nginx's own config: `User-agent: *` and `Disallow: /` (`Allow: /` with `INDEXING=on`) |
+| `/p/<slug>`, `/p/<slug>/` | `p/<slug>/index.html` |
+| `/p/<slug>/<name>` | `p/<slug>/<name>` |
+| `/t/<key>`, `/t/<key>/` | `t/<key>/index.html` |
+| `/t/<key>/<name>` | `t/<key>/<name>` |
 | `/pagefind/<path>` | `pagefind/<path>` |
-| `/robots.txt` | `User-agent: *` and `Disallow: /`, from nginx's own config |
+| `/assets/<path>` | `assets/<path>` |
 | anything else | `home/404.html`, with `404` |
 
-A path segment starting with `.` is always `404`.
+`<path>` and `<name>` follow the tar's segment rule. Only `/`, `/tags` and `/robots.txt` are
+served at the top level: `/home/...`, `/units/...`, `/v1/...` and dotfiles are `404`.
+
+Types come from the extension: `.md` as `text/markdown`, `.txt` as `text/plain`, `.ttf` as
+`font/ttf`, `.wasm` as `application/wasm`, Pagefind's index files and `.bin` as
+`application/octet-stream`; text types are `charset=utf-8`.
 
 ### Headers
 
@@ -267,30 +261,171 @@ On every response:
 
 - `X-Content-Type-Options: nosniff`
 - `Referrer-Policy: no-referrer`
-- `X-Robots-Tag: noindex, nofollow`
+- `X-Robots-Tag: noindex, nofollow` (left out with `INDEXING=on`)
 
-`Content-Security-Policy` depends on what is served:
+`Content-Security-Policy`, by path:
 
-| Served | `Content-Security-Policy` |
+| Path | `Content-Security-Policy` |
 | --- | --- |
-| HTML, and Pagefind's files | `default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline' 'self'; script-src 'self' 'wasm-unsafe-eval'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'` |
-| A page's file (`/p/<slug>/img-*`, `/p/<slug>/file-*`), but a PDF | `sandbox; default-src 'none'; style-src 'unsafe-inline'; img-src data:; font-src data:` |
-| A PDF (`/p/<slug>/file-*.pdf`) | `sandbox` |
+| `/p/<slug>/file-*.pdf` | `sandbox` |
+| `/p/<slug>/img-*`, `/p/<slug>/file-*` (not a PDF) | `sandbox; default-src 'none'; style-src 'unsafe-inline'; img-src data:; font-src data:` |
+| `/p/...` and `/t/...` otherwise (a page's or tag's HTML) | `default-src 'none'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; font-src 'self'; script-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'` |
+| everything else (home, `/pagefind/`, `/assets/`, 404) | `default-src 'none'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; font-src 'self'; script-src 'self' 'wasm-unsafe-eval'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'` |
 
-The only scripts are Pagefind's (its UI, on the home page), loaded from `/pagefind/` as files;
-there is no inline script. It fetches its index (`connect-src 'self'`) and runs WebAssembly
-(`'wasm-unsafe-eval'`). A page has no script. A page's file follows ADR 42's rule for stored
-files: opened on its own it runs nothing and loads nothing, and a PDF keeps `sandbox` alone so
-a browser's PDF viewer works.
-
-Types come from the extension (`.md` and `.txt` as `text/plain; charset=utf-8`, Pagefind's own
-files as `application/octet-stream`, `.wasm` as `application/wasm`).
+A page's images and files follow ADR 42's rule for stored files: opened on their own they run
+nothing and load nothing, and a PDF keeps `sandbox` alone so a browser's PDF viewer works. Pages
+and tag pages run no script. The home page's only scripts are Pagefind's and
+`/pagefind/scrap-search.js` (scrap's start-up file; there is no inline script), which fetch the
+index (`connect-src 'self'`) and run WebAssembly (`'wasm-unsafe-eval'`).
 
 ### Caching
 
-- HTML: `Cache-Control: no-cache`, so a browser or proxy checks again before each use, and a
-  page unpublished is gone on its next load.
-- Every other file: `Cache-Control: max-age=300`, so a deleted file can be seen for up to five
-  minutes more from a cache.
+- HTML: `Cache-Control: no-cache`, so a browser or proxy checks again before each use, and an
+  unpublished page is gone on its next load.
+- Every other file: `Cache-Control: public, max-age=300`, so a deleted file can be seen from a
+  cache for up to five minutes more.
 
 Nothing the site does reaches copies people saved, or caches that ignore these headers.
+
+## What scrap sends for a page
+
+The PWA uploads the page's HTML, written by `pagehtml.ts` in its publish mode, to scrap. scrap
+**checks** it, refusing anything that does not pass with `422` (it never cleans the HTML),
+**replaces** its placeholders, adds the page's files, and pushes the unit.
+
+### The HTML scrap accepts
+
+The document is `<!DOCTYPE html>` with `html`, `head`, `title` and `body`. In `head`:
+
+- `<meta charset="utf-8">`;
+- `<meta name="viewport" content="...">`;
+- exactly this tag, which scrap checks is present:
+  `<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; font-src 'self'">`
+  (there is no `script-src`, so no script runs even if the file is opened elsewhere);
+- one `<style>` element (pagehtml's own);
+- at most one `<link rel="stylesheet" href="/assets/katex.css">`.
+
+In `body`, only these elements: pagehtml's kept set (`a abbr article aside b blockquote br
+caption code dd del details div dl dt em figcaption figure h1 h2 h3 h4 h5 h6 hr i img ins kbd li
+mark ol p pre q s section small span strong sub summary sup table tbody td tfoot th thead time tr
+u ul`), and inside a `span` whose class includes `katex`, KaTeX's markup: MathML (`math
+semantics annotation mrow mi mn mo ms mtext mspace msup msub msubsup mfrac msqrt mroot mover
+munder munderover mtable mtr mtd mstyle mpadded mphantom menclose`) and the `svg`, `path` and
+`line` it draws stretchy symbols with.
+
+Attributes:
+
+| Attribute | Where | Value |
+| --- | --- | --- |
+| `class`, `dir` | any kept element | any text |
+| `colspan`, `rowspan` | `td`, `th` | 1 to 3 digits |
+| `open` | `details` | none |
+| `alt` | `img` | any text |
+| `src` | `img` | a placeholder, `scrap-blob:<sha>`, and nothing else |
+| `href` | `a` | `https:...`, `mailto:...`, `#...`, `/p/<slug>` of a public page, `/t/<key>`, or a placeholder (`scrap-blob:<sha>`, `scrap-tag:<tag>`) |
+| `style` | a `span` whose class includes a KaTeX class (`katex`, or one inside a `.katex` span) | only `height`, `vertical-align`, `margin-right`, `top` and `width`, each a CSS length (`-?[0-9.]+(em|ex|px|%)?`), separated by `;` |
+| `aria-hidden` | KaTeX's `span` | `true` |
+| `xmlns`, `encoding`, `display`, `mathvariant`, `stretchy`, `fence`, `separator`, `lspace`, `rspace`, `width`, `height`, `viewBox`, `preserveAspectRatio`, `d`, `x1`, `y1`, `x2`, `y2`, `stroke-width` | KaTeX's MathML and SVG | as KaTeX writes them, with no `url(` |
+
+Refused, with anything else not listed: any `script`; a `style` element other than the one in
+`head`; a `meta` other than the three above; `base`; a `link` other than KaTeX's stylesheet;
+`iframe`, `object`, `embed`, `form`; any `on*` attribute; any other `style` attribute; any other
+`href` (`http:`, `javascript:`, `data:`, `/api/...`, a private address) or `src`.
+
+### Placeholders
+
+- `scrap-blob:[0-9a-f]{64}` names a stored file by its sha. It is replaced only when it is the
+  whole value of an `img`'s `src` or an `a`'s `href`; anywhere else (in text, say) it is left as
+  text. The element decides the kind: an `img` is published as an image, an `a` as a file. A
+  file used both ways is published once as each; a file used twice the same way, once.
+- A drawing (Excalidraw) is published as its rendered image, through an `img`.
+- `scrap-tag:<tag, URL-encoded>` as an `href` (a tag chip) is replaced by `/t/<key>` (below).
+- A placeholder naming a file that is not on the page, or a tag the page does not have, refuses
+  the publish.
+
+Each `scrap-blob` becomes an absolute path, `/p/<slug>/<name>` (absolute, because a relative link
+from `/p/<slug>` would resolve under `/p/`), and scrap adds the bytes beside `index.html`:
+
+| Published as | Name | Bytes |
+| --- | --- | --- |
+| A photo or raster image | `img-<n>-<hex>.jpg` (`.png` when its preview is a PNG) | Its 2048-pixel preview, EXIF and GPS stripped when the preview was made |
+| An SVG, image or attachment | `img-<n>-<hex>.svg` | The stored SVG, run through scrap's SVG sanitiser again at publish (SVGs stored before #480 were never sanitised) |
+| A drawing | `img-<n>-<hex>.svg` or `.png` | Its rendered image |
+| Another attachment | `file-<n>-<hex>.<ext>` | The file as stored; `<ext>` from the list in [](#units), else `bin` |
+
+- `<n>` counts images and files separately, from 1, in the order they first appear in the HTML.
+- `<hex>` is the first 10 hex digits of the SHA-256 of the bytes published. Neither the stored
+  sha nor the uploaded file name is published (a link's label may show the name).
+- **Caps:** at most 20 images and files together, each at most 20 MiB, and at most 200 MiB for
+  the whole unit (under the receiver's 256 MiB body). Over any of them scrap refuses the publish
+  with `422` and a message saying which, before pushing anything.
+- **Time:** the receiver's 30 seconds cover the whole request, body included, so a unit must also
+  be one scrap can upload in 30 s on its link to the receiver (200 MiB needs about 56 Mbit/s).
+  scrap's client sends `Expect: 100-continue`, and treats a `408` as a failure to report, not to
+  retry at once.
+
+### Tag keys
+
+A tag's key is computed only in Python, by scrap. It is **not** `slug_base`, the rule for a
+page's slug:
+
+1. Take the tag as stored. `h` is the first 8 hex digits of the SHA-256 of its UTF-8 bytes.
+2. Normalise it to Unicode NFKD, encode it as ASCII dropping every character that has no ASCII
+   form, and lower-case it.
+3. Replace each run of characters other than `a-z` and `0-9` with one `-`, and strip `-` from both
+   ends.
+4. Cut it to 60 characters and strip `-` from the end again.
+5. The key is that slug, `-`, then `h`; or `h` alone if the slug is empty.
+
+So `personal/family` is `personal-family-` followed by 8 hex digits (for example
+`personal-family-1a2b3c4d`). A key is at most 69 characters, inside the `t/` pattern, and two tags
+with the same slug still get different keys.
+
+## What scrap builds
+
+From its kept copies of the pages ([](#scraps-copies)), with plain Python templates and no
+Markdown:
+
+- `home`: `index.html` (the public pages, newest first, with their tags and Pagefind's search
+  box), `tags.html` (every tag with its pages) and `404.html`;
+- a `t/<key>` unit for each tag a public page has, listing its pages;
+- `pagefind`: the index, built by the `pagefind[bin]` Python package at a pinned version, plus
+  Pagefind's UI files and `scrap-search.js`, which starts the UI;
+- `assets`: `katex.css` and KaTeX's fonts, from scrap's own static build of the PWA. Pagefind's
+  UI stylesheet goes here too, as CSS lives only in `assets`.
+
+Every build is deterministic: the same copies give the same bytes (sorted order, no timestamps),
+so an unchanged unit has an unchanged digest.
+
+## scrap's copies
+
+For each public page scrap keeps the unit exactly as it last pushed it, under
+`<data>/cache/publish/p/<slug>/`: `index.html` (placeholders replaced), every `img-*` and
+`file-*`, and `files.json`, which maps each published name to
+`{"sha": <stored file>, "kind": "image" | "file", "bytes_sha256": <hex>}`. It is derived data,
+not backed up. scrap also stores the digest it last pushed for every unit.
+
+**One lock in scrap** is held over every publish, unpublish and reconcile step, so they never
+interleave.
+
+- **Publish:** check and build the page unit, push it, write the copy and its digest, then build
+  and push `home`, the page's tag units (before and after) and `pagefind`.
+- **Unpublish** (Public off in the PWA or over MCP, a revert, the page going to the trash):
+  delete scrap's copy first, then `DELETE /v1/units/p/<slug>`, then build and push `home`, the
+  page's tag units (deleting a tag unit no public page has any more) and `pagefind`.
+
+## Reconciling
+
+At startup and every 10 minutes, under the lock, scrap:
+
+1. reads `GET /v1/manifest`;
+2. for each unit it means to have (each kept page, each tag, `home`, `pagefind`, `assets`),
+   compares the manifest's digest with the digest it last pushed and stored (not with a fresh
+   build), and `PUT`s the unit again from its kept bytes when the unit is missing or differs.
+   A page's copy is re-read under the lock before each `PUT`. A kept copy that is missing or
+   damaged (a file gone, or bytes that no longer match `files.json`) is not pushed: scrap deletes
+   that unit and the next Refresh all puts it back;
+3. ends with `POST /v1/sync` listing every unit it means to keep.
+
+No rendering is involved, so a site that lost its files is refilled without the PWA. A `503` is
+retried; any other failure is logged and left to the next run.
