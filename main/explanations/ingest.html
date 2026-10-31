@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Claude ingest &#8212; scrap 1.0.1.dev1+gd85e2a805 documentation</title>
+    <title>Claude ingest &#8212; scrap 1.0.1.dev2+g4a1bc775f documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=21acdd88"></script>
+    <script src="../_static/documentation_options.js?v=ac2f0a7d"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -1454,7 +1454,9 @@ characters, with control characters, leading list, heading, quote or checkbox ma
 code, emphasis marks, backslashes, brackets and angle brackets removed; empty and repeated entries
 are dropped, and at most 30 are kept.</p></li>
 <li><p><strong>When it writes.</strong> Only when the intent is <code class="docutils literal notranslate"><span class="pre">list-of-actions</span></code> with <code class="docutils literal notranslate"><span class="pre">high</span></code> confidence and
-entries, and the page, as it stands when the writer runs, is not in the trash, is still at the
+entries (for a photo of a whiteboard, handwriting or a document also <code class="docutils literal notranslate"><span class="pre">medium</span></code>, with at least
+three entries: doubt marks like “(?)” and doodles pull the model’s confidence down on a plain
+to-do list, #465; <code class="docutils literal notranslate"><span class="pre">low</span></code> never), and the page, as it stands when the writer runs, is not in the trash, is still at the
 text revision Claude read (an edit meanwhile wins and nothing is written), has no task boxes
 and is a <code class="docutils literal notranslate"><span class="pre">note</span></code> with <code class="docutils literal notranslate"><span class="pre">kind_fixed</span></code> 0 (for a photo also a <code class="docutils literal notranslate"><span class="pre">whiteboard</span></code> that ingest, not the user,
 chose, which becomes a note and then a todo). A saved link is never written to. For a photo
@@ -1468,6 +1470,11 @@ already plain bullets: the boxes go below them and the original list stays above
 rule then files the page as a todo. <code class="docutils literal notranslate"><span class="pre">revert</span></code> with <code class="docutils literal notranslate"><span class="pre">to_rev</span></code> (to the revision before) restores the text;
 when it takes away the boxes Claude added, the page returns to the kind it was filed as (a
 photo’s whiteboard or document, else a note), unless the user filed or changed the todo.</p></li>
+<li><p><strong>Due date.</strong> A photo’s reading also has <code class="docutils literal notranslate"><span class="pre">due</span></code>: the day the page says the list is for, which
+the prompt works out from the day the photo was taken (given with the image), or <code class="docutils literal notranslate"><span class="pre">MM-DD</span></code> when
+the page writes no year (code takes its next occurrence), else empty. Once the boxes are written
+and the page is a todo with no due date, a second revision by <code class="docutils literal notranslate"><span class="pre">claude</span></code> sets <code class="docutils literal notranslate"><span class="pre">due</span></code>; revert undoes
+it. An empty or impossible date sets nothing, and a due date the user set is never changed.</p></li>
 <li><p><strong>Reprocess and Ask Claude</strong> read again, but a page that has boxes is skipped, so boxes are
 never added twice. A photo page is read again for its drawing and tags, as before.</p></li>
 <li><p><strong>Enrich runs once more.</strong> The revision is a text save, so a saved text page queues one more
