@@ -85,6 +85,50 @@ BLOCK = "```math\n\\Large\n{}\n```\n\n&nbsp;\n"
         ),
         ("Title\n---\n\n## H", "Title\n---\n\n## H\n"),
         ("a\r\n\r\n$x$", "a\n\n$`\\large x`$\n"),
+        # a quote or list item ends a paragraph, so its maths is a block of its own
+        (
+            "Answer:\n> $$\n> x^2\n> $$",
+            "Answer:\n> ```math\n> \\Large\n> x^2\n> ```\n>\n> &nbsp;\n>\n",
+        ),
+        (
+            "Intro:\n- $$\n  z\n  $$",
+            "Intro:\n- ```math\n  \\Large\n  z\n  ```\n\n  &nbsp;\n",
+        ),
+        ("Costs $a\n- b$ c", "Costs \\$a\n- b\\$ c\n"),
+        ("two\n2. not a list $x$", "two\\\n2. not a list $`\\large x`$\n"),
+        # a lone backtick cannot pair with the backticks of $`...`$
+        (
+            "Use the ` key, then $y$ is fine.",
+            "Use the \\` key, then $`\\large y`$ is fine.\n",
+        ),
+        ("``a`b $x$``", "``a`b $x$``\n"),
+        # indented code in a list item, and 5 spaces after a marker, are code
+        ("- a\n\n      code $q$\n\nb", "- a\n\n      code $q$\n\nb\n"),
+        ("-     $x$ code", "-     $x$ code\n"),
+        # a fence ends with its quote or list item
+        ("> ```\n> $x$\n\n$y$", "> ```\n> $x$\n\n$`\\large y`$\n"),
+        ("- ```\n  $x$\n$y$", "- ```\n  $x$\n$`\\large y`$\n"),
+        # a $ in a URL, an autolink or a link destination stays as it is
+        (
+            "See https://example.com/api?$filter=x and $y$",
+            "See https://example.com/api?$filter=x and $`\\large y`$\n",
+        ),
+        ("<https://e.com/$a> $5", "<https://e.com/$a> \\$5\n"),
+        ("[x](https://e.com/$a) $5", "[x](https://e.com/$a) \\$5\n"),
+        # spacing: &nbsp; kept round a divider with no heading after it; several
+        # &nbsp; after a math block become one; ```math` is not a fence
+        ("a\n\n&nbsp;\n\n---\n\n&nbsp;\n\nb", "a\n\n&nbsp;\n\n---\n\n&nbsp;\n\nb\n"),
+        ("$$x$$\n\n&nbsp;\n\n&nbsp;\n\ntext", BLOCK.format("x") + "\ntext\n"),
+        ("```math` $x$", "\\`\\`\\`math\\` $`\\large x`$\n"),
+        # a newline in a paragraph is a hard break, as scrap shows it; not in code,
+        # tables or maths, nor after a hard break already
+        ("one $x$\ntwo\nthree", "one $`\\large x`$\\\ntwo\\\nthree\n"),
+        ("> a\n> b", "> a\\\n> b\n"),
+        ("- a\n  b", "- a\\\n  b\n"),
+        ("a  \nb\\\nc<br>\nd", "a  \nb\\\nc<br>\nd\n"),
+        ("$a\nb$", "$`\\large a\nb`$\n"),
+        ("`a\nb`", "`a\nb`\n"),
+        ("Title\nmore\n===", "Title\\\nmore\n===\n"),
     ],
 )
 def test_convert(text, want):
@@ -133,17 +177,33 @@ def test_check(tmp_path):
     md = tmp_path / "gist.md"
     md.write_text("a $`\\large x`$ b\n\n```math\n\\Large\ny\n```\n")
     good = tmp_path / "good.html"
-    good.write_text(
-        '<p>a <math-renderer class="js-inline-math">$x$</math-renderer> b</p>'
-        '<math-renderer class="js-display-math">$$y$$</math-renderer>'
+    # As GitHub's markdown API (gfm mode) writes them
+    inline = (
+        '<math-renderer class="js-inline-math" style="display: inline-block" '
+        'data-run-id="1">$\\large x$</math-renderer>'
     )
-    bad = tmp_path / "bad.html"
-    bad.write_text(
-        "<p>a $<code>\\large x</code>$ b</p>"
-        '<math-renderer class="js-display-math">$$y$$</math-renderer>'
+    block = (
+        '<math-renderer class="js-display-math" style="display: block" '
+        'data-run-id="1">$$\\Large\ny\n$$</math-renderer>'
     )
+    good.write_text(f"<p>a {inline} b</p>\n{block}\n")
     ok = run(tmp_path, "--check", "gist.md", "good.html")
     assert ok.returncode == 0, ok.stdout + ok.stderr
-    failed = run(tmp_path, "--check", "gist.md", "bad.html")
-    assert failed.returncode == 1
-    assert "raw maths" in failed.stdout
+    bad = {
+        # $`x`$ not taken as maths
+        "code": '<p>a $<code class="notranslate">\\large x</code>$ b</p>',
+        # a stray backtick paired with one of $`x`$'s
+        "paired": '<p>the <code class="notranslate"> key, $</code>\\large x`$ ok</p>',
+        # plain $...$ left as text
+        "plain": "<p>a $x^2$th b</p>",
+    }
+    for name, html in bad.items():
+        (tmp_path / f"{name}.html").write_text(f"{html}\n{block}\n")
+        failed = run(tmp_path, "--check", "gist.md", f"{name}.html")
+        assert failed.returncode == 1, name
+        assert "raw maths" in failed.stdout, name
+    # a path with backslashes in the text is not maths
+    (tmp_path / "path.html").write_text(
+        f"<p>a {inline} b C:\\Users\\me $5</p>\n{block}\n"
+    )
+    assert run(tmp_path, "--check", "gist.md", "path.html").returncode == 0

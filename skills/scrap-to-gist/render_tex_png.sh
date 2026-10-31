@@ -35,15 +35,21 @@ document.fonts.ready.then(()=>{const r=document.getElementById('m').getBoundingC
 document.title=Math.ceil(r.width)+'x'+Math.ceil(r.height);});
 </script></body></html>
 H
-size=$(timeout 60 "$chrome" --headless=new --disable-gpu --no-sandbox --user-data-dir="$dir/profile" \
-  --virtual-time-budget=10000 --dump-dom "$dir/page.html" 2>/dev/null |
-  grep -o '<title>[0-9x]*' | sed 's/<title>//' || true)
+# Stop a hung Chrome after a minute, with timeout (gtimeout on macOS) if there is one
+limit=$(command -v timeout || command -v gtimeout || true)
+run() { if [ -n "$limit" ]; then "$limit" 60 "$@"; else "$@"; fi; }
+if ! dom=$(run "$chrome" --headless=new --disable-gpu --no-sandbox --user-data-dir="$dir/profile" \
+  --virtual-time-budget=10000 --dump-dom "$dir/page.html" 2>/dev/null); then
+    echo "render_tex_png.sh: Chrome failed or timed out" >&2
+    exit 1
+fi
+size=$(printf '%s' "$dom" | grep -o '<title>[0-9x]*' | sed 's/<title>//' || true)
 if [ -z "$size" ]; then
     echo "render_tex_png.sh: KaTeX did not render (no internet, or bad TeX?)" >&2
     exit 1
 fi
 w=${size%x*}; h=${size#*x}
-timeout 60 "$chrome" --headless=new --disable-gpu --no-sandbox --user-data-dir="$dir/profile" \
+run "$chrome" --headless=new --disable-gpu --no-sandbox --user-data-dir="$dir/profile" \
   --hide-scrollbars --virtual-time-budget=5000 --default-background-color=00000000 \
   --force-device-scale-factor=2 --window-size="$w,$h" --screenshot="$out" "$dir/page.html" >/dev/null 2>&1
 echo "$out ${w}x${h} css px"

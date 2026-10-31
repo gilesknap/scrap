@@ -5,10 +5,14 @@ Usage: scrap_to_gist.py IN.md OUT.md [--title "H1 title"] [--scrap-host URL]
                         [--link slug=https://...]...
        scrap_to_gist.py --check GIST.md API.html
 
-Maths is found with scrap's own rules (ported from src/scrap/maths.py and
-web/src/mathrules.ts, the cases in tests/maths_cases.json): $...$ and $$...$$ in a
-line, $$ ... $$ on lines of their own, a top-level amsmath environment, and ```math
-fences. Code (inline code spans, ``` and ~~~ fences, indented code) is never changed.
+Maths is found with scrap's own rules (scrap_markdown.py beside this script, ported
+from src/scrap/maths.py and web/src/mathrules.ts, the cases in tests/maths_cases.json):
+$...$ and $$...$$ in a line, $$ ... $$ on lines of their own, a top-level amsmath
+environment, and ```math fences. Code (inline code spans, ``` and ~~~ fences, indented
+code) is never changed.
+Deliberate differences: a line such as "$$a$$ and $$b$$" is two formulas here, where
+scrap reads one block "a$$ and $$b" (which KaTeX cannot draw); and a $ in a bare URL
+(https://..., www....) never starts maths, so the link survives.
 
 Transforms (all idempotent, so re-running on its own output is safe):
   * [[slug|label]] / [[slug]] (and [[slug\\|label]] in a table) -> [label](URL):
@@ -21,13 +25,17 @@ Transforms (all idempotent, so re-running on its own output is safe):
   * other inline $...$ -> $`\\large ...`$, and $$...$$ within a line ->
     $`\\displaystyle\\Large ...`$
   * a $ that scrap does not read as maths ("$5 and $10") -> \\$, so GitHub leaves it
+    (not in a URL); a lone backtick -> \\`, so it cannot pair with $`...`$
+  * a line break inside a paragraph -> a hard break (a trailing \\), as scrap shows
+    it (it renders with breaks: true; a gist does not)
   * <br> above and below each "---" divider that precedes a heading
   * optional "# title" prepended (scrap keeps the title outside the body)
 Maths using \\cancel is reported on stderr: GitHub does not draw it, so swap in an
 image (see SKILL.md).
 
---check reads the HTML of GitHub's markdown API for GIST.md and reports maths GitHub
-did not recognise (it would show as raw text). Only the standard library is used.
+--check reads the HTML of GitHub's markdown API (in gfm mode: markdown mode does not
+mark maths) for GIST.md and reports maths GitHub did not recognise (it would show as
+raw text). Only the standard library is used.
 """
 
 import argparse
@@ -36,174 +44,34 @@ import os
 import re
 import sys
 
-# --- scrap's maths rules (src/scrap/maths.py, web/src/mathrules.ts) ----------------
-
-# The top-level environments scrap takes (mdit_py_plugins.amsmath ENVIRONMENTS)
-ENVS = (
-    "equation|multline|gather|align|alignat|flalign|matrix|pmatrix|bmatrix|Bmatrix"
-    "|vmatrix|Vmatrix|eqnarray"
+# scrap_markdown.py is beside this script (also when it is loaded by path)
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from scrap_markdown import (  # noqa: E402
+    AMS_OPEN,
+    AUTOLINK,
+    GITHUB_FORM,
+    HEADING,
+    HR,
+    LINK_DEST,
+    PUNCT,
+    SETEXT,
+    SIZE,
+    TABLE_DELIM,
+    URL_BEFORE,
+    WIKI,
+    ams_block,
+    blank,
+    cont_of,
+    dollar_block,
+    escaped,
+    interrupts,
+    math_at,
+    protect_code,
+    quote,
+    quotes,
+    split_prefix,
+    strip_prefix,
 )
-AMS_OPEN = re.compile(rf"\\begin\{{({ENVS})(\*?)\}}")
-# [[slug]] / [[slug|label]] / [[slug\|label]] (web/src/render.ts WIKI)
-WIKI = re.compile(r"^([a-z0-9-]+)(?:\\?\|(.+))?$")
-PUNCT = set("!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~")
-
-
-def _escaped(src: str, pos: int) -> bool:
-    """Whether the character at pos is escaped: an odd run of backslashes before it."""
-    n = 0
-    while pos - n - 1 >= 0 and src[pos - n - 1] == "\\":
-        n += 1
-    return n % 2 == 1
-
-
-def _math_at(src: str, pos: int) -> tuple[str, bool, int] | None:
-    """$tex$ or $$tex$$ starting at pos, as scrap reads it (maths.py _inline):
-    (tex, double, end after the closing $), else None. Money is not maths: an opening
-    $ is not followed by a space nor preceded by a digit, a closing $ not preceded by
-    a space nor followed by a digit."""
-
-    def digit(i: int) -> bool:
-        return 0 <= i < len(src) and src[i].isdigit() and src[i].isascii()
-
-    if src[pos] != "$" or pos + 1 >= len(src) or digit(pos - 1) or _escaped(src, pos):
-        return None
-    double = src[pos + 1] == "$"
-    if not double and src[pos + 1].isspace():
-        return None
-    width = 2 if double else 1
-    start = pos + width
-    while True:  # to the closing $ (or $$)
-        end = src.find("$", start)
-        if end < 0 or end + width > len(src):
-            return None
-        if _escaped(src, end) or (double and src[end + 1 : end + 2] != "$"):
-            start = end + 1
-        else:
-            break
-    tex = src[pos + width : end]
-    if not tex or (not double and src[end - 1].isspace()) or digit(end + width):
-        return None
-    return tex, double, end + width
-
-
-# --- blocks ---------------------------------------------------------------------------
-
-QUOTE = re.compile(r"(?: {0,3}>[ ]?)*")
-LIST = re.compile(r" {0,3}(?:[-*+]|\d{1,9}[.)])(?: +|$)")
-FENCE = re.compile(r"(`{3,}|~{3,})(.*)$")
-HEADING = re.compile(r" {0,3}#{1,6}(?:\s|$)")
-TABLE_DELIM = re.compile(r"\s*\|?\s*:?-+:?\s*(?:\|\s*:?-+:?\s*)*\|?\s*$")
-CODE = "\x00{}\x00"  # a placeholder line for a code block, put back at the end
-
-
-def _quote(line: str) -> str:
-    """The quote markers at the start of line ("" if none)."""
-    m = QUOTE.match(line)
-    return m[0] if m else ""
-
-
-def _width(s: str) -> int:
-    return len(s.expandtabs(4))
-
-
-def _split(line: str) -> tuple[str, str]:
-    """(container prefix, text): the quote markers, a list marker and indent."""
-    q = _quote(line)
-    rest = line[len(q) :]
-    m = LIST.match(rest)
-    if m:
-        return line[: len(q) + m.end()], rest[m.end() :]
-    indent = len(rest) - len(rest.lstrip(" \t"))
-    return line[: len(q) + indent], rest[indent:]
-
-
-def _quotes(line: str) -> int:
-    return _quote(line).count(">")
-
-
-def _cont(prefix: str) -> str:
-    """The prefix for the following lines of a block that starts after prefix."""
-    q = _quote(prefix)
-    return q + " " * _width(prefix[len(q) :])
-
-
-def _inner(cont: str) -> int:
-    """The indent a block's following lines need (its list item's), after quotes."""
-    return _width(cont) - _width(_quote(cont))
-
-
-def _strip(line: str, cont: str) -> str:
-    """line without its container prefix (quote markers, then up to cont's indent)."""
-    q = _quote(line)
-    rest = line[len(q) :]
-    want = _inner(cont)
-    n = 0
-    while n < len(rest) and rest[n] == " " and n < want:
-        n += 1
-    return rest[n:]
-
-
-def _indent(line: str) -> int:
-    """The indent of line after its quote markers."""
-    rest = line[len(_quote(line)) :]
-    return _width(rest) - _width(rest.lstrip(" \t"))
-
-
-def _blank(line: str) -> bool:
-    return not line[len(_quote(line)) :].strip()
-
-
-def protect_code(lines: list[str]) -> tuple[list[str], list[str]]:
-    """Swap each code block (non-math fence, indented code) for a placeholder line.
-    ```math fences stay: they are display maths in scrap."""
-    out: list[str] = []
-    saved: list[str] = []
-    i, in_list, prev_blank = 0, False, True
-    while i < len(lines):
-        line = lines[i]
-        prefix, text = _split(line)
-        if _blank(line):
-            out.append(line)
-            i += 1
-            prev_blank = True
-            continue
-        if LIST.match(line[len(_quote(line)) :]):
-            in_list = True
-        elif prev_blank and not line[:1].isspace():
-            in_list = False
-        if prev_blank and not in_list and _indent(line) >= 4:
-            j = i
-            while j < len(lines) and (_blank(lines[j]) or _indent(lines[j]) >= 4):
-                j += 1
-            while _blank(lines[j - 1]):
-                j -= 1
-            saved.append("\n".join(lines[i:j]))
-            out.append(CODE.format(len(saved) - 1))
-            i, prev_blank = j, False
-            continue
-        if (m := FENCE.match(text)) and (in_list or _indent(line) < 4):
-            mark, info = m[1], m[2].strip()
-            if not (mark[0] == "`" and "`" in info):
-                cont = _cont(prefix)
-                j = i + 1
-                while j < len(lines):
-                    close = _strip(lines[j], cont).strip()
-                    if close.startswith(mark) and not close.strip(mark[0]):
-                        break
-                    j += 1
-                if info.split()[:1] != ["math"]:
-                    saved.append("\n".join(lines[i : j + 1]))
-                    out.append(CODE.format(len(saved) - 1))
-                else:
-                    out.extend(lines[i : j + 1])
-                i, prev_blank = j + 1, False
-                continue
-        out.append(line)
-        i += 1
-        prev_blank = False
-    return out, saved
-
 
 # --- inline -------------------------------------------------------------------------
 
@@ -227,24 +95,24 @@ class Converter:
     def inline_math(self, tex: str, kind: str) -> str:
         self.maths.append(tex)
         if kind == "line":  # the whole line: left-aligned display maths in scrap
-            tex = re.sub(
-                r"^\\displaystyle(?![A-Za-z])\s*(?:\\(?:large|Large)(?![A-Za-z])\s*)?",
-                "",
-                tex,
-            )
+            tex = re.sub(rf"^\\displaystyle{SIZE}", "", tex)
             body = "\\displaystyle\\Large " + tex
         elif kind == "double":  # $$...$$ in a line: display maths, kept in the line
-            body = "\\displaystyle\\Large " + tex.strip()
+            body = "\\displaystyle\\Large " + tex.strip(" \t")
         else:
-            body = "\\large " + re.sub(r"^\\(?:large|Large)(?![A-Za-z])\s*", "", tex)
-        if "`" in body:  # cannot go in $`...`$
-            return f"${tex}$"
+            body = "\\large " + re.sub(r"^\\(?:large|Large)(?![A-Za-z])[ \t]*", "", tex)
+        if "`" in body:  # cannot go in $`...`$: left as it was
+            mark = "$$" if kind == "double" else "$"
+            return f"{mark}{tex}{mark}"
         return f"$`{body}`$"
 
-    def inline(self, src: str, wiki: bool = True) -> str:
-        """Convert maths and links in text; code spans are copied as they are."""
+    def inline(self, src: str, wiki: bool = True, breaks: bool = False) -> str:
+        """Convert maths and links in text; code spans, autolinks and link
+        destinations are copied as they are. With breaks, a newline becomes a hard
+        break, as scrap shows it (it renders with breaks: true)."""
         out: list[str] = []
         i, n = 0, len(src)
+        text = 0  # where the plain text since the last span (maths, code, link) starts
         while i < n:
             c = src[i]
             if c == "\\" and i + 1 < n and src[i + 1] in PUNCT:
@@ -253,17 +121,43 @@ class Converter:
             elif c == "`":
                 run = len(src[i:]) - len(src[i:].lstrip("`"))
                 m = re.compile(rf"(?<!`)`{{{run}}}(?!`)").search(src, i + run)
-                end = m.end() if m else i + run
-                out.append(src[i:end])
-                i = end
-            elif c == "$" and (m := re.compile(r"\$(`+)(.+?)\1\$").match(src, i)):
-                self.maths.append(m[2])  # already GitHub's form
+                if m:
+                    out.append(src[i : m.end()])
+                    i = text = m.end()
+                else:  # a lone run is text: escape it, so it cannot pair with $`...`$
+                    out.append("\\`" * run)
+                    i += run
+            elif c == "<" and (m := AUTOLINK.match(src, i)):
                 out.append(m[0])
-                i = m.end()
+                i = text = m.end()
+            elif c == "]" and (m := LINK_DEST.match(src, i)):
+                out.append(m[0])
+                i = text = m.end()
+            elif c == "\n" and breaks:
+                done = "".join(out)
+                last = done[done.rfind("\n") + 1 :]
+                trail = len(last) - len(last.rstrip("\\"))
+                if not (
+                    not last.strip()
+                    or last.endswith("  ")
+                    or trail % 2
+                    or last.rstrip().lower().endswith(("<br>", "<br/>", "<br />"))
+                ):
+                    out.append("\\")
+                out.append(c)
+                i += 1
+            elif c == "$" and (m := GITHUB_FORM.match(src, i)):
+                self.maths.append(m[1])  # already GitHub's form
+                out.append(m[0])
+                i = text = m.end()
             elif c == "$":
-                found = _math_at(src, i)
+                if URL_BEFORE.search(src, text, i):  # a $ in a URL stays as it is
+                    out.append("$")
+                    i += 1
+                    continue
+                found = math_at(src, i)
                 if not found:
-                    out.append("$" if _escaped(src, i) else "\\$")
+                    out.append("$" if escaped(src, i) else "\\$")
                     i += 1
                     continue
                 tex, double, end = found
@@ -272,13 +166,13 @@ class Converter:
                 stop = n if stop < 0 else stop
                 whole = (
                     not double
-                    and not _split(src[start:i])[1]
+                    and not src[start:i].strip()
                     and not src[end:stop].strip()
                     and re.match(r"\\displaystyle(?![A-Za-z])", tex)
                 )
                 kind = "line" if whole else "double" if double else "inline"
                 out.append(self.inline_math(tex, kind))
-                i = end
+                i = text = end
             elif wiki and src.startswith("[[", i):
                 end = i + 2
                 while end < n and src[end] not in "[]\n":
@@ -290,7 +184,7 @@ class Converter:
                     continue
                 label = self.inline(m[2], wiki=False) if m[2] else m[1]
                 out.append(f"[{label}]({self.link(m[1])})")
-                i = end + 2
+                i = text = end + 2
             else:
                 out.append(c)
                 i += 1
@@ -312,138 +206,118 @@ class Converter:
 
     # --- blocks ---
 
-    def math_block(self, tex: str, cont: str) -> list[str]:
-        tex = re.sub(r"^\s*\\(?:large|Large)(?![A-Za-z])\s*", "", tex)
+    def math_block(self, tex: str, first: str, cont: str) -> list[str]:
+        # one \Large first (an earlier one dropped), no blank lines round the TeX
+        tex = re.sub(r"^[ \t]*\\(?:large|Large)(?![A-Za-z])[ \t]*", "", tex.strip("\n"))
+        tex = tex.strip("\n")
         self.maths.append(tex)
-        lines = ["\\Large", *tex.rstrip().split("\n")]
-        return [cont + x if x else cont.rstrip() for x in lines] + [cont + "```"]
+        lines = ["\\Large", *(tex.rstrip().split("\n") if tex.strip() else [])]
+        # a fence longer than any run of backticks the TeX starts a line with
+        runs = [len(x.lstrip()) - len(x.lstrip().lstrip("`")) for x in lines]
+        fence = "`" * max([3, *(n + 1 for n in runs if n >= 3)])
+        body = [cont + x if x else cont.rstrip() for x in lines]
+        return [first + fence + "math", *body, cont + fence]
 
-    def blocks(self, lines: list[str]) -> list[str]:
+    def paragraph(self, para: list[tuple[str, str]]) -> list[str]:
+        """A paragraph's lines, converted with their prefixes put back."""
+        texts = self.inline("\n".join(t for _, t in para), breaks=True).split("\n")
+        return [p + t for (p, _), t in zip(para, texts, strict=True)]
+
+    def blocks(self, lines: list[str], fences: list[tuple[str, str]]) -> list[str]:
         out: list[str] = []
-        para: list[str] = []
+        para: list[tuple[str, str]] = []  # a paragraph's lines: (prefix, text)
+        depth = 0  # the paragraph's quote depth
 
         def flush() -> None:
             if not para:
                 return
-            if len(para) > 1 and "|" in para[0] and TABLE_DELIM.match(para[1]):
-                out.extend(self.table_row(x) for x in para)
+            if len(para) > 1 and "|" in para[0][1] and TABLE_DELIM.match(para[1][1]):
+                out.extend(self.table_row(p + t) for p, t in para)
             else:
-                out.extend(self.inline("\n".join(para)).split("\n"))
+                out.extend(self.paragraph(para))
             para.clear()
 
         i = 0
         while i < len(lines):
             line = lines[i]
-            prefix, text = _split(line)
-            stripped = text.strip()
-            block: tuple[str, str, int] | None = None  # (tex, first prefix, next line)
             if re.fullmatch("\x00\\d+\x00", line):
                 flush()
                 out.append(line)
                 i += 1
                 continue
-            if (m := FENCE.match(text)) and m[2].strip().split()[:1] == ["math"]:
-                cont, mark = _cont(prefix), m[1]
-                j = i + 1
-                body = []
-                while j < len(lines):
-                    t = _strip(lines[j], cont)
-                    if t.strip().startswith(mark) and not t.strip().strip(mark[0]):
-                        break
-                    body.append(t)
-                    j += 1
-                block = ("\n".join(body), prefix, j + 1)
+            prefix, text = split_prefix(line)
+            stripped = text.strip()
+            after = line[len(quote(line)) :]
+            # what ends a paragraph: a blank line, a new quote, a list item that is not
+            # empty (an ordered one only from 1), a heading, a thematic break
+            if para and (
+                blank(line)
+                or quotes(line) > depth
+                or interrupts(after)
+                or HEADING.match(text)
+                or HR.match(after)
+            ):
+                flush()
+            block: tuple[str, str, int] | None = None  # (tex, first prefix, next line)
+            if m := re.fullmatch("\x00M(\\d+)\x00", line):
+                block = (fences[int(m[1])][1], fences[int(m[1])][0], i + 1)
             elif stripped.startswith("$$") and not para:
-                block = self.dollar_block(lines, i, prefix, stripped)
+                block = dollar_block(lines, i, prefix, stripped)
             elif AMS_OPEN.match(text):
-                block = self.ams_block(lines, i, prefix, text)
+                block = ams_block(lines, i, prefix, text)
             if block:
                 flush()
                 tex, first, j = block
-                cont = _cont(first)
-                out.append(first + "```math")
-                out.extend(self.math_block(tex, cont))
+                cont = cont_of(first)
+                out.extend(self.math_block(tex, first, cont))
                 # exactly one &nbsp; spacer paragraph after every math block
-                nbsp = False
                 while j < len(lines) and (
-                    _blank(lines[j])
-                    or (not nbsp and _strip(lines[j], cont).strip() == "&nbsp;")
+                    blank(lines[j]) or strip_prefix(lines[j], cont).strip() == "&nbsp;"
                 ):
-                    nbsp = nbsp or not _blank(lines[j])
                     j += 1
                 out.extend([cont.rstrip(), cont + "&nbsp;", cont.rstrip()])
                 i = j
                 continue
-            if _blank(line) or HEADING.match(text):
-                flush()
-                out.append(self.inline(line) if not _blank(line) else line)
-            else:
-                para.append(line)
             i += 1
+            if blank(line):
+                out.append(line)
+            elif not para and not text.strip():  # an empty list item
+                out.append(line)
+            elif HEADING.match(text) or (not para and HR.match(after)):
+                out.append(prefix + self.inline(text))
+            elif para and SETEXT.match(after):  # the underline of a heading
+                out.extend(self.paragraph(para))
+                out.append(line)
+                para.clear()
+            elif not para:
+                depth = quotes(line)
+                para.append((prefix, text))
+            else:  # (markdown-it keeps a continuation line's indent in the text)
+                q = quote(line)
+                para.append((q, line[len(q) :]))
         flush()
         return out
-
-    def dollar_block(
-        self, lines: list[str], i: int, prefix: str, first: str
-    ) -> tuple[str, str, int] | None:
-        """$$ at a line's start, to a line that ends $$ (that one, if it is more than
-        $$), with no blank line between (maths.py _block). One line holding more than
-        one formula ("$$a$$ and $$b$$") is left to the inline rule."""
-        cont = _cont(prefix)
-        if len(first) > 3 and first.endswith("$$"):
-            if "$" in first[2:-2]:
-                return None
-            return first[2:-2], prefix, i + 1
-        j = i
-        while True:
-            j += 1
-            if j >= len(lines):
-                return None
-            t = _strip(lines[j], cont)
-            line = t.strip()
-            out_of_list = _indent(lines[j]) < _width(cont) - _width(_quote(cont))
-            if not line or out_of_list or _quotes(lines[j]) != _quotes(prefix):
-                return None  # a blank line, or out of the list item or quote
-            if line.startswith("$$") and not line.endswith("$$"):
-                return None  # another one's opening
-            if line.endswith("$$"):
-                break
-        body = [first] + [_strip(x, cont) for x in lines[i + 1 : j + 1]]
-        return "\n".join(body).strip()[2:-2].strip("\n"), prefix, j + 1
-
-    def ams_block(
-        self, lines: list[str], i: int, prefix: str, text: str
-    ) -> tuple[str, str, int] | None:
-        """\\begin{env} at a line's start, to the line that ends \\end{env}
-        (maths.py _amsmath)."""
-        m = AMS_OPEN.match(text)
-        if not m:
-            return None
-        closing = rf"\end{{{m[1]}{m[2]}}}"
-        cont = _cont(prefix)
-        for j in range(i, len(lines)):
-            t = text if j == i else _strip(lines[j], cont)
-            if t.rstrip().endswith(closing):
-                body = [text] + [_strip(x, cont) for x in lines[i + 1 : j + 1]]
-                return "\n".join(body), prefix, j + 1
-            if j == i or not t.strip():
-                continue
-            if (again := AMS_OPEN.match(t)) and again[0] == m[0]:
-                return None
-        return None
 
 
 def convert(
     s: str, links: dict[str, str], scrap_host: str | None
 ) -> tuple[str, list[str]]:
     """Return the gist Markdown for the scrap Markdown s, and the maths found."""
-    lines, saved = protect_code(s.replace("\r\n", "\n").split("\n"))
+    lines, saved, fences = protect_code(
+        s.replace("\r\n", "\n").replace("\x00", "\ufffd").split("\n")
+    )
     s = "\n".join(lines)
-    # scrap pages often pad dividers with &nbsp; paragraphs; the divider step re-adds
-    # spacing ("---" after a blank line: after text it underlines a heading)
-    s = re.sub(r"(?:(?<=\n\n)|\A)(?:&nbsp;\n\n)?---\n\n(?:&nbsp;\n\n)?", "---\n\n", s)
+    # scrap pages often pad a divider before a heading with &nbsp; paragraphs; the
+    # <br> step below spaces those instead ("---" after a blank line: after text it
+    # underlines a heading)
+    s = re.sub(
+        r"(?:(?<=\n\n)|\A)(?:&nbsp;\n\n)?---\n\n(?:&nbsp;\n\n)?(?=#{1,6}(?:[ \t]|$))",
+        "---\n\n",
+        s,
+        flags=re.M,
+    )
     c = Converter(links, scrap_host)
-    s = "\n".join(c.blocks(s.split("\n")))
+    s = "\n".join(c.blocks(s.split("\n"), fences))
     # breathing space round dividers before headings
     s = re.sub(
         r"(?<=\n)(?:\n<br>\n)?\n---\n\n(?:<br>\n\n)?(#)",
@@ -455,15 +329,20 @@ def convert(
 
 
 def check(md: str, page: str) -> int:
-    """Compare the maths in md with what GitHub's markdown API recognised in page."""
+    """Compare the maths in md with what GitHub's markdown API (gfm mode) recognised
+    in page, its HTML, and report maths left as raw text."""
     _, maths = convert(md, {}, "x")
     found = len(re.findall(r"<math-renderer", page))
     rest = re.sub(r"<math-renderer.*?</math-renderer>", "", page, flags=re.S)
     rest = re.sub(r"<pre.*?</pre>", "", rest, flags=re.S)
-    raw = re.findall(r"\$<code>.*?</code>\$", rest)
-    rest = re.sub(r"<code>.*?</code>", "", rest, flags=re.S)
+    # $`x`$ that GitHub did not take: a code span with a $ either side, or a stray
+    # backtick that paired with one of its backticks
+    raw = re.findall(r"\$<code[^>]*>.*?</code>\$|<code[^>]*>[^<]*\$</code>", rest)
+    rest = re.sub(r"<code[^>]*>.*?</code>", "", rest, flags=re.S)
     text = html.unescape(re.sub(r"<[^>]+>", "", rest))
-    raw += re.findall(r"\\[A-Za-z]+[^\n]{0,30}", text)
+    # and a $ next to a backtick, or a $...$ pair with TeX in it
+    raw += re.findall(r"[^\n]{0,20}(?:`\$|\$`)[^\n]{0,20}", text)
+    raw += re.findall(r"\$[^$\n]*[\\^_{}][^$\n]*\$", text)
     print(f"{found} maths recognised by GitHub, {len(maths)} in the markdown")
     for r in raw:
         print(f"raw maths: {html.unescape(r)}")
