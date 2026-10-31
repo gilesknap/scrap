@@ -69,7 +69,7 @@ export function todoSays(v: { due: string | null; priority: string | null }) {
 }
 
 /** The editor keys' icons, drawn here (not in the shell's icons): a task's empty box, a
- * bulleted and a numbered list, and lines moved in and out. */
+ * bulleted and a numbered list, lines moved in and out, and Undo's arrow turning back. */
 const KEY_ICONS = {
   task: '<rect x="4.5" y="4.5" width="15" height="15" rx="3"/>',
   bullet:
@@ -77,6 +77,7 @@ const KEY_ICONS = {
   numbered: '<path d="M4 4.5h1.5V9M4 9h3M4 14.5h3l-3 4h3M10.5 6.5h9m-9 5.5h9m-9 5.5h9"/>',
   indent: '<path d="M4 5h16M11 10h9m-9 4h9M4 19h16M4 9.5l3 2.5-3 2.5"/>',
   outdent: '<path d="M4 5h16M11 10h9m-9 4h9M4 19h16M7 9.5 4 12l3 2.5"/>',
+  undo: '<path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/>',
 };
 const keyIcon = (name: keyof typeof KEY_ICONS) => {
   const t = document.createElement("template");
@@ -249,6 +250,37 @@ const later = () => {
 vv?.addEventListener("resize", later);
 vv?.addEventListener("scroll", later);
 
+/** The keys' last, Undo (no Redo): the browser's own undo, as Ctrl+Z, for phones whose
+ * keyboard has none (Gboard). Typing and the other keys go through the same history (edit(),
+ * listedit.ts), so it takes them back in order. Nothing says what the history holds, so it is
+ * judged: off on a fresh editor (nothing typed yet), on after any input in the text box, off
+ * again when an undo brings back the text it opened with or changes nothing (the history is
+ * spent). Saved or cancelled, the editor and the key go. */
+function undoKey(text: HTMLTextAreaElement) {
+  const opened = text.value;
+  const key = h(
+    "button",
+    {
+      type: "button",
+      className: "ghost",
+      "aria-label": "Undo",
+      disabled: true,
+      onclick: () => {
+        text.focus();
+        const was = text.value;
+        document.execCommand("undo");
+        if (text.value === was || text.value === opened) key.disabled = true;
+      },
+    },
+    keyIcon("undo"),
+    h("span", {}, "Undo"),
+  );
+  text.addEventListener("input", () => {
+    key.disabled = false;
+  });
+  return key;
+}
+
 export interface Editor {
   form: HTMLFormElement;
   save: HTMLButtonElement;
@@ -278,7 +310,7 @@ export function editor(o: {
   const preview = previewer(o.text, o.read);
   // Just above the keyboard (the layer is the visual viewport's height): the keys that make
   // the line (or the lines selected) a task, a bullet or a numbered item, or indent or outdent
-  // it. In a code block the list keys do nothing. A tap keeps the keyboard up.
+  // it, and Undo. In a code block the list keys do nothing. A tap keeps the keyboard up.
   const keys = h(
     "div",
     { className: "keys", onpointerdown: (e: Event) => e.preventDefault() },
@@ -300,6 +332,7 @@ export function editor(o: {
         h("span", {}, label),
       ),
     ),
+    undoKey(o.text),
   );
   const save = h("button", { type: "submit", className: "primary" }, "Save");
   const behind = [...document.querySelectorAll<HTMLElement>("body > :is(header, main, nav)")];

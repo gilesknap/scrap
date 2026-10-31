@@ -589,7 +589,11 @@ scrap and try again*.
   item; Enter on an empty item ends the list. Five keys above the keyboard act on the line or
   selection: **Task**, **Bullet**, **Number** (each a plain line again if all are already),
   **Indent** and **Outdent** (renumbering numbered items). In a code block only Indent and Outdent
-  work (two spaces).
+  work (two spaces). On a narrow phone the keys show their icons alone.
+- **Undo.** The last key, **Undo**, takes back the last change, typing or one of the keys, and
+  again for the one before, in order (most Android keyboards have no undo of their own). It is
+  greyed out until there is something to take back, and again once you are back to the text the
+  editor opened with. There is no Redo. Ctrl+Z does the same on a computer.
 - **Drafts.** The composer and Edit keep a draft on the phone as you type (tags and photos too),
   returning after Back, a reload or a closed app: the composer's as the draft row, an edit as
   **Edit draft** on its page (**Discard it** drops either). Back closes the editor, not the app.
