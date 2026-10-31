@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { shareable } from "../src/api";
 import { dispositionName, menuSpot } from "../src/sharing";
+import { pngSize, svgSize, withExt } from "../src/svgpng";
 import { pageLink } from "../src/ui";
 
 const SHA = "ab".repeat(32);
@@ -27,6 +28,47 @@ describe("sharing", () => {
       `${SHA.slice(0, 12)}.png`,
       "image/png",
     ]);
+  });
+
+  it("shares an SVG as a PNG drawn from it, named to match (#486)", () => {
+    const preview = `/api/blobs/${SHA}/preview?size=2048`;
+    expect(shareable(file("image/svg+xml", 1000, "flow.svg"))).toEqual([
+      preview,
+      "flow.png",
+      "image/png",
+    ]);
+    expect(shareable(file("image/svg+xml", 1000, null))[1]).toBe(`${SHA.slice(0, 12)}.png`);
+    // if it can't be drawn, the SVG goes as it is, named .svg
+    expect(withExt("flow.png", "svg")).toBe("flow.svg");
+    expect(withExt("diagram", "png")).toBe("diagram.png");
+    expect(withExt("a.b/c", "png")).toBe("a.b/c.png");
+  });
+
+  it("sizes an SVG by its own shape, never pairing a px side with the viewBox's other", () => {
+    const svg = (a: Record<string, string>) => (n: string) => a[n] ?? null;
+    const box = { viewBox: "0 0 400 100" };
+    // width only, or height only: the other from the viewBox's shape (the browser's size if it has one)
+    expect(svgSize(svg({ ...box, width: "800" }), [0, 0])).toEqual([800, 200]);
+    expect(svgSize(svg({ ...box, height: "50px" }), [0, 0])).toEqual([200, 50]);
+    expect(svgSize(svg({ ...box, width: "800" }), [800, 200])).toEqual([800, 200]);
+    // a width in another unit: the browser's size
+    expect(svgSize(svg({ ...box, width: "10cm" }), [378, 94.5])).toEqual([378, 94.5]);
+    expect(svgSize(svg({ width: "30", height: "20" }), [0, 0])).toEqual([30, 20]);
+    // viewBox only: its size, not a browser's default 300 x 150
+    expect(svgSize(svg(box), [300, 150])).toEqual([400, 100]);
+    // nothing to go on: the browser's size, else 300 x 150 (then drawn at 1024 x 512)
+    expect(svgSize(svg({}), [640, 480])).toEqual([640, 480]);
+    expect(svgSize(svg({ viewBox: "junk" }), [0, 0])).toEqual([300, 150]);
+    expect(pngSize(...svgSize(svg({}), [0, 0]))).toEqual([1024, 512]);
+  });
+
+  it("draws an SVG with its longest side 1024 to 2048 px", () => {
+    expect(pngSize(400, 300)).toEqual([1024, 768]);
+    expect(pngSize(1500, 500)).toEqual([1500, 500]);
+    expect(pngSize(4000, 1000)).toEqual([2048, 512]);
+    expect(pngSize(100000, 1)).toEqual([2048, 1]);
+    expect(pngSize(0, 10)).toBeNull();
+    expect(pngSize(Number.NaN, 10)).toBeNull();
   });
 
   it("names a file with its type's extension", () => {

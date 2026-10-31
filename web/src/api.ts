@@ -309,11 +309,12 @@ export function stallLimit(raw: string | null): number {
 }
 
 /** The file to share for a photo: its address, name and type. The original if other apps
- * can read it and it is not huge, else (HEIC, say) the 2048 px JPEG preview. The name
+ * can read it and it is not huge, else (HEIC, say) the 2048 px JPEG preview; an SVG is its
+ * own preview, and Share draws it as a PNG (sharing.ts, svgpng.ts). The name
  * always ends in its type's extension: Android refuses files it can't tell the type of. */
 export function shareable(f: FileRef): [string, string, string] {
   const original = /^image\/(jpeg|png|gif|webp)$/.test(f.mime) && f.size <= 20 * 2 ** 20;
-  const type = original ? f.mime : "image/jpeg";
+  const type = original ? f.mime : f.mime === "image/svg+xml" ? "image/png" : "image/jpeg";
   const ext = type === "image/jpeg" ? "jpg" : type.split("/")[1];
   let name = f.filename || f.sha256.slice(0, 12);
   if (!original) name = name.replace(/\.[^.]*$/, ""); // IMG_1.HEIC is shared as IMG_1.jpg
