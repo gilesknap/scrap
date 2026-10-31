@@ -1,0 +1,109 @@
+/* ---- Print ---- */
+/* Browser print (Print, Save as PDF), imported last of all: paper over screen.
+
+   What prints: the page's title, its text with the photos in it, and the text of its Claude
+   card (About this page: the summary, a write-up, topics, sources and related pages, with every
+   fold open). Hidden: the top bar and nav, toasts and the debug panel, the page's meta line,
+   dates, tags, tools and topic-notes prompt, .originals (the page's files that are not placed
+   in its text: a list of file rows and photos under it), each photo's and file's own Claude
+   card, a photo's Photo/Drawing tabs (the photo prints, not its drawing), and the card's
+   controls: buttons, state, prompts and the guidance box. A card with no text is left out.
+
+   Where breaks fall: each top-level block of the text asks not to be split from the next
+   (break-after: avoid), except the one before a rule or an h1/h2, so a break falls between
+   sections (a question on a test paper) when it can. Short blocks are not split; a long list
+   or quote may be. A section longer than a sheet still breaks, and the space left on a sheet
+   before a long section that does not fit stays blank. A write-up's text in the card is a .md
+   too, so the same rules apply there, deliberately. */
+@media print {
+  header,
+  nav,
+  .toast,
+  .debug,
+  .page :is(.meta, .dates, .tags, .headend, .notes, .tools, .originals, .claude:not(.enrich)),
+  .page .photo-panel :is(.tabs, .pair > .drawing),
+  .enrich :is(button, textarea, .state, .did, .claude-text.sub),
+  .enrich summary::before,
+  .enrich:not(:has(> .claude-text:not(.sub))) {
+    display: none;
+  }
+  .page .photo-panel .pair > .orig:not(.drawing) {
+    display: block;
+  }
+  main {
+    padding: 0;
+  }
+  .enrich details::details-content {
+    content-visibility: visible;
+  }
+  /* Wide code and tables wrap or show whole, not clipped sideways */
+  .page .md :is(pre, .table) {
+    overflow: visible;
+  }
+  .page .md pre {
+    white-space: pre-wrap;
+  }
+  .page .md > * {
+    break-after: avoid;
+  }
+  .page .md > :is(hr, :has(+ :is(hr, h1, h2))) {
+    break-after: auto;
+  }
+  .page .md :is(p, pre, tr, img, .katex-display, .diagram),
+  .page .md :is(li:not(:has(ul, ol)), blockquote:not(:has(> :nth-child(6)))) {
+    break-inside: avoid;
+  }
+  .page .md :is(h1, h2, h3),
+  .enrich summary {
+    break-after: avoid;
+  }
+  /* An item with a list in it may split, but not between its own line and that list */
+  .page .md li > :is(ul, ol) {
+    break-before: avoid;
+  }
+  /* Chrome ignores break-after: avoid before a details and after its summary, which stranded
+     the card's title or a fold's heading at the foot of a sheet. So the title (enrich.ts's
+     "About this page") moves into the first shown fold, the short folds are kept whole, and a
+     write-up (which may run to pages) has its heading ("In detail", writeup.ts) moved inside,
+     onto its byline, where break-after: avoid holds */
+  .enrich > .ingest,
+  .enrich .writeup > summary {
+    display: none;
+  }
+  .enrich summary {
+    display: block;
+    min-height: 0;
+    margin-block: var(--s-2);
+  }
+  .enrich > details:not(.sub):not(details:not(.sub) ~ *) {
+    border-top: none;
+  }
+  .enrich > details:not(.sub):not(details:not(.sub) ~ *) > summary::before,
+  .enrich > details.writeup:not(.sub):not(details:not(.sub) ~ *) > .card::before {
+    content: "About this page";
+    display: block;
+    width: auto; /* over the screen's chevron (css/todos.css) */
+    height: auto;
+    margin: 0 0 var(--s-2);
+    border: 0;
+    rotate: none;
+    color: var(--ink);
+    font-size: var(--t-sm);
+    font-weight: 700;
+    break-after: avoid;
+  }
+  .enrich .writeup .by::before {
+    content: "In detail";
+    display: block;
+    margin-block: var(--s-2);
+    color: var(--ink-2);
+    font-weight: 600;
+  }
+  .enrich > details.claude-text:not(.writeup, .sub),
+  .enrich .writeup .by {
+    break-inside: avoid;
+  }
+  .enrich .writeup .by {
+    break-after: avoid;
+  }
+}
