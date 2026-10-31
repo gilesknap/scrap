@@ -474,6 +474,9 @@ Page text is Markdown as GitHub writes it:
 - A line break stays a line break. A wide table scrolls sideways in its own box. On a Later page a
   link on a line of its own shows as a card (site, path in words, **Open**).
 - The text is always stored as typed, and **Edit** shows it so (except the photo tokens, below).
+- **Print** (or Save as PDF) from the browser gives the title, the text and Claude's card's text,
+  without the app's bars and buttons. When a new sheet is needed, it breaks between sections
+  rather than inside one, so a sheet may end with some blank space.
 
 ### Linking pages
 
