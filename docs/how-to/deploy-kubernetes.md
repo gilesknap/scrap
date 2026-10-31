@@ -417,8 +417,10 @@ For a quick try, `kubectl -n scrap port-forward svc/scrap 8000:80`. Nothing is e
 
 scrap can publish the pages you mark Public (issue 497) to a static site on the internet, for
 example `https://pages.example.org`. The site is served by nginx from a separate image,
-`ghcr.io/gilesknap/scrap-public`, which also holds a small upload receiver. scrap pushes each
-public page to the receiver; nothing on the public side can reach scrap. The chart's `public`
+`ghcr.io/gilesknap/scrap-public`, which also holds a small upload receiver. scrap is to push each
+public page to the receiver; nothing on the public side can reach scrap. scrap's publisher
+arrives with the scrap side of issue 497: until then this section runs the public side only,
+and the site stays empty. The chart's `public`
 section, off by default, runs it:
 
 - it runs in a namespace of its own (`public.namespace`, default `scrap-public`), labelled Pod
@@ -433,8 +435,9 @@ section, off by default, runs it:
   public files; set it to your ingress controller's namespace to narrow it), and no egress at all.
 
 The site lives in an `emptyDir` (`public.sizeLimit`, default `3Gi`: the receiver's 2 GiB quota
-plus room for an upload). It starts empty when the pod moves, and scrap fills it again: it checks
-the receiver's manifest at start and every 10 minutes and pushes what is missing.
+plus room for an upload). It starts empty when the pod moves. With the scrap side of issue 497,
+scrap fills it again: it checks the receiver's manifest at start and every 10 minutes and pushes
+what is missing.
 
 First create the public namespace, labelled Pod Security `restricted`, and the upload token. The
 token is a Secret you create, never a value. The receiver runs in the public namespace and scrap

@@ -94,8 +94,9 @@ default `scrap-public`) that you create first, labelled Pod Security `restricted
 namespace and the token Secret in it. One pod holds nginx, which serves the site read only, and an upload receiver that scrap
 pushes the pages to. Only nginx gets an Ingress (`public.ingress`). A NetworkPolicy admits only
 scrap's pods to the receiver and `public.networkPolicy.webFrom` (empty: anyone) to nginx, and
-denies all egress. The site is an `emptyDir` (`public.sizeLimit`); scrap pushes it back after the
-pod moves.
+denies all egress. The site is an `emptyDir` (`public.sizeLimit`), empty again when the pod moves.
+scrap's publisher, which pushes the pages and refills the site, arrives with the scrap side of
+issue 497: until then this section runs the public side only.
 
 The upload token is a Secret you create, at least 32 characters, named by
 `public.tokenSecret.name` and `.key`, in **both** namespaces (each pod reads only its own

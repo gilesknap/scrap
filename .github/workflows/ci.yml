@@ -71,9 +71,10 @@ jobs:
 
   # On a tag, publish the image as <tag> and latest once the checks have passed.
   # This and the Chart workflow are all a deploy needs: docs and the GitHub
-  # Release can finish later
+  # Release can finish later. Both images or neither: each publish job also waits
+  # for the other image's build and checks.
   container-publish:
-    needs: [container, lint, test, deploy, web]
+    needs: [container, container-public, lint, test, deploy, web]
     if: github.ref_type == 'tag'
     uses: ./.github/workflows/_container_publish.yml
     permissions:
@@ -81,7 +82,7 @@ jobs:
       packages: write
 
   container-public-publish:
-    needs: [container-public, lint, test, deploy, web]
+    needs: [container, container-public, lint, test, deploy, web]
     if: github.ref_type == 'tag'
     uses: ./.github/workflows/_container_publish.yml
     with:

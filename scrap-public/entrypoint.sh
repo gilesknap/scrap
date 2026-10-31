@@ -8,11 +8,11 @@ set -eu
 case "${1:-}" in
 web)
     case "${INDEXING:-off}" in
-    on | true | 1)
+    on)
         robots_tag=""
         robots_txt='User-agent: *\\nAllow: /\\n'
         ;;
-    off | false | 0 | "")
+    off)
         robots_tag="noindex, nofollow"
         robots_txt='User-agent: *\\nDisallow: /\\n'
         ;;

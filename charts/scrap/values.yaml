@@ -268,8 +268,9 @@ public:
     #       kubernetes.io/metadata.name: ingress-nginx
   # The site volume, an emptyDir shared by nginx (read only) and the receiver. The
   # receiver's quota is 2 GiB; leave room for one upload in staging (256 MiB). An
-  # emptyDir starts empty when the pod moves: scrap checks the receiver's manifest
-  # on start and every 10 minutes and pushes the site back.
+  # emptyDir starts empty when the pod moves. Refilling it (scrap checking the
+  # receiver's manifest and pushing the site back) arrives with the scrap side of
+  # issue 497, which builds scrap's publisher.
   sizeLimit: 3Gi
   resources:
     web:

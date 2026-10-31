@@ -218,7 +218,9 @@ notes with the sdist, the wheel, `docs.zip` and `install.sh` attached. In parall
 - The public site's image, `ghcr.io/gilesknap/scrap-public` (nginx and the upload
   receiver from `scrap-public/`, for the chart's `public` section), is built,
   tested with `scrap-public/test-image.sh` and published the same way, by the
-  `container-public-publish` job behind the same gates. The first time it is
+  `container-public-publish` job behind the same gates. Each publish job also
+  waits for the other image's build and checks, so a tag publishes both images
+  or neither. The first time it is
   published, make the `scrap-public` package public in the GitHub package
   settings.
 - The docs are published to GitHub Pages as a new version in the version
