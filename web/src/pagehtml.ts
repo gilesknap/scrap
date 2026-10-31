@@ -134,7 +134,11 @@ function mathOf(n: N): string | null {
   const cls = ` ${attr(n, "class") ?? ""} `;
   if (!cls.includes(" math ")) return null;
   const tex = esc(attr(n, "data-tex") ?? textOf(n).trim());
-  if (!cls.includes(" display ")) return `<code class="math">$${tex}$</code>`;
+  // A $$...$$ in a line is a span: it stays in its paragraph, as inline code
+  if (tag(n) === "span") {
+    const fence = cls.includes(" display ") ? "$$" : "$";
+    return `<code class="math">${fence}${tex}${fence}</code>`;
+  }
   return `<pre class="math">${tex.startsWith("\\begin") ? tex : `$$\n${tex}\n$$`}</pre>`;
 }
 
