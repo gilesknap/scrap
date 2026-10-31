@@ -459,6 +459,12 @@ Page text is Markdown as GitHub writes it:
 - **`[[slug]]`, `[[slug|label]]`** link to another page (in a table cell `[[slug\|label]]`).
 - A ` ```mermaid ` block is drawn as a [Mermaid](https://mermaid.js.org) diagram; offline, or with
   a mistake, it shows as code.
+- **Maths** (LaTeX, drawn by [KaTeX](https://katex.org)): `$x^2$` inline, `$$...$$` for a
+  displayed formula (on lines of its own, or in a line), a ` ```math ` block, or an environment
+  such as `\begin{align} ... \end{align}` on lines of its own. Money stays text: an opening `$` must
+  not be followed by a space, a closing `$` must not follow a space nor be followed by a digit, so
+  `$5 and $10` is not maths (write `\$` for a `$` that would be). A formula with a mistake shows
+  its TeX. Share's HTML file has each formula's TeX, as typed.
 - `[top](#my-heading)` scrolls to `## My Heading` (lower case, hyphens for spaces).
 - HTML is shown as typed, never run. Images show only when they are this server's own photos
   (another site's image shows as a link named by its alt text, else its alt text). Links open only
@@ -653,7 +659,7 @@ Tap the drawing to open it full screen.
 - It follows the phone's light or dark theme and needs the server.
 - Excalidraw is loaded only when a drawing is first shown (about 430 kB compressed; then cached
   by the browser), never for capture or search. Mermaid loads the same way, for a page with a
-  diagram. Excalidraw's fonts come from scrap itself, never a CDN; Chinese, Japanese and Korean
+  diagram, and KaTeX for a page with maths (it is kept for offline use). Excalidraw's fonts come from scrap itself, never a CDN; Chinese, Japanese and Korean
   handwriting falls back to a system font. `npm --prefix web run size` prints current figures.
 
 ## What Claude makes of a note or link
@@ -788,7 +794,8 @@ Served by scrap itself, never from a CDN:
 
 - Page text: [markdown-it](https://github.com/markdown-it/markdown-it) and its
   [footnote plugin](https://github.com/markdown-it/markdown-it-footnote) (MIT); diagrams:
-  [Mermaid](https://github.com/mermaid-js/mermaid) (MIT).
+  [Mermaid](https://github.com/mermaid-js/mermaid) (MIT); maths:
+  [KaTeX](https://github.com/KaTeX/KaTeX) and its fonts (MIT).
 - Drawing viewer: [Excalidraw](https://github.com/excalidraw/excalidraw) (MIT). Its fonts are
   served as they come from the package, without licence texts: Excalifont, Virgil, Nunito, Lilita
   One, Cascadia Code and Liberation Sans (SIL OFL 1.1), Comic Shanns (MIT) and the interface font

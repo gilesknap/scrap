@@ -9,7 +9,8 @@ import { defineConfig } from "vitest/config";
 // recent searches (searches; without it, after a cold start offline, search works but shows
 // no Recent), and the top bar's Back on a page opened cold (back; a stalled fetch of it would
 // leave Back dead, its time limit being in it), and the photo panel on a page (figure: an old
-// shell's hashed file is gone after a deploy, which leaves a page with bare photos). They are not loaded until used, so they are
+// shell's hashed file is gone after a deploy, which leaves a page with bare photos), and KaTeX
+// for maths (math, with its CSS and fonts). They are not loaded until used, so they are
 // not part of the shell's size budget. (Mermaid, for diagrams, is not kept: it is big.)
 export const OFFLINE = [
   "back",
@@ -17,6 +18,7 @@ export const OFFLINE = [
   "downscale",
   "editor",
   "figure",
+  "math",
   "page",
   "pageedit",
   "render",
@@ -113,8 +115,19 @@ const fonts: Plugin = {
   },
 };
 
+// KaTeX's fonts as WOFF2 only (every browser the app runs in reads it): its WOFF and TTF
+// fallbacks would only be 40 more files for the service worker to keep.
+const katexWoff2: Plugin = {
+  name: "scrap-katex-woff2",
+  enforce: "pre", // before Vite resolves the CSS's url()s
+  transform(code, id) {
+    if (!/[\\/]katex[\\/]dist[\\/]katex(\.min)?\.css$/.test(id)) return;
+    return code.replace(/,url\([^)]+\.(woff|ttf)\) format\("(woff|truetype)"\)/g, "");
+  },
+};
+
 export default defineConfig({
-  plugins: [shell, fonts],
+  plugins: [shell, fonts, katexWoff2],
   // Excalidraw's build reads it; React, not Preact
   define: { "process.env.IS_PREACT": JSON.stringify("false") },
   build: {
