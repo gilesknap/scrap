@@ -22,13 +22,12 @@ def start_run(conn: sqlite3.Connection, table: str, **fields: Any) -> int:
 
 def record(
     conn: sqlite3.Connection,
+    table: str,
     run_id: int,
     done: claude.Completion | None,
-    table: str = "enrich_run",
     **fields: Any,
 ) -> None:
-    """Finish an enrich_run row (or a topic_run's or model_run's: table): its
-    outcome, and the response, usage and cost."""
+    """Finish a run row in table: its outcome, and the response, usage and cost."""
     if done is not None:
         fields.update(
             served_model=done.served_model,
@@ -57,5 +56,5 @@ def failed(
 ) -> None:
     """Finish a failed call's run: its status, class and message (and the response,
     if there was one)."""
-    record(conn, run_id, error.completion, table, status=status(error),
+    record(conn, table, run_id, error.completion, status=status(error),
            error_class=error.cls, error=str(error)[:500])  # fmt: skip

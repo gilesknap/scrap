@@ -112,7 +112,7 @@ def discover(
                 {"topic": topic["id"], "title": topic["title"], "sources": fresh}
             )
     with store.connect() as conn, transaction(conn):
-        record(conn, run_id, done, "topic_run", status="ok", output=json.dumps(found))
+        record(conn, "topic_run", run_id, done, status="ok", output=json.dumps(found))
         if not dry_run:
             make(store, conn, found, done.served_model)
         resume(conn, now())  # a success ends any pause

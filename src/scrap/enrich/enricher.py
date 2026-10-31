@@ -384,7 +384,9 @@ class Enricher:
         jid, page_id = job["id"], job["page_id"]
         producer = done.served_model
         with self.store.connect() as conn, transaction(conn):
-            record(conn, run_id, done, status="ok", output=json.dumps(out))
+            record(
+                conn, "enrich_run", run_id, done, status="ok", output=json.dumps(out)
+            )
             if not self._running(conn, jid):
                 return False  # given back at shutdown: it runs again
             stamp = now()

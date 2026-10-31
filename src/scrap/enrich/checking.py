@@ -1,15 +1,13 @@
-"""Enrich: the model's output within bounds, and a write-up's run recorded."""
+"""Enrich: the model's output within bounds."""
 
-import json
 import re
 import unicodedata
 from collections.abc import Sequence
 from typing import Any
 
-from .. import actions, claude
+from .. import actions
 from ..query import CONTROL, MEDIA
-from ..runs import record
-from ..store import MAX_TAG, WIKI_LINK, Store, now, topics, transaction, writeups
+from ..store import MAX_TAG, WIKI_LINK, topics
 from ..store.constants import MD_LINK
 from .constants import (
     MAX_INVENTED,
@@ -208,28 +206,3 @@ def checked_topics(
         "new": new,
         "add": [{"topic": t, "sources": s} for t, s in add.items() if s],
     }
-
-
-def written(
-    store: Store,
-    run_id: int,
-    page_id: str,
-    done: claude.Completion,
-    version: str,
-    out: dict[str, Any],
-    guidance: str | None,
-) -> None:
-    """A write-up's (or a topic's synthesis's) run, ok, and, unless its page is in the
-    trash now, the write-up as a new current version, the page indexed again."""
-    with store.connect() as conn, transaction(conn):
-        record(conn, run_id, done, status="ok", output=json.dumps(out))
-        alive = conn.execute(
-            "SELECT 1 FROM page WHERE id = ? AND deleted_at IS NULL", (page_id,)
-        ).fetchone()
-        if alive:
-            writeups.put(
-                conn, page_id, now(), producer=done.served_model, run_id=run_id,
-                prompt_version=version, summary=out["summary"], text=out["text"],
-                guidance=guidance,
-            )  # fmt: skip
-            store.reindex(conn, page_id)

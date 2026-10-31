@@ -74,7 +74,8 @@ def relate(
             failed(conn, "enrich_run", run_id, error)
         return error
     with store.connect() as conn, transaction(conn):
-        record(conn, run_id, done, status="ok", output=json.dumps({"related": picks}))
+        record(conn, "enrich_run", run_id, done, status="ok",
+               output=json.dumps({"related": picks}))  # fmt: skip
         conn.execute("DELETE FROM related WHERE page_id = ?", (page_id,))
         conn.executemany(
             "INSERT INTO related SELECT ?, ?, ? WHERE EXISTS"

@@ -19,12 +19,13 @@ from ..ingest import svgread
 from ..ingest.constants import budget_day_micros
 from ..runs import failed, start_run
 from ..store import NotFoundError, Store, now, roles, transaction, writeups
-from .checking import checked_writeup, written
+from .checking import checked_writeup
 from .constants import BOARDS, MAX_BOARDS, WRITEUP_SCHEMA
 from .finding import CANDIDATES
 from .prompts import writeup_message, writeup_prompt
 from .relating import run_pass
 from .types import Call
+from .writeup_store import written
 
 
 def _sent(store: Store, board: dict[str, Any]) -> str | None:

@@ -23,7 +23,6 @@ the ingest worker's thread; everything shares its queue pause and daily budget. 
 docs/explanations/ingest.md.
 """
 
-from ..runs import record
 from .checking import (
     checked,
     checked_related,
@@ -242,7 +241,6 @@ __all__ = [
     "page_images",
     "page_message",
     "quoted",
-    "record",
     "related_message",
     "related_prompt",
     "system_prompt",

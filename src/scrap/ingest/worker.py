@@ -288,7 +288,7 @@ class Worker:
             if row is None:
                 return  # purged while the call ran: the run went with it
             options = json.loads(row[0])  # as now: Reprocess may confirm meanwhile
-            record(conn, run_id, done, "model_run", status="ok", output=json.dumps(out))
+            record(conn, "model_run", run_id, done, status="ok", output=json.dumps(out))
             if not self._running(conn, jid):
                 return  # given back at shutdown: it runs again
             stamp, producer = now(), done.served_model

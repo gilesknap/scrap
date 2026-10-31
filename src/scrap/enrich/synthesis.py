@@ -21,11 +21,12 @@ from ..store import (
     transaction,
     writeups,
 )
-from .checking import checked_writeup, written
+from .checking import checked_writeup
 from .constants import MAX_TOPIC_SOURCES, TOPIC_INPUT, TOPIC_SCHEMA, TOPIC_SOURCE
 from .prompts import page_images
 from .topic_prompts import source_text, topic_message, topic_prompt
 from .types import Call
+from .writeup_store import written
 
 
 def inputs(
