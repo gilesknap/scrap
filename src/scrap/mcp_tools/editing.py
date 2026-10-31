@@ -152,8 +152,9 @@ def register_editing(mcp: MCPServer, ctx: Ctx) -> None:
         as in the PWA; revert does not change the kind back.
         Each edit is a new text revision (author claude: is:claude-edited finds such
         pages), listed by revisions and undone by revert(page, to_rev); quick edits
-        of one page fold into one revision. dry_run returns the unified diff and saves
-        nothing: use it first. Removed text is kept in the revision before."""
+        of one page fold into one revision (except one that removes a file's embed).
+        dry_run returns the unified diff and saves nothing: use it first. Removed
+        text is kept in the revision before."""
         key = text(page_key(page), "page")
         if delete:
             if new:

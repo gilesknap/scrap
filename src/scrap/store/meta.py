@@ -38,6 +38,19 @@ EDIT_FIELDS = ("media_type", "status", *TODO)
 STATUSES = ("open", "in_progress", "done", "cancelled")
 
 
+def _touched(
+    before: Meta, after: Meta, added: dict[str, Any], was: dict[str, Any]
+) -> frozenset[str]:
+    """What a metadata change changes, for coalescing (#411): "meta" for its kind or
+    tags, and the fields it set or took off unless its kind changed (then they are
+    that kind's defaults, part of the kind change). subtype follows media_type."""
+    meta = {"meta"} if before != after else set()
+    if (before.kind, before.fixed) != (after.kind, after.fixed):
+        return frozenset(meta)
+    keys = added.keys() | was.keys()
+    return frozenset(meta | {"media_type" if k == "subtype" else k for k in keys})
+
+
 def _fits_todo(name: str, value: Value | None) -> bool:
     """Whether page_todo can hold value as name (check_todo takes it)."""
     try:
@@ -89,7 +102,9 @@ class MetaMixin(Core):
         always is one). Coalesced: a change by the same author and source within
         self.window seconds of the page's latest revision being made folds into it
         (its after becomes this one's), as long as nothing else changed them between
-        (that revision's after is this one's before); a fold that leaves it changing
+        (that revision's after is this one's before) and it changes the same things
+        (_touched: kind and tags, or the same fields), so a revert of a status
+        change keeps the kind change before it (#411); a fold that leaves it changing
         nothing drops it. A revert, or a change in a batch, never folds into another
         nor is folded into. Kinds that follow a page's text (task boxes file a note as
         a todo) and what ingest sets are not revisions: they are derived."""
@@ -111,6 +126,13 @@ class MetaMixin(Core):
             and (last["author"], last["source"]) == (author, source)
             and meta_of(last, "after") == before
             and 0 <= seconds_between(last["created_at"], stamp) < self.window
+            and _touched(before, after, added, was)
+            == _touched(
+                meta_of(last, "before"),
+                meta_of(last, "after"),
+                json.loads(last["fields_added"]),
+                json.loads(last["fields_was"]),
+            )
         ):
             prior = json.loads(last["fields_added"])
             # a field taken off now (in was, not added) is no longer one the burst set

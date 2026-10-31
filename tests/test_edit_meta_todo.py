@@ -6,7 +6,7 @@ from contextlib import closing
 
 import pytest
 
-from scrap.store import Store, connect
+from scrap.store import Store, connect, meta
 from test_mcp import human, ok, refused
 
 SOON, LATER = "2099-01-02", "2099-03-04"
@@ -198,13 +198,19 @@ def test_a_todo_turned_note_in_the_same_call_keeps_its_value_hidden(store):
     assert values(store, key)[0] == SOON
 
 
-def test_reverting_a_burst_that_made_a_note_a_todo_and_cleared_gives_back(store):
+def test_reverting_a_burst_that_made_a_note_a_todo_and_cleared_gives_back(
+    store, monkeypatch
+):
     # the kind before the reverted revision is a note, but the value is page_todo's
     key = todo(store, priority="low")
     ok(store, "edit_meta", pages=[key], kind="note")
     age(store)
+    # simulate a legacy row: a revision folded before #411 (which now keeps a field
+    # edit apart from a kind change), still in a store made by an older scrap
+    monkeypatch.setattr(meta, "_touched", lambda *_: frozenset())
     ok(store, "edit_meta", pages=[key], kind="todo")
     ok(store, "edit_meta", pages=[key], fields={"priority": None})
+    monkeypatch.undo()
     rev = ok(store, "revisions", page=key)["meta"][0]
     assert (rev["kind_before"], rev["kind_after"]) == ("note", "todo")
     ok(store, "revert", revision=rev["id"])

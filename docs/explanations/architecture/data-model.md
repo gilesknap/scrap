@@ -248,14 +248,17 @@ sequenceDiagram
   author's name, makes a revision Claude's, and no identity header can name `claude`
   ([ADR 33](../decisions/0033-who-made-a-page-is-stored.md)).
 - **Window.** One author's edits from one source within `SCRAP_REVISION_WINDOW` seconds (default
-  300; 0 makes every change its own revision) fold into one. MCP `edit_page` takes a `base_rev` too
+  300; 0 makes every change its own revision) fold into one, except a text edit that drops a file's
+  address (an embed deleted: the revision that had it stays, so the file counts as removed) and a
+  metadata change that touches something other than the revision before it did (kind and tags
+  count as one thing, each field as another). MCP `edit_page` takes a `base_rev` too
   ([ADR 22](../decisions/0022-page-text-editable-over-mcp-with-revisions.md)).
 - **Metadata** (`page_meta_rev`): each kind or tag change, from the PWA or MCP, records before and
   after, with a `batch_id` shared by a bulk change. MCP `revisions` lists both histories and
   `revert` undoes one
   ([ADR 19](../decisions/0019-kinds-and-tags-editable-with-revisions.md)).
-- **Not revisions:** `fields` (status), due, priority, task counts, and a provisional title
-  replaced by ingest or enrich.
+- **Not revisions:** `fields` (status), due and priority as the PWA sets them (MCP `edit_meta`'s
+  are revisions), task counts, and a provisional title replaced by ingest or enrich.
 
 ## Trash
 
