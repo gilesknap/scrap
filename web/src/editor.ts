@@ -264,34 +264,56 @@ const keyButton = (
     h("span", {}, label),
   );
 
+/** A field whose typing goes in the page's undo history: a text box, a text-like input (a
+ * tag, the title); not a kind's radio, a date or a select. */
+const typed = (el: EventTarget | null) =>
+  el instanceof HTMLTextAreaElement ||
+  (el instanceof HTMLInputElement &&
+    ["text", "search", "url", "email", "tel", "password", "number"].includes(el.type));
+
 /** The keys' last, Undo (no Redo): the browser's own undo, as Ctrl+Z, for phones whose
- * keyboard has none (Gboard). Typing, the other keys and an added file go through the same
- * history (edit(), listedit.ts), so it takes them back in order. Nothing says what the
- * history holds, so it is judged: off on a fresh editor (nothing typed yet), on after input
- * typed in the text box (not text set by code, which the history doesn't hold), off again
- * when an undo brings back the text it opened with or changes nothing (the history is
- * spent). The history is the page's, not the box's: after typing in another field (a tag,
- * the title) an undo would take that back instead, so it is off until the box is typed in
- * again. reset(): the text was replaced as a whole (Discard it), the new text where it
- * starts; stop(): the editor closed. */
+ * keyboard has none (Gboard). Typing and the other keys go through the same history (edit(),
+ * listedit.ts), so it takes them back in order. Nothing says what the history holds, so it is
+ * judged against a floor, the text as it was when the history last held nothing of the box's
+ * that Undo may take back: the text it opened with; after typing in another field (a tag, the
+ * title), the text then, since the history is the page's and an undo past that point would
+ * take back the other field's typing; after text set by code (a file added, which the history
+ * doesn't hold), the text then. Off on a fresh editor, on after input typed in the text box,
+ * off again when an undo brings the text back to the floor or changes nothing. Should an
+ * undo still reach another field, it is redone at once and the key goes off. reset(): the
+ * text was replaced as a whole (Discard it); stop(): the editor closed. */
 function undoKey(text: HTMLTextAreaElement) {
-  let opened = text.value;
+  let floor = text.value;
   const key = keyButton("undo", "Undo", "Undo", () => {
     text.focus();
     const was = text.value;
+    let elsewhere = false;
+    const watch = (e: Event) => {
+      if (e.target !== text) elsewhere = true;
+    };
+    document.addEventListener("input", watch, true);
     document.execCommand("undo");
-    if (text.value === was || text.value === opened) key.disabled = true;
+    if (elsewhere) document.execCommand("redo"); // another field's: put it back
+    document.removeEventListener("input", watch, true);
+    if (elsewhere || text.value === was || text.value === floor) {
+      floor = text.value;
+      key.disabled = true;
+    }
   });
   key.disabled = true;
   // Capturing, so it sees every field's input, whatever stops it later
   const oninput = (e: Event) => {
-    key.disabled = e.target !== text || !e.isTrusted;
+    if (e.target === text && e.isTrusted) key.disabled = false;
+    else if (e.target === text || typed(e.target)) {
+      floor = text.value;
+      key.disabled = true;
+    }
   };
   document.addEventListener("input", oninput, true);
   return {
     key,
     reset: () => {
-      opened = text.value;
+      floor = text.value;
       key.disabled = true;
     },
     stop: () => document.removeEventListener("input", oninput, true),

@@ -15,7 +15,7 @@ const open = async (page: Page) => {
   await page.goto("/");
   await page.getByRole("button", { name: "Note" }).click();
   return {
-    text: page.getByPlaceholder("Note or link"),
+    text: page.locator(".editor .fields > textarea"),
     key: keyIn(page),
   };
 };
@@ -74,16 +74,31 @@ test("the history is the page's: after typing a tag, Undo is off until the text 
   await expect(text).toHaveValue("milk");
   await text.focus();
   await page.keyboard.insertText(" and eggs");
+  // A kind picked is no typing: Undo stays on
+  await page.locator(".editor .kinds").getByText("Todo").click();
+  await expect(undo).toBeEnabled();
   await expect(undo).toBeEnabled();
   await undo.click();
   await expect(text).toHaveValue("milk");
+  await expect(undo).toBeDisabled(); // the next undo would be the tag's
   await expect(tag).toHaveValue("dairy");
+  // Were it on, an undo that reached the tag is redone at once, and the key goes off
+  await undo.evaluate((b: HTMLButtonElement) => {
+    b.disabled = false;
+  });
+  await undo.click();
+  await expect(undo).toBeDisabled();
+  await expect(tag).toHaveValue("dairy");
+  await expect(text).toHaveValue("milk");
 });
 
-test("a file added takes its place in the history: Undo takes it out", async ({ page }) => {
+test("a file added is set as code, outside the history: Undo goes off, and stops there", async ({
+  page,
+}) => {
   const { text, key } = await open(page);
   await text.focus();
   await page.keyboard.insertText("minutes");
+  await expect(key("Undo")).toBeEnabled();
   const chooser = page.waitForEvent("filechooser");
   await page.locator(".editor").getByRole("button", { name: "File", exact: true }).click();
   await (await chooser).setFiles({
@@ -91,14 +106,18 @@ test("a file added takes its place in the history: Undo takes it out", async ({ 
     mimeType: "text/plain",
     buffer: Buffer.from("some notes"),
   });
-  await expect(text).toHaveValue("minutes\n\n⟦file 1: notes.txt⟧\n\n");
-  await expect(page.locator(".editor .embeds .embed")).toHaveCount(1);
-  await key("Undo").click();
-  await expect(text).toHaveValue("minutes");
-  await expect(page.locator(".editor .embeds .embed")).toHaveCount(0);
-  await key("Undo").click();
-  await expect(text).toHaveValue("");
+  const added = "minutes\n\n⟦file 1: notes.txt⟧\n\n";
+  await expect(text).toHaveValue(added);
   await expect(key("Undo")).toBeDisabled();
+  // Typed after it, that is taken back, and no further: the file stays
+  await text.focus();
+  await text.press("ControlOrMeta+End");
+  await page.keyboard.insertText("agenda");
+  await expect(key("Undo")).toBeEnabled();
+  await key("Undo").click();
+  await expect(text).toHaveValue(added);
+  await expect(key("Undo")).toBeDisabled();
+  await expect(page.locator(".editor .embeds .embed")).toHaveCount(1);
 });
 
 test("in a page's editor: off as it opens, as a draft comes back, and after Discard it", async ({
@@ -120,10 +139,23 @@ test("in a page's editor: off as it opens, as a draft comes back, and after Disc
   await body.press("ControlOrMeta+End");
   await page.keyboard.insertText(" more");
   await expect(key("Undo")).toBeEnabled();
-  await page.getByLabel("Title").focus();
+  const title = page.getByLabel("Title");
+  const named = await title.inputValue();
+  await title.focus();
+  await title.press("End");
   await page.keyboard.insertText("!");
   await expect(key("Undo")).toBeDisabled();
   await expect(body).toHaveValue(`${opened} more`);
+  // Typed in the body again: Undo takes that back, and stops there, the title's "!" kept
+  // (the history is the page's: one more undo would have been the title's)
+  await body.focus();
+  await body.press("ControlOrMeta+End");
+  await page.keyboard.insertText(" again");
+  await expect(key("Undo")).toBeEnabled();
+  await key("Undo").click();
+  await expect(body).toHaveValue(`${opened} more`);
+  await expect(key("Undo")).toBeDisabled();
+  await expect(title).toHaveValue(`${named}!`);
 
   // Left by Back and opened again as the draft: nothing to undo
   await page.goBack();

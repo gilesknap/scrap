@@ -5,7 +5,6 @@
 // those still in the text (pending.ts wire()). Part of the editor's chunk.
 import { ANY, FILES, picker } from "./capture";
 import type { embedded } from "./editor";
-import { edit } from "./listedit";
 import { offTokens, pend, placeAt } from "./pending";
 import { h } from "./ui";
 
@@ -21,17 +20,9 @@ export function adders(text: HTMLTextAreaElement, em: Embeds) {
       return e.token;
     });
     const c = placeAt(text.value, ...offTokens(text.value, at, to), tokens);
-    // In the open editor, as typing would (listedit.ts edit()): into the undo history, so the
-    // editor's Undo takes it back. Before it opens (photos picked with the tile, a draft's)
-    // there is no history to join: set as code. Either way an input event draws its chips and
-    // keeps the draft
-    if (text.isConnected) {
-      text.focus({ preventScroll: true });
-      return edit(text, c);
-    }
     text.setRangeText(c.insert, c.from, c.to);
     text.setSelectionRange(c.start, c.end);
-    text.dispatchEvent(new Event("input", { bubbles: true }));
+    text.dispatchEvent(new Event("input", { bubbles: true })); // its chips, and the draft kept
   };
   const bar = h(
     "div",
