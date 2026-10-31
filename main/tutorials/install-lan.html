@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Try scrap on your LAN &#8212; scrap 1.1.1.dev3+g1a78048bb documentation</title>
+    <title>Try scrap on your LAN &#8212; scrap 1.1.2.dev1+g3d82363bb documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=b5f9365a"></script>
+    <script src="../_static/documentation_options.js?v=05887d45"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -559,7 +559,7 @@ podman run -d --name scrap --restart unless-stopped --network=host -v scrap-data
     -e TZ=Europe/London \
     -e SCRAP_PUBLIC_URL=http://192.168.1.10:8000,http://100.64.0.7:8000 \
     -e SCRAP_INGEST=${ANTHROPIC_API_KEY:+on} -e ANTHROPIC_API_KEY \
-    ghcr.io/gilesknap/scrap:1.1.0 serve --host 0.0.0.0
+    ghcr.io/gilesknap/scrap:1.1.1 serve --host 0.0.0.0
 </pre></div>
 </div>
 <p>Set <code class="docutils literal notranslate"><span class="pre">ANTHROPIC_API_KEY</span></code> in your shell first as in the README, or leave it empty to skip it. Use
@@ -611,7 +611,7 @@ denied” on <code class="docutils literal notranslate"><span class="pre">/data<
 volume.</p>
 <p>To copy everything into a second volume while scrap runs:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">podman</span> <span class="n">run</span> <span class="o">--</span><span class="n">rm</span> <span class="o">-</span><span class="n">v</span> <span class="n">scrap</span><span class="o">-</span><span class="n">data</span><span class="p">:</span><span class="o">/</span><span class="n">data</span> <span class="o">-</span><span class="n">v</span> <span class="n">scrap</span><span class="o">-</span><span class="n">backup</span><span class="p">:</span><span class="o">/</span><span class="n">backup</span> \
-    <span class="n">ghcr</span><span class="o">.</span><span class="n">io</span><span class="o">/</span><span class="n">gilesknap</span><span class="o">/</span><span class="n">scrap</span><span class="p">:</span><span class="mf">1.1.0</span> <span class="n">backup</span> <span class="o">/</span><span class="n">backup</span>
+    <span class="n">ghcr</span><span class="o">.</span><span class="n">io</span><span class="o">/</span><span class="n">gilesknap</span><span class="o">/</span><span class="n">scrap</span><span class="p">:</span><span class="mf">1.1.1</span> <span class="n">backup</span> <span class="o">/</span><span class="n">backup</span>
 </pre></div>
 </div>
 <p>That copy is local only; copy it off the machine to survive losing it. To update, pull a new
