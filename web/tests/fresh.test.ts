@@ -2,6 +2,7 @@ import "fake-indexeddb/auto";
 import { beforeEach, expect, it, vi } from "vitest";
 import { drafts } from "../src/db";
 import { DRAFT, FRESH, promote, recover } from "../src/fresh";
+import { fresh, leave } from "../src/freshlock";
 import { stash } from "../src/stash";
 import { toast } from "../src/ui";
 
@@ -12,7 +13,7 @@ vi.stubGlobal("document", { dispatchEvent: events });
 
 beforeEach(async () => {
   await drafts.del(DRAFT);
-  await drafts.del(FRESH);
+  for (const k of await drafts.keys(FRESH)) await drafts.del(k);
   said.mockClear();
   events.mockClear();
 });
@@ -49,10 +50,10 @@ it("makes a fresh capture's draft the kept one, with Undo for the older", async 
 });
 
 it("says only that it is kept when there was no older draft, and nothing with no fresh one", async () => {
-  expect(await promote(() => "x")).toBe(false);
+  expect(await promote(FRESH, () => "x")).toBe(false);
   expect(said).not.toHaveBeenCalled();
   await drafts.put(FRESH, { text: "fresh" });
-  expect(await promote((older) => (older ? "replaced" : "kept"))).toBe(true);
+  expect(await promote(FRESH, (older) => (older ? "replaced" : "kept"))).toBe(true);
   expect(said.mock.calls[0]).toEqual(["kept"]);
   expect(await drafts.get(DRAFT)).toEqual({ text: "fresh" });
 });
@@ -75,4 +76,100 @@ it("says a draft was not kept when storage refuses it, so no one claims 'Kept as
   put.mockRestore();
   expect(await stash("k", { text: "x" })).toBe(true);
   await drafts.del("k");
+});
+
+it("with no Web Locks, takes any fresh draft, oldest first, one per open", async () => {
+  expect(globalThis.navigator?.locks).toBeUndefined();
+  const a = await fresh();
+  const b = await fresh();
+  expect(a.key < b.key).toBe(true); // in time order
+  await drafts.put(b.key, { text: "newer" });
+  await drafts.put(a.key, { text: "older" });
+  expect(await recover()).toBe(true);
+  expect(await drafts.get(DRAFT)).toEqual({ text: "older" });
+  expect(await recover()).toBe(true);
+  expect(await drafts.get(DRAFT)).toEqual({ text: "newer" });
+  expect(await recover()).toBe(false);
+});
+
+// Web Locks as a browser has them, for one tab: a lock named is held until fn's promise settles
+function fakeLocks() {
+  const held = new Set<string>();
+  const request = async (
+    name: string,
+    a: { ifAvailable?: boolean } | ((l: unknown) => unknown),
+    b?: (l: unknown) => unknown,
+  ) => {
+    const [opts, fn] = typeof a === "function" ? [{}, a] : [a, b as (l: unknown) => unknown];
+    if (held.has(name)) {
+      if (opts.ifAvailable) return fn(null);
+      throw new Error("the fake does not queue");
+    }
+    held.add(name);
+    try {
+      return await fn({ name });
+    } finally {
+      held.delete(name);
+    }
+  };
+  return { request, held };
+}
+
+it("leaves a fresh draft whose lock is held (another tab's, open) and takes it once let go", async () => {
+  const locks = fakeLocks();
+  const before = globalThis.navigator;
+  vi.stubGlobal("navigator", { locks });
+  try {
+    await drafts.put(DRAFT, { text: "kept" });
+    const open = await fresh(); // tab A's composer
+    expect(locks.held.size).toBe(1);
+    await drafts.put(open.key, { text: "typing in A" });
+    expect(await recover()).toBe(false); // tab B opens: A's draft is left alone
+    expect(await drafts.get(DRAFT)).toEqual({ text: "kept" });
+    expect(await drafts.get(open.key)).toEqual({ text: "typing in A" });
+    expect(said).not.toHaveBeenCalled();
+    // An older build's fresh draft holds no lock: still found
+    await drafts.put(FRESH, { text: "older build" });
+    expect(await recover()).toBe(true);
+    expect(await drafts.get(DRAFT)).toEqual({ text: "older build" });
+    // A closed (its lock let go): its draft is recovered on the next open
+    open.release();
+    open.release(); // as often as it likes
+    await vi.waitFor(() => expect(locks.held.size).toBe(0));
+    expect(await recover()).toBe(true);
+    expect(await drafts.get(DRAFT)).toEqual({ text: "typing in A" });
+    expect(locks.held.size).toBe(0); // recover() lets go straight after
+  } finally {
+    vi.stubGlobal("navigator", before);
+  }
+});
+
+it("left by Back, a fresh draft keeps its lock until it is in the kept draft's place", async () => {
+  const locks = fakeLocks();
+  const before = globalThis.navigator;
+  vi.stubGlobal("navigator", { locks });
+  const move = drafts.move;
+  let moved = () => {};
+  const slow = vi.spyOn(drafts, "move").mockImplementationOnce(async (from, to) => {
+    await new Promise<void>((r) => {
+      moved = r;
+    });
+    return move(from, to);
+  });
+  try {
+    await drafts.put(DRAFT, { text: "kept" });
+    const slot = await fresh();
+    await drafts.put(slot.key, { text: "left by Back" });
+    leave(slot, () => "kept");
+    await vi.waitFor(() => expect(slow).toHaveBeenCalled());
+    expect(locks.held.size).toBe(1); // mid-move: another tab's recover() leaves it alone
+    expect(await recover()).toBe(false);
+    moved();
+    await vi.waitFor(() => expect(locks.held.size).toBe(0));
+    expect(await drafts.get(DRAFT)).toEqual({ text: "left by Back" });
+    expect(await drafts.get(slot.key)).toBeUndefined();
+  } finally {
+    slow.mockRestore();
+    vi.stubGlobal("navigator", before);
+  }
 });

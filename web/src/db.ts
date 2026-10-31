@@ -82,6 +82,13 @@ export const drafts = {
   get: <T>(key: string) => run<T | undefined>("readonly", (s) => s.get(key), "drafts"),
   put: (key: string, value: unknown) => run("readwrite", (s) => s.put(value, key), "drafts"),
   del: (key: string) => run("readwrite", (s) => s.delete(key), "drafts"),
+  /** The keys that start with prefix, in order. */
+  keys: (prefix: string) =>
+    run<string[]>(
+      "readonly",
+      (s) => s.getAllKeys(IDBKeyRange.bound(prefix, `${prefix}\uffff`)),
+      "drafts",
+    ),
   /** In one transaction: the draft under from, if there is one, takes to's place. Gives it and
    * the one it replaced (undefined: none). */
   move: <T>(from: string, to: string) => {

@@ -271,6 +271,7 @@ export function editor(o: {
   left?: () => void; // left by Back with changes (kept as the draft): say so, if not as here
   ondiscard: () => void; // put the fields back as they were
   onsave: () => void;
+  onclose?: (left: boolean) => void; // closed, however (Back, Save, Cancel); left: left() is next
 }): Editor {
   o.text.dir = "auto"; // right-to-left text lays out as such
   lists(o.text); // Enter continues a list (listedit.ts)
@@ -331,7 +332,7 @@ export function editor(o: {
   const onhide = () => document.visibilityState === "hidden" && flush();
 
   let closing: (() => void) | null = null;
-  const teardown = () => {
+  const teardown = (left = false) => {
     removeEventListener("popstate", onpop, true);
     removeEventListener("pagehide", flush);
     document.removeEventListener("visibilitychange", onhide);
@@ -342,6 +343,7 @@ export function editor(o: {
     // Its draft may have changed (kept, dropped): e.g. Capture's draft row draws it again
     document.dispatchEvent(new Event("draftchange"));
     closing?.();
+    o.onclose?.(left);
   };
   // Closing pops the editor's history entry. The phone's Back pops it too: that keeps the
   // draft, and the page under the editor stays as it is.
@@ -354,7 +356,7 @@ export function editor(o: {
       warned = false; // say it again for this Back, though a typing save said it
       if (!(await keep())) return void history.pushState({ editor: true }, "");
     } else if (!closing) void keep();
-    teardown();
+    teardown(kept);
     if (kept) (o.left ?? (() => toast("Kept as a draft")))(); // placed for the page under it
   };
   const done = () =>
