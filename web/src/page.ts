@@ -222,8 +222,8 @@ export async function page(key: string, signal: AbortSignal): Promise<Node> {
     ),
     editButton(p),
     // Its link, its text as typed (no link to scrap in it), or the page as a file; where
-    // the phone can't share, Download in Share's place, and where it can share but has no
-    // menu (no Popover API), Download beside Share
+    // the phone can't share, Download in Share's place (a computer has the menu, to copy),
+    // and where it can share but has no menu (no Popover API), Download beside Share
     share(
       () => ({ title: p.title, text: unembedded(p.body) }),
       pageLink(p.slug),

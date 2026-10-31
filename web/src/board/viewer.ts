@@ -8,7 +8,7 @@ import { ApiError, api } from "../api";
 import { drafts } from "../db";
 import type { Target } from "../drawing";
 import { icon } from "../icons";
-import { saveBlob, shareMade } from "../sharing";
+import { canShareFile, saveBlob, shareMade } from "../sharing";
 import { h, toast, when } from "../ui";
 import { elementsOf, board as mount } from "./board";
 import { type Drawing, madeBy, scenePayload, type Version } from "./frame";
@@ -72,7 +72,7 @@ export function openDrawing(t: Target, onSaved: () => void) {
     h(
       "div",
       { className: "menu" },
-      typeof navigator.share === "function"
+      canShareFile("drawing.png", "image/png") // else Export PNG does it
         ? tool("Share", (e) => void shareDrawing(e.currentTarget as HTMLElement))
         : null,
       tool("History", () => void showHistory()),

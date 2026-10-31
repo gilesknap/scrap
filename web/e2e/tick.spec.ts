@@ -173,6 +173,8 @@ test("Mark done leads a todo's toolbar, filled and wider; Download is in Share's
   await expect(menu.locator(":scope > *")).toHaveText([
     "Link",
     "Text",
+    "Print / Save as PDF",
+    "Download HTML", // this phone can't share the file: saved
     "Download",
     "Pin to Search",
   ]);

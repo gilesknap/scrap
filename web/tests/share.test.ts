@@ -54,9 +54,22 @@ describe("sharing", () => {
     const at = (left: number, top: number, width = 80) =>
       ({ left, top, width, height: 60 }) as DOMRect;
     // centred over the button, 8 px above it
-    expect(menuSpot(at(150, 700), 160, 400, 800)).toEqual({ left: 110, bottom: 108 });
+    expect(menuSpot(at(150, 700), 160, 400, 800)).toEqual({ left: 110, bottom: 108, max: 684 });
     // kept 8 px inside either edge
     expect(menuSpot(at(330, 700, 70), 160, 400, 800).left).toBe(232);
     expect(menuSpot(at(0, 700, 60), 160, 400, 800).left).toBe(8);
+  });
+
+  it("puts the menu below Share where it does not fit above (a computer's tools, at the top)", () => {
+    const at = (top: number) => ({ left: 150, top, width: 80, height: 40 }) as DOMRect;
+    // 300 px of menu above a button 100 px down: 8 px below the button instead, with the room
+    // down to 8 px above the window's foot
+    expect(menuSpot(at(100), 160, 1280, 900, 300)).toEqual({ left: 110, top: 148, max: 744 });
+    // it fits above: above, as on a phone
+    expect(menuSpot(at(700), 160, 1280, 900, 300)).toEqual({ left: 110, bottom: 208, max: 684 });
+    // no more room below than above: above, and it scrolls in what room there is
+    expect(menuSpot(at(500), 160, 1280, 520, 600)).toEqual({ left: 110, bottom: 28, max: 484 });
+    // a short window: below, capped to the room left (it scrolls)
+    expect(menuSpot(at(100), 160, 1280, 400, 380).max).toBe(244);
   });
 });

@@ -230,15 +230,9 @@ export const htmlName = (title: string) =>
       .slice(0, 60) || "page"
   }.html`;
 
-/** Make the page's HTML file from the page's view (the article on the screen). */
-export async function makeHtml(root: HTMLElement, title: string, fetcher = fetch): Promise<File> {
-  const get = async (url: string) => {
-    const r = await fetcher(url);
-    return r.ok ? r.blob() : null;
-  };
-  const shown = await inline(photos(root), get);
-  // Text sections that hold Markdown (Claude's summary) are rendered here, by the app's own
-  // renderer, whatever state the screen's DOM is in: raw text would be a file of **marks**
+/** The page's text sections that hold Markdown (Claude's summary), rendered by the app's own
+ * renderer, whatever state the screen's DOM is in: raw text would be a file of **marks**. */
+async function swapsOf(root: N): Promise<Swaps> {
   const swaps: Swaps = new Map();
   const texts = prose(root);
   if (texts.length) {
@@ -250,5 +244,29 @@ export async function makeHtml(root: HTMLElement, title: string, fetcher = fetch
       swaps.set(n, doc.body);
     }
   }
+  return swaps;
+}
+
+/** Make the page's HTML file from the page's view (the article on the screen). */
+export async function makeHtml(root: HTMLElement, title: string, fetcher = fetch): Promise<File> {
+  const get = async (url: string) => {
+    const r = await fetcher(url);
+    return r.ok ? r.blob() : null;
+  };
+  const shown = await inline(photos(root), get);
+  const swaps = await swapsOf(root);
   return new File([pageHtml(root, title, shown, swaps)], htmlName(title), { type: "text/html" });
+}
+
+/** The page's title and text as formatted text for the clipboard (Copy as rich text), as the
+ * Markdown its plain half is: no meta line, tags, Claude's card or file rows. The same markup
+ * as the file, without its document or style, and every photo named, not inlined (megabytes of
+ * base64 on the clipboard, and an address on this server would not load where it is pasted). */
+export async function articleHtml(root: N): Promise<string> {
+  const own = (n: N) => el(n) && (tag(n) === "h1" || / body /.test(` ${attr(n, "class")} `));
+  const part: N = { nodeType: ELEMENT, nodeName: "DIV", childNodes: kids(root).filter(own) };
+  const swaps = await swapsOf(part);
+  return kids(part)
+    .map((n) => render(n, new Map(), swaps))
+    .join("");
 }

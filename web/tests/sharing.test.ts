@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { sharePageFile, sharePageHtml, tapExpired } from "../src/sharing";
+import { shareMade, sharePageFile, sharePageHtml, tapExpired } from "../src/sharing";
 import { toast } from "../src/ui";
 
 vi.mock("../src/ui", async (orig) => ({ ...(await orig<object>()), toast: vi.fn() }));
@@ -144,5 +144,37 @@ describe("sharePageHtml", () => {
     await sharePageHtml(article, "My page", saved);
     expect(share).not.toHaveBeenCalled();
     expect(saved.mock.calls[0][0].name).toBe("My-page.html");
+  });
+});
+
+describe("shareMade", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.mocked(toast).mockClear();
+  });
+
+  it("saves the drawing where this phone can't share the file", async () => {
+    const share = vi.fn(async () => {});
+    vi.stubGlobal("navigator", { share, canShare: () => false });
+    const click = vi.fn();
+    vi.stubGlobal("document", {
+      createElement: () => ({ click, append: () => {}, setAttribute: () => {} }),
+      querySelectorAll: () => [],
+      body: { append: () => {} },
+    });
+    vi.stubGlobal("URL", { createObjectURL: () => "blob:x", revokeObjectURL: () => {} });
+    vi.stubGlobal("matchMedia", () => ({ matches: true }));
+    const el = {
+      getAttribute: () => null,
+      setAttribute: () => {},
+      removeAttribute: () => {},
+      childNodes: [],
+      replaceChildren: () => {},
+    } as unknown as HTMLElement;
+    const make = vi.fn(async () => new Blob(["png"], { type: "image/png" }));
+    await shareMade(el, "Drawing", "b-drawing-v1.png", make);
+    expect(share).not.toHaveBeenCalled();
+    expect(click).toHaveBeenCalledOnce();
+    expect(toast).toHaveBeenCalledWith("Downloaded b-drawing-v1.png (1 kB)");
   });
 });

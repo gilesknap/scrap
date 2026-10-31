@@ -169,14 +169,15 @@ export const pageLink = (slug: string, origin = location.origin) =>
 /** A Share button to send text, or a file from the server, to another app; none where
  * the phone can't share. Given the page's link, Share first asks which: **Link** (the
  * address, nothing fetched) or the content (`content`: its icon and word), then `more` (a
- * page's Download) if given. */
+ * page's Download) if given. Given `more`, a computer with no share sheet (a mouse) has the
+ * menu too: it copies, prints and downloads (sharing.ts). */
 export function share(
   what: () => { title: string; text?: string; file?: string[] },
   link?: string,
   content: [Icon, string] = ["note", "Text"],
   more?: HTMLElement[],
 ) {
-  if (!navigator.share) return null;
+  if (!navigator.share && !(more && matchMedia("(pointer: fine)").matches)) return null;
   const b = h("button", { type: "button" }, icon("share"), "Share");
   // The first tap loads sharing.ts, which takes the button's taps from then on
   const first = (e: MouseEvent) => {

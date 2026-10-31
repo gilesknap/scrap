@@ -402,8 +402,8 @@ div.orig {
   background: var(--accent);
   color: var(--on-accent);
 }
-/* Share's choice (a popover just above it, placed by sharing.ts): Link, the content, and on a
-   page Download (a link drawn as its rows are) */
+/* Share's choice (a popover just above it, or below it on a computer, placed by sharing.ts):
+   Link, the content, and on a page Download (a link drawn as its rows are) */
 .share-menu {
   position: fixed;
   inset: auto;
@@ -415,6 +415,7 @@ div.orig {
   background: var(--surface);
   color: var(--ink);
   box-shadow: var(--shadow-2);
+  overflow-y: auto; /* past the room it has (sharing.ts menuSpot): a short window */
 }
 .share-menu:popover-open {
   display: flex;

@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { htmlName, inline, type N, pageHtml, photos, prose, textOf } from "../src/pagehtml";
+import {
+  articleHtml,
+  htmlName,
+  inline,
+  type N,
+  pageHtml,
+  photos,
+  prose,
+  textOf,
+} from "../src/pagehtml";
 
 type Attrs = Record<string, string>;
 const t = (data: string): N => ({ nodeType: 3, nodeName: "#text", data, childNodes: [] });
@@ -227,5 +236,32 @@ describe("the meta line", () => {
     const html = pageHtml(page, "T", none);
     expect(html).toContain("</span> · <span>1 of 2");
     expect(html.replace(/<[^>]*>/g, "")).toContain("Todo · 1 of 2"); // as text or copied
+  });
+});
+
+describe("articleHtml (Copy as rich text)", () => {
+  it("is the title and the text alone, its photos named and nothing fetched", async () => {
+    const page = e(
+      "article",
+      { class: "page" },
+      e("h1", {}, "Title"),
+      e("p", { class: "meta dates" }, "Note · Created today"),
+      e("div", { class: "tags" }, e("a", { href: "/search?q=tag:x" }, "#x")),
+      e(
+        "div",
+        { class: "body md" },
+        e("p", {}, "Some ", e("strong", {}, "bold")),
+        e("img", { src: `/api/blobs/${SHA}`, alt: "Beach" }),
+      ),
+      e("div", { class: "originals" }, e("figure", {}, "scan.pdf")),
+      e("section", { class: "enrich claude" }, e("h3", {}, "About this page")),
+      e("div", { class: "bar tools" }, e("button", {}, "Share")),
+    );
+    const html = await articleHtml(page);
+    expect(html).toBe(
+      '<h1>Title</h1><div class="body md"><p>Some <strong>bold</strong></p>' +
+        '<em class="named">[Beach]</em></div>',
+    );
+    expect(html).not.toMatch(/data:|<style|<!doctype|\/api\//i);
   });
 });
