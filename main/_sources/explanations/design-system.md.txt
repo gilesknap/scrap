@@ -323,6 +323,31 @@ every few taps. So the filters open in place instead:
 - A page photo reserves a 4:3 box while it loads, then takes the photo's own shape
   (`aspect-ratio: auto 4 / 3`), at most 75 % of the screen high.
 
+## Print
+
+A page prints (the browser's Print, or Save as PDF) as paper, not as the app: `css/print.css`,
+imported last in `style.css`, so it is laid over everything else.
+
+- **What prints:** the title, the text with the photos in it (a board's photo, not its drawing),
+  and the text of the page's Claude card, About this page: its summary, a write-up, topics,
+  sources and related pages, with every fold open.
+- **What is hidden:** the top bar and nav, toasts and the debug panel, the page's meta line,
+  dates, tags and tools, the topic-notes prompt, the files listed under the text
+  (`.originals`), each photo's and file's own Claude card, a photo's Photo / Drawing tabs, and
+  every control and prompt in the card (Generate, Regenerate, the state pill, the guidance box).
+  A card with no text is left out.
+- **Where breaks fall:** each top-level block of the text asks not to be split from the next,
+  except the one before a rule or an `h1` / `h2`, so a sheet ends between sections (a question
+  on a test paper) when it can. Paragraphs, code, list items without a nested list, short quotes,
+  table rows, images, displayed maths and diagrams are not split; a long list or quote may be,
+  but never between an item's own line and the list nested in it.
+  Wide code wraps and a wide table shows whole.
+- **The cost:** a section that does not fit in what is left of a sheet starts the next one, so a
+  sheet can end with blank space; one longer than a sheet still breaks inside.
+- Chrome does not keep a heading with a `details` after it, so in print the card's title is drawn
+  in its first fold's heading, its short folds are kept whole, and a write-up's heading sits on
+  its byline.
+
 ## High contrast
 
 Under `forced-colors: active` the system replaces fills and drops shadows, so the selected
