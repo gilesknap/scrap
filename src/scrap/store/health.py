@@ -27,10 +27,11 @@ log = logging.getLogger(__name__)
 _unversioned = False  # is:outdated has run with no prompt versions (logged once)
 STALE_DAYS = 60  # an open todo not edited for this long is stale
 # Every page (not in the trash) linked one way or another to another such page: by a
-# page link (SQL wiki_links: [[slug]], or /p/<slug> as a path or full address) in its
-# text or its current write-up (either end), a related pick (either end), or a topic
-# and its sources in (either end). One set for the whole store, made once a query, so
-# is:orphan costs one pass over the pages, not one per page.
+# page link (SQL wiki_links: [[slug]] or [[slug#heading]], or /p/<slug> as a path or
+# full address) in its text or its current write-up (either end), a related pick
+# (either end), or a topic and its sources in (either end). One set for the whole
+# store, made once a query, so is:orphan costs one pass over the pages, not one per
+# page.
 LINKED = """
 SELECT s.id FROM page s, json_each(wiki_links(s.body)) l JOIN page t ON t.slug = l.value
 WHERE s.deleted_at IS NULL AND t.deleted_at IS NULL AND t.id <> s.id

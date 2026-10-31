@@ -199,7 +199,9 @@ describe("markdown", () => {
     expect(one("[[a-page#]]")).toContain('<a href="/p/a-page">');
     const table = one("| a |\n|---|\n| [[a-page#x\\|Label]] |");
     expect(table).toContain('<a href="/p/a-page">Label</a>');
-    expect(one("[[#intro]] [[Not A Slug#x]] [[a page#x]]")).not.toContain("<a");
+    expect(one("[[a-page# x]]")).toContain('<a href="/p/a-page">');
+    // a space before the # is no slug, nor is it on the server (markdown.py wiki_page)
+    expect(one("[[#intro]] [[Not A Slug#x]] [[a page#x]] [[a-page #x]]")).not.toContain("<a");
   });
 
   it("shows images only from this server's files", () => {

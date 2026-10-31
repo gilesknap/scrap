@@ -163,11 +163,12 @@ def test_wiki_targets_take_a_heading_link_s_page():
     no slug before the # ([[#x]]), or not a slug, it stays a link to no page."""
     text = (
         "[[a-page#intro]] [[b-page#x|Label]] [[c-page]] [link](/p/d-page#h)"
-        " [[a-page]] [[#top]] [[Some Title#x]] [[e-page#]]"
+        " [[a-page]] [[#top]] [[Some Title#x]] [[e-page#]] [[f-page #x]] [[g-page# x]]"
     )
     assert wiki_targets(text) == [
         "a-page", "b-page", "c-page", "d-page", "#top", "Some Title", "e-page",
-    ]  # fmt: skip
+        "f-page ", "g-page",
+    ]  # fmt: skip  # a space before the # is no slug: plain text in the PWA too
 
 
 HERE = "https://scrap.example.ts.net:8446"

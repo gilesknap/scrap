@@ -105,12 +105,15 @@ def wiki_parts(inner: str) -> tuple[str, str]:
 def wiki_page(target: str) -> str:
     """The page a wiki link's target names: its part before any #heading, or the
     target as typed if that part is empty ([[#heading]], no page). A slug only if
-    SLUG matches it; any other is a link the PWA draws as plain text.
+    SLUG matches it; any other is a link the PWA draws as plain text. Not stripped:
+    a space before the # ([[a-page #x]]) is no slug, as render.ts WIKI has it.
 
     >>> wiki_page("a-page#intro"), wiki_page("a-page"), wiki_page("#intro")
     ('a-page', 'a-page', '#intro')
+    >>> wiki_page("a-page #x"), wiki_page("a-page# x")
+    ('a-page ', 'a-page')
     """
-    return target.split("#")[0].strip() or target
+    return target.split("#")[0] or target
 
 
 def page_path(href: str, origins: Iterable[str] = ()) -> str | None:
