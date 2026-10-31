@@ -84,7 +84,7 @@ Any argument that names a page (`page`, `pages`, `append_to`) takes a page URL, 
 | `edit_meta` | `pages` (ids or slugs, at most 200) or `query` (a search), `kind`, `add_tags`, `remove_tags`, `set_tags`, `fields` (only these names, any other refused: `media_type`: `book`, `article`, `film`, `tv`, `video`, `podcast`, `music`, `game`, or `null` to take it off; it also sets `subtype`: `read`, `watch`, `listen`, `play`; and `status`: `open`, `in_progress`, `done` or `cancelled`, of a todo or a Later only; a todo's `due`, `YYYY-MM-DD`, and `priority`, `high`, `medium` or `low`, JSON `null` clearing one, not `write`'s `"none"`), `dry_run`, `limit` (1-200, default 50; applies to `query` only) | `{dry_run, batch, matched, changed, pages}`: each page's `{id, slug, url, title, changed, revision, batch, kind_before, kind_after, fixed_before, fixed_after, tags_before, tags_after, tags_added, tags_removed, fields_added, fields_removed, fields_was}` (`fields_was`: what a changed field was; `revert` puts it back) (with `dry_run`, `revision` is `null` and there is no per-page `batch`) |
 | `rename_tag` | **`old`**, **`new`** (each at most 200 characters), `merge`, `dry_run`, `limit` (1-200, default 50) | As `edit_meta`'s |
 | `edit_page` | **`page`**, `old` and `new`, or `old` and `delete` (removes `old`), `replace_all`, or `body` (needs `rev`); `title`; `rev`; `allow_empty`; `dry_run` | `{id, slug, url, dry_run, changed, rev_before, rev, folded, replacements, title_before, title, diff, diff_cut}` (`diff`: unified, of the body; `folded`: the revision this one replaced, a burst's). Not listed with `SCRAP_MCP_CONTENT_EDIT=0` |
-| `add_svg` | **`page`**, **`svg`** (the file's markup, at most 1 MiB of UTF-8), **`alt`** (what it shows, at most 300 characters), `filename` (`.svg` is added; default `diagram.svg`), `after` (text copied exactly from the body, occurring once), `key` (idempotency), `dry_run` | As `edit_page`'s (`{id, slug, url, dry_run, changed, rev_before, rev, folded, title_before, title, diff, diff_cut}`) plus `created` (`false` in a dry run, or a retry with the same `key`), `sha256`, `filename`, `embed` (the Markdown put in the text) and `download_url`. Stores the SVG, sanitised, as a new capture of the page and puts its embed in the text, after the Markdown block `after` ends in or else at the end, as a new text revision; the same `key` with another SVG is refused, and nothing is stored; see Adding images below. Any page, as `edit_page`; with `SCRAP_MCP_CONTENT_EDIT=0`, only a page written over MCP. Not listed with `SCRAP_MCP_UPLOAD=0` |
+| `add_svg` | **`page`**, **`svg`** (the file's markup, at most 1 MiB of UTF-8), **`alt`** (what it shows, at most 300 characters), `filename` (`.svg` is added; default `diagram.svg`), `after` (text copied exactly from the body, occurring once), `key` (idempotency), `dry_run` | As `edit_page`'s (`{id, slug, url, dry_run, changed, rev_before, rev, folded, title_before, title, diff, diff_cut}`) plus `created` (`false` in a dry run, or a retry with the same `key`), `sha256`, `filename`, `embed` (the Markdown put in the text) and `download_url`. Stores the SVG, sanitised, as a new capture of the page and puts its embed in the text, right after the line `after` ends on, inside its list item or quote (after a block that cannot be split: a code block, a table, display maths, a heading), or else at the end, as a new text revision, and wakes ingest; the same `key` with another SVG is refused (a dry run too), and nothing is stored; see Adding images below. Any page, whatever `SCRAP_MCP_CONTENT_EDIT`. Not listed with `SCRAP_MCP_UPLOAD=0` |
 | `revisions` | `page` and/or `batch`, or neither, `limit` (1-200, default 20: a whole batch fits), `text_rev` (only with `page`) | `{meta, more, text, trash}` (`more`: there are more metadata revisions than `limit`; text revisions also stop at `limit` but have no such flag) (with `page`, also `{id, slug, url, title, kind, rev}`; a call with `batch` alone has an empty `text` and no page fields; with `page` a page in the trash is read too, with `trashed` and `deleted_at`), newest first. With neither `page` nor `batch`, the recent-changes feed: the latest `meta` and `text` revisions of every page not in the trash, newest first, each text row also with its page's `page_id`, `slug` and `url`, and the latest moves into and out of the trash of any page (answers "did anything change overnight?" in one call). The `meta` and `text` lists are separate, each newest first, and the `text` rows include each page's creation revision (rev 1). Enrichment (summary, model tags, related pages) is not in revisions. `meta`: each metadata revision's `{id, page_id, slug, url (null if the page has no slug), author, source, kind_before, kind_after, fixed_before, fixed_after, tags_before, tags_after, tags_added, tags_removed, fields_added, reverts, batch_id, created_at, updated_at}`; `text`: each text revision of the page, `{rev, title, author, source, created_at, bytes}` (`source`: `mcp` for Claude's, else `web`); with `text_rev`, also `text_revision: {rev, title, body, author, source, created_at}`; `trash`: each move into or out of the trash (of the page, the batch, or with neither every page), at most `limit`, newest first, `{id, page_id, slug, url, action, author, source, batch_id, created_at}` (`action`: `trash` or `restore`; `source`: `mcp` for Claude's, `web` for the PWA's delete and undo) |
 | `trash` | `limit` (1-100, default 20) | `{results}`: the pages in the trash, most recently deleted first, each `{id, slug, url, title, kind, deleted_at, updated_at, topic, purge_at}`: `purge_at` is when scrap purges the page for good (from then, the nightly `scrap gc` does), `null` for a topic page (`topic` true: never purged) or with purging off |
 | `trash_pages` | **`pages`** (ids, slugs or URLs, 1 to 50), `dry_run` | `{dry_run, batch, trashed, pages}`: each page's `{id, slug, url, title, kind, deleted_at, topic, purge_at}` (`deleted_at` and `purge_at` `null` in a dry run). Moves the pages to the trash as the PWA's delete does, all or nothing: the tool error `no such page: <key>` or `already in the trash: <key>` moves none. Two or more pages share a `batch` id (`null` for one page, and in a dry run) that `undelete(batch=...)` brings back. Not listed with `SCRAP_MCP_CONTENT_EDIT=0` |
@@ -246,16 +246,28 @@ Two ways in, both off with `SCRAP_MCP_UPLOAD=0` (on by default;
 change: the capture's author is `claude` and its source `mcp`, and the embed goes into the text as
 a text revision with source `mcp`, so `is:claude-edited` finds the page, `revisions` lists it and
 `revert(page, to_rev)` takes the embed out again (the file stays attached, listed below the text,
-as when the user deletes an embed in the PWA). With `SCRAP_MCP_CONTENT_EDIT=0` both take only a
-page written over MCP.
+as when the user deletes an embed in the PWA). Either takes any page, and wakes the ingest
+worker; `SCRAP_MCP_CONTENT_EDIT=0` does not limit them.
 
 **An SVG Claude writes: `add_svg`.** SVG is text, so a labelled geometry diagram, a graph on a
 grid or a small chart costs about as much as a paragraph. The tool stores it as an image of the
 page and embeds it as the PWA's Add photo does (`![alt](/api/blobs/<sha>/preview?size=2048)`), with
-the `alt` given. `after` puts the embed on its own lines after the Markdown block in which that
-text ends (it must occur exactly once in the body, as `edit_page`'s `old`): after the paragraph,
-the whole list, table or quote, or the closing fence of a code block, and after a heading's own
-line, so a diagram goes under the question it belongs to and never splits a block; without it the embed goes at the end. The same SVG already shown on the
+the `alt` given. `after` (text that must occur exactly once in the body, as `edit_page`'s `old`)
+puts the embed right after the line on which it ends, as a paragraph of its own, so a diagram
+goes under the question it belongs to:
+
+- in a paragraph, the paragraph is split there (`(a) Find the height.` then the diagram, then
+  `Answer: 4 m`);
+- in a list item, the embed stays in the item, indented as a continuation, and the list goes on
+  (`1. Show that x = 2.`, the diagram indented under it, then `   Answer: shown`, `2. ...`); a
+  nested item uses its own indent; in a quote, it is quoted (`> `);
+- a block that cannot be split has it after its end: a fenced or indented code block (a
+  `math` one too), a table, `$$ ... $$` or a `\begin{...}` environment, a heading (a setext one
+  after its underline);
+- a split that would change the page's blocks (a next line that would then start a list or
+  code block, inline code or `$maths$` cut in two) puts it after the paragraph instead.
+
+Without `after` the embed goes at the end. The same SVG already shown on the
 page adds no revision.
 
 **Files that exist already: the upload.** A PNG chart, a screenshot or a PDF is better sent as a
@@ -285,18 +297,23 @@ names an external DTD, as matplotlib and Illustrator write, is dropped unread; o
 subset, or an entity, is refused), must be UTF-8 with an `<svg>` root, at most 1 MiB, and is stored sanitised: only
 elements that draw are kept (no `<script>`, `<foreignObject>`, animation or element of another
 namespace), no `on*` attribute, an `href` only to a `#fragment` of the file (an `<image>` may also
-use a PNG, JPEG, GIF or WebP `data:` URL), no `ping`, and in CSS (a `<style>`, any attribute)
-each `url()` only to a fragment, with no `@import`, `image-set()`, `src()`, backslash escape or
-quoted string holding a URL.
-It is served, like every stored file, with `Content-Security-Policy: sandbox` and `nosniff`, and
-the PWA shows it in `<img>`, where no script runs anyway: the sanitising is defence in depth.
+use a PNG, JPEG, GIF or WebP `data:` URL), no `ping`, and in CSS (a `<style>`, `style` and the
+presentation attributes that take a url) no comment, no @-rule but `@font-face`, `@media` and
+`@keyframes`, a `url()` only to a fragment or a `data:` font (an embedded font, as Excalidraw
+exports have), and no `image-set()`, `src()`, backslash escape or quoted string holding a URL.
+Every SVG is served (the file and its preview, under `/api` and `/mcp`) with
+`Content-Security-Policy: sandbox; default-src 'none'; style-src 'unsafe-inline'; img-src data:;
+font-src data:` and `nosniff`, so opened as a page it runs no script and fetches nothing, an SVG
+stored before #480 (not sanitised) too; the PWA shows it in `<img>`, where none of that runs
+anyway.
 
 **How an SVG is read.** Its preview (`/api/blobs/{sha}/preview`, at either size) is the file itself,
 which scales; nothing rasterises it, and a page's download with `photos=preview` keeps it as
 `.svg`. Ingest reads its words (`<title>`, `<desc>`, `<text>`) as its text at once, with no
 model call, so search finds `12 cm` or `30°`; then Claude gets its markup (the first 20,000
 characters) as text, not an image, for the description, title and tags a photo gets (no
-drawing: it is one). A gist renders SVG from its raw URLs
+drawing: it is one). A write-up (`writeup`, or a board's) sends it the same way: its markup as
+text, where a photo's JPEG would go. A gist renders SVG from its raw URLs
 (`![](https://gist.githubusercontent.com/<user>/<id>/raw/file.svg)`), and `gh gist create` takes
 it as a text file, so a page with SVG diagrams can be published as a gist of text files alone.
 
@@ -321,7 +338,8 @@ it as a text file, so a page with SVG diagrams can be published as a gist of tex
   origin as the tooltip), and `is:claude` finds them. Clients of `POST /api/captures` cannot send
   source `mcp`.
 - **Idempotency.** With `key` (at most 128 characters), a retry with the same key adds nothing
-  and returns the same page with `created: false`. Without it, every call adds. Keys are
+  and returns the same page with `created: false` (`add_svg` is stricter: the same key with
+  another SVG is refused). Without it, every call adds. Keys are
   global, not per session: use a random value per post, reused only to retry it. A key is
   matched together with its target (a new page, or the page appended to, by id or slug), so
   reusing one for another page writes there rather than being taken for a retry.

@@ -2,6 +2,7 @@
 
 import hashlib
 import html
+from collections.abc import Callable
 from typing import Any
 
 from mcp.server.mcpserver.exceptions import ToolError
@@ -52,10 +53,14 @@ class Ctx:
     made on and whether the text-editing tools are served, and the helpers that
     shape a tool's result or turn a store error into a ToolError."""
 
-    def __init__(self, store: Store, base: str, editable: bool) -> None:
+    def __init__(
+        self, store: Store, base: str, editable: bool,
+        wake: Callable[[], None] = lambda: None,
+    ) -> None:  # fmt: skip
         self.store = store
         self.base = base
         self.editable = editable
+        self.wake = wake  # the ingest worker's, for what a tool queues (add_svg)
 
     def link(self, slug: str) -> str:
         return f"{self.base}/p/{slug}"

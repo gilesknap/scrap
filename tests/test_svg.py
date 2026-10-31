@@ -30,6 +30,10 @@ EVIL = f"""<svg {NS} xmlns:xlink="http://www.w3.org/1999/xlink" onload="alert(1)
 .b{{background:url(https://evil.example/b)}}</style>
 <rect id="r" fill="url(https://evil.example/#g)" style="fill:url(#g)" width="1"/>
 </svg>""".encode()
+CSP = (  # every SVG response: sandboxed, and loading nothing from outside the file
+    "sandbox; default-src 'none'; style-src 'unsafe-inline'; img-src data:;"
+    " font-src data:"
+)
 SCENE = {
     "kind": "diagram", "title": "Triangle", "tags": ["maths"],
     "description": "A right-angled triangle with sides 12 cm and 5 cm",
@@ -140,6 +144,27 @@ BYPASSES = [  # each once fetched evil.example in a browser, or could
     "<style>svg{background: image-set(url(https://evil.example/i.png) 1x)}</style>",
     '<style>svg{background: src("https://evil.example/s.png")}</style>',
     '<rect fill="URL( http://evil.example/p#p )" filter="url(&#x27;x.svg#f&#x27;)"/>',
+    # round 2: removals that rejoin, comments that pair quotes, other @-rules
+    '<style>/*"*/@imp@import;ort "http:///evil.example/i.css";/*"*/</style>',
+    '<style>/*"*/@imp@import;ort "https:///evil.example/i.css";/*"*/</style>',
+    "<style>@imp@import;ort url(http:///evil.example/i.css);</style>",
+    "<style>svg{background:u/**/rl(http://evil.example/c.png)}"
+    " svg{background:url/**/(http://evil.example/c2.png)}</style>",
+    "<style>svg{background:url(\n\t http://evil.example/ws.png\n)}</style>",
+    '<rect style="fill:url(#a) url(///evil.example/t.png)"/>'
+    "<style>svg{background:url(///evil.example/t2.png)}</style>",
+    "<style>@font-face{font-family:z;src:url(http://evil.example/f.woff)}"
+    ' @font-face{font-family:y;src:"http:///evil.example/f"}</style>',
+    "<style>@namespace url(http://evil.example/ns); @media all{svg{background:"
+    "url(http://evil.example/m.png)}}</style>",
+    "<style>svg{--u: url(http://evil.example/v.png); background: var(--u);"
+    ' --v: "http:///evil.example/v2.png"; background-image: image(var(--v))}</style>',
+    '<style>svg{background:url(data:image/svg+xml,%3Csvg%3E%3Cimage href="http://'
+    'evil.example/d.png"/%3E%3C/svg%3E)}</style>',
+    '<style>/*"*/svg{background: -webkit-image-set("http:///evil.example/i.png"'
+    ' 1x)}/*"*/</style>',
+    '<rect cursor="url(http://evil.example/c.png),auto"'
+    ' marker-end="url(http://evil.example/m.svg#m)"/>',
     '<a href="#x" ping="http://evil.example/ping"><text>x</text></a>',
     '<image src="http://evil.example/s.png"/>',
 ]
@@ -152,6 +177,17 @@ def test_no_url_out_of_the_file_survives(markup):
     assert "evil" not in out and "//" not in out and "x.svg" not in out, out
 
 
+def test_text_attributes_are_left_as_text_and_embedded_fonts_kept():
+    font = '@font-face{font-family:"Virgil";src:url("data:font/woff2;base64,AA//AA==")}'
+    markup = (f'{H}<text aria-label="\\theta" font-family="\'DejaVu Sans\', Arial">'
+              f"He said \"a:b\"</text><style>{font}</style>"
+              '<rect title=\'He said "a:b"\' style="fill:url(#g)"/></svg>')  # fmt: skip
+    out = svg.sanitise(markup.encode()).decode()
+    assert 'aria-label="\\theta"' in out
+    assert "font-family=\"'DejaVu Sans', Arial\"" in out
+    assert "title='He said \"a:b\"'" in out and font in out
+
+
 def test_no_escape_spells_a_url():
     out = svg.sanitise(
         f"{H}<style>a{{b:u\\72l(http://e.example/x)}}</style></svg>".encode()
@@ -162,7 +198,7 @@ def test_no_escape_spells_a_url():
 def test_a_fragment_url_survives_in_any_spelling():
     css = "a{fill:url(#g)} b{fill:url( '#g' )} c{fill:URL(\"#g\")}"
     out = svg.sanitise(f"{H}<style>{css}</style></svg>".encode()).decode()
-    assert "a{fill:url(#g)} b{fill:url( '#g' )} c{fill:url(\"#g\")}" in out
+    assert css in out
 
 
 def test_its_words_are_title_desc_and_text():
@@ -191,12 +227,14 @@ def test_an_svg_added_in_the_pwa_is_stored_sanitised_and_is_its_own_preview(
     assert page["body"].endswith(f"![](/api/blobs/{sha}/preview?size=2048)")
     assert page["added"][0]["download_url"] == f"/api/blobs/{sha}?download=1"
     stored = client.get(f"/api/blobs/{sha}")
+    assert stored.headers["content-security-policy"] == CSP
+    assert stored.headers["x-content-type-options"] == "nosniff"
     assert stored.content == svg.sanitise(EVIL)  # never the markup sent
     for size in (480, 2048):
         shown = client.get(f"/api/blobs/{sha}/preview?size={size}")
         assert shown.status_code == 200
         assert shown.headers["content-type"] == "image/svg+xml"
-        assert shown.headers["content-security-policy"] == "sandbox"
+        assert shown.headers["content-security-policy"] == CSP
         assert shown.headers["x-content-type-options"] == "nosniff"
         assert shown.content == stored.content
     assert client.get(f"/api/blobs/{sha}/preview?size=99").status_code == 422
@@ -306,3 +344,31 @@ def test_an_svg_that_cannot_be_read_is_charged(tmp_path, client, note):
         state, failures, error = conn.execute(
             "SELECT state, failures, last_error FROM job").fetchone()  # fmt: skip
     assert (state, failures) == ("queued", 1) and error.startswith("image")
+
+
+def test_every_svg_response_loads_nothing_and_others_keep_the_sandbox(
+    tmp_path, monkeypatch
+):
+    from fastapi.testclient import TestClient
+
+    from scrap.app import create_app
+    from test_mcp import SECRET, bearer
+
+    monkeypatch.setenv("SCRAP_MCP_TOKEN", SECRET)
+    client = TestClient(create_app(tmp_path / "d"))
+    ref = client.post("/api/captures", json={"id": new_ulid(), "text": "G"}).json()
+    files = [("file", ("t.svg", TRIANGLE, "image/svg+xml")),
+             ("file", ("n.txt", b"notes", "text/plain"))]  # fmt: skip
+    r = client.post(f"/api/pages/{ref['page_id']}/captures",
+                    data={"id": new_ulid()}, files=files)  # fmt: skip
+    svg_sha, txt_sha = (a["sha256"] for a in r.json()["added"])
+    for base, headers in (("/api", {}), ("/mcp", bearer(SECRET))):
+        for path in (f"/blobs/{svg_sha}", f"/blobs/{svg_sha}?download=1",
+                     f"/blobs/{svg_sha}/preview?size=480",
+                     f"/blobs/{svg_sha}/preview?size=2048"):  # fmt: skip
+            got = client.get(base + path, headers=headers)
+            assert got.status_code == 200, path
+            assert got.headers["content-security-policy"] == CSP, base + path
+            assert got.headers["x-content-type-options"] == "nosniff"
+        other = client.get(f"{base}/blobs/{txt_sha}", headers=headers)
+        assert other.headers["content-security-policy"] == "sandbox"

@@ -11,7 +11,7 @@ from mcp.client.client import Client
 from scrap import mcp_server, svg
 from scrap.app import create_app
 from scrap.store import Store, connect, new_ulid
-from test_mcp import LOCAL, SECRET, bearer, human, ok, refused, write
+from test_mcp import LOCAL, SECRET, bearer, human, ok, refused
 from test_svg import EVIL, NS, TRIANGLE
 
 PAPER = "Q1 Find the hypotenuse.\nShow your working.\n\nQ2 Factorise 12."
@@ -50,7 +50,7 @@ def test_add_svg_embeds_it_after_the_question_as_claudes_revision(store):
     assert f"+{embed}" in out["diff"]
     p = store.page(ref["slug"])
     assert p["body"] == (
-        f"Q1 Find the hypotenuse.\nShow your working.\n\n{embed}\n\nQ2 Factorise 12."
+        f"Q1 Find the hypotenuse.\n\n{embed}\n\nShow your working.\n\nQ2 Factorise 12."
     )
     blob = p["captures"][1]["blobs"][0]
     assert (blob["sha256"], blob["mime"], blob["filename"]) == (
@@ -88,8 +88,12 @@ def test_add_svg_goes_at_the_end_by_default_and_a_dry_run_saves_nothing(store):
     assert len(store.page(ref["slug"])["captures"]) == 2  # the retry added nothing
     files = sorted(p.name for p in (store.dir / "files").rglob("*") if p.is_file())
     other = DOT.replace('r="4"', 'r="3"')
-    error = refused(store, "add_svg", page=key, svg=other, alt="A dot", key="k1")
-    assert "key was used for another SVG" in error
+    for dry in (True, False):  # a dry run says so too: it shows no diff
+        error = refused(store, "add_svg", page=key, svg=other, alt="A dot", key="k1",
+                        dry_run=dry)  # fmt: skip
+        assert "key was used for another SVG" in error
+    retry = ok(store, "add_svg", page=key, svg=DOT, alt="A dot", key="k1", dry_run=True)
+    assert not retry["changed"] and retry["rev"] == 2  # as the retry itself
     after = sorted(p.name for p in (store.dir / "files").rglob("*") if p.is_file())
     assert after == files  # nothing stored for the refused one
 
@@ -120,15 +124,27 @@ def test_malicious_markup_is_stored_neutralised(store):
     assert b"onload" not in stored and b"foreignObject" not in stored
 
 
-def test_with_content_edit_off_only_claudes_own_pages(store, monkeypatch):
-    monkeypatch.setenv("SCRAP_MCP_CONTENT_EDIT", "0")
+def test_content_edit_off_does_not_limit_add_svg(store, monkeypatch):
+    monkeypatch.setenv("SCRAP_MCP_CONTENT_EDIT", "0")  # only SCRAP_MCP_UPLOAD does
     mine = human(store, PAPER)
-    for dry in (True, False):
-        error = refused(store, "add_svg", page=mine["slug"], svg=DOT, alt="d",
-                        dry_run=dry)  # fmt: skip
-        assert "SCRAP_MCP_CONTENT_EDIT is off" in error
-    own = write(store, title="Claude's notes", body="Notes")
-    assert ok(store, "add_svg", page=own["slug"], svg=DOT, alt="d")["changed"]
+    assert ok(store, "add_svg", page=mine["slug"], svg=DOT, alt="d")["changed"]
+
+
+def test_add_svg_wakes_the_worker(store):
+    woken = []
+
+    async def main(**args):
+        async with Client(mcp_server.server(store, lambda: woken.append(1))) as c:
+            return await c.call_tool("add_svg", args)
+
+    ref = human(store, PAPER)
+    args = {"page": ref["slug"], "svg": DOT, "alt": "d"}
+    anyio.run(lambda: main(**args, dry_run=True))
+    assert woken == []  # a dry run queues nothing
+    anyio.run(lambda: main(**args, key="k"))
+    assert woken == [1]
+    anyio.run(lambda: main(**args, key="k"))
+    assert woken == [1]  # a retry queues nothing either
 
 
 def test_the_switch_hides_add_svg_and_a_bad_value_stops_the_start(
@@ -231,20 +247,26 @@ def test_the_upload_keeps_the_type_and_size_checks(tmp_path, monkeypatch):
     assert client.get(f"/api/pages/{ref['page_id']}").json()["rev"] == 1
 
 
-def test_the_upload_with_content_edit_off_takes_only_claudes_pages(
+def test_the_upload_with_content_edit_off_takes_any_page_and_wakes_the_worker(
     tmp_path, monkeypatch
 ):
     monkeypatch.setenv("SCRAP_MCP_TOKEN", SECRET)
     monkeypatch.setenv("SCRAP_MCP_CONTENT_EDIT", "0")
     client = TestClient(create_app(tmp_path / "data"))
+    woken = []
+    client.app.state.worker = type(  # type: ignore[attr-defined]
+        "W", (), {"wake": lambda self: woken.append(1), "alive": lambda self: True}
+    )()
     ref = page_of(client)
     png = ("a.png", b"x", "image/png")
+    before = len(woken)
     r = upload(client, ref["page_id"], png)
-    assert r.status_code == 422 and "CONTENT_EDIT" in r.json()["detail"]
+    assert r.status_code == 201 and r.json()["captures"][1]["author"] == "claude"
+    assert len(woken) == before + 1
     # the PWA's own path is unchanged
     r = client.post(f"/api/pages/{ref['page_id']}/captures",
                     data={"id": new_ulid()}, files=[("file", png)])  # fmt: skip
-    assert r.status_code == 201 and r.json()["captures"][1]["author"] == "tagged"
+    assert r.status_code == 201 and r.json()["captures"][-1]["author"] == "tagged"
 
 
 def test_with_upload_off_there_is_no_route(tmp_path, monkeypatch):

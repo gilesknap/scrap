@@ -8,11 +8,12 @@ allow-list: the elements that draw (shapes, text, paint servers, filters, a few
 structural ones), never <script>, <foreignObject>, animation (which can set an href)
 or any element of another namespace; no on* attribute; an href only to a fragment of
 the same file (#id) or, on an image, a raster data: URL; no ping; in CSS (a <style>,
-any attribute) a url() only to a fragment, and no @import, image-set(), src() or quoted
-URL. A DOCTYPE that only names the SVG DTD (as matplotlib writes) is dropped unread.
-Served with BLOB_HEADERS
-(Content-Security-Policy: sandbox, nosniff) as well, and shown in <img>, where no
-script runs anyway: this is defence in depth.
+style and the presentation attributes that take a url) no comment, no @-rule but
+@font-face, @media and @keyframes, a url() only to a fragment or an embedded font,
+and no image-set(), src() or quoted URL. A DOCTYPE that only names the SVG DTD (as
+matplotlib writes) is dropped unread. Served with blobs_api.SVG_HEADERS as well (a
+sandbox, and a CSP that loads nothing from outside the file), and shown in <img>,
+where no script runs anyway: this is defence in depth.
 
 The text is what search finds without a model, as a PDF's text layer: the contents of
 <title>, <desc> and <text> (its <tspan> and <textPath> too), one line each.
@@ -49,10 +50,24 @@ DECLARATION = re.compile(r"<!\s*(DOCTYPE|ENTITY)", re.IGNORECASE)
 PLAIN_DOCTYPE = re.compile(r"<!DOCTYPE\s[^\[\]<>]*>", re.IGNORECASE)
 XML_DECL = re.compile(r"\A\s*<\?xml[^>]*\?>")
 URL = re.compile(r"(?<![\w-])url\(", re.IGNORECASE)  # x-url( is no url(
-FRAGMENT = re.compile(r"url\(\s*(['\"]?)#[\w.-]*\1\s*\)", re.IGNORECASE)  # url(#id)
+# The url()s kept: to a fragment of this file, or an embedded font (as Excalidraw's)
+KEPT = re.compile(
+    r"url\(\s*(['\"]?)(?:#[\w.-]*|data:(?:font/[\w.+-]+|application/(?:x-)?font-[\w.+-]+)"
+    r"(?:;[\w=.+-]*)*,[A-Za-z0-9+/=%\s]*)\1\s*\)",
+    re.IGNORECASE,
+)
+COMMENT = re.compile(r"/\*.*?(?:\*/|\Z)", re.DOTALL)
+AT_RULE = re.compile(r"@(?!x-)([\w-]*)")
+AT_KEPT = ("font-face", "media", "keyframes", "-webkit-keyframes")
 STRING = re.compile(r"\"[^\"]*\"?|'[^']*'?")
-FETCHING = re.compile(r"(?:-webkit-)?image-set\(|\bsrc\(", re.IGNORECASE)
-IMPORT = re.compile(r"@import\b[^;]*;?", re.IGNORECASE)
+FETCHING = re.compile(
+    r"(?<![\w-])(?:-webkit-)?(?:image-set|image|cross-fade|element|src)\(",
+    re.IGNORECASE,
+)
+# The attributes CSS is in, and so url(): style, and the presentation ones that
+# take a url (any other attribute is text, kept as it is)
+CSS_ATTRS = ("style", "fill", "stroke", "filter", "mask", "clip-path", "marker",
+             "marker-start", "marker-mid", "marker-end", "cursor")  # fmt: skip
 DROPPED = ("ping", "src")  # attributes that fetch: <a ping>, and no SVG one needs src
 SCHEME = re.compile(r"[\x00-\x20]+")  # what a browser skips inside "java script:"
 WORDS = ("title", "desc", "text")
@@ -114,33 +129,55 @@ def _local(name: str, ns: str) -> str | None:
 
 
 def _css(value: str) -> str:
-    """CSS that fetches nothing: no backslash (so no escape can spell a name out), no
-    @import, no quoted string holding a ":" or "//" (a URL, as image-set's), no
-    image-set() or src(), and every url( that is not exactly url(#id), each looked at
-    on its own, dropped with its argument (x-url(): an unknown function, no fetch).
+    """CSS that fetches nothing, made by one pass (_css_once) after another until a
+    pass changes nothing, so no removal can join what is left into a new rule.
 
     >>> _css('fill: url("#" x); background: url(http://e/l.png); --a: ")')
     'fill: x-url(); background: x-url(); --a: ")'
     >>> print(_css("fill:url( '#g' ); b: image-set('https://e/x' 1x)"))
     fill:url( '#g' ); b: x-none("" 1x)
+    >>> print(_css('/*"*/@imp@import;ort "http:///e/x.css";/*"*/'))
+    @x-imp@x-import;ort "";
     """
-    value = IMPORT.sub("", value.replace("\\", "")).replace("//", "/")
+    for _ in range(50):
+        once = _css_once(value)
+        if once == value:
+            return value
+        value = once
+    return ""  # never settled: none of it
 
-    def string(m: re.Match[str]) -> str:
-        return '""' if ":" in m[0] or "//" in m[0] else m[0]
 
-    value = FETCHING.sub("x-none(", STRING.sub(string, value))
+def _css_once(value: str) -> str:
+    """One pass: no comment (which could pair quotes wrongly), no backslash (so no
+    escape can spell a name out), no "//"; every @-rule but AT_KEPT made unknown
+    (@x-import: ignored, nothing fetched); every url( but KEPT (a #fragment, an
+    embedded font) dropped with its argument, each looked at on its own (x-url(): an
+    unknown function); then no quoted string holding ":" or "/" (a URL), and no
+    image-set(), image(), cross-fade(), element() or src()."""
+    value = COMMENT.sub("", value).replace("\\", "")
+    kept: list[str] = []
     out, at = [], 0
     while (m := URL.search(value, at)) is not None:
         out.append(value[at : m.start()])
-        if FRAGMENT.match(value, m.start()):
-            out.append("url(")
-            at = m.end()
+        if keep := KEPT.match(value, m.start()):
+            out.append(f"\x00{len(kept)}\x00")  # set aside: its base64 has "//"
+            kept.append(keep[0])
+            at = keep.end()
         else:  # dropped with its argument, to the next ")" (or the end)
             out.append("x-url()")
             close = value.find(")", m.end())
             at = len(value) if close == -1 else close + 1
-    return "".join(out) + value[at:]
+    value = "".join(out) + value[at:]
+    value = AT_RULE.sub(
+        lambda m: m[0] if m[1].lower() in AT_KEPT else f"@x-{m[1]}",
+        value.replace("//", "/"),
+    )
+
+    def string(m: re.Match[str]) -> str:
+        return '""' if ":" in m[0] or "/" in m[0] else m[0]
+
+    value = FETCHING.sub("x-none(", STRING.sub(string, value))
+    return re.sub("\x00(\\d+)\x00", lambda m: kept[int(m[1])], value)
 
 
 def _href(value: str, tag: str) -> bool:
@@ -169,8 +206,7 @@ def _clean(el: ET.Element, depth: int) -> None:
             continue
         if "javascript:" in SCHEME.sub("", value).lower():
             continue
-        css = local == "style" or any(c in value for c in "(\\\"'")
-        attrs[local] = _css(value) if css else value
+        attrs[local] = _css(value) if local in CSS_ATTRS else value
     el.attrib.clear()
     el.attrib.update(attrs)
     if tag == "style":

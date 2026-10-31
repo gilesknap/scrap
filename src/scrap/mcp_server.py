@@ -19,6 +19,7 @@ unless SCRAP_MCP_UPLOAD is off (#480)."""
 
 import hmac
 import os
+from collections.abc import Callable
 from urllib.parse import urlsplit
 
 from mcp.server.mcpserver import MCPServer
@@ -207,8 +208,9 @@ def upload() -> bool:
     return value in ON
 
 
-def server(store: Store) -> MCPServer:
-    """The MCP server on a store: its tools, ready to serve."""
+def server(store: Store, wake: Callable[[], None] = lambda: None) -> MCPServer:
+    """The MCP server on a store: its tools, ready to serve. wake: the ingest
+    worker's, called when a tool queues a file (add_svg)."""
     urls = public_urls()
     base = urls[0] if urls else ""
     editable = content_edit()
@@ -224,7 +226,7 @@ def server(store: Store) -> MCPServer:
         "scrap", title="scrap", version=__version__, instructions=instructions,
         log_level="WARNING",
     )  # fmt: skip
-    ctx = Ctx(store, base, editable)
+    ctx = Ctx(store, base, editable, wake)
     register_reading(mcp, ctx)
     register_drawing(mcp, ctx)
     register_browsing(mcp, ctx)

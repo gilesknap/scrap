@@ -68,9 +68,14 @@ def create_app(data_dir: Path | str | None = None) -> FastAPI:
     store.prompts = enrich.prompt_versions()  # what is:outdated compares with
     limit = upload_limit()
     worker = ingest.Worker(store) if ingest.enabled() else None
+
     # MCP at /mcp: stateless (each POST stands alone: a restart drops no session),
     # JSON replies, Host and Origin checked against loopback and $SCRAP_PUBLIC_URL
-    tools = mcp_server.server(store)
+    def wake() -> None:  # the worker as it is then (a test may swap it)
+        if app.state.worker:
+            app.state.worker.wake()
+
+    tools = mcp_server.server(store, wake)
     mcp_routes = tools.streamable_http_app(
         streamable_http_path="/mcp",
         stateless_http=True,
@@ -92,7 +97,6 @@ def create_app(data_dir: Path | str | None = None) -> FastAPI:
 
     app = FastAPI(title="scrap", version=__version__, lifespan=lifespan)
     app.state.worker = worker
-    app.state.mcp_editable = mcp_server.content_edit()  # what an /mcp upload may change
     app.add_middleware(BodyLimit, limit=limit)
     app.add_middleware(TextGzip)
     # Host and Origin on every route but /mcp (it has the same check in its transport)
@@ -153,10 +157,6 @@ def create_app(data_dir: Path | str | None = None) -> FastAPI:
         return JSONResponse(body, code)
 
     pages_api.add_routes(app, store, limit)
-
-    def wake() -> None:
-        if app.state.worker:
-            app.state.worker.wake()
 
     viewed_api.add_routes(app, store)
     writeup_api.add_routes(app, store, wake)

@@ -767,3 +767,22 @@ def test_stripping_a_pathological_write_up_is_quick(name):
     enrich.checked_writeup({"summary": "s", "text": bad + " x"}, ["enc"])
     took = time.perf_counter() - start
     assert took < 5.0, f"{name}: {took:.1f} s"  # no input in the message
+
+
+def test_an_svg_image_goes_to_the_write_up_as_its_markup(store):
+    from scrap import svg
+    from test_svg import TRIANGLE
+
+    clean = svg.sanitise(TRIANGLE)
+    sha, size = store.put_blob(io.BytesIO(clean))
+    c = store.prepare({"id": new_ulid(), "text": None}, ["image/svg+xml"])
+    ref = store.capture(c, [(sha, "image/svg+xml", size, "t.svg")], "me")[0]
+    fake = Fake(photo={**BOARD, "kind": "diagram"})
+    run_all(store, fake)
+    assert fake.kinds()[:2] == ["photo", "writeup"]
+    content = fake.calls[1]["messages"][0]["content"]
+    assert "image" not in [b["type"] for b in content]  # no pixels: markup as text
+    assert content[0]["text"] == "Image 1:" and "SVG" in content[1]["text"]
+    assert content[2]["text"] == clean.decode()
+    assert "Images attached" not in content[-1]["text"]  # it counts as attached
+    assert store.page(ref["page_id"])["writeup"]["current"] is not None

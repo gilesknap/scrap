@@ -52,7 +52,7 @@ def add_routes(
 
     def save(
         key: str, form: dict[str, Any], uploads: list[UploadFile], who: str,
-        claude: bool, claude_only: bool,
+        claude: bool,
     ) -> dict[str, Any]:  # fmt: skip
         cid, source, created = fields(form)  # before writing any file
         after = (form.get("after") or "").replace("\r\n", "\n").replace("\r", "\n")
@@ -66,7 +66,7 @@ def add_routes(
         blobs = put_files(store, uploads, types)
         page, created_now = store.add_photos(
             key, cid, blobs, who, MCP if claude else source, created,
-            after=after, alt=alt, claude_only=claude_only,
+            after=after, alt=alt,
         )  # fmt: skip
         wake()
         base = "/mcp" if claude else "/api"  # where the caller fetches them from
@@ -90,8 +90,7 @@ def add_routes(
         null with no image) and added (each file's sha256, mime, filename and
         download_url); a retry with the same id returns 200, appended_on null.
         Mirrored as /mcp/pages/{key}/captures (mcp_files, SCRAP_MCP_UPLOAD), where
-        it is Claude's: author claude, source mcp (is:claude-edited), and with
-        SCRAP_MCP_CONTENT_EDIT off only a page written over MCP."""
+        it is Claude's: author claude, source mcp (is:claude-edited)."""
         if int(request.headers.get("content-length") or 0) > limit:
             raise TooLargeError(too_large(limit))
         if not request.headers.get("content-type", "").startswith(
@@ -99,10 +98,9 @@ def add_routes(
         ):
             raise InvalidError("expected multipart/form-data")
         who, claude = author(request), by_mcp(request)
-        only = claude and not getattr(request.app.state, "mcp_editable", True)
         async with request.form() as form:  # closes the spooled uploads
             data = {k: v for k, v in form.items() if isinstance(v, str)}
             files = [f for f in form.getlist("file") if isinstance(f, UploadFile)]
-            page = await run_in_threadpool(save, key, data, files, who, claude, only)
+            page = await run_in_threadpool(save, key, data, files, who, claude)
         response.status_code = 201 if page.pop("created") else 200
         return page

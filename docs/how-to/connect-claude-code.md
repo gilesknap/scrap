@@ -264,7 +264,7 @@ curl -fsS "https://scrap.example.com/mcp/pages/<slug>/captures" \
 ```
 
 The reply (`201`, or `200` for a retry) is the page, with `added`: each file's `download_url`.
-An image's embed goes after the Markdown block `after` ends in (or at the end of the text), with the `alt`
+An image's embed goes right after the line `after` ends on, inside its list item or quote (or at the end of the text), with the `alt`
 given; a PDF or text file is listed below the text and read for search.
 
 ### If it does not connect
@@ -409,7 +409,7 @@ might allow the read tools (`mcp__scrap__search`, `read`, `tags`) and let
 `write`, `edit_meta` and the rest keep asking.
 
 To keep Claude off the text of your pages, set `SCRAP_MCP_CONTENT_EDIT=0` on the server
-(`edit_page`, `edit_drawing`, `trash_pages` and `undelete` are then not offered, `revert` refuses `to_rev`, and `add_svg` and the upload take only pages written over MCP), or deny `edit_page` in one
+(`edit_page`, `edit_drawing`, `trash_pages` and `undelete` are then not offered, and `revert` refuses `to_rev`; `add_svg` and the upload are governed by `SCRAP_MCP_UPLOAD` alone), or deny `edit_page` in one
 client's settings: `"permissions": {"deny": ["mcp__scrap__edit_page"]}`. A client
 setting cannot deny only the text mode of `revert`, which also undoes kinds and tags.
 To stop MCP clients adding images and files at all, set `SCRAP_MCP_UPLOAD=0` (`add_svg` is

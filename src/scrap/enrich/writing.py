@@ -15,6 +15,7 @@ import json
 from typing import Any
 
 from .. import claude, preview
+from ..ingest import svgread
 from ..ingest.constants import budget_day_micros
 from ..store import NotFoundError, Store, now, roles, transaction, writeups
 from .checking import checked_writeup, record
@@ -80,11 +81,14 @@ def write_up(
             (json.dumps([p["id"] for p in pages]),),
         ).fetchall())  # fmt: skip
     slugs = [slug_of.get(p["id"], "") for p in pages]
-    sent = [_sent(store, b) for b in boards[:MAX_BOARDS]]
+    shown = boards[:MAX_BOARDS]
+    markups = [svgread.markup(store, b["sha256"]) for b in shown]  # an SVG: as text
+    pairs = zip(shown, markups, strict=True)
+    sent = [None if m is not None else _sent(store, b) for b, m in pairs]
     with store.connect() as conn:
         readout = not roles.has_board(conn, page_id)  # asked for, not a board (#453)
     system, version = writeup_prompt(pages, readout)
-    messages = writeup_message(page, tags, boards, sent, guidance, readout)
+    messages = writeup_message(page, tags, boards, sent, guidance, readout, markups)
     model = claude.model_name()
     request = {
         "purpose": "writeup", "model": model, "max_tokens": claude.MAX_TOKENS,

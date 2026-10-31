@@ -10,7 +10,7 @@ from .db import transaction
 from .errors import InvalidError
 from .helpers import boxes_before, check_page, embeds, file_kind, now
 from .placing import with_embeds
-from .roles import by_claude, takes_photos
+from .roles import takes_photos
 
 Blob = tuple[str, str, int, str | None]  # sha256, mime, size, filename
 MAX_ALT = 300  # characters of an embed's alt text
@@ -79,7 +79,6 @@ class PhotosMixin(Core):
         *,
         after: str | None = None,
         alt: str = "",
-        claude_only: bool = False,
     ) -> tuple[dict[str, Any], bool]:
         """Add images and files: PDFs, text, Markdown (blobs: already in files/) to a
         page as a new capture cid: a photo capture if any is an image (so its images are
@@ -94,8 +93,7 @@ class PhotosMixin(Core):
         after: put the embeds after the Markdown block that text ends in
         (placing.placed_after) instead of at the end; alt: their alt text. Source
         mcp (an MCP client's: add_svg, or the /mcp upload) makes the revision
-        Claude's (source mcp: is:claude-edited); claude_only refuses a page not
-        written over MCP (SCRAP_MCP_CONTENT_EDIT off)."""
+        Claude's (source mcp: is:claude-edited)."""
         cid = cid.upper()
         if not ULID.fullmatch(cid):
             raise InvalidError("id must be a ULID")
@@ -115,10 +113,6 @@ class PhotosMixin(Core):
             page = self._page_row(conn, key)
             if not takes_photos(conn, page["id"]):  # a topic (roles.takes_photos)
                 raise InvalidError("Photos can't be added to a topic page")
-            if claude_only and not by_claude(conn, page["id"]):
-                raise InvalidError(
-                    "only a page written over MCP: SCRAP_MCP_CONTENT_EDIT is off"
-                )
             new = embeds(blobs, page["body"], alt_text(alt))
             body = with_embeds(page["body"], new, after)
             if new:
