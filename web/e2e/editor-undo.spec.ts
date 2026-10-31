@@ -2,11 +2,7 @@
 // It takes back typing and the editor's keys in order, is off until there is something to
 // take back, and the six keys fit on one line on any phone.
 import { expect, type Page, test } from "@playwright/test";
-
-const ulid = () => {
-  const c = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
-  return Array.from({ length: 26 }, (_, i) => c[i ? Math.floor(Math.random() * 32) : 0]).join("");
-};
+import { ulid } from "./helpers";
 
 const keyIn = (page: Page) => (name: string) =>
   page.locator(".editor .keys").getByRole("button", { name });

@@ -1,16 +1,9 @@
 // Design polish, round 2: the top bar's Back, the editor's embed chips and keys, Capture's
 // draft row, Capture offline, and search rows without a snippet that repeats the title.
 import { expect, type Page, test } from "@playwright/test";
+import { capture, ulid } from "./helpers";
 
-const ulid = () => {
-  const c = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
-  return Array.from({ length: 26 }, (_, i) => c[i ? Math.floor(Math.random() * 32) : 0]).join("");
-};
-
-async function make(page: Page, text: string, kind = "note") {
-  const r = await page.request.post("/api/captures", { data: { id: ulid(), text, kind } });
-  return (await r.json()) as { page_id: string; slug: string };
-}
+const make = (page: Page, text: string, kind = "note") => capture(page, text, { kind });
 
 const back = (page: Page) => page.locator("header #back");
 

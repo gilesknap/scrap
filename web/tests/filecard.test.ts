@@ -1,23 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
-import type { FileIngest } from "../src/api";
+import { pdf } from "./helpers";
 
 vi.mock("../src/app", () => ({ rerender: () => {} }));
 vi.mock("../src/icons", () => ({ icon: () => "" }));
 const { FILE, fileSays, fileStateText } = await import("../src/filecard");
 const { RETRY, UNREAD } = await import("../src/filerow");
-
-const pdf = (o: Partial<FileIngest>): FileIngest => ({
-  state: "done",
-  failures: 0,
-  error: null,
-  kind: "pdf",
-  pages: 12,
-  pages_read: 12,
-  truncated: false,
-  text_chars: 900,
-  searchable: true,
-  ...o,
-});
 
 describe("the file card", () => {
   it("is titled as the photo card is, for a file", () => {

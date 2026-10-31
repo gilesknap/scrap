@@ -1,16 +1,9 @@
 // Back and Forward come back to a screen scrolled where it was left: the Todos screen, and a
 // page left by a link (the top bar's Back, and the phone's own).
 import { expect, type Page, test } from "@playwright/test";
+import { capture, ulid } from "./helpers";
 
-const ulid = () => {
-  const c = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
-  return Array.from({ length: 26 }, (_, i) => c[i ? Math.floor(Math.random() * 32) : 0]).join("");
-};
-
-async function make(page: Page, text: string, kind = "note") {
-  const r = await page.request.post("/api/captures", { data: { id: ulid(), text, kind } });
-  return (await r.json()) as { page_id: string; slug: string };
-}
+const make = (page: Page, text: string, kind = "note") => capture(page, text, { kind });
 
 const y = (page: Page) => page.evaluate(() => Math.round(scrollY));
 /** Scrolled to `to`, and the debounced write into the entry done. */

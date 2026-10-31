@@ -2,45 +2,8 @@
 // rest, page links, an embedded photo as a figure, and a Mermaid diagram (a chunk of its own
 // too); a table scrolls in its own box on a narrow phone, and on a computer the box hugs a
 // narrow table; nothing in the console.
-import { deflateSync } from "node:zlib";
 import { expect, test } from "@playwright/test";
-
-const ulid = () => {
-  const c = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
-  return Array.from({ length: 26 }, (_, i) => c[i ? Math.floor(Math.random() * 32) : 0]).join("");
-};
-
-/** A grey w x h PNG. */
-function png(w: number, h: number): Buffer {
-  const crc = (b: Buffer) => {
-    let c = ~0;
-    for (const x of b) {
-      c ^= x;
-      for (let k = 0; k < 8; k++) c = (c >>> 1) ^ (0xedb88320 & -(c & 1));
-    }
-    return ~c >>> 0;
-  };
-  const chunk = (type: string, data: Buffer) => {
-    const body = Buffer.concat([Buffer.from(type), data]);
-    const out = Buffer.alloc(body.length + 8);
-    out.writeUInt32BE(data.length, 0);
-    body.copy(out, 4);
-    out.writeUInt32BE(crc(body), body.length + 4);
-    return out;
-  };
-  const head = Buffer.alloc(13);
-  head.writeUInt32BE(w, 0);
-  head.writeUInt32BE(h, 4);
-  head.set([8, 0, 0, 0, 0], 8);
-  const rows = Buffer.alloc((w + 1) * h, 128);
-  for (let y = 0; y < h; y++) rows[y * (w + 1)] = 0;
-  return Buffer.concat([
-    Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]),
-    chunk("IHDR", head),
-    chunk("IDAT", deflateSync(rows)),
-    chunk("IEND", Buffer.alloc(0)),
-  ]);
-}
+import { png, ulid } from "./helpers";
 
 const WIDE = Array.from({ length: 8 }, (_, i) => `Column ${i} with long words`);
 

@@ -1,19 +1,11 @@
 // The page view: editing, downloads, the photo viewer and Markdown (runs after smoke.spec.ts,
 // which expects an empty store).
 import { execFileSync } from "node:child_process";
-import { deflateSync } from "node:zlib";
 import { expect, type Page, test } from "@playwright/test";
 import { lowContrast } from "./contrast";
+import { capture, png, ulid } from "./helpers";
 
-const ulid = () => {
-  const c = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
-  return Array.from({ length: 26 }, (_, i) => c[i ? Math.floor(Math.random() * 32) : 0]).join("");
-};
-
-async function note(page: Page, text: string) {
-  const r = await page.request.post("/api/captures", { data: { id: ulid(), text } });
-  return (await r.json()).slug as string;
-}
+const note = async (page: Page, text: string) => (await capture(page, text)).slug;
 
 test("Save and Cancel stay on screen while editing; Ctrl+Enter saves", async ({ page }) => {
   const slug = await note(page, "Edit me\nfirst body");
@@ -67,38 +59,6 @@ test("a page and its photos download", async ({ page }) => {
   await expect(row.getByRole("link", { name: "Download" })).toHaveCount(0);
   await expect(row.locator("a.file")).toHaveAttribute("href", /\/api\/blobs\/[0-9a-f]{64}$/);
 });
-
-/** A solid w x h PNG, so the viewer has real pixels to fit. */
-function png(w: number, h: number, shade: number): Buffer {
-  const crc = (b: Buffer) => {
-    let c = ~0;
-    for (const x of b) {
-      c ^= x;
-      for (let k = 0; k < 8; k++) c = (c >>> 1) ^ (0xedb88320 & -(c & 1));
-    }
-    return ~c >>> 0;
-  };
-  const chunk = (type: string, data: Buffer) => {
-    const body = Buffer.concat([Buffer.from(type), data]);
-    const out = Buffer.alloc(body.length + 8);
-    out.writeUInt32BE(data.length, 0);
-    body.copy(out, 4);
-    out.writeUInt32BE(crc(body), body.length + 4);
-    return out;
-  };
-  const head = Buffer.alloc(13);
-  head.writeUInt32BE(w, 0);
-  head.writeUInt32BE(h, 4);
-  head.set([8, 0, 0, 0, 0], 8); // 8-bit greyscale
-  const rows = Buffer.alloc((w + 1) * h, shade);
-  for (let y = 0; y < h; y++) rows[y * (w + 1)] = 0;
-  return Buffer.concat([
-    Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]),
-    chunk("IHDR", head),
-    chunk("IDAT", deflateSync(rows)),
-    chunk("IEND", Buffer.alloc(0)),
-  ]);
-}
 
 const scale = (page: Page) =>
   page.locator(".stage img").evaluate((i) => new DOMMatrix(getComputedStyle(i).transform).a);

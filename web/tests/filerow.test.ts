@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { type FileIngest, type FileRef, photoIngest } from "../src/api";
+import { pdf } from "./helpers";
 
 // No DOM under vitest here: just enough of one for h() to build the row
 type El = { tag: string; kids: (El | string)[]; [k: string]: unknown };
@@ -31,19 +32,6 @@ const find = (e: El | string, cls: string): El | undefined => {
 vi.mock("../src/app", () => ({ rerender: () => {} }));
 vi.mock("../src/icons", () => ({ icon: () => "" }));
 const { fileFacts, fileRow, UNREAD, RETRY } = await import("../src/filerow");
-
-const pdf = (o: Partial<FileIngest>): FileIngest => ({
-  state: "done",
-  failures: 0,
-  error: null,
-  kind: "pdf",
-  pages: 12,
-  pages_read: 12,
-  truncated: false,
-  text_chars: 900,
-  searchable: true,
-  ...o,
-});
 
 describe("fileFacts: what a file's row says", () => {
   it("gives a read PDF's page count, and no hint", () => {

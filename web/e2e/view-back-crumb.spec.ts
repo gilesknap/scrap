@@ -4,11 +4,7 @@
 // names A as it is now (renamed, or replaced by its parent), and the top bar fits at 320 px.
 import { expect, type Page, test } from "@playwright/test";
 import { lowContrast } from "./contrast";
-
-const ulid = () => {
-  const c = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
-  return Array.from({ length: 26 }, (_, i) => c[i ? Math.floor(Math.random() * 32) : 0]).join("");
-};
+import { ulid } from "./helpers";
 
 async function make(page: Page, text: string, kind = "note") {
   const r = await page.request.post("/api/captures", { data: { id: ulid(), text, kind } });

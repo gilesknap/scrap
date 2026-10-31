@@ -5,15 +5,12 @@
 // the query at once, and Clear filters.
 import { expect, type Page, test } from "@playwright/test";
 import { lowContrast } from "./contrast";
+import { ulid } from "./helpers";
 import { filters, filtersButton } from "./panel";
 
 let n = 0;
 // A capture's id is idempotent. The fixed set below is made once however often the file runs;
 // pages a test seeds and trashes take a fresh ULID, or a repeat would get back the trashed one
-const ulid = () => {
-  const c = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
-  return Array.from({ length: 26 }, (_, i) => c[i ? Math.floor(Math.random() * 32) : 0]).join("");
-};
 async function note(page: Page, text: string, tags: string[], fresh = false) {
   const id = fresh ? ulid() : `01E2EF1T${String(++n).padStart(2, "0")}`.padEnd(26, "0");
   const r = await page.request.post("/api/captures", { data: { id, text } });

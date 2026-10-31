@@ -17,6 +17,7 @@ from fastapi.testclient import TestClient
 from mcp.client.client import Client
 from PIL import Image
 
+from conftest import FakeClaude, run_all
 from scrap import claude, enrich, ingest, mcp_server
 from scrap.app import create_app
 from scrap.markdown import wiki_targets
@@ -56,24 +57,21 @@ def store(tmp_path):
     return store
 
 
-class Fake:
+class Fake(FakeClaude):
     """claude.complete, faked: the answer by the call's schema; each call's kind
     recorded, in order."""
 
-    def __init__(self, writeup: Any = WRITEUP, discovery: Any = None):
-        self.writeup, self.discovery = writeup, discovery
-        self.calls: list[str] = []
+    schemas = ("photo", "writeup", "topic", "discovery", "related")
 
-    def __call__(self, model, system, messages, schema, blob, **kw):
-        kind = (
-            "photo" if schema is claude.SCHEMA
-            else "writeup" if schema is enrich.WRITEUP_SCHEMA
-            else "topic" if schema is enrich.TOPIC_SCHEMA
-            else "discovery" if schema is enrich.DISCOVERY_SCHEMA
-            else "related" if schema is enrich.RELATED_SCHEMA else "enrich"
-        )  # fmt: skip
+    def __init__(self, writeup: Any = WRITEUP, discovery: Any = None):
+        super().__init__()
+        self.writeup, self.discovery = writeup, discovery
+
+    def record(self, kind, **call):
         self.calls.append(kind)
-        out = {
+
+    def answer(self, kind, system, messages):
+        return {
             "photo": lambda: BOARD,
             "writeup": lambda: self.writeup,
             "topic": lambda: SYNTHESIS,
@@ -81,20 +79,7 @@ class Fake:
                 self.discovery(messages) if self.discovery else {"new": [], "add": []}
             ),
             "related": lambda: {"related": []},
-            "enrich": lambda: {"tags": [], "summary": "", "title": "",
-                               "intent": "other", "confidence": "low", "items": []},
-        }[kind]()  # fmt: skip
-        if isinstance(out, BaseException):
-            raise out
-        usage = {"input_tokens": 1000, "output_tokens": 100}
-        content = [{"type": "text", "text": json.dumps(out)}]
-        return claude.Completion(out, content, usage, model, "end_turn")
-
-
-def run_all(store, fake):
-    w = ingest.Worker(store, fake)
-    while w.step():
-        pass
+        }[kind]()
 
 
 def jpeg(colour="red") -> bytes:

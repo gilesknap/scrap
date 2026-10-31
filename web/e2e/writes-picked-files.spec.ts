@@ -3,11 +3,7 @@
 // composer and in the page editor. A picked file is a chip with its name in the composer and
 // the page editor (not a broken image).
 import { expect, type Page, test } from "@playwright/test";
-
-const ulid = () => {
-  const c = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
-  return Array.from({ length: 26 }, (_, i) => c[i ? Math.floor(Math.random() * 32) : 0]).join("");
-};
+import { ulid } from "./helpers";
 
 async function notePage(page: Page, text: string) {
   const r = await page.request.post("/api/captures", { data: { id: ulid(), text } });

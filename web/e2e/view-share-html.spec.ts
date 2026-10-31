@@ -3,11 +3,7 @@
 // Named to run after smoke.spec.ts, which wants an empty store.
 import { readFileSync } from "node:fs";
 import { expect, test } from "@playwright/test";
-
-const ulid = () => {
-  const c = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
-  return Array.from({ length: 26 }, (_, i) => c[i ? Math.floor(Math.random() * 32) : 0]).join("");
-};
+import { ulid } from "./helpers";
 
 const BODY =
   "# Plan\n\n## Heading two\n\nSome **bold** and a [link](https://example.com).\n\n- one\n- two\n\n```\ncode here\n```\n\n- [ ] todo a\n- [x] todo b\n";

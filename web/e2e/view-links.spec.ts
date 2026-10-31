@@ -3,16 +3,9 @@
 // top bar's Back and Delete go where Back names, staying in the app. A full address on another
 // of the server's addresses (SCRAP_PUBLIC_URL, playwright.config.ts) opens in place too (#290).
 import { expect, type Page, test } from "@playwright/test";
+import { capture, ulid } from "./helpers";
 
-const ulid = () => {
-  const c = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
-  return Array.from({ length: 26 }, (_, i) => c[i ? Math.floor(Math.random() * 32) : 0]).join("");
-};
-
-async function make(page: Page, text: string, kind = "note") {
-  const r = await page.request.post("/api/captures", { data: { id: ulid(), text, kind } });
-  return (await r.json()) as { page_id: string; slug: string };
-}
+const make = (page: Page, text: string, kind = "note") => capture(page, text, { kind });
 
 const title = (page: Page) => page.locator(".page h1");
 const LAN = "http://scrap-lan.example:8000"; // in SCRAP_PUBLIC_URL (playwright.config.ts)

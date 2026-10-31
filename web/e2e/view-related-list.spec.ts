@@ -3,17 +3,10 @@
 // and a note (· links here) running on after its title. And the top bar stays over a page's task
 // boxes when they scroll under it. Named to run after smoke.spec.ts, which wants an empty store.
 import { expect, type Page, test } from "@playwright/test";
-
-const ulid = () => {
-  const c = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
-  return Array.from({ length: 26 }, (_, i) => c[i ? Math.floor(Math.random() * 32) : 0]).join("");
-};
+import { deletedAfterEach, ulid } from "./helpers";
 
 // Every page made here is deleted after, so other specs' counts of the store's pages hold
-const made: string[] = [];
-test.afterEach(async ({ request }) => {
-  for (const id of made.splice(0)) await request.delete(`/api/pages/${id}`);
-});
+const made = deletedAfterEach();
 
 async function note(page: Page, text: string) {
   const r = await page.request.post("/api/captures", { data: { id: ulid(), text } });

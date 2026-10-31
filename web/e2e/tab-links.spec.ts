@@ -1,16 +1,11 @@
 // Every page, tag and list is a real link (a page's tag chips: tags.spec.ts): Ctrl-click (or a long press on a phone) opens it in
 // a new tab; a plain tap still routes in the app, without loading it again.
 import { expect, type Page, test } from "@playwright/test";
-
-const ulid = () => {
-  const c = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
-  return Array.from({ length: 26 }, (_, i) => c[i ? Math.floor(Math.random() * 32) : 0]).join("");
-};
+import { capture, ulid } from "./helpers";
 
 async function note(page: Page, text: string) {
-  const r = await page.request.post("/api/captures", { data: { id: ulid(), text } });
-  const { slug, page_id } = await r.json();
-  return [slug as string, page_id as string] as const;
+  const { slug, page_id } = await capture(page, text);
+  return [slug, page_id] as const;
 }
 
 test("rows, tags, wiki links and the pager are links; Ctrl-click opens a new tab", async ({

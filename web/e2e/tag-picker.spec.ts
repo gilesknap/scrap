@@ -3,19 +3,13 @@
 // saying its tag's full path (a long one wraps inside its chip); nothing scrolls.
 import { expect, type Locator, type Page, test } from "@playwright/test";
 import { lowContrast } from "./contrast";
+import { deletedAfterEach, ulid } from "./helpers";
 import { filters, filtersButton, openFold } from "./panel";
 
-const ulid = () => {
-  const c = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
-  return Array.from({ length: 26 }, (_, i) => c[i ? Math.floor(Math.random() * 32) : 0]).join("");
-};
 const word = () => `q${ulid().slice(-7).toLowerCase()}`;
 
 // Every page made here is deleted after, so other specs' counts of the store's pages hold
-const made: string[] = [];
-test.afterEach(async ({ request }) => {
-  for (const id of made.splice(0)) await request.delete(`/api/pages/${id}`);
-});
+const made = deletedAfterEach();
 
 /** A page whose text holds w, with those tags: its slug and id. Queued for deletion. */
 async function make(page: Page, w: string, tags: string[]) {

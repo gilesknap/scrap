@@ -1,11 +1,7 @@
 // Ticking off todos and Reads: the tick on a list row (beside its link, so tapping it neither
 // opens the page nor swipes the row) and Done / Reopen on the page, for every status.
 import { expect, type Page, test } from "@playwright/test";
-
-const ulid = () => {
-  const c = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
-  return Array.from({ length: 26 }, (_, i) => c[i ? Math.floor(Math.random() * 32) : 0]).join("");
-};
+import { ulid } from "./helpers";
 
 /** A new page of that kind (and status), newest in Recent: [its title, slug, id]. */
 async function make(page: Page, kind: string, status?: string) {

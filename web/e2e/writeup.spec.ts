@@ -6,6 +6,7 @@
 import { execFileSync } from "node:child_process";
 import { expect, type Page, test } from "@playwright/test";
 import { lowContrast } from "./contrast";
+import { ulid } from "./helpers";
 
 function board(kind = ""): { slug: string; target: string } {
   const data = process.env.SCRAP_E2E_DATA as string;
@@ -14,10 +15,6 @@ function board(kind = ""): { slug: string; target: string } {
   return JSON.parse(out.trim().split("\n").pop() || "null");
 }
 
-const ulid = () => {
-  const c = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
-  return Array.from({ length: 26 }, (_, i) => c[i ? Math.floor(Math.random() * 32) : 0]).join("");
-};
 /** The page's one Claude card: the write-up is its In detail fold. */
 const section = (page: Page) => page.getByRole("region", { name: "About this page" });
 /** The write-up's fold opened, as once tapped (it is folded until then, and remembered). */

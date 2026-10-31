@@ -2,11 +2,7 @@
 // is a token where the caret is, with a chip, and goes to the server with Save, which puts its
 // embed where the token is. The row of three stays one line at large text sizes.
 import { expect, type Page, test } from "@playwright/test";
-
-const ulid = () => {
-  const c = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
-  return Array.from({ length: 26 }, (_, i) => c[i ? Math.floor(Math.random() * 32) : 0]).join("");
-};
+import { ulid } from "./helpers";
 
 async function notePage(page: Page, text: string) {
   const r = await page.request.post("/api/captures", { data: { id: ulid(), text } });

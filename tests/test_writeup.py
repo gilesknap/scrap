@@ -15,6 +15,7 @@ from fastapi.testclient import TestClient
 from mcp.client.client import Client
 from PIL import Image
 
+from conftest import FakeClaude, run_all
 from scrap import claude, enrich, ingest, mcp_server
 from scrap.app import create_app
 from scrap.store import (
@@ -85,45 +86,22 @@ def note(store, text, tags=None):
     return store.capture(c, [], "me", tags)[0]
 
 
-class Fake:
+class Fake(FakeClaude):
     """claude.complete, faked: the answer by the call's schema (photo, enrich,
     related or write-up); each call is recorded."""
 
+    schemas = ("photo", "writeup", "related")
+
     def __init__(self, photo=BOARD, writeup: Any = WRITEUP, related=()):
+        super().__init__()
         self.photo, self.writeup, self.related = photo, writeup, list(related)
-        self.calls: list[dict[str, Any]] = []
 
-    def __call__(self, model, system, messages, schema, blob, **kw):
-        kind = (
-            "photo" if schema is claude.SCHEMA
-            else "writeup" if schema is enrich.WRITEUP_SCHEMA
-            else "related" if schema is enrich.RELATED_SCHEMA else "enrich"
-        )  # fmt: skip
-        self.calls.append({"kind": kind, "model": model, "system": system,
-                           "messages": messages, "blob": blob, **kw})  # fmt: skip
-        out = {
-            "photo": lambda: self.photo,
-            "writeup": lambda: (
-                self.writeup(system) if callable(self.writeup) else self.writeup
-            ),
-            "related": lambda: {"related": self.related},
-            "enrich": lambda: {"tags": [], "summary": "", "title": "",
-                               "intent": "other", "confidence": "low", "items": []},
-        }[kind]()  # fmt: skip
-        if isinstance(out, BaseException):
-            raise out
-        usage = {"input_tokens": 1000, "output_tokens": 100}
-        content = [{"type": "text", "text": json.dumps(out)}]
-        return claude.Completion(out, content, usage, model, "end_turn")
-
-    def kinds(self):
-        return [c["kind"] for c in self.calls]
-
-
-def run_all(store, fake):
-    w = ingest.Worker(store, fake)
-    while w.step():
-        pass
+    def answer(self, kind, system, messages):
+        if kind == "photo":
+            return self.photo
+        if kind == "writeup":
+            return self.writeup(system) if callable(self.writeup) else self.writeup
+        return {"related": self.related}
 
 
 def jobs(store):
