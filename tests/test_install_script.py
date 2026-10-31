@@ -83,6 +83,10 @@ def test_it_installs_the_commands_and_the_skill(tmp_path, has_skill):
             'echo gist > "$d/skills/scrap-to-gist/SKILL.md"\n'
             'echo "#!/bin/sh" > "$d/skills/scrap-to-gist/render_tex_png.sh"\n'
             'chmod +x "$d/skills/scrap-to-gist/render_tex_png.sh"\n'
+            'echo "#!/usr/bin/env python3" > "$d/skills/scrap-to-gist/gist_images.py"\n'
+            'chmod +x "$d/skills/scrap-to-gist/gist_images.py"\n'
+            'echo lib > "$d/skills/scrap-to-gist/gist_convert.py"\n'
+            'echo lib > "$d/skills/scrap-to-gist/gist_check.py"\n'
             if has_skill
             else ""
         )
@@ -112,3 +116,6 @@ def test_it_installs_the_commands_and_the_skill(tmp_path, has_skill):
     if has_skill:
         assert (gist / "SKILL.md").read_text() == "gist\n"
         assert os.access(gist / "render_tex_png.sh", os.X_OK)
+        assert os.access(gist / "gist_images.py", os.X_OK)  # the whole folder
+        for lib in ("gist_convert.py", "gist_check.py"):
+            assert (gist / lib).read_text() == "lib\n"

@@ -80,6 +80,12 @@ SIZE = r"(?![A-Za-z])[ \t]*(?:\\(?:large|Large)(?![A-Za-z])[ \t]*)?"
 GITHUB_FORM = re.compile(r"\$`(\\(?:large|displaystyle\\Large) [^`]*)`\$")
 # A bare URL running up to a position (search with endpos there)
 URL_BEFORE = re.compile(r"(?:(?:https?|ftp)://|www\.)[^\s<>()\[\]`]*\Z")
+# A reference to one of scrap's own files, as a page's text holds it (web/src/render.ts
+# IMAGE and FILE): an image at /api/blobs/<sha>/preview?size=N or /api/blobs/<sha>, a
+# file at /api/blobs/<sha> or ...?download=1. Matched where a link destination starts.
+OWN_BLOB = re.compile(
+    r"/api/blobs/([0-9a-f]{64})(?:/preview\?size=\d+|\?download=1)?(?=[\s)>]|$)"
+)
 # A link reference or footnote definition
 DEFINITION = re.compile(r" {0,3}\[[^\]]+\]:")
 # A block of HTML this script or the skill wrote (a centred image), kept as it is
