@@ -133,7 +133,7 @@ export function settings() {
         ],
         (v) => setAppPref(appPref(v)),
       ),
-      h("p", { className: "hint" }, "System follows the phone's light or dark setting."),
+      h("p", { className: "hint" }, "System follows your device's light or dark setting."),
       h("h3", { className: "label" }, "Drawings theme"),
       choice(
         "drawings",

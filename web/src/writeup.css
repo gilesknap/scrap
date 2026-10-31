@@ -15,12 +15,16 @@
   overflow-wrap: anywhere;
 }
 /* Its headings under the card's title: the card's size, semibold (two sizes in a card) */
+.writeup .card > .md {
+  font-size: var(--t-md);
+}
 .writeup .body :is(h1, h2, h3, h4, h5, h6) {
   margin: var(--s-3) 0 var(--s-1);
-  font-size: var(--t-sm);
+  font-size: var(--t-md);
   font-weight: 600;
 }
 .writeup .sub {
+  display: block; /* not .sub's flex row, which left the textarea short of the card */
   border-top: 1px solid var(--line);
   margin-top: var(--s-3);
 }

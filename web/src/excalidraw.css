@@ -27,6 +27,7 @@
   background: var(--sunk);
 }
 .tabs button {
+  position: relative;
   min-height: 42px; /* with the track around it, a 48 px target, as .chips */
   padding: 0 var(--s-4);
   border: none;
@@ -35,6 +36,11 @@
   color: var(--ink-2);
   font-size: var(--t-sm);
   font-weight: 600;
+}
+.tabs button::after {
+  content: ""; /* the track's padding is the button's too: the whole 48 px answers a tap */
+  position: absolute;
+  inset: -3px 0;
 }
 .tabs button[aria-selected="true"] {
   background: var(--surface);
@@ -52,7 +58,10 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 100%;
+  /* The column's width, or less where the 75vh cap would letterbox it: the card then narrows
+     to the drawing's ratio and centres, instead of keeping side bars */
+  width: min(100%, calc(75vh * var(--ratio, 1.3333)));
+  margin-inline: auto;
   aspect-ratio: 4 / 3; /* until the frame is known */
   max-height: 75vh;
   padding: 0;

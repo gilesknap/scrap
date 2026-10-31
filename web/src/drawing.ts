@@ -7,13 +7,15 @@ import type { Drawing, Frame } from "./board/frame";
 import { currentDrawings, onTheme } from "./theme";
 import { h, toast } from "./ui";
 
+// Fonts come from scrap, not Excalidraw's CDN (see vite.config.ts). Set when this module loads,
+// before any Excalidraw code can.
+(window as unknown as { EXCALIDRAW_ASSET_PATH: string }).EXCALIDRAW_ASSET_PATH = "/excalidraw/";
+
 type Chunk = typeof import("./board/excalidraw");
 let chunk: Promise<Chunk> | null = null;
 
 /** The viewer's chunk, fetched once; a failure (offline) is retried on the next call. */
 export function loadBoard(): Promise<Chunk> {
-  // Fonts come from scrap, not Excalidraw's CDN (see vite.config.ts)
-  (window as unknown as { EXCALIDRAW_ASSET_PATH: string }).EXCALIDRAW_ASSET_PATH = "/excalidraw/";
   chunk ??= import("./board/excalidraw").catch((e) => {
     chunk = null;
     throw e;
@@ -50,7 +52,10 @@ export function drawingCard(
     },
     status,
   );
-  if (d.frame) card.style.aspectRatio = `${d.frame.width} / ${d.frame.height}`;
+  if (d.frame) {
+    card.style.aspectRatio = `${d.frame.width} / ${d.frame.height}`;
+    card.style.setProperty("--ratio", String(d.frame.width / d.frame.height)); // for the height cap
+  }
   let key = "";
   const show = (svg: SVGSVGElement) => {
     card.replaceChildren(svg.cloneNode(true));

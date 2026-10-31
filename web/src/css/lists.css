@@ -72,8 +72,11 @@
   font-weight: 600;
   line-height: var(--lh-tight);
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  display: -webkit-box; /* two lines, then an ellipsis: at large text one line cut too much */
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow-wrap: anywhere;
 }
 .sub {
   display: flex;

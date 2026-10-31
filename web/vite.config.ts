@@ -81,8 +81,22 @@ const FAMILIES = ["Excalifont", "Virgil", "Nunito", "Lilita", "ComicShanns", "Ca
 FAMILIES.push("Liberation");
 const fontFiles = () =>
   FAMILIES.flatMap((f) => readdirSync(`${FONTS}/${f}`).map((file) => `${f}/${file}`));
+// Each font face Excalidraw registers lists our copy, then its CDN (esm.sh) as a fallback. The
+// page's policy blocks the CDN, and Chrome still logs a violation for every face (about 11 per
+// drawing, over 200 more for Xiaolai), burying real errors. The fallback becomes our own folder.
+const ESM_FALLBACK = /"ASSETS_FALLBACK_URL",`https:\/\/esm\.sh\/.*?\/dist\/prod\/`\)/s;
 const fonts: Plugin = {
   name: "scrap-excalidraw-fonts",
+  transform(code, id) {
+    if (!code.includes("ASSETS_FALLBACK_URL") || !id.includes("@excalidraw/excalidraw"))
+      return null;
+    if (!ESM_FALLBACK.test(code))
+      this.error("Excalidraw's font fallback URL changed: update ESM_FALLBACK");
+    return code.replace(
+      ESM_FALLBACK,
+      '"ASSETS_FALLBACK_URL",new URL("/excalidraw/",location.origin).href)',
+    );
+  },
   generateBundle() {
     for (const f of fontFiles()) {
       const source = readFileSync(`${FONTS}/${f}`);

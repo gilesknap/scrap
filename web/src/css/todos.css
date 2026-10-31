@@ -203,6 +203,7 @@
   overflow-wrap: anywhere;
   white-space: pre-wrap;
   font: inherit;
+  font-size: var(--t-md); /* what Claude wrote reads at the page's own size; the card's chrome stays small */
 }
 
 /* A card's title: what it holds (What's in the photo, About this page); its
@@ -262,6 +263,7 @@
 }
 .enrich .summary {
   margin: 0;
+  font-size: var(--t-md);
 }
 .enrich .related ul {
   margin: 0 0 var(--s-2);
