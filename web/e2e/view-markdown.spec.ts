@@ -1,6 +1,7 @@
 // Page text as Markdown (render.ts, a chunk of its own): GitHub's tables, task lists and the
 // rest, page links, an embedded photo as a figure, and a Mermaid diagram (a chunk of its own
-// too); a table scrolls in its own box on a narrow phone; nothing in the console.
+// too); a table scrolls in its own box on a narrow phone, and on a computer the box hugs a
+// narrow table; nothing in the console.
 import { deflateSync } from "node:zlib";
 import { expect, test } from "@playwright/test";
 
@@ -122,6 +123,39 @@ test("tables, task lists, code, page links, a figure and a diagram", async ({ pa
   await body.locator(`td a[href="/p/${target}"]`).click();
   await expect(page.getByRole("heading", { name: "Linked target page" })).toBeVisible();
   expect(errors).toEqual([]);
+});
+
+test.describe("on a computer (a wide window)", () => {
+  test.use({ viewport: { width: 1024, height: 1280 }, isMobile: false, hasTouch: false });
+
+  test("a narrow table's box hugs it, left-aligned, so its shading reaches the border (#473)", async ({
+    page,
+  }) => {
+    const text = [
+      "Narrow table",
+      "",
+      "Some text.",
+      "",
+      "| a | b | c |",
+      "|---|---|---|",
+      "| 1 | 2 | 3 |",
+    ];
+    const res = await page.request.post("/api/captures", {
+      data: { id: ulid(), text: text.join("\n") },
+    });
+    await page.goto(`/p/${(await res.json()).slug}`);
+    const body = page.locator(".body.md");
+    const box = body.locator(".table");
+    await expect(box.locator("th")).toHaveCount(3);
+    const b = await box.evaluate((el) => el.getBoundingClientRect().toJSON());
+    const t = await box.locator("table").evaluate((el) => el.getBoundingClientRect().width);
+    const p = await body
+      .locator("p")
+      .first()
+      .evaluate((el) => el.getBoundingClientRect().left);
+    expect(Math.abs(b.width - (t + 2)), `box ${b.width}, table ${t}`).toBeLessThanOrEqual(2);
+    expect(Math.abs(b.left - p), `box at ${b.left}, text at ${p}`).toBeLessThanOrEqual(2);
+  });
 });
 
 test("an image in a link is not taken into a figure (#82)", async ({ page }) => {
