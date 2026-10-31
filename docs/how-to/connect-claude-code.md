@@ -314,6 +314,14 @@ and `\cancel` (which GitHub cannot draw) replaced by images of scrap's rendering
 the gist and it changes the gist and the scrap page together. It needs `gh` logged in with a
 token that can create gists (a fine-grained token often cannot; Claude then asks for a token with
 the `gist` scope), and, for `\cancel`, Chrome or Chromium (run headless) and internet access.
+The page's images (photos, drawings, attached images and SVGs) are copied into the gist too, as
+scrap shows them: only the 2048-pixel previews are fetched, never the originals, so no EXIF or GPS
+position is published. That needs scrap 1.2.0 or later (its `/mcp` downloads, "Downloading files"
+above). The images are fetched only from the `url` of the `scrap` entry in your `~/.claude.json`,
+with that entry's headers (the `headersHelper` of {ref}`mcp-secrets`, or its `headers`); a
+project's `.mcp.json` is never read. With an older scrap the images are left out, with a note.
+Claude asks before publishing photos that look personal: anyone with a gist's link can see its
+images.
 
 These commands replace the earlier single `/s <verb>` skill (`/s post`, `/s tidy`, and so on), the
 `s-` and `sc-` skill sets that briefly preceded them, and the older `scrap-post` skill. Delete

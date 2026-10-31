@@ -293,3 +293,131 @@ def test_check(tmp_path):
         f"<p>a {inline} b C:\\Users\\me $5</p>\n{block}\n"
     )
     assert run(tmp_path, "--check", "gist.md", "path.html").returncode == 0
+
+
+SHA = "a" * 64
+RAW = "https://gist.githubusercontent.com/u/1/raw"
+IMAGES = {
+    f"/api/blobs/{SHA}/preview?size=2048": "z-img-1-aaaaaaaa.jpg",
+    f"/api/blobs/{'b' * 64}": "z-img-2-bbbbbbbb.png",
+}
+
+
+def with_images(text: str) -> str:
+    """The gist Markdown for text with IMAGES at RAW, unchanged by a second run."""
+    once, _ = gist.convert(text, LINKS, HOST, IMAGES, RAW)
+    twice, _ = gist.convert(once, LINKS, HOST, IMAGES, RAW)
+    assert twice == once
+    return once
+
+
+@pytest.mark.parametrize(
+    "text, want",
+    [
+        # each form a body can hold (web/src/render.ts IMAGE and FILE)
+        (
+            f"![](/api/blobs/{SHA}/preview?size=2048)",
+            f"![]({RAW}/z-img-1-aaaaaaaa.jpg)\n",
+        ),
+        (f"![b](/api/blobs/{'b' * 64})", f"![b]({RAW}/z-img-2-bbbbbbbb.png)\n"),
+        # another form of a mapped image's reference: by its sha
+        (
+            f"![](/api/blobs/{SHA}/preview?size=480) ![](/api/blobs/{SHA})",
+            f"![]({RAW}/z-img-1-aaaaaaaa.jpg) ![]({RAW}/z-img-1-aaaaaaaa.jpg)\n",
+        ),
+        (
+            f"[file](/api/blobs/{SHA}?download=1)",
+            f"[file]({RAW}/z-img-1-aaaaaaaa.jpg)\n",
+        ),
+        # a title, angle brackets, a table, a link round an image, a definition
+        (
+            f'![x](</api/blobs/{SHA}/preview?size=2048> "t")',
+            f'![x](<{RAW}/z-img-1-aaaaaaaa.jpg> "t")\n',
+        ),
+        (
+            f"| a |\n|---|\n| ![](/api/blobs/{SHA}/preview?size=2048) |",
+            f"| a |\n|---|\n| ![]({RAW}/z-img-1-aaaaaaaa.jpg) |\n",
+        ),
+        (
+            f"[![](/api/blobs/{SHA}/preview?size=2048)](/api/blobs/{'b' * 64})",
+            f"[![]({RAW}/z-img-1-aaaaaaaa.jpg)]({RAW}/z-img-2-bbbbbbbb.png)\n",
+        ),
+        (
+            f"See ![p].\n\n[p]: /api/blobs/{SHA}/preview?size=2048",
+            f"See ![p].\n\n[p]: {RAW}/z-img-1-aaaaaaaa.jpg\n",
+        ),
+        # code is never changed, nor a path that is not a link
+        (
+            f"`![](/api/blobs/{SHA})`\n\n```\n![](/api/blobs/{SHA})\n```",
+            f"`![](/api/blobs/{SHA})`\n\n```\n![](/api/blobs/{SHA})\n```\n",
+        ),
+        (f"    ![](/api/blobs/{SHA})", f"    ![](/api/blobs/{SHA})\n"),
+        (f"path /api/blobs/{SHA} here", f"path /api/blobs/{SHA} here\n"),
+        # not one of scrap's files
+        ("![](https://e.com/a.png)", "![](https://e.com/a.png)\n"),
+        (f"![](/api/blobs/{SHA}/other)", f"![](/api/blobs/{SHA}/other)\n"),
+    ],
+)
+def test_images_are_rewritten(text, want):
+    assert with_images(text) == want
+
+
+def test_an_unmapped_image_is_left_and_warned(tmp_path):
+    other = "c" * 64
+    (tmp_path / "in.md").write_text(
+        f"![](/api/blobs/{SHA}/preview?size=2048) ![](/api/blobs/{other})\n"
+    )
+    (tmp_path / "map.json").write_text(json.dumps(IMAGES))
+    args = ["in.md", "out.md", "--images", "map.json", "--gist-raw-base", RAW + "/"]
+    done = run(tmp_path, *args)
+    assert done.returncode == 0, done.stderr
+    out = (tmp_path / "out.md").read_text()
+    assert out == f"![]({RAW}/z-img-1-aaaaaaaa.jpg) ![](/api/blobs/{other})\n"
+    assert "not copied, left as it is (it does not resolve on GitHub)" in done.stderr
+    assert f"/api/blobs/{other}" in done.stderr
+    assert SHA not in done.stderr
+    # without --images every one is left, and warned
+    done = run(tmp_path, "in.md", "out2.md")
+    assert done.stderr.count("not copied") == 2
+    # --images needs the raw base
+    assert run(tmp_path, "in.md", "o.md", "--images", "map.json").returncode != 0
+
+
+def test_check_flags_a_scrap_file_left(tmp_path):
+    (tmp_path / "gist.md").write_text(
+        f"![](/api/blobs/{SHA}/preview?size=2048)\n\n`/api/blobs/{SHA}` ok\n"
+    )
+    (tmp_path / "gist.html").write_text("<p><img src='x'></p>\n")
+    failed = run(tmp_path, "--check", "gist.md", "gist.html")
+    assert failed.returncode == 1
+    assert f"scrap file link left: /api/blobs/{SHA}/preview?size=2048" in failed.stdout
+    assert failed.stdout.count("scrap file link left") == 1  # not the code span
+    (tmp_path / "ok.md").write_text(f"![]({RAW}/z-img-1-aaaaaaaa.jpg)\n")
+    assert run(tmp_path, "--check", "ok.md", "gist.html").returncode == 0
+
+
+def test_blob_refs_skip_code():
+    body = f"![](/api/blobs/{SHA})\n\n```\n![](/api/blobs/{'b' * 64})\n```\n"
+    assert gist.blob_refs(body) == [f"/api/blobs/{SHA}"]
+
+
+@pytest.mark.parametrize(
+    "raw",
+    [
+        "https://gist.githubusercontent.com///raw",  # shell variables that were empty
+        "https://gist.githubusercontent.com/u//raw",
+        "https://gist.githubusercontent.com/u/not-hex/raw",
+        "http://gist.githubusercontent.com/u/1/raw",
+        "https://evil.example/u/1/raw",
+        "https://gist.githubusercontent.com/u/1/raw/../x",
+    ],
+)
+def test_a_bad_gist_raw_base_is_refused(tmp_path, raw):
+    (tmp_path / "in.md").write_text(f"![](/api/blobs/{SHA}/preview?size=2048)\n")
+    (tmp_path / "map.json").write_text(json.dumps(IMAGES))
+    done = run(
+        tmp_path, "in.md", "out.md", "--images", "map.json", "--gist-raw-base", raw
+    )
+    assert done.returncode != 0
+    assert "--gist-raw-base must be" in done.stderr
+    assert not (tmp_path / "out.md").exists()
