@@ -522,8 +522,9 @@ tags, status and topics. After your text and the files comes one section headed 
 (written by a model, may be wrong)*: Claude's summary, the tags it added, a board's write-up or a
 topic's synthesis, and related pages. Then *Linked from* lists the pages that link here. The text
 read from a PDF or text file follows the file's link, in a block cut at 20,000 characters. If
-`SCRAP_PUBLIC_URL` is set, `[[slug]]` links are written as full addresses so they work outside
-scrap. The export of every page ([](export-your-pages.md)) keeps Claude's notes in a file of their
+`SCRAP_PUBLIC_URL` is set, `[[slug]]`, `[[slug|label]]` and `[[slug#heading]]` links are written
+as full addresses so they work outside scrap; a `[[...]]` whose target is not a slug, such as
+`[[Some Title]]`, is kept as typed. The export of every page ([](export-your-pages.md)) keeps Claude's notes in a file of their
 own instead.
 
 Where a phone's browser cannot share, there is no Share and **Download** is in the toolbar. While it
