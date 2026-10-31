@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { htmlName, inline, type N, pageHtml, photos, prose, textOf } from "../src/pagehtml";
+import {
+  articleHtml,
+  htmlName,
+  inline,
+  type N,
+  pageHtml,
+  photos,
+  prose,
+  textOf,
+} from "../src/pagehtml";
 
 type Attrs = Record<string, string>;
 const t = (data: string): N => ({ nodeType: 3, nodeName: "#text", data, childNodes: [] });
@@ -227,5 +236,24 @@ describe("the meta line", () => {
     const html = pageHtml(page, "T", none);
     expect(html).toContain("</span> · <span>1 of 2");
     expect(html.replace(/<[^>]*>/g, "")).toContain("Todo · 1 of 2"); // as text or copied
+  });
+});
+
+describe("articleHtml (Copy as rich text)", () => {
+  it("is the page's markup alone, its photos named and nothing fetched", async () => {
+    const page = e(
+      "article",
+      { class: "page" },
+      e("h1", {}, "Title"),
+      e("p", {}, "Some ", e("strong", {}, "bold")),
+      e("img", { src: `/api/blobs/${SHA}`, alt: "Beach" }),
+      e("div", { class: "bar tools" }, e("button", {}, "Share")),
+    );
+    const html = await articleHtml(page);
+    expect(html).toBe(
+      '<article class="page"><h1>Title</h1><p>Some <strong>bold</strong></p>' +
+        '<em class="named">[Beach]</em></article>',
+    );
+    expect(html).not.toMatch(/data:|<style|<!doctype|\/api\//i);
   });
 });

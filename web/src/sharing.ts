@@ -1,10 +1,23 @@
 // Sharing and downloading: what a Share or Download button does once tapped. A chunk of its
 // own, loaded on the first tap (ui.ts draws the buttons), so the app shell carries only the
 // buttons; the service worker keeps it for offline (vite.config.ts OFFLINE).
+import { copyRich, copyText } from "./clipboard";
 import type { Icon } from "./icons";
 import { icon } from "./icons";
-import { makeHtml } from "./pagehtml";
+import { articleHtml, makeHtml } from "./pagehtml";
 import { h, toast } from "./ui";
+
+// Icons only this menu draws, kept out of the app shell's icons.ts (its budget): drawn as it does
+const EXTRA = {
+  copy: '<rect x="8.5" y="8.5" width="11" height="12" rx="1.5"/><path d="M15.5 8.5v-4h-11v12h4"/>',
+  print: '<path d="M7 9V3.5h10V9M7 17H4.5V9h15v8H17"/><path d="M7 14h10v6.5H7z"/>',
+};
+function glyph(name: Icon | keyof typeof EXTRA): SVGSVGElement {
+  if (!(name in EXTRA)) return icon(name as Icon);
+  const svg = icon("note");
+  svg.innerHTML = EXTRA[name as keyof typeof EXTRA];
+  return svg;
+}
 
 const mb = (n: number) =>
   n < 2 ** 20 ? `${Math.ceil(n / 1024)} kB` : `${(n / 2 ** 20).toFixed(1)} MB`;
@@ -59,11 +72,23 @@ export function saveBlob(blob: Blob, name: string) {
   toast(`Downloaded ${name} (${mb(blob.size)})`);
 }
 
-/** Where a menu of this width goes: just above its button, kept on the screen. */
-export function menuSpot(button: DOMRect, width: number, screenW: number, screenH: number) {
+/** Where a menu of this size goes: just above its button, kept on the screen; below it where
+ * it does not fit above (a computer's tools are at the top, under its top bar). */
+export function menuSpot(
+  button: DOMRect,
+  width: number,
+  screenW: number,
+  screenH: number,
+  height = 0,
+): { left: number; bottom?: number; top?: number } {
   const gap = 8;
-  const left = Math.min(button.left + (button.width - width) / 2, screenW - width - gap);
-  return { left: Math.round(Math.max(left, gap)), bottom: Math.round(screenH - button.top + gap) };
+  const left = Math.round(
+    Math.max(Math.min(button.left + (button.width - width) / 2, screenW - width - gap), gap),
+  );
+  const below = screenH - button.top - button.height;
+  if (button.top - 2 * gap < height && below > button.top)
+    return { left, top: Math.round(button.top + button.height + gap) };
+  return { left, bottom: Math.round(screenH - button.top + gap) };
 }
 
 /** Whether a share failed because the tap's permission ran out (a slow download outlasts
@@ -97,11 +122,12 @@ async function shareFiles(title: string, files: File[], ready: string) {
   }
 }
 
-/** Share a file made on the phone (a drawing's PNG), checked shareable before it is made. */
+/** Share a file made on the phone (a drawing's PNG), checked shareable before it is made;
+ * where this phone can't share it, it is saved instead. */
 export function shareMade(el: HTMLElement, title: string, name: string, make: () => Promise<Blob>) {
   const type = "image/png";
   return busy(el, "Share", async () => {
-    if (!canShareFile(name, type)) return void toast("Sharing files is not supported here");
+    if (!canShareFile(name, type)) return saveBlob(await make(), name);
     const files = [new File([await make()], name, { type })];
     await shareFiles(title, files, "Drawing ready");
   });
@@ -142,7 +168,8 @@ export interface Sharing {
 
 /** Share's taps on button b: given a link, the first opens a menu of Link and the content
  * (and `more`); each choice is a tap of its own, so it calls the share sheet within that tap.
- * Without a link, or a popover, a tap shares the content at once. */
+ * Without a link, or a popover, a tap shares the content at once. Without a share sheet (a
+ * computer, ui.ts) the menu copies instead: the link, the Markdown, or the page as rich text. */
 export function attach(b: HTMLButtonElement, s: Sharing) {
   const shareContent = () =>
     busy(b, "Share", async () => {
@@ -158,7 +185,7 @@ export function attach(b: HTMLButtonElement, s: Sharing) {
     b.onclick = shareContent; // nothing to choose, or no menu on this browser
     return shareContent;
   }
-  const pick = (glyph: Icon, label: string, go: () => void) =>
+  const pick = (name: Parameters<typeof glyph>[0], label: string, go: () => void) =>
     h(
       "button",
       {
@@ -168,24 +195,45 @@ export function attach(b: HTMLButtonElement, s: Sharing) {
           go();
         },
       },
-      icon(glyph),
+      glyph(name),
       label,
     );
   const link = s.link;
-  menu.append(
-    pick("link", "Link", () => void send({ title: s.what().title, url: link })),
-    pick(...s.content, () => void shareContent()),
-  );
   // The page's Download (an <a download>) is among `more`: Share can send what it saves
   const saved = s.more?.find((r) => r instanceof HTMLAnchorElement && r.hasAttribute("download"));
-  const article = b.closest<HTMLElement>("article.page");
-  const done = (f: File) => saveBlob(f, f.name);
-  if (article && saved instanceof HTMLAnchorElement && "canShare" in navigator)
+  const article = saved instanceof HTMLAnchorElement && b.closest<HTMLElement>("article.page");
+  if ("share" in navigator)
     menu.append(
-      pick("note", "HTML", () => {
+      pick("link", "Link", () => void send({ title: s.what().title, url: link })),
+      pick(...s.content, () => void shareContent()),
+    );
+  else {
+    // No share sheet: what it would send goes on the clipboard
+    const copy = (name: "link" | "copy", label: string, job: () => Promise<void>) =>
+      pick(name, label, () => void busy(b, "Copy", job));
+    const text = () => s.what().text ?? "";
+    menu.append(
+      copy("link", "Copy link", () => copyText(link, "Link")),
+      copy("copy", "Copy as Markdown", () => copyText(text(), "Markdown")),
+    );
+    if (article)
+      menu.append(
+        copy("copy", "Copy as rich text", () => copyRich(() => articleHtml(article), text())),
+      );
+  }
+  const done = (f: File) => saveBlob(f, f.name);
+  if (article) {
+    // Printing, or saving as a PDF from the print dialog, works on phones too
+    menu.append(pick("print", "Print / Save as PDF", () => print()));
+    // Shared where this phone can share the file, else saved (sharePageHtml)
+    const files = canShareFile("page.html", "text/html");
+    menu.append(
+      pick(files ? "note" : "download", files ? "HTML" : "Download HTML", () => {
         void busy(b, "Share", () => sharePageHtml(article, s.what().title, done));
       }),
     );
+  }
+  // The page as a zip, shared; where nothing can be shared the Download below saves it
   if (saved instanceof HTMLAnchorElement && "canShare" in navigator)
     menu.append(
       pick("file", "Zip", () => {
@@ -224,9 +272,10 @@ export function attach(b: HTMLButtonElement, s: Sharing) {
     (b.closest('[aria-modal="true"]') ?? document.body).append(menu);
     // The button as its source, so a tap on it toggles the menu rather than dismissing it
     (menu.showPopover as (o?: { source?: HTMLElement }) => void)({ source: b });
-    const spot = menuSpot(b.getBoundingClientRect(), menu.offsetWidth, innerWidth, innerHeight);
-    menu.style.left = `${spot.left}px`;
-    menu.style.bottom = `${spot.bottom}px`;
+    const { offsetWidth: w, offsetHeight: tall } = menu;
+    const spot = menuSpot(b.getBoundingClientRect(), w, innerWidth, innerHeight, tall);
+    const px = (n?: number) => (n === undefined ? "" : `${n}px`);
+    Object.assign(menu.style, { left: px(spot.left), bottom: px(spot.bottom), top: px(spot.top) });
     // The menu comes last in the page's tab order: put focus in it (Escape or a choice
     // returns it to Share, as a popover does)
     menu.querySelector("button")?.focus();

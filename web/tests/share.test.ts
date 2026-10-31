@@ -59,4 +59,14 @@ describe("sharing", () => {
     expect(menuSpot(at(330, 700, 70), 160, 400, 800).left).toBe(232);
     expect(menuSpot(at(0, 700, 60), 160, 400, 800).left).toBe(8);
   });
+
+  it("puts the menu below Share where it does not fit above (a computer's tools, at the top)", () => {
+    const at = (top: number) => ({ left: 150, top, width: 80, height: 40 }) as DOMRect;
+    // 300 px of menu above a button 100 px down: 8 px below the button instead
+    expect(menuSpot(at(100), 160, 1280, 900, 300)).toEqual({ left: 110, top: 148 });
+    // it fits above: above, as on a phone
+    expect(menuSpot(at(700), 160, 1280, 900, 300)).toEqual({ left: 110, bottom: 208 });
+    // no more room below than above: above, cut rather than flipped
+    expect(menuSpot(at(500), 160, 1280, 520, 600)).toEqual({ left: 110, bottom: 28 });
+  });
 });

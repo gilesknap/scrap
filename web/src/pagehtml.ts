@@ -230,15 +230,9 @@ export const htmlName = (title: string) =>
       .slice(0, 60) || "page"
   }.html`;
 
-/** Make the page's HTML file from the page's view (the article on the screen). */
-export async function makeHtml(root: HTMLElement, title: string, fetcher = fetch): Promise<File> {
-  const get = async (url: string) => {
-    const r = await fetcher(url);
-    return r.ok ? r.blob() : null;
-  };
-  const shown = await inline(photos(root), get);
-  // Text sections that hold Markdown (Claude's summary) are rendered here, by the app's own
-  // renderer, whatever state the screen's DOM is in: raw text would be a file of **marks**
+/** The page's text sections that hold Markdown (Claude's summary), rendered by the app's own
+ * renderer, whatever state the screen's DOM is in: raw text would be a file of **marks**. */
+async function swapsOf(root: N): Promise<Swaps> {
   const swaps: Swaps = new Map();
   const texts = prose(root);
   if (texts.length) {
@@ -250,5 +244,21 @@ export async function makeHtml(root: HTMLElement, title: string, fetcher = fetch
       swaps.set(n, doc.body);
     }
   }
+  return swaps;
+}
+
+/** Make the page's HTML file from the page's view (the article on the screen). */
+export async function makeHtml(root: HTMLElement, title: string, fetcher = fetch): Promise<File> {
+  const get = async (url: string) => {
+    const r = await fetcher(url);
+    return r.ok ? r.blob() : null;
+  };
+  const shown = await inline(photos(root), get);
+  const swaps = await swapsOf(root);
   return new File([pageHtml(root, title, shown, swaps)], htmlName(title), { type: "text/html" });
 }
+
+/** The page's view as formatted text for the clipboard (Copy as rich text): the same markup as
+ * the file, without its document or style, and with every photo named, not inlined (megabytes
+ * of base64 on the clipboard, and an address on this server would not load where it is pasted). */
+export const articleHtml = async (root: N) => render(root, new Map(), await swapsOf(root));

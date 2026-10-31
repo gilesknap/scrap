@@ -269,7 +269,7 @@ test("the viewer's More menu leads with Share a PNG, only where the phone can sh
   expect(f).toEqual([`${b.slug}-drawing-v1.png`, "image/png", true]);
 });
 
-test("Share says so, and exports nothing, where the phone can't share files", async ({ page }) => {
+test("Share saves the PNG where the phone can't share files", async ({ page }) => {
   const b = board();
   await page.addInitScript(() => {
     Object.defineProperty(navigator, "canShare", { value: () => false, configurable: true });
@@ -278,8 +278,10 @@ test("Share says so, and exports nothing, where the phone can't share files", as
   await page.goto(`/p/${b.slug}`);
   await open(page);
   await dialog(page).getByText("More").click();
+  const saved = page.waitForEvent("download");
   await tool(page, "Share").click();
-  await expect(page.getByText("Sharing files is not supported here")).toBeVisible();
+  expect((await saved).suggestedFilename()).toBe(`${b.slug}-drawing-v1.png`);
+  await expect(page.getByText(/^Downloaded .*\.png/)).toBeVisible();
 });
 
 test("the inline drawing card follows the drawings theme, not the app's", async ({ page }) => {
