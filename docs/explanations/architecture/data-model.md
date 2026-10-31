@@ -257,8 +257,8 @@ sequenceDiagram
   after, with a `batch_id` shared by a bulk change. MCP `revisions` lists both histories and
   `revert` undoes one
   ([ADR 19](../decisions/0019-kinds-and-tags-editable-with-revisions.md)).
-- **Not revisions:** `fields` (status), due, priority, task counts, and a provisional title
-  replaced by ingest or enrich.
+- **Not revisions:** `fields` (status), due and priority as the PWA sets them (MCP `edit_meta`'s
+  are revisions), task counts, and a provisional title replaced by ingest or enrich.
 
 ## Trash
 

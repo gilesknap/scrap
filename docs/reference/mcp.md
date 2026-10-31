@@ -417,17 +417,18 @@ it as a text file, so a page with SVG diagrams can be published as a gist of tex
   the kind (and whether it was fixed) and tags before and after, and the default fields a new kind
   added. Changes by the same author from the same source within `SCRAP_REVISION_WINDOW` seconds
   (default 300) of a revision being made fold into it, as long as nothing else changed the page's
-  kind or tags between and they change the same things, so a burst of edits is one revision:
-  kind and tag changes fold together (with the default fields a new kind adds), and an
-  `edit_meta` of `fields` folds only into one of the same fields (`media_type` and its
-  `subtype` count as one), so a status set just after a kind change is a revision of its own,
-  which a revert undoes keeping the kind; a burst that ends where it started
-  leaves none. A revert, and a change in a batch, never folds, nor is folded into. A page's first
-  revision records the state it had before (pages need no backfill). Revisions keep kind and tag
-  names only: never a copy of the text or of a file, nor what a model derived (summaries, image
-  descriptions, the tags ingest gives a photo, the kind task boxes file a note as), which can be
-  made again. Text keeps its own revisions (`page_rev`, every title or body change), which
-  `revisions` lists, `text_rev` reads and `revert` with `to_rev` restores (see Page text).
+  kind or tags between and they change the same things, so a burst of edits is one revision: kind
+  and tag changes fold together (with the default fields a new kind adds), and an `edit_meta` of
+  `fields` folds only into one of the same fields (`media_type` and its `subtype` count as one), so
+  a status set just after a kind change is a revision of its own, which a revert undoes keeping the
+  kind; a burst that ends where it started and set no field leaves none (one that set a field and
+  put it back keeps its revision). A revert, and a change in a batch, never folds, nor is folded
+  into. A page's first revision records the state it had before (pages need no backfill). Revisions
+  keep kind and tag names only: never a copy of the text or of a file, nor what a model derived
+  (summaries, image descriptions, the tags ingest gives a photo, the kind task boxes file a note
+  as), which can be made again. Text keeps its own revisions (`page_rev`, every title or body
+  change), which `revisions` lists, `text_rev` reads and `revert` with `to_rev` restores (see Page
+  text).
 - **Claude's tags.** A tag that scrap's Claude enrichment added (`read`'s `by_model.tags`) and
   that `edit_meta`, `rename_tag` or `revert` then takes off counts as off: enrichment never adds
   it back, as when the user removes it in the PWA. Putting it back makes it the user's tag.
