@@ -157,8 +157,9 @@ No token. Always `200 {"ok": true}` while the receiver runs.
 }
 ```
 
-`bytes` is the site's total, `quota` its limit, and `at` when the unit was last written (UTC,
-ISO 8601, to the second).
+`bytes` (the site's and each unit's) is the files' actual content in bytes; only the quota
+counts in 4 KiB blocks ([](#limits)). `quota` is the limit, and `at` when the unit was last
+written (UTC, ISO 8601, to the second).
 
 ### `PUT /v1/units/{unit}`
 
@@ -308,10 +309,10 @@ The document is `<!DOCTYPE html>` with `html`, `head`, `title` and `body`. In `h
 In `body`, only these elements: pagehtml's kept set (`a abbr article aside b blockquote br
 caption code dd del details div dl dt em figcaption figure h1 h2 h3 h4 h5 h6 hr i img ins kbd li
 mark ol p pre q s section small span strong sub summary sup table tbody td tfoot th thead time tr
-u ul`), and inside a `span` whose class includes `katex`, KaTeX's markup: MathML (`math
-semantics annotation mrow mi mn mo ms mtext mspace msup msub msubsup mfrac msqrt mroot mover
-munder munderover mtable mtr mtd mstyle mpadded mphantom menclose`) and the `svg`, `path` and
-`line` it draws stretchy symbols with.
+u ul`), and inside a `span` whose class includes `katex` (KaTeX's markup, "inside KaTeX" below)
+its MathML (`math semantics annotation mrow mi mn mo mtext mspace msup msub msubsup mfrac msqrt
+mroot mover munder munderover mtable mtr mtd mstyle mpadded mphantom menclose`) and the `svg`,
+`path` and `line` it draws stretchy symbols with.
 
 Attributes:
 
@@ -323,9 +324,31 @@ Attributes:
 | `alt` | `img` | any text |
 | `src` | `img` | a placeholder, `scrap-blob:<sha>`, and nothing else |
 | `href` | `a` | `https:...`, `mailto:...`, `#...`, `/p/<slug>` of a public page, `/t/<key>`, or a placeholder (`scrap-blob:<sha>`, `scrap-tag:<tag>`) |
-| `style` | a `span` whose class includes a KaTeX class (`katex`, or one inside a `.katex` span) | only `height`, `vertical-align`, `margin-right`, `top` and `width`, each a CSS length (`-?[0-9.]+(em|ex|px|%)?`), separated by `;` |
-| `aria-hidden` | KaTeX's `span` | `true` |
-| `xmlns`, `encoding`, `display`, `mathvariant`, `stretchy`, `fence`, `separator`, `lspace`, `rspace`, `width`, `height`, `viewBox`, `preserveAspectRatio`, `d`, `x1`, `y1`, `x2`, `y2`, `stroke-width` | KaTeX's MathML and SVG | as KaTeX writes them, with no `url(` |
+| `style` | a `span`, `svg` or `mpadded` inside KaTeX | the declarations below only, separated by `;` |
+| `aria-hidden` | a `span` inside KaTeX | `true` |
+| `xmlns`, `d`, `viewBox`, `preserveAspectRatio`, `width`, `height`, `x1`, `y1`, `x2`, `y2`, `stroke-width` | `svg`, `path`, `line` inside KaTeX | as KaTeX writes them, with no `url(` |
+| `display`, `encoding`, `accent`, `accentunder`, `columnalign`, `columnlines`, `columnspacing`, `rowlines`, `rowspacing`, `depth`, `voffset`, `lspace`, `rspace`, `width`, `height`, `displaystyle`, `scriptlevel`, `mathsize`, `mathvariant`, `mathcolor`, `mathbackground`, `linethickness`, `fence`, `stretchy`, `minsize`, `maxsize`, `notation` | MathML inside KaTeX | as KaTeX writes them, with no `url(` |
+
+The `style` declarations KaTeX writes, taken from KaTeX 0.16.47 itself (the version the PWA
+bundles): each `.style.<property> =` in `katex.js`, checked by rendering a corpus with the
+PWA's options (fractions, roots, every matrix and alignment environment, arrays with rules,
+`CD`, `\[<size>]`, `\color`, `\colorbox`, `\fcolorbox`, `\boxed`, `\cancel`, `\angl`,
+stretchy arrows and accents, braces, `\rule`, `\raisebox`, spacing, sizes and `\pmb`). A new
+KaTeX version means checking this list again.
+
+| Property | Value |
+| --- | --- |
+| `height`, `width`, `min-width`, `vertical-align`, `top`, `bottom`, `left`, `margin-left`, `margin-right`, `margin-top`, `padding-left`, `border-width`, `border-top-width`, `border-right-width`, `border-bottom-width` | a length |
+| `margin` | one or two lengths |
+| `color`, `background-color`, `border-color` | a colour |
+| `border` (on `mpadded`, from `\fcolorbox`) | a length, `solid`, a colour |
+| `border-style`, `border-right-style` | `solid` or `dashed` |
+| `position` | `relative` |
+| `text-shadow` (from `\pmb`) | three lengths |
+
+A length is `-?([0-9]+|[0-9]*\.[0-9]+)(em|ex|px)?`. A colour is `#` and 3, 4, 6 or 8 hex digits,
+`rgb(...)` or `rgba(...)` of numbers and `%`, or a name of letters only (`red`, `Goldenrod`,
+`transparent`). Any other property or value, or `style` outside KaTeX, is refused.
 
 Refused, with anything else not listed: any `script`; a `style` element other than the one in
 `head`; a `meta` other than the three above; `base`; a `link` other than KaTeX's stylesheet;
@@ -361,8 +384,8 @@ from `/p/<slug>` would resolve under `/p/`), and scrap adds the bytes beside `in
   with `422` and a message saying which, before pushing anything.
 - **Time:** the receiver's 30 seconds cover the whole request, body included, so a unit must also
   be one scrap can upload in 30 s on its link to the receiver (200 MiB needs about 56 Mbit/s).
-  scrap's client sends `Expect: 100-continue`, and treats a `408` as a failure to report, not to
-  retry at once.
+  scrap's client sends `Expect: 100-continue`. A `408` is logged as a failure, and the next
+  reconcile tries the unit again.
 
 ### Tag keys
 

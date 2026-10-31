@@ -111,8 +111,8 @@ carry.
 - **No script on a page, checked twice.** The publish mode writes a fixed meta CSP into the page,
   `default-src 'none'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; font-src 'self'`,
   with no `script-src`, and scrap checks it is there. scrap checks the uploaded HTML against
-  pagehtml's allow-list (elements, attributes, `href` and `src` values, and `style` only on
-  KaTeX's spans with a few length properties) and refuses a mismatch with `422`; it never cleans
+  pagehtml's allow-list (elements, attributes, `href` and `src` values, and `style` only inside
+  KaTeX's markup, limited to the properties KaTeX itself writes) and refuses a mismatch with `422`; it never cleans
   it. nginx sends `script-src 'none'` on everything under `/p/` and `/t/`; only the home page may
   run a script, Pagefind's. The receiver limits what each unit may hold: a page only its
   `index.html`, `img-*` and `file-*`; `.js` and `.wasm` only in `pagefind`; CSS and fonts only in
