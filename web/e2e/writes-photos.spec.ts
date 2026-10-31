@@ -85,7 +85,7 @@ test("offline, Save keeps the editor and its photo to try again", async ({ page,
  * read together in one pass so layout cannot move between them. */
 const addButtons = (page: Page, scope: string) =>
   page.evaluate((sel) => {
-    const bs = [...document.querySelectorAll(`${sel} button`)];
+    const bs = [...document.querySelectorAll(`${sel} button`)].filter((b) => b.checkVisibility());
     const root = document.documentElement;
     return {
       n: bs.length,

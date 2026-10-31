@@ -1,5 +1,5 @@
 // Home screen: the capture actions (Camera, Gallery, File, Note: how, not what kind; the kind is
-// chosen in the composer), a kept draft over them, and what is still waiting to upload.
+// chosen in the composer; on a computer, Add files and Note), a kept draft over them, and what is still waiting to upload.
 import { view } from "./app";
 import type { Draft } from "./composer";
 import { drafts } from "./db";
@@ -19,9 +19,12 @@ const compose = (files: File[], resume?: boolean) =>
 /** What File takes (#380): PDFs, text and Markdown, by name too (a phone's .md often has no
  * type). Gallery takes photos only, so phones open their photo picker for it. */
 export const FILES = "application/pdf,text/plain,text/markdown,.md,.txt";
+/** What Add files takes: photos and files in one pick. A computer shows it in place of Camera,
+ * Gallery and File, which there all open the same file dialog (desktop.css, class desk). */
+export const ANY = `image/*,${FILES}`;
 
-/** A Camera, Gallery or File button (shown: its icon). accept is the file input's: photos,
- * unless the caller takes files (FILES). */
+/** A Camera, Gallery, File or Add files button (shown: its icon). accept is the file
+ * input's: photos, unless the caller takes files (FILES, ANY). */
 export function picker(
   label: string,
   camera: boolean,
@@ -36,7 +39,7 @@ export function picker(
     if (input.files?.length) onPick([...input.files]);
     input.value = ""; // so the same shot again still fires change
   };
-  const glyph = icon(camera ? "camera" : accept === FILES ? "file" : "image");
+  const glyph = icon(camera ? "camera" : accept === "image/*" ? "image" : "file");
   return h("button", { type: "button", className, onclick: () => input.click() }, glyph, label);
 }
 
@@ -59,13 +62,15 @@ export async function capture(): Promise<Node> {
   addEventListener("offline", refresh, { signal: view.signal });
   await refresh();
 
-  // The capture actions, equal tiles under the thumb
+  // The capture actions, equal tiles under the thumb; Add files only on a computer (desktop.css)
+  const go = (f: File[]) => void compose(f);
   const actions = h(
     "div",
     { className: "actions" },
-    picker("Camera", true, (f) => void compose(f)),
-    picker("Gallery", false, (f) => void compose(f)),
-    picker("File", false, (f) => void compose(f), "tile", FILES),
+    picker("Add files", false, go, "tile desk", ANY),
+    picker("Camera", true, go),
+    picker("Gallery", false, go),
+    picker("File", false, go, "tile", FILES),
     h(
       "button",
       { type: "button", className: "tile", onclick: () => void compose([]) },

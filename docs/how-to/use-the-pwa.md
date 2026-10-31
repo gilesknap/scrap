@@ -45,6 +45,9 @@ over your tailnet or behind a proxy that authenticates (see [](../reference/api.
 | **File** | Picks one or more PDFs, text (`.txt`) or Markdown (`.md`) files |
 | **Note** | A text box; a pasted link alone becomes a link capture |
 
+On a computer Camera, Gallery and File would all open the same file dialog, so there are two
+buttons instead: **Add files** (photos, PDFs, text and Markdown in one pick) and **Note**.
+
 **Save** returns at once: the capture is stored on the phone first and uploaded in the background.
 The four newest pages are listed above the buttons.
 
@@ -252,7 +255,7 @@ The app opens without a connection. Anything that reads from or writes to the se
   the page is still loading, that is Capture. A screen returns scrolled where you left it.
 - **Layout.** On a narrow phone, a page's upload badge shortens to its dot and count (● 2). On a
   wide screen the app is one centred column, 800 px wide by default ([Maximum column width](#maximum-column-width)
-  changes it, 720 to 960 px). With a mouse the tabs move to the top bar, Camera, Gallery, File and
+  changes it, 720 to 960 px). With a mouse the tabs move to the top bar, Add files and
   Note sit over the list, a page's buttons (Mark done, Edit, Share, Delete) are a row under its
   title, and messages appear at the bottom of the window. Touch devices keep the bars at the
   bottom.
@@ -572,6 +575,7 @@ scrap and try again*.
   everything, the draft too, to try again); if the page changed elsewhere meanwhile, **Save**
   shows the conflict and nothing is uploaded. **File** takes PDFs, text and Markdown files. A
   topic page has no Camera, Gallery or File. They never change the page's kind, title or tags.
+  On a computer **Add files** (photos and files in one pick) takes the three's place.
   The three stay on one line; on a narrow phone at a large text size each has its icon over its
   word.
 - **Lists.** Enter on a bullet (`- `), numbered (`1. `) or task (`- [ ] `) line starts the next

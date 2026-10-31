@@ -73,6 +73,7 @@
   .capture .actions {
     order: -1;
     position: static;
+    grid-template-columns: 1fr 1fr; /* Add files and Note, below */
     margin: 0 0 var(--s-4);
     padding: 0;
     border: none;
@@ -83,6 +84,16 @@
     flex-direction: row;
     gap: var(--s-2);
     min-height: 52px;
+  }
+  /* Camera, Gallery and File all open the same file dialog here, so Add files (one pick of
+     photos and files: capture.ts, adders.ts) is shown in their place: it comes first, they
+     follow it. On the home screen Note, the last tile, stays: Add files and Note */
+  .desk {
+    display: inline-flex;
+  }
+  .desk ~ .add,
+  .desk ~ .tile:not(:last-child) {
+    display: none;
   }
 
   /* A page's actions: a row of buttons under what it is (title, tags, due line, meta), kept in
