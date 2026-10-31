@@ -34,6 +34,7 @@ EMBED_URL = re.compile(r"!\[[^\]\n]*+\]\(([^)\s]++)\)")
 TAG = re.compile(r"<[^>]*+>")
 DISPLAY = "$$"
 TAB = 4  # CommonMark's tab stop
+AFTER, END = "after", "end"  # where an embed went: as asked, or at the end
 
 
 class Spot(NamedTuple):
@@ -97,6 +98,21 @@ def _tights(tokens: list[Token]) -> list[bool]:
     return out
 
 
+def _list_of(tokens: list[Token], item: Token) -> int:
+    """The index, among the text's lists in order (as _tights has them), of the list
+    an item is in."""
+    seen, open_ = 0, []
+    for t in tokens:
+        if t.type in LISTS:
+            open_.append(seen)
+            seen += 1
+        elif t.type in ("bullet_list_close", "ordered_list_close"):
+            open_.pop()
+        elif t is item:
+            return open_[-1]
+    raise ValueError("not an item of this text")
+
+
 def _spot(tokens: list[Token], lines: list[str], k: int) -> Spot:
     leaf, inside = _find(tokens, k)
     if not inside:
@@ -113,12 +129,7 @@ def _spot(tokens: list[Token], lines: list[str], k: int) -> Spot:
         return Spot(leaf, inside, "", "", False)
     gap = m[4] if 0 < len(m[4]) <= 4 else " "  # 5 or more: code, one counts
     col = len(m[1]) + len(m[2]) + len(m[3]) + len(gap)
-    tight = leaf is None or leaf.type != "paragraph_open" or leaf.hidden
-    if leaf is not None and leaf.type != "paragraph_open":  # by its item's paragraphs
-        at = tokens.index(c)
-        level = c.level + 1
-        tight = all(t.hidden for t in tokens[at:]
-                    if t.type == "paragraph_open" and t.level == level)  # fmt: skip
+    tight = _tights(tokens)[_list_of(tokens, c)]
     return Spot(leaf, inside, m[1] + " " * (col - len(m[1])), m[1].rstrip(), tight)
 
 
@@ -143,8 +154,8 @@ def _relazy(lines: list[str], last: int, spot: Spot) -> None:
         line = lines[n]
         if quote and not line.expandtabs(TAB).startswith(prefix.rstrip()):
             lines[n] = prefix + QUOTE.sub("", line).lstrip()
-        elif not quote and _indent(line) < len(prefix):
-            lines[n] = prefix + line.lstrip()
+        elif not quote and not line.expandtabs(TAB).startswith(prefix):
+            lines[n] = prefix + QUOTE.sub("", line).lstrip()  # its own > marks too
         else:
             break  # a line of its own: those after it follow it, lazily or not
 
@@ -201,6 +212,19 @@ def _holder(tokens: list[Token], new: list[str]) -> list[tuple[str, int]] | None
     return None
 
 
+def _bare(tokens: list[Token], new: list[str]) -> bool:
+    """Whether every embed's image is outside any link, emphasis or other inline
+    span (a split inside a link spanning two lines would put it in the link)."""
+    urls = {m[1] for e in new for m in EMBED_URL.finditer(e)}
+    for t in tokens:
+        depth = 0
+        for child in t.children or ():
+            depth += child.nesting
+            if child.type == "image" and child.attrGet("src") in urls and depth:
+                return False
+    return True
+
+
 def _keeps(body_tokens: list[Token], html: str, out: str, spot: Spot,
            new: list[str]) -> bool:  # fmt: skip
     """Whether out has the page's blocks, lists' tightness and text, and the
@@ -216,6 +240,7 @@ def _keeps(body_tokens: list[Token], html: str, out: str, spot: Spot,
         same
         and _tights(tokens) == _tights(body_tokens)
         and _holder(tokens, new) == held
+        and _bare(tokens, new)
         and _visible(md.render(out), new) == _visible(html, new)
     )
 
@@ -225,10 +250,11 @@ def at_end(body: str, new: list[str]) -> str:
     return "\n\n".join(x for x in (body.rstrip(), *new) if x)
 
 
-def placed_after(body: str, after: str, new: list[str]) -> str:
+def place(body: str, after: str, new: list[str]) -> tuple[str, str]:
     """body with the embeds new put right after the line on which the text after
     ends (it must occur exactly once, as edit_page's old: else InvalidError), in
-    the same list item or quote; see the module docstring.
+    the same list item or quote, and where they went: AFTER, or END when no place
+    there kept the page as it was (see the module docstring).
 
     >>> placed_after("Q1 Find x.\\nWorking:\\n\\nQ2", "Find x", ["![](e)"])
     'Q1 Find x.\\n\\n![](e)\\n\\nWorking:\\n\\nQ2'
@@ -244,7 +270,11 @@ def placed_after(body: str, after: str, new: list[str]) -> str:
         why = "is not in the page's body" if count == 0 else "occurs more than once"
         raise InvalidError(f"after {why}: copy enough of the text to occur once")
     if not new:
-        return body
+        return body, AFTER
+    if "\r\n" in body:  # placed with LF line ends, then given the page's back
+        text, where = place(body.replace("\r\n", "\n"), after.replace("\r\n", "\n"),
+                            new)  # fmt: skip
+        return text.replace("\n", "\r\n"), where
     lines = body.split("\n")
     k = body.count("\n", 0, at + len(after) - 1)
     while k > 0 and not lines[k].strip():
@@ -270,13 +300,21 @@ def placed_after(body: str, after: str, new: list[str]) -> str:
     for last in ends:
         out = put(list(lines), last, spot, new)
         if _keeps(tokens, html, out, spot, new):
-            return out
-    return at_end(body, new)  # no place inside keeps the page as it was
+            return out, AFTER
+    return at_end(body, new), END  # no place inside keeps the page as it was
 
 
-def with_embeds(body: str, new: list[str], after: str | None = None) -> str:
+def placed_after(body: str, after: str, new: list[str]) -> str:
+    """place's text alone."""
+    return place(body, after, new)[0]
+
+
+def with_embeds(
+    body: str, new: list[str], after: str | None = None
+) -> tuple[str, str | None]:
     """body with the embeds new at its end, or after the line after ends on
-    (placed_after)."""
+    (place), and where they went: AFTER, END, or None with no after or nothing
+    new."""
     if new and after is not None:
-        return placed_after(body, after, new)
-    return at_end(body, new)
+        return place(body, after, new)
+    return at_end(body, new), None

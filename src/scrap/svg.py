@@ -28,7 +28,8 @@ from .store.errors import InvalidError, TooLargeError
 __all__ = ["MAX_SVG", "SVG", "is_svg", "sanitise", "text_of"]
 
 SVG = "image/svg+xml"
-MAX_SVG = 2**20  # bytes, as sent and as stored
+MAX_SVG = 2**20  # bytes, as sent
+GROWTH = 2  # how much larger than MAX_SVG one may be once sanitised
 MAX_DEPTH = 100  # nested elements: a deeper file is refused, not walked
 NS = "http://www.w3.org/2000/svg"
 XLINK = "http://www.w3.org/1999/xlink"
@@ -63,6 +64,7 @@ KEPT = re.compile(
     r"[A-Za-z0-9+/=]*+)\1[ \t\n\r\f]*+\)",
     re.IGNORECASE | re.ASCII,
 )
+SLASHES = re.compile(r"/{2,}+")
 COMMENT = re.compile(r"/\*.*?(?:\*/|\Z)", re.DOTALL)
 AT_RULE = re.compile(r"@(?!x-)([\w-]*+)", re.ASCII)
 AT_KEPT = ("font-face", "media", "keyframes", "-webkit-keyframes")
@@ -177,7 +179,7 @@ def _css_once(value: str) -> str:
     value = "".join(out) + value[at:]
     value = AT_RULE.sub(
         lambda m: m[0] if m[1].lower() in AT_KEPT else f"@x-{m[1]}",
-        value.replace("//", "/"),
+        SLASHES.sub("/", value),  # a run at once: halving it pass by pass is slow
     )
 
     def string(m: re.Match[str]) -> str:
@@ -248,7 +250,9 @@ def sanitise(data: bytes) -> bytes:
     parts: list[str] = []
     _write(root, parts, f' xmlns="{NS}"')
     out = "".join(parts).encode()
-    if len(out) > MAX_SVG:  # an entity-free file only shrinks, but say so if not
+    # The cap is on what is sent (parse). Written out, a file can grow a little
+    # (<g/> becomes <g></g>, url(x) x-url()), never by much: twice is room enough
+    if len(out) > GROWTH * MAX_SVG:
         raise TooLargeError(f"an SVG is at most {MAX_SVG // 1024} KiB")
     return out
 

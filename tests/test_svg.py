@@ -383,8 +383,11 @@ ADVERSARIAL = {  # each once quadratic, or would be if a pattern could backtrack
     "many url(": '<rect style="{}"/>',
     "many @": "<style>{}</style>",
     "an open comment": "<style>/*{}</style>",
+    "a run of slashes": "<style>{}</style>",  # once a pass per halving
+    "slashes, then strings": "<style>" + "/" * 2**19 + "{}</style>",  # was 1.8 s
 }
-FILL = {"many url(": "url(", "many @": "@a", "an open comment": "/*"}
+FILL = {"many url(": "url(", "many @": "@a", "an open comment": "/*",
+        "a run of slashes": "/", "slashes, then strings": '"a"'}  # fmt: skip
 
 
 @pytest.mark.timing  # run alone: see conftest.py
@@ -405,3 +408,12 @@ def test_a_1_mib_adversarial_svg_is_quick(name):
     except (InvalidError, TooLargeError):
         pass  # refused is fine: quickly
     assert time.monotonic() - begin < 1
+
+
+def test_a_file_just_under_the_cap_may_grow_as_it_is_written_out():
+    shell = f"<svg {NS}></svg>"
+    groups = "<g/>" * ((svg.MAX_SVG - len(shell)) // 4)
+    markup = shell.replace("></svg>", f">{groups}</svg>")
+    assert len(markup.encode()) <= svg.MAX_SVG
+    out = svg.sanitise(markup.encode())  # <g/> is written <g></g>
+    assert svg.MAX_SVG < len(out) <= svg.GROWTH * svg.MAX_SVG

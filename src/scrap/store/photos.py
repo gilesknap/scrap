@@ -91,7 +91,9 @@ class PhotosMixin(Core):
         appended_on (the revision the embeds went onto; None on a retry or with no
         image), and whether it is new: a retry with the same cid changes nothing.
         after: put the embeds right after the line that text ends on, inside its
-        list item or quote (placing.placed_after), instead of at the end; alt:
+        list item or quote (placing.place), instead of at the end (placed: after,
+        or end if no place there kept the page as it was; None without after);
+        alt:
         their alt text. Source mcp (an MCP client's: add_svg, or the /mcp upload)
         makes the revision Claude's (source mcp: is:claude-edited)."""
         cid = cid.upper()
@@ -109,12 +111,12 @@ class PhotosMixin(Core):
                 page = self.page_in(conn, row[0])
                 if key not in (page["id"], page["slug"]):
                     raise InvalidError("id is already another page's capture")
-                return {**page, "appended_on": None}, False
+                return {**page, "appended_on": None, "placed": None}, False
             page = self._page_row(conn, key)
             if not takes_photos(conn, page["id"]):  # a topic (roles.takes_photos)
                 raise InvalidError("Photos can't be added to a topic page")
             new = embeds(blobs, page["body"], alt_text(alt))
-            body = with_embeds(page["body"], new, after)
+            body, placed = with_embeds(page["body"], new, after)
             if new:
                 body = check_page(body)  # before anything is written
             attach(
@@ -125,7 +127,8 @@ class PhotosMixin(Core):
                     conn, page, body, author, stamp, MCP if source == MCP else "web"
                 )  # brings what follows
             added = self.page_in(conn, page["id"])
-            return {**added, "appended_on": page["rev"] if images else None}, True
+            return {**added, "appended_on": page["rev"] if images else None,
+                    "placed": placed}, True  # fmt: skip
 
     def _append_text(
         self, conn: sqlite3.Connection, page: sqlite3.Row, body: str, author: str,

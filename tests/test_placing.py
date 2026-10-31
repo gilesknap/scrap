@@ -80,6 +80,14 @@ CASES = [
     ("ATX in a list", "- a\n  # h\n  b\n\nend", "# h", f"- a\n  # h\n  {E}\n  b\n\nend", [LI]),
     ("parent before its sublist", "- a1\n  - b1\n- c1", "a1", f"- a1\\\n  {E}\n  - b1\n- c1", [LI]),
     ("fence in a tight item", "1. a\n   ```\n   code\n   ```\n2. b", "code", f"1. a\n   ```\n   code\n   ```\n   {E}\n2. b", [LI]),
+    # its own list's tightness counts, not a later loose list's
+    ("tight item fence, later loose list", "1. Q1\n   ```\n   code\n   ```\n2. Q2\n\nNotes:\n\n- x\n\n- y", "code",
+     f"1. Q1\n   ```\n   code\n   ```\n   {E}\n2. Q2\n\nNotes:\n\n- x\n\n- y", [LI]),
+    ("tight item heading, later loose list", "1. ## Q1\n   text\n2. b\n\n- p\n\n- q", "## Q1",
+     f"1. ## Q1\n   {E}\n   text\n2. b\n\n- p\n\n- q", [LI]),
+    # a list in a quote: its continuation lines are not lazy
+    ("tight list in a quote", "> 1. Q\n>    A\n> 2. R", "1. Q", f"> 1. Q\\\n>    {E}\\\n>    A\n> 2. R", [BQ, LI]),
+    ("lazy line in a list in a quote", "> 1. Q\nA\n> 2. R", "1. Q", f"> 1. Q\\\n>    {E}\\\n>    A\n> 2. R", [BQ, LI]),
     # tabs count to the next stop of 4, and the embed is indented with spaces
     ("obsidian tabs", "- a1\n\t- b1\n\t\t- c1\n\t\t- c2\n\t- b2\n- a2", "c1",
      f"- a1\n\t- b1\n\t\t- c1\\\n          {E}\n\t\t- c2\n\t- b2\n- a2", [LI, LI, LI]),
@@ -113,6 +121,7 @@ CASES = [
     ("inline code", "a `x\ny` b\n\nc", "a `x", f"a `x\ny` b\n\n{E}\n\nc", []),
     ("link across lines", "see [the\nlink](u) ok\nnext\n\nend", "see [the", f"see [the\nlink](u) ok\nnext\n\n{E}\n\nend", []),
     ("bold across lines", "**bold\ntext** end\nnext\n\nend", "**bold", f"**bold\ntext** end\nnext\n\n{E}\n\nend", []),
+    ("link across lines, tight list", "- see [the\n  link](u) ok\n- c", "see [the", f"- see [the\n  link](u) ok\\\n  {E}\n- c", [LI]),
 ]
 # fmt: on
 
@@ -129,6 +138,30 @@ def test_the_embed_goes_after_the_line_and_the_page_keeps_its_shape(
     assert tights(out) == tights(body)
     assert seen(out) == seen(body)
     assert holder(out) == inside
+
+
+def test_a_crlf_page_keeps_its_line_ends():
+    from scrap.store.placing import place
+
+    out, where = place("- a\r\n- b\r\n  Answer\r\n- c\r\n", "- b", [E])
+    assert (out, where) == (f"- a\r\n- b\\\r\n  {E}\\\r\n  Answer\r\n- c\r\n", "after")
+    assert "\r\\" not in out and seen(out.replace("\r\n", "\n")) == seen(
+        "- a\n- b\n  Answer\n- c"
+    )
+    out, _ = place("a line\r\nb line\r\n\r\nc", "a line", [E])
+    assert out == f"a line\r\n\r\n{E}\r\n\r\nb line\r\n\r\nc"
+
+
+def test_where_it_went_is_said():
+    from scrap.store.placing import place, with_embeds
+
+    assert place("- a\n- b", "a", [E])[1] == "after"
+    # a table in a tight item: an image line after it would be a row of it, and a
+    # blank line would loosen the list: no place there keeps the page
+    body = "- a\n  | x | y |\n  |---|---|\n  | 1 | 2 |\n- b"
+    assert place(body, "| 1 |", [E]) == (f"{body}\n\n{E}", "end")
+    assert with_embeds("p", [E]) == (f"p\n\n{E}", None)
+    assert with_embeds("p", [], "p") == ("p", None)
 
 
 def test_several_embeds_go_together():

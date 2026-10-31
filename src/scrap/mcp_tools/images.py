@@ -37,15 +37,19 @@ draw with shapes, paths and <text>; give it a <title>. Its <title>, <desc> and
 <text> are what search finds, and alt is what screen readers and search get:
 say what it shows. The embed goes right after the line on which `after` ends
 (text copied exactly from the body, occurring exactly once, as edit_page's
-old: say, the end of the question the diagram is for), as a paragraph of its
-own inside the same list item or quote; after a block that cannot be split (a
-code block, a table, display maths, a heading); else at the end of the text. A
-retry with the same key adds nothing; the same key with another SVG is
-refused, dry_run too. A new text revision (author claude: is:claude-edited),
-listed by revisions and undone by revert(page, to_rev), which removes the
-embed (with SCRAP_MCP_CONTENT_EDIT off revert refuses that: the user deletes
-the embed in the PWA's editor). dry_run returns the diff and saves nothing.
-The result has the stored file's download_url."""
+old: say, the end of the question the diagram is for), in the same list item
+or quote: a paragraph is split there; in a tight list the line ends with a
+hard break (\\) and the image follows on the next line, so the list stays
+tight; elsewhere it is a paragraph of its own; after a block that cannot be
+split (a code block, a table, display maths, a heading). If no place there
+keeps the page as it was, it goes at the end of the text, and the result's
+placed is "end" ("after" when it went where asked; null without after).
+Without after it goes at the end. A retry with the same key adds nothing; the
+same key with another SVG is refused, dry_run too. A new text revision (author
+claude: is:claude-edited), listed by revisions and undone by revert(page,
+to_rev), which removes the embed (with SCRAP_MCP_CONTENT_EDIT off revert
+refuses that: the user deletes the embed in the PWA's editor). dry_run returns
+the diff and saves nothing. The result has the stored file's download_url."""
 
 
 def clean_name(name: str | None) -> str:
@@ -120,7 +124,7 @@ def register_images(mcp: MCPServer, ctx: Ctx) -> None:
                 raise ToolError("Photos can't be added to a topic page")
             new = [] if done else embeds([(sha, svgs.SVG, len(clean), name)],
                                          before, label)  # fmt: skip
-            body = checked(with_embeds, before, new, anchor)
+            body, placed = checked(with_embeds, before, new, anchor)
             rev, created = rev_before + (1 if new else 0), False
         else:  # a retry stores nothing new: its file is there already
             stored, size = (sha, len(clean)) if done else store.put_blob(
@@ -129,7 +133,7 @@ def register_images(mcp: MCPServer, ctx: Ctx) -> None:
                 store.add_photos, found["id"], cid, [(stored, svgs.SVG, size, name)],
                 AUTHOR, MCP, after=anchor, alt=label,
             )  # fmt: skip
-            body, rev = added["body"], added["rev"]
+            body, rev, placed = added["body"], added["rev"], added["placed"]
             if created:
                 ctx.wake()  # its words and reading now, not at the next poll
         changed = body != before
@@ -142,6 +146,7 @@ def register_images(mcp: MCPServer, ctx: Ctx) -> None:
             },
             dry_run,
             created=created,  # False: dry_run, or a retry with the same key
+            placed=placed,  # after, end (it could not go there safely), or null
             sha256=sha,
             filename=name,
             embed=f"![{label}](/api/blobs/{sha}/preview?size=2048)",

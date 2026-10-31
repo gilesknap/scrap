@@ -277,3 +277,23 @@ def test_with_upload_off_there_is_no_route(tmp_path, monkeypatch):
     r = upload(client, ref["page_id"], ("a.png", b"x", "image/png"))
     assert r.status_code in (404, 405)
     assert client.get(f"/api/pages/{ref['page_id']}").json()["rev"] == 1
+
+
+def test_add_svg_says_where_the_image_went(store):
+    ref = human(store, PAPER)
+    args = {"page": ref["slug"], "svg": DOT, "alt": "d"}
+    dry = ok(store, "add_svg", **args, after="hypotenuse.", dry_run=True)
+    assert dry["placed"] == "after"
+    assert ok(store, "add_svg", **args, dry_run=True)["placed"] is None  # no after
+    table = human(store, "- a\n  | x | y |\n  |---|---|\n  | 1 | 2 |\n- b")
+    out = ok(store, "add_svg", page=table["slug"], svg=DOT, alt="d", after="| 1 |")
+    assert out["placed"] == "end"  # no place there kept the page: at the end
+    assert store.page(table["slug"])["body"].endswith(f"- b\n\n{out['embed']}")
+
+
+def test_the_upload_says_where_the_images_went(client):
+    ref = page_of(client)
+    r = upload(client, ref["page_id"], ("a.png", b"x", "image/png"), after="working.")
+    assert r.status_code == 201 and r.json()["placed"] == "after"
+    r = upload(client, ref["page_id"], ("b.png", b"y", "image/png"))
+    assert r.json()["placed"] is None

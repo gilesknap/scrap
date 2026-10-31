@@ -20,10 +20,15 @@ from .jobs import put_derived
 
 PRODUCER = "scrap svg"
 # A data: URL's base64 payload, past a few characters (possessive: linear time)
+# A data: URL's base64 payload, wrapped over lines too (whitespace, or the &#10; the
+# stored file writes a newline in an attribute as); possessive: linear time
 DATA_URL = re.compile(
-    r"(data:[\w.+/-]*+(?:;[\w=.+-]*+)*?;base64,)([A-Za-z0-9+/=]{40,}+)",
+    r"(data:[\w.+/-]*+(?:;[\w=.+-]*+)*?;base64,)"
+    r"((?:[A-Za-z0-9+/=]++|[ \t\r\n]++|&#(?:x[0-9a-f]++|[0-9]++);)++)",
     re.IGNORECASE | re.ASCII,
 )
+B64 = re.compile(r"[A-Za-z0-9+/]", re.ASCII)
+SHORT = 40  # base64 characters: a shorter payload is left as it is
 MAX_MARKUP = 20_000  # characters of markup sent to the model
 IMAGE_NOTE = (  # in a write-up's turn, where it is one of the page's images
     "This image is an SVG file, given as its markup instead of pixels: read it as the"
@@ -72,12 +77,23 @@ def markup(store: Store, sha: str) -> str | None:
 
 def unembedded(markup: str) -> str:
     """markup with each base64 data: URL's payload (an embedded font, a raster image)
-    put as its size, so the drawing, not the font's bytes, fills what is sent.
+    put as its decoded size, so the drawing, not the font's bytes, fills what is
+    sent.
 
     >>> unembedded('src:url("data:font/woff2;base64,' + 'A' * 400 + '")')
-    'src:url("data:font/woff2;base64,...(400 bytes)")'
+    'src:url("data:font/woff2;base64,...(300 bytes)")'
+    >>> unembedded('href="data:image/png;base64,' + 'QUFB&#10;' * 20 + '" x="1"')
+    'href="data:image/png;base64,...(60 bytes)" x="1"'
     """
-    return DATA_URL.sub(lambda m: f"{m[1]}...({len(m[2])} bytes)", markup)
+
+    def size(m: re.Match[str]) -> str:
+        payload = m[2].rstrip(" \t\r\n")
+        chars = len(B64.findall(re.sub(r"&#[^;]*;", "", payload)))
+        if chars < SHORT:
+            return m[0]
+        return f"{m[1]}...({chars * 3 // 4} bytes){m[2][len(payload) :]}"
+
+    return DATA_URL.sub(size, markup)
 
 
 def blocks(markup: str, note: str = NOTE) -> list[dict[str, Any]]:
