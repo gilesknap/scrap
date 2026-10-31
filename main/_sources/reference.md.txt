@@ -9,6 +9,7 @@ Technical reference material including APIs and release notes.
 reference/api
 reference/export-format
 reference/mcp
+reference/public-site
 reference/scheduled-jobs
 Python API <_api/scrap>
 genindex

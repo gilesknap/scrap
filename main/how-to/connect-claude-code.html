@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Connect a Claude Code session &#8212; scrap 1.2.2.dev3+g0e525e237 documentation</title>
+    <title>Connect a Claude Code session &#8212; scrap 1.2.2.dev4+g1000b0c46 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=e93763f3"></script>
+    <script src="../_static/documentation_options.js?v=46286846"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -1178,30 +1178,15 @@ scrap, not only in the <code class="docutils literal notranslate"><span class="p
 <code class="docutils literal notranslate"><span class="pre">ln</span> <span class="pre">-sfn</span> <span class="pre">&quot;$PWD&quot;/skills/scrap-links</span> <span class="pre">~/.claude/skills/</span></code>. To check it is loaded, start a new Claude
 Code session: <code class="docutils literal notranslate"><span class="pre">scrap-links</span></code> is listed when you ask “what skills do you have”,
 and asking “what todos are for today” lists every todo as a link.</p>
-<p>It also installs the <code class="docutils literal notranslate"><span class="pre">scrap-to-gist</span></code> skill (<code class="docutils literal notranslate"><span class="pre">skills/scrap-to-gist</span></code>), into
-<code class="docutils literal notranslate"><span class="pre">~/.claude/skills/scrap-to-gist</span></code> in the same way. Ask Claude to “put this scrap page in a gist” and
-it publishes the page as a secret GitHub gist that looks as it does in scrap: maths centred or
-left-aligned as in scrap and sized to match the text, <code class="docutils literal notranslate"><span class="pre">[[slug]]</span></code> links pointing at the scrap page,
-and <code class="docutils literal notranslate"><span class="pre">\cancel</span></code> (which GitHub cannot draw) replaced by images of scrap’s rendering. Ask it to update
-the gist and it changes the gist and the scrap page together. It needs <code class="docutils literal notranslate"><span class="pre">gh</span></code> logged in with a
-token that can create gists (a fine-grained token often cannot; Claude then asks for a token with
-the <code class="docutils literal notranslate"><span class="pre">gist</span></code> scope), and, for <code class="docutils literal notranslate"><span class="pre">\cancel</span></code>, Chrome or Chromium (run headless) and internet access.
-The page’s images (photos, drawings, attached images and SVGs) are copied into the gist too, as
-scrap shows them: only the 2048-pixel previews are fetched, never the originals, so no EXIF or GPS
-position is published. That needs scrap 1.2.0 or later (its <code class="docutils literal notranslate"><span class="pre">/mcp</span></code> downloads, “Downloading files”
-above). The images are fetched only from the <code class="docutils literal notranslate"><span class="pre">url</span></code> of the <code class="docutils literal notranslate"><span class="pre">scrap</span></code> entry in your <code class="docutils literal notranslate"><span class="pre">~/.claude.json</span></code>,
-with that entry’s headers (the <code class="docutils literal notranslate"><span class="pre">headersHelper</span></code> of <a class="reference internal" href="#mcp-secrets"><span class="std std-ref">If /mcp needs a token</span></a>, or its <code class="docutils literal notranslate"><span class="pre">headers</span></code>); a
-project’s <code class="docutils literal notranslate"><span class="pre">.mcp.json</span></code> is never read, and with a <code class="docutils literal notranslate"><span class="pre">User-Agent</span></code> of <code class="docutils literal notranslate"><span class="pre">scrap-to-gist/1</span></code> (Cloudflare refuses
-Python’s default one, with error code 1010). The images are fetched before the gist is created, so
-an image that cannot be fetched stops Claude before anything is published. With an older scrap the
-images are left out, with a note.
-Claude asks before publishing photos that look personal: anyone with a gist’s link can see its
-images.</p>
 <p>These commands replace the earlier single <code class="docutils literal notranslate"><span class="pre">/s</span> <span class="pre">&lt;verb&gt;</span></code> skill (<code class="docutils literal notranslate"><span class="pre">/s</span> <span class="pre">post</span></code>, <code class="docutils literal notranslate"><span class="pre">/s</span> <span class="pre">tidy</span></code>, and so on), the
 <code class="docutils literal notranslate"><span class="pre">s-</span></code> and <code class="docutils literal notranslate"><span class="pre">sc-</span></code> skill sets that briefly preceded them, and the older <code class="docutils literal notranslate"><span class="pre">scrap-post</span></code> skill. Delete
 <code class="docutils literal notranslate"><span class="pre">~/.claude/skills/s</span></code>, <code class="docutils literal notranslate"><span class="pre">~/.claude/skills/s-*</span></code>, <code class="docutils literal notranslate"><span class="pre">~/.claude/skills/sc</span></code> and <code class="docutils literal notranslate"><span class="pre">~/.claude/skills/sc-*</span></code>
 (a skill and a command of the same name clash) and <code class="docutils literal notranslate"><span class="pre">~/.claude/skills/scrap-post</span></code> after installing
-these. Only the scrap tools are used. <code class="docutils literal notranslate"><span class="pre">&lt;SCRAP_URL&gt;</span></code> in the
+these. The <code class="docutils literal notranslate"><span class="pre">scrap-to-gist</span></code> skill, which earlier releases installed, is removed
+too (<a class="reference internal" href="../explanations/decisions/0043-public-pages-a-static-site-scrap-pushes-to.html"><span class="std std-doc">ADR 43</span></a>:
+public pages, still being built, are planned to take its place); the installer leaves an
+installed copy alone, so delete <code class="docutils literal notranslate"><span class="pre">~/.claude/skills/scrap-to-gist</span></code> when you no longer want it.
+Only the scrap tools are used. <code class="docutils literal notranslate"><span class="pre">&lt;SCRAP_URL&gt;</span></code> in the
 commands is a placeholder (the hint they give when the tools are missing, and the shape of the
 page URL they report); the real URL comes from the <code class="docutils literal notranslate"><span class="pre">write</span></code> tool, built from <code class="docutils literal notranslate"><span class="pre">SCRAP_PUBLIC_URL</span></code>.</p>
 <p><code class="docutils literal notranslate"><span class="pre">/sc-summarise</span></code> makes Claude summarise the useful findings of the current topic into one page (<code class="docutils literal notranslate"><span class="pre">/sc-summarise</span> <span class="pre">all</span></code> for the whole

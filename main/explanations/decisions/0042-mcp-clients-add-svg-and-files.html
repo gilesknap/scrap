@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>42. MCP clients add SVG diagrams and files to pages &#8212; scrap 1.2.2.dev3+g0e525e237 documentation</title>
+    <title>42. MCP clients add SVG diagrams and files to pages &#8212; scrap 1.2.2.dev4+g1000b0c46 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../../_static/documentation_options.js?v=e93763f3"></script>
+    <script src="../../_static/documentation_options.js?v=46286846"></script>
     <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -58,7 +58,7 @@
     <link rel="icon" href="../../_static/dls-logo.svg"/>
     <link rel="index" title="Index" href="../../genindex.html" />
     <link rel="search" title="Search" href="../../search.html" />
-    <link rel="next" title="Architecture" href="../design.html" />
+    <link rel="next" title="43. Public pages: a static site scrap pushes to" href="0043-public-pages-a-static-site-scrap-pushes-to.html" />
     <link rel="prev" title="41. MCP clients download files under /mcp" href="0041-mcp-clients-download-under-mcp.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="color-scheme" content="light dark"/>
@@ -466,6 +466,7 @@
 <li class="toctree-l2"><a class="reference internal" href="0040-search-greps-raw-text.html">40. Search greps raw text: a parameter, and a scan</a></li>
 <li class="toctree-l2"><a class="reference internal" href="0041-mcp-clients-download-under-mcp.html">41. MCP clients download files under /mcp</a></li>
 <li class="toctree-l2 current active"><a aria-current="page" class="current reference internal" href="#">42. MCP clients add SVG diagrams and files to pages</a></li>
+<li class="toctree-l2"><a class="reference internal" href="0043-public-pages-a-static-site-scrap-pushes-to.html">43. Public pages: a static site scrap pushes to</a></li>
 </ul>
 </details></li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="../design.html">Architecture</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
@@ -634,7 +635,9 @@ kept is not byte for byte the one sent; a malformed SVG, one with an internal DT
 is refused.</p></li>
 <li><p>A gist renders SVG from its raw URLs (<code class="docutils literal notranslate"><span class="pre">gist.githubusercontent.com/.../raw/file.svg</span></code>) and
 <code class="docutils literal notranslate"><span class="pre">gh</span> <span class="pre">gist</span> <span class="pre">create</span></code> takes it as a text file, so a page with SVG diagrams can be published as a gist
-of text files alone, with no clone or push for binaries.</p></li>
+of text files alone, with no clone or push for binaries.
+Update (2026-10-31): removed by <a class="reference internal" href="0043-public-pages-a-static-site-scrap-pushes-to.html"><span class="std std-doc">43. Public pages: a static site scrap pushes to</span></a>, with
+the scrap-to-gist skill; public pages are planned to go to a static site instead.</p></li>
 <li><p>A client with the MCP headers can add files to any page, unless <code class="docutils literal notranslate"><span class="pre">SCRAP_MCP_UPLOAD=0</span></code>.</p></li>
 <li><p>An SVG stored before #480 was not sanitised; <code class="docutils literal notranslate"><span class="pre">STRICT_HEADERS</span></code> still keeps it from running or
 fetching anything when it is opened.</p></li>
@@ -662,11 +665,11 @@ fetching anything when it is opened.</p></li>
       </div>
     </a>
     <a class="right-next"
-       href="../design.html"
+       href="0043-public-pages-a-static-site-scrap-pushes-to.html"
        title="next page">
       <div class="prev-next-info">
         <p class="prev-next-subtitle">next</p>
-        <p class="prev-next-title">Architecture</p>
+        <p class="prev-next-title">43. Public pages: a static site scrap pushes to</p>
       </div>
       <i class="fa-solid fa-angle-right"></i>
     </a>
