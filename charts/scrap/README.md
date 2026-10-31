@@ -96,7 +96,9 @@ pushes the pages to. Only nginx gets an Ingress (`public.ingress`). A NetworkPol
 scrap's pods to the receiver and `public.networkPolicy.webFrom` (empty: anyone) to nginx, and
 denies all egress. The site is an `emptyDir` (`public.sizeLimit`), empty again when the pod moves.
 scrap's publisher, which pushes the pages and refills the site, arrives with the scrap side of
-issue 497: until then this section runs the public side only.
+issue 497: until then this section runs the public side only. The contract between the two
+sides is the [public site reference](https://gilesknap.github.io/scrap/main/reference/public-site.html),
+and the design is [ADR 43](https://gilesknap.github.io/scrap/main/explanations/decisions/0043-public-pages-a-static-site-scrap-pushes-to.html).
 
 The upload token is a Secret you create, at least 32 characters, named by
 `public.tokenSecret.name` and `.key`, in **both** namespaces (each pod reads only its own

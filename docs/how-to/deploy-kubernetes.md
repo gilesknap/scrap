@@ -420,7 +420,9 @@ example `https://pages.example.org`. The site is served by nginx from a separate
 `ghcr.io/gilesknap/scrap-public`, which also holds a small upload receiver. scrap is to push each
 public page to the receiver; nothing on the public side can reach scrap. scrap's publisher
 arrives with the scrap side of issue 497: until then this section runs the public side only,
-and the site stays empty. The chart's `public`
+and the site stays empty. The contract between the two sides (the receiver's API, what each
+unit may hold, nginx's paths and headers) is [](../reference/public-site.md), and why it is built
+this way is [ADR 43](../explanations/decisions/0043-public-pages-a-static-site-scrap-pushes-to.md). The chart's `public`
 section, off by default, runs it:
 
 - it runs in a namespace of its own (`public.namespace`, default `scrap-public`), labelled Pod
