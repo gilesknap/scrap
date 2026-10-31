@@ -76,6 +76,10 @@ SIZE = r"(?![A-Za-z])[ \t]*(?:\\(?:large|Large)(?![A-Za-z])[ \t]*)?"
 GITHUB_FORM = re.compile(r"\$`(\\(?:large|displaystyle\\Large) [^`]*)`\$")
 # A bare URL running up to a position (search with endpos there)
 URL_BEFORE = re.compile(r"(?:(?:https?|ftp)://|www\.)[^\s<>()\[\]`]*\Z")
+# A link reference or footnote definition
+DEFINITION = re.compile(r" {0,3}\[[^\]]+\]:")
+# A block of HTML this script or the skill wrote (a centred image), kept as it is
+OWN_HTML = '<p align="center"><picture>'
 # Placeholder lines for a code block and a ```math fence, while the rest is converted
 CODE = "\x00{}\x00"
 MATH = "\x00M{}\x00"  # (a NUL in the page is read as U+FFFD, as CommonMark does)
@@ -203,12 +207,15 @@ def ams_block(
     return None
 
 
-def interrupts(after: str) -> bool:
+def interrupts(after: str, in_list: bool) -> bool:
     """Whether a line (after its quote markers) starts a list item that can end a
-    paragraph: one that is not empty, and an ordered one only from 1."""
+    paragraph: one that is not empty, and outside a list an ordered one only from 1
+    (inside one, any sibling item ends the item before)."""
     lm = LIST.match(after)
     return bool(
-        lm and after[lm.end() :].strip() and re.match(r" *(?:[-*+]|1[.)])", after)
+        lm
+        and after[lm.end() :].strip()
+        and (in_list or re.match(r" *(?:[-*+]|1[.)])", after))
     )
 
 
@@ -231,7 +238,14 @@ def protect_code(
             continue
         after = line[len(quote(line)) :]
         lm = LIST.match(after)
-        if open_para and (quotes(line) > depth or interrupts(after)):
+        if open_para and (
+            quotes(line) > depth
+            or interrupts(after, list_w > 0)
+            or (
+                TABLE_DELIM.match(lines[i + 1] if i + 1 < len(lines) else "")
+                and "|" in line
+            )
+        ):
             open_para = False  # a new quote or list item ends the paragraph
         if not open_para:
             depth = quotes(line)
@@ -262,7 +276,7 @@ def protect_code(
         span = None
         if not open_para and text.strip().startswith("$$"):
             span = dollar_block(lines, i, prefix, text.strip())
-        elif AMS_OPEN.match(text):
+        elif AMS_OPEN.match(text) and (indent_of(line) < 4 or LIST.match(after)):
             span = ams_block(lines, i, prefix, text)
         if span:  # display maths: blocks() converts it
             out.extend(lines[i : span[2]])

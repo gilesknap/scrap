@@ -9,7 +9,7 @@
 set -eu
 katex=0.16.47  # web/package.json in scrap
 color=$2
-out=$(realpath -m "$3")
+out=$(python3 -c 'import os,sys; print(os.path.abspath(sys.argv[1]))' "$3")
 chrome=${CHROME:-$(command -v google-chrome || command -v chromium || command -v chromium-browser || true)}
 if [ -z "$chrome" ]; then
     echo "render_tex_png.sh: no Chrome or Chromium found; set CHROME" >&2

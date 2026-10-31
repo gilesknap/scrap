@@ -28,6 +28,7 @@ def convert(text: str) -> str:
     return once
 
 
+PICTURE = '<p align="center"><picture>\n<img src="a.png">\n</picture></p>'
 BLOCK = "```math\n\\Large\n{}\n```\n\n&nbsp;\n"
 
 
@@ -125,10 +126,38 @@ BLOCK = "```math\n\\Large\n{}\n```\n\n&nbsp;\n"
         ("one $x$\ntwo\nthree", "one $`\\large x`$\\\ntwo\\\nthree\n"),
         ("> a\n> b", "> a\\\n> b\n"),
         ("- a\n  b", "- a\\\n  b\n"),
-        ("a  \nb\\\nc<br>\nd", "a  \nb\\\nc<br>\nd\n"),
+        ("a  \nb\\\nc", "a  \nb\\\nc\n"),
         ("$a\nb$", "$`\\large a\nb`$\n"),
         ("`a\nb`", "`a\nb`\n"),
         ("Title\nmore\n===", "Title\\\nmore\n===\n"),
+        # sibling list items end the item before, whatever their number
+        (
+            "1. first $a$\n2. second $b$\n3. third",
+            "1. first $`\\large a`$\n2. second $`\\large b`$\n3. third\n",
+        ),
+        (
+            "1. Expand\n   the bracket\n2. Collect",
+            "1. Expand\\\n   the bracket\n2. Collect\n",
+        ),
+        ("- a\n* b\n- c", "- a\n* b\n- c\n"),
+        # a table ends the paragraph before it
+        (
+            "Results:\n| x | y |\n|---|---|\n| 1 | $x^2$ |",
+            "Results:\n| x | y |\n|---|---|\n| 1 | $`\\large x^2`$ |\n",
+        ),
+        # definitions: no hard break, and not joined to the paragraph before
+        (
+            "[a]: https://example.com/a\n[b]: https://example.com/b\n\nSee [a].",
+            "[a]: https://example.com/a\n[b]: https://example.com/b\n\nSee [a].\n",
+        ),
+        ("Text\n[^1]: One.\n[^2]: Two.", "Text\n[^1]: One.\n[^2]: Two.\n"),
+        # HTML is text in scrap, so it is escaped; this script's own HTML is kept
+        (
+            "Use <slug> here, or <Enter>; a < b",
+            "Use &lt;slug> here, or &lt;Enter>; a < b\n",
+        ),
+        ("<span>$x$</span>", "&lt;span>$`\\large x`$&lt;/span>\n"),
+        (f"x\n{PICTURE}\n\n&nbsp;", f"x\n{PICTURE}\n\n&nbsp;\n"),
     ],
 )
 def test_convert(text, want):

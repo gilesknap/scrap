@@ -49,10 +49,13 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from scrap_markdown import (  # noqa: E402
     AMS_OPEN,
     AUTOLINK,
+    DEFINITION,
     GITHUB_FORM,
     HEADING,
     HR,
     LINK_DEST,
+    LIST,
+    OWN_HTML,
     PUNCT,
     SETEXT,
     SIZE,
@@ -64,6 +67,7 @@ from scrap_markdown import (  # noqa: E402
     cont_of,
     dollar_block,
     escaped,
+    indent_of,
     interrupts,
     math_at,
     protect_code,
@@ -130,6 +134,10 @@ class Converter:
             elif c == "<" and (m := AUTOLINK.match(src, i)):
                 out.append(m[0])
                 i = text = m.end()
+            elif c == "<" and re.match(r"[A-Za-z/!?]", src[i + 1 : i + 2]):
+                # scrap shows HTML as text (html: false); GitHub would take it as a tag
+                out.append("&lt;")
+                i += 1
             elif c == "]" and (m := LINK_DEST.match(src, i)):
                 out.append(m[0])
                 i = text = m.end()
@@ -137,12 +145,7 @@ class Converter:
                 done = "".join(out)
                 last = done[done.rfind("\n") + 1 :]
                 trail = len(last) - len(last.rstrip("\\"))
-                if not (
-                    not last.strip()
-                    or last.endswith("  ")
-                    or trail % 2
-                    or last.rstrip().lower().endswith(("<br>", "<br/>", "<br />"))
-                ):
+                if not (not last.strip() or last.endswith("  ") or trail % 2):
                     out.append("\\")
                 out.append(c)
                 i += 1
@@ -227,6 +230,7 @@ class Converter:
         out: list[str] = []
         para: list[tuple[str, str]] = []  # a paragraph's lines: (prefix, text)
         depth = 0  # the paragraph's quote depth
+        in_list = after_blank = False
 
         def flush() -> None:
             if not para:
@@ -248,14 +252,29 @@ class Converter:
             prefix, text = split_prefix(line)
             stripped = text.strip()
             after = line[len(quote(line)) :]
+            was_in_list = in_list
+            if blank(line):
+                after_blank = True
+            else:
+                if LIST.match(after):
+                    in_list = True
+                elif after_blank and not after[:1].isspace():
+                    in_list = was_in_list = False
+                after_blank = False
+            nxt = lines[i + 1] if i + 1 < len(lines) else ""
+            table = "|" in text and TABLE_DELIM.match(nxt[len(quote(nxt)) :])
             # what ends a paragraph: a blank line, a new quote, a list item that is not
-            # empty (an ordered one only from 1), a heading, a thematic break
+            # empty (outside a list an ordered one only from 1), a heading, a thematic
+            # break, a table, a definition
             if para and (
                 blank(line)
                 or quotes(line) > depth
-                or interrupts(after)
+                or interrupts(after, was_in_list)
                 or HEADING.match(text)
                 or HR.match(after)
+                or (table and not TABLE_DELIM.match(para[min(1, len(para) - 1)][1]))
+                or DEFINITION.match(after)
+                or after.startswith(OWN_HTML)
             ):
                 flush()
             block: tuple[str, str, int] | None = None  # (tex, first prefix, next line)
@@ -263,7 +282,7 @@ class Converter:
                 block = (fences[int(m[1])][1], fences[int(m[1])][0], i + 1)
             elif stripped.startswith("$$") and not para:
                 block = dollar_block(lines, i, prefix, stripped)
-            elif AMS_OPEN.match(text):
+            elif AMS_OPEN.match(text) and (indent_of(line) < 4 or LIST.match(after)):
                 block = ams_block(lines, i, prefix, text)
             if block:
                 flush()
@@ -278,8 +297,18 @@ class Converter:
                 out.extend([cont.rstrip(), cont + "&nbsp;", cont.rstrip()])
                 i = j
                 continue
+            if not para and after.startswith(OWN_HTML):  # to the next blank line
+                while i < len(lines) and not blank(lines[i]):
+                    out.append(lines[i])
+                    i += 1
+                continue
             i += 1
             if blank(line):
+                out.append(line)
+            elif not para and (
+                stripped == "<br>"  # this script's spacing round a divider
+                or (DEFINITION.match(after) and not after.lstrip().startswith("[^"))
+            ):  # a link reference definition: as it is, and no hard break after it
                 out.append(line)
             elif not para and not text.strip():  # an empty list item
                 out.append(line)
