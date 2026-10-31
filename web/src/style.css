@@ -16,3 +16,4 @@
 @import "./css/photo-viewer.css";
 @import "./css/todos.css";
 @import "./css/desktop.css"; /* last: a computer's layout over the phone's */
+@import "./css/print.css"; /* last of all: paper over screen */
