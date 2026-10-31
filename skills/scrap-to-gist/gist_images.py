@@ -26,7 +26,9 @@ expanded). --headers-helper PATH (or $SCRAP_HEADERS_HELPER) names a helper inste
 run as a program, with the address from --scrap-host (or $SCRAP_URL), which it then
 needs. Every URL is built here from that address and a sha in the body, and checked to
 be on it before it is fetched; plain HTTP only to loopback. The headers never follow a
-redirect and are never printed or written.
+redirect and are never printed or written. Every request says User-Agent:
+scrap-to-gist/1 (Cloudflare refuses urllib's own, error 1010); a User-Agent in the
+user's headers is dropped, so this one always wins.
 
 Exit status: 0 done, 1 an image was not copied (other than a file with no preview),
 2 no image was found on the server (older than 1.2.0, without /mcp/blobs). Only the
@@ -62,6 +64,10 @@ EXT = {  # a content type's extension, where mimetypes' choice is not the usual 
     "image/webp": "webp",
 }
 LOOPBACK = ("localhost", "127.0.0.1", "::1")
+# Sent on every request, in place of any the user's headers give: Cloudflare in front
+# of scrap answers urllib's own "Python-urllib/3.x" with 403, error code 1010
+USER_AGENT = "scrap-to-gist/1"
+CF_ERROR = re.compile(rb"error code: (\d{1,5})")  # a Cloudflare error page's body
 PORTS = {"https": 443, "http": 80}
 
 
@@ -224,6 +230,13 @@ def server(
     return base, clean(headers), source
 
 
+def with_user_agent(headers: dict[str, str]) -> dict[str, str]:
+    """headers (already clean) with any User-Agent, in any case, replaced by ours: one
+    User-Agent, always the one Cloudflare lets through."""
+    out = {k: v for k, v in headers.items() if k.lower() != "user-agent"}
+    return out | {"User-Agent": USER_AGENT}
+
+
 # --- downloading ----------------------------------------------------------------------
 
 
@@ -257,11 +270,30 @@ def retry_after(value: str | None) -> float:
     return max(0.0, min(wait, 30.0))
 
 
+def refused_hint(e: urllib.error.HTTPError) -> str:
+    """Why a 401 or 403 came: Cloudflare's own refusal (its body is just "error code:
+    NNNN"; only that code is shown, never the body) or scrap's (the headers)."""
+    try:
+        body = e.read(4096) or b""
+    except (OSError, http.client.HTTPException, ValueError):
+        body = b""
+    if m := CF_ERROR.search(body):
+        code = m[1].decode()
+        why = " (browser signature banned)" if code == "1010" else ""
+        return (
+            f" (Cloudflare blocked this client before it reached scrap: error code "
+            f"{code}{why})"
+        )
+    return " (check the MCP headers)"
+
+
 def fetch(url: str, base: str, headers: dict[str, str], cap: int) -> tuple[bytes, str]:
     """(bytes, content type) of url, which must be on base; a busy preview (503) is
-    tried again. More than cap bytes is an error."""
+    tried again. More than cap bytes is an error. Always GET: /mcp/blobs answers HEAD
+    with 404, so do not "optimise" a check to HEAD."""
     if origin(url) != base:
         raise FetchError(f"refusing {url}: not on {base}")
+    headers = with_user_agent(headers)
     for attempt in range(4):
         req = urllib.request.Request(url, headers=headers)
         try:
@@ -285,7 +317,7 @@ def fetch(url: str, base: str, headers: dict[str, str], cap: int) -> tuple[bytes
                 ) from None
             if e.code == 404:
                 raise MissingError(f"HTTP 404 for {url}") from None
-            hint = " (check the MCP headers)" if e.code in (401, 403) else ""
+            hint = refused_hint(e) if e.code in (401, 403) else ""
             raise FetchError(f"HTTP {e.code} for {url}{hint}") from None
         except urllib.error.URLError as e:
             raise FetchError(f"cannot reach {url}: {e.reason}") from None
