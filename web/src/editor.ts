@@ -250,35 +250,52 @@ const later = () => {
 vv?.addEventListener("resize", later);
 vv?.addEventListener("scroll", later);
 
-/** The keys' last, Undo (no Redo): the browser's own undo, as Ctrl+Z, for phones whose
- * keyboard has none (Gboard). Typing and the other keys go through the same history (edit(),
- * listedit.ts), so it takes them back in order. Nothing says what the history holds, so it is
- * judged: off on a fresh editor (nothing typed yet), on after any input in the text box, off
- * again when an undo brings back the text it opened with or changes nothing (the history is
- * spent). Saved or cancelled, the editor and the key go. */
-function undoKey(text: HTMLTextAreaElement) {
-  const opened = text.value;
-  const key = h(
+/** One of the editor's keys: its icon over its word, named for what it does. */
+const keyButton = (
+  glyph: keyof typeof KEY_ICONS,
+  label: string,
+  name: string,
+  onclick: () => void,
+) =>
+  h(
     "button",
-    {
-      type: "button",
-      className: "ghost",
-      "aria-label": "Undo",
-      disabled: true,
-      onclick: () => {
-        text.focus();
-        const was = text.value;
-        document.execCommand("undo");
-        if (text.value === was || text.value === opened) key.disabled = true;
-      },
-    },
-    keyIcon("undo"),
-    h("span", {}, "Undo"),
+    { type: "button", className: "ghost", "aria-label": name, onclick },
+    keyIcon(glyph),
+    h("span", {}, label),
   );
-  text.addEventListener("input", () => {
-    key.disabled = false;
+
+/** The keys' last, Undo (no Redo): the browser's own undo, as Ctrl+Z, for phones whose
+ * keyboard has none (Gboard). Typing, the other keys and an added file go through the same
+ * history (edit(), listedit.ts), so it takes them back in order. Nothing says what the
+ * history holds, so it is judged: off on a fresh editor (nothing typed yet), on after input
+ * typed in the text box (not text set by code, which the history doesn't hold), off again
+ * when an undo brings back the text it opened with or changes nothing (the history is
+ * spent). The history is the page's, not the box's: after typing in another field (a tag,
+ * the title) an undo would take that back instead, so it is off until the box is typed in
+ * again. reset(): the text was replaced as a whole (Discard it), the new text where it
+ * starts; stop(): the editor closed. */
+function undoKey(text: HTMLTextAreaElement) {
+  let opened = text.value;
+  const key = keyButton("undo", "Undo", "Undo", () => {
+    text.focus();
+    const was = text.value;
+    document.execCommand("undo");
+    if (text.value === was || text.value === opened) key.disabled = true;
   });
-  return key;
+  key.disabled = true;
+  // Capturing, so it sees every field's input, whatever stops it later
+  const oninput = (e: Event) => {
+    key.disabled = e.target !== text || !e.isTrusted;
+  };
+  document.addEventListener("input", oninput, true);
+  return {
+    key,
+    reset: () => {
+      opened = text.value;
+      key.disabled = true;
+    },
+    stop: () => document.removeEventListener("input", oninput, true),
+  };
 }
 
 export interface Editor {
@@ -311,28 +328,19 @@ export function editor(o: {
   // Just above the keyboard (the layer is the visual viewport's height): the keys that make
   // the line (or the lines selected) a task, a bullet or a numbered item, or indent or outdent
   // it, and Undo. In a code block the list keys do nothing. A tap keeps the keyboard up.
+  const undo = undoKey(o.text);
   const keys = h(
     "div",
     { className: "keys", onpointerdown: (e: Event) => e.preventDefault() },
     ...KEYS.map(([glyph, label, name, change, code]) =>
-      h(
-        "button",
-        {
-          type: "button",
-          className: "ghost",
-          "aria-label": name,
-          onclick: () => {
-            const t = o.text;
-            t.focus();
-            if (!code && inCode(t.value, t.selectionStart)) return;
-            edit(t, change(t.value, t.selectionStart, t.selectionEnd));
-          },
-        },
-        keyIcon(glyph),
-        h("span", {}, label),
-      ),
+      keyButton(glyph, label, name, () => {
+        const t = o.text;
+        t.focus();
+        if (!code && inCode(t.value, t.selectionStart)) return;
+        edit(t, change(t.value, t.selectionStart, t.selectionEnd));
+      }),
     ),
-    undoKey(o.text),
+    undo.key,
   );
   const save = h("button", { type: "submit", className: "primary" }, "Save");
   const behind = [...document.querySelectorAll<HTMLElement>("body > :is(header, main, nav)")];
@@ -367,6 +375,7 @@ export function editor(o: {
   let closing: (() => void) | null = null;
   const teardown = (left = false) => {
     removeEventListener("popstate", onpop, true);
+    undo.stop();
     removeEventListener("pagehide", flush);
     document.removeEventListener("visibilitychange", onhide);
     form.remove();
@@ -418,6 +427,7 @@ export function editor(o: {
             onclick: () => {
               void drop();
               o.ondiscard();
+              undo.reset(); // the text it opened with again, and no history to undo
               hint?.remove();
             },
           },
