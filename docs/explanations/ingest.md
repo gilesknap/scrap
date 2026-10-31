@@ -481,7 +481,9 @@ Photo ingest and enrich share one prompt section (`prompts/items.md`, added to b
   code, emphasis marks, backslashes, brackets and angle brackets removed; empty and repeated entries
   are dropped, and at most 30 are kept.
 - **When it writes.** Only when the intent is `list-of-actions` with `high` confidence and
-  entries, and the page, as it stands when the writer runs, is not in the trash, is still at the
+  entries (for a photo of a whiteboard, handwriting or a document also `medium`, with at least
+  three entries: doubt marks like "(?)" and doodles pull the model's confidence down on a plain
+  to-do list, #465; `low` never), and the page, as it stands when the writer runs, is not in the trash, is still at the
   text revision Claude read (an edit meanwhile wins and nothing is written), has no task boxes
   and is a `note` with `kind_fixed` 0 (for a photo also a `whiteboard` that ingest, not the user,
   chose, which becomes a note and then a todo). A saved link is never written to. For a photo
@@ -495,6 +497,11 @@ Photo ingest and enrich share one prompt section (`prompts/items.md`, added to b
   rule then files the page as a todo. `revert` with `to_rev` (to the revision before) restores the text;
   when it takes away the boxes Claude added, the page returns to the kind it was filed as (a
   photo's whiteboard or document, else a note), unless the user filed or changed the todo.
+- **Due date.** A photo's reading also has `due`: the day the page says the list is for, which
+  the prompt works out from the day the photo was taken (given with the image), or `MM-DD` when
+  the page writes no year (code takes its next occurrence), else empty. Once the boxes are written
+  and the page is a todo with no due date, a second revision by `claude` sets `due`; revert undoes
+  it. An empty or impossible date sets nothing, and a due date the user set is never changed.
 - **Reprocess and Ask Claude** read again, but a page that has boxes is skipped, so boxes are
   never added twice. A photo page is read again for its drawing and tags, as before.
 - **Enrich runs once more.** The revision is a text save, so a saved text page queues one more

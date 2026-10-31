@@ -13,6 +13,7 @@ import math
 import os
 import re
 from dataclasses import dataclass
+from datetime import date
 from importlib.resources import files as package_files
 from typing import Any
 
@@ -84,10 +85,12 @@ SCHEMA: dict[str, Any] = {
         "description",
         "text",
         "elements",
+        "due",
         *INTENT_PROPERTIES,
     ],
     "properties": {
         **INTENT_PROPERTIES,
+        "due": _STRING,
         "kind": {"type": "string", "enum": [*KINDS, "other"]},
         "title": _STRING,
         "tags": {"type": "array", "items": _STRING},
@@ -219,16 +222,23 @@ def client() -> anthropic.Anthropic:
     return _client
 
 
-def photo_messages(sha: str, width: int, height: int) -> list[dict[str, Any]]:
-    """The user turn for a photo: the sent JPEG (a blob reference) and its size. The
-    API must refuse it rather than scale it, so drawings stay in sent pixels."""
+def photo_messages(
+    sha: str, width: int, height: int, today: date | None = None
+) -> list[dict[str, Any]]:
+    """The user turn for a photo: the sent JPEG (a blob reference) and its size, and
+    the day it was captured (to resolve "today" or "Friday" for `due`). The API must
+    refuse it rather than scale it, so drawings stay in sent pixels."""
     image = {
         "type": "image",
         "source": {"type": "blob", "sha256": sha},
         "transformations": {"oversized_image": "error"},
     }
     size = {"type": "text", "text": f"The image is {width}x{height} pixels."}
-    return [{"role": "user", "content": [image, size]}]
+    content = [image, size]
+    if today is not None:
+        day = f"{today.isoformat()}, a {today.strftime('%A')}"
+        content.append({"type": "text", "text": f"The photo was taken on {day}."})
+    return [{"role": "user", "content": content}]
 
 
 def api_messages(messages: list[dict], blob: Any) -> list[dict]:

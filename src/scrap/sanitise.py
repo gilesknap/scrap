@@ -10,7 +10,7 @@ import math
 import re
 from typing import Any, TypeGuard
 
-from .actions import clean_intent, clean_items
+from .actions import clean_due, clean_intent, clean_items
 from .claude import ELEMENT_TYPES, KINDS
 from .store import CONTROL, SURROGATE, InvalidError
 
@@ -183,6 +183,7 @@ def model_output(raw: dict[str, Any], width: int, height: int) -> dict[str, Any]
         "text": text,
         "elements": elements,
         "warnings": warnings,
+        "due": clean_due(raw.get("due")),
         **intent_fields(raw),
     }
 
