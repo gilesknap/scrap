@@ -46,7 +46,7 @@ file inside one.
 
 | Unit | Pattern | Holds | Served at |
 | --- | --- | --- | --- |
-| A page | `p/[a-z0-9-]{1,120}` | `index.html` and the page's attached files | `/p/<slug>` and `/p/<slug>/<file>` |
+| A page | `p/[a-z0-9-]{1,120}` | `index.html`, and the page's images (`img-*`) and other files (`file-*`) | `/p/<slug>` and `/p/<slug>/<name>` |
 | A tag | `t/[a-z0-9-]{1,80}` | `index.html` | `/t/<key>` |
 | The home page | `home` | `index.html`, `tags.html`, `404.html` | `/`, `/tags`, any missing path |
 | The search index | `pagefind` | Pagefind's files | `/pagefind/...` |
@@ -72,8 +72,67 @@ never with `extractall`, and each must be:
 A page unit must hold `index.html`, a tag unit `index.html`, and `home` all three of its files.
 A file that breaks any rule refuses the whole unit with `422`, and nothing is written.
 
-The PWA's HTML links a page's own files by absolute path (`/p/<slug>/<file>`): the page is
-served at `/p/<slug>` with no trailing slash, so a relative link would resolve under `/p/`.
+## What scrap puts in a unit
+
+The receiver checks only the rules above. These are scrap's, so that what it sends always passes
+them.
+
+**A page** (`p/<slug>`, the page's slug in scrap). The PWA uploads the page's HTML, from
+`pagehtml.ts` in its publish mode. In it, every `<img src>` and every link to a file of the page
+is a placeholder naming the stored file: `scrap-blob:<sha>`. scrap replaces each placeholder with
+an **absolute** path, `/p/<slug>/<name>` (the page is served at `/p/<slug>` with no trailing
+slash, so a relative link would resolve under `/p/`), and puts the bytes beside `index.html`:
+
+| File | Name | Bytes |
+| --- | --- | --- |
+| A photo | `img-<n>-<hex>.jpg` | The 2048-pixel JPEG preview (EXIF and GPS stripped when it was made) |
+| A PNG or other raster image | `img-<n>-<hex>.jpg` or `.png`, as its preview is | The 2048-pixel preview |
+| An SVG | `img-<n>-<hex>.svg` | The sanitised SVG scrap stores (ADR 42) |
+| Another file (a PDF, a `.md`) | `file-<n>-<hex>.<ext>` | The file as stored, with its extension in lower case |
+
+- `<n>` counts the page's images, and separately its other files, from 1, in the order they first
+  appear in the HTML; the same file used twice is one file.
+- `<hex>` is the first 10 hex digits of the SHA-256 of the bytes published (not the stored
+  file's sha, which is never published, nor its uploaded name; a link's label may show the name).
+- At most **20** images and files together go with one page. Over that, scrap refuses the
+  publish with `422` and a message saying so, and nothing is pushed.
+- A placeholder for a file that is not on the page, a file of a type the receiver does not
+  allow, or any other `/api` or private address left in the HTML refuses the publish.
+
+**A tag** (`t/<key>`). The key is made from the tag, so any tag (spaces, `/`, letters outside
+ASCII) has one:
+
+1. the tag as ASCII: Unicode NFKD, characters without an ASCII form dropped, lower case;
+2. each run of characters other than `a-z` and `0-9` becomes `-`, and `-` is trimmed from both
+   ends; cut to 60 characters and trimmed again;
+3. then `-` and the first 8 hex digits of the SHA-256 of the whole tag (UTF-8).
+
+So `personal/family` is `personal-family-` and 8 hex digits, for example
+`personal-family-1a2b3c4d`; a tag with no ASCII letters or digits is `-` and its 8 digits. The key
+is at most 69 characters, so it always fits the unit pattern, and tags that make the same slug
+still get different keys.
+
+**`home` and `pagefind`.** scrap builds them, and every tag unit, from the copies below with
+plain Python templates and the `pagefind[bin]` Python package (at a pinned version).
+
+## scrap's copies and reconciling
+
+scrap keeps the last HTML uploaded for each public page at
+`<data>/cache/publish/p/<slug>/index.html` (with its placeholders already replaced). It is
+derived data and is not backed up. The site is rebuilt from these copies, never by rendering:
+
+- **After a publish** scrap pushes the page's unit, then the units built from the copies that
+  changed: `home`, the tags of the page (before and after), and `pagefind`.
+- **After an unpublish** (Public off in the PWA or over MCP, a revert, the page going to the
+  trash) scrap sends `DELETE /v1/units/p/<slug>`, deletes its copy, and pushes `home`, the page's
+  tag units (deleting a tag unit no public page has any more) and `pagefind`.
+- **Reconciling**, at startup and every 10 minutes: scrap reads `GET /v1/manifest`, computes the
+  digest of each unit it would send (a page's files copied from its store again), `PUT`s every
+  unit that is missing or differs, and ends with `POST /v1/sync` listing every unit it means
+  to keep. A site that lost its files, such as a restarted pod with an `emptyDir`, is filled
+  again within 10 minutes with nothing from the PWA.
+
+A `503` (busy) is retried; any other failure is logged and left to the next reconcile.
 
 ## Limits
 
@@ -206,13 +265,23 @@ A path segment starting with `.` is always `404`.
 
 On every response:
 
-- `Content-Security-Policy: default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline' 'self'; script-src 'self' 'wasm-unsafe-eval'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'`.
-  The only scripts are Pagefind's (its UI, on the home page), loaded from `/pagefind/`, which
-  fetches its index (`connect-src 'self'`) and runs WebAssembly (`'wasm-unsafe-eval'`); a page
-  has no script.
 - `X-Content-Type-Options: nosniff`
 - `Referrer-Policy: no-referrer`
 - `X-Robots-Tag: noindex, nofollow`
+
+`Content-Security-Policy` depends on what is served:
+
+| Served | `Content-Security-Policy` |
+| --- | --- |
+| HTML, and Pagefind's files | `default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline' 'self'; script-src 'self' 'wasm-unsafe-eval'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'` |
+| A page's file (`/p/<slug>/img-*`, `/p/<slug>/file-*`), but a PDF | `sandbox; default-src 'none'; style-src 'unsafe-inline'; img-src data:; font-src data:` |
+| A PDF (`/p/<slug>/file-*.pdf`) | `sandbox` |
+
+The only scripts are Pagefind's (its UI, on the home page), loaded from `/pagefind/` as files;
+there is no inline script. It fetches its index (`connect-src 'self'`) and runs WebAssembly
+(`'wasm-unsafe-eval'`). A page has no script. A page's file follows ADR 42's rule for stored
+files: opened on its own it runs nothing and loads nothing, and a PDF keeps `sandbox` alone so
+a browser's PDF viewer works.
 
 Types come from the extension (`.md` and `.txt` as `text/plain; charset=utf-8`, Pagefind's own
 files as `application/octet-stream`, `.wasm` as `application/wasm`).
