@@ -15,7 +15,7 @@ from fastapi.testclient import TestClient
 from mcp.client.client import Client
 from PIL import Image
 
-from conftest import FakeClaude, run_all
+from fakeclaude import FakeClaude, run_all
 from scrap import claude, enrich, ingest, mcp_server
 from scrap.app import create_app
 from scrap.store import (
