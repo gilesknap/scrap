@@ -11,7 +11,7 @@ the same file (#id) or, on an image, a raster data: URL; no ping; in CSS (a <sty
 style and the presentation attributes that take a url) no comment, no @-rule but
 @font-face, @media and @keyframes, a url() only to a fragment or an embedded font,
 and no image-set(), src() or quoted URL. A DOCTYPE that only names the SVG DTD (as
-matplotlib writes) is dropped unread. Served with blobs_api.SVG_HEADERS as well (a
+matplotlib writes) is dropped unread. Served with blobs_api.STRICT_HEADERS as well (a
 sandbox, and a CSP that loads nothing from outside the file), and shown in <img>,
 where no script runs anyway: this is defence in depth.
 
@@ -43,26 +43,33 @@ ELEMENTS = frozenset(
     feOffset fePointLight feSpecularLighting feSpotLight feTile feTurbulence""".split()
 )
 IMAGES = ("image", "feImage")  # the elements whose href may be a raster data: URL
-DATA_IMAGE = re.compile(r"data:image/(png|jpeg|gif|webp);base64,[A-Za-z0-9+/=\s]*\Z")
+DATA_IMAGE = re.compile(
+    r"data:image/(png|jpeg|gif|webp);base64,[A-Za-z0-9+/=\t\n\r\f ]*+\Z"
+)
 DECLARATION = re.compile(r"<!\s*(DOCTYPE|ENTITY)", re.IGNORECASE)
 # A DOCTYPE naming only an external DTD (matplotlib's, Illustrator's: the SVG 1.1 one),
 # with no internal subset ([...]) to declare entities in: stripped, never fetched
-PLAIN_DOCTYPE = re.compile(r"<!DOCTYPE\s[^\[\]<>]*>", re.IGNORECASE)
-XML_DECL = re.compile(r"\A\s*<\?xml[^>]*\?>")
-URL = re.compile(r"(?<![\w-])url\(", re.IGNORECASE)  # x-url( is no url(
-# The url()s kept: to a fragment of this file, or an embedded font (as Excalidraw's)
+PLAIN_DOCTYPE = re.compile(r"<!DOCTYPE\s[^\[\]<>]*+>", re.IGNORECASE)
+XML_DECL = re.compile(r"\A\s*+<\?xml[^>]*\?>")
+# Every pattern below is ASCII only (CSS whitespace and names are ASCII: a Unicode
+# space or letter is part of a URL to a browser), and its repeats possessive (*+),
+# so none can backtrack: each runs in linear time on a 1 MiB file
+URL = re.compile(r"(?<![a-z0-9_-])url\(", re.IGNORECASE | re.ASCII)  # x-url( is not
+# The url()s kept: to a fragment of this file, or an embedded font (as Excalidraw's),
+# base64 only (no %-encoding to hide markup in)
 KEPT = re.compile(
-    r"url\(\s*(['\"]?)(?:#[\w.-]*|data:(?:font/[\w.+-]+|application/(?:x-)?font-[\w.+-]+)"
-    r"(?:;[\w=.+-]*)*,[A-Za-z0-9+/=%\s]*)\1\s*\)",
-    re.IGNORECASE,
+    r"url\([ \t\n\r\f]*+(['\"]?+)(?:#[\w.-]*+|data:(?:font/[\w.+-]++"
+    r"|application/(?:x-)?font-[\w.+-]++)(?:;(?!base64,)[\w=.+-]*+)*+;base64,"
+    r"[A-Za-z0-9+/=]*+)\1[ \t\n\r\f]*+\)",
+    re.IGNORECASE | re.ASCII,
 )
 COMMENT = re.compile(r"/\*.*?(?:\*/|\Z)", re.DOTALL)
-AT_RULE = re.compile(r"@(?!x-)([\w-]*)")
+AT_RULE = re.compile(r"@(?!x-)([\w-]*+)", re.ASCII)
 AT_KEPT = ("font-face", "media", "keyframes", "-webkit-keyframes")
-STRING = re.compile(r"\"[^\"]*\"?|'[^']*'?")
+STRING = re.compile(r"\"[^\"]*+\"?|'[^']*+'?")
 FETCHING = re.compile(
-    r"(?<![\w-])(?:-webkit-)?(?:image-set|image|cross-fade|element|src)\(",
-    re.IGNORECASE,
+    r"(?<![a-z0-9_-])(?:-webkit-)?(?:image-set|image|cross-fade|element|src)\(",
+    re.IGNORECASE | re.ASCII,
 )
 # The attributes CSS is in, and so url(): style, and the presentation ones that
 # take a url (any other attribute is text, kept as it is)
@@ -198,15 +205,16 @@ def _clean(el: ET.Element, depth: int) -> None:
         elif name in (f"{{{XML}}}space", f"{{{XML}}}lang"):
             attrs[name] = value
             continue
-        if local is None or local.lower().startswith("on") or local in DROPPED:
+        low = (local or "").lower()  # names are compared in any case: Fill, HREF
+        if local is None or low.startswith("on") or low in DROPPED:
             continue  # another namespace's (inkscape:...), or an event handler
-        if local == "href":
+        if low == "href":
             if _href(value, tag):
                 attrs["href"] = value
             continue
         if "javascript:" in SCHEME.sub("", value).lower():
             continue
-        attrs[local] = _css(value) if local in CSS_ATTRS else value
+        attrs[local] = _css(value) if low in CSS_ATTRS else value
     el.attrib.clear()
     el.attrib.update(attrs)
     if tag == "style":

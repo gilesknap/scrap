@@ -261,7 +261,7 @@ flowchart TD
   is parsed with no DOCTYPE (one that only names the SVG DTD is dropped unread) and stored
   sanitised: no script, `foreignObject`, animation, event handler, `ping`, or link, `url()`,
   `image-set()` or quoted URL out of the file, no CSS @-rule but `@font-face`, `@media` and
-  `@keyframes` (`svg.py`). Every SVG is served with
+  `@keyframes` (`svg.py`). Every stored file but a PDF is served with
   `Content-Security-Policy: sandbox; default-src 'none'; style-src 'unsafe-inline'; img-src
   data:; font-src data:` and `nosniff`, and shown in `<img>`; its markup goes to
   Claude as text, quoted like any page text.

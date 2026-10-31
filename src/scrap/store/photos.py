@@ -90,10 +90,10 @@ class PhotosMixin(Core):
         for Claude, a file to be read for search (#234). Returns the page, with
         appended_on (the revision the embeds went onto; None on a retry or with no
         image), and whether it is new: a retry with the same cid changes nothing.
-        after: put the embeds after the Markdown block that text ends in
-        (placing.placed_after) instead of at the end; alt: their alt text. Source
-        mcp (an MCP client's: add_svg, or the /mcp upload) makes the revision
-        Claude's (source mcp: is:claude-edited)."""
+        after: put the embeds right after the line that text ends on, inside its
+        list item or quote (placing.placed_after), instead of at the end; alt:
+        their alt text. Source mcp (an MCP client's: add_svg, or the /mcp upload)
+        makes the revision Claude's (source mcp: is:claude-edited)."""
         cid = cid.upper()
         if not ULID.fullmatch(cid):
             raise InvalidError("id must be a ULID")

@@ -59,9 +59,10 @@ address to SCRAP_PUBLIC_URL)`):
 
 Stored files and previews are content-addressed, so they are served with `Cache-Control: private,
 max-age=31536000, immutable`, `X-Content-Type-Options: nosniff` and `Content-Security-Policy:
-sandbox` (an uploaded HTML file cannot run scripts); an SVG (the file and its preview) with
-`Content-Security-Policy: sandbox; default-src 'none'; style-src 'unsafe-inline'; img-src data:;
-font-src data:`, so it fetches nothing either. A SHA-256 is 64 lower-case hex digits (the
+sandbox` (an uploaded HTML file cannot run scripts), and every one but a PDF (and an SVG's
+preview) with `Content-Security-Policy: sandbox; default-src 'none'; style-src 'unsafe-inline';
+img-src data:; font-src data:`, so it fetches nothing either; a PDF keeps `sandbox` alone, which
+the browser's PDF viewer needs. A SHA-256 is 64 lower-case hex digits (the
 `uses` and drawing routes also take upper case); any other value, or a file not stored, is `404`. A page download is `Cache-Control: no-store`. The
 PWA's hashed files under `/assets/` are `immutable`; its other files are `no-cache`, so a new
 build is noticed.
@@ -247,7 +248,7 @@ chart's values in [](../how-to/deploy-kubernetes.md).
 | `SCRAP_MCP_TOKEN_FILE` | unset | A file with one bearer token per line (blank lines and `#` comments skipped), for a mounted secret; its tokens add to `SCRAP_MCP_TOKEN`'s. A missing or token-less file stops scrap at start |
 | `SCRAP_IDENTITY_HEADER` | `Tailscale-User-Login` | The request header recorded as the author of a change, else `tagged`. Only this header is read; set it to what your authenticating proxy sends (e.g. `X-Auth-Request-User`). Blank counts as unset, and so does a value of `claude` (any case), MCP's author |
 | `SCRAP_REVISION_WINDOW` | `300` | Seconds within which one author's changes to a page's kind and tags fold into one metadata revision, and one author's text edits from one source (Claude's over MCP) into one text revision; `0`: each change is one. A value that is not a number of at least 0 stops scrap at start |
-| `SCRAP_MCP_CONTENT_EDIT` | `1` | `0` (or `false`, `no`, `off`): MCP does not offer `edit_page`, `edit_drawing`, `trash_pages` or `undelete`, and refuses `revert` with `to_rev`, so no MCP session can change the text of a page it did not write (see [](mcp.md)). Unset is on; any other value, empty too, stops scrap starting |
+| `SCRAP_MCP_CONTENT_EDIT` | `1` | `0` (or `false`, `no`, `off`): MCP does not offer `edit_page`, `edit_drawing`, `trash_pages` or `undelete`, and refuses `revert` with `to_rev`, so no MCP session can edit the text of a page it did not write; it can still add an image embed to one (`add_svg` and the `/mcp` upload) unless `SCRAP_MCP_UPLOAD=0` (see [](mcp.md)). Unset is on; any other value, empty too, stops scrap starting |
 | `SCRAP_MCP_UPLOAD` | `1` | `0` (or `false`, `no`, `off`): MCP clients cannot add images or files: `add_svg` is not offered and `POST /mcp/pages/{key}/captures` is not served (see [](mcp.md), {ref}`mcp-uploads`). Unset is on; any other value, empty too, stops scrap starting |
 | `SCRAP_MAX_UPLOAD_MB` | `50` | Largest request body (a capture's files together), enforced as it arrives: `413`. May be fractional; a value that is not a number stops scrap at start. `/mcp` has its own fixed cap of 2 MB |
 | `SCRAP_TRASH_DAYS` | `30` | How long a page stays in the trash (1 to 36500 days, or `off`) before the nightly `scrap gc` purges it, as the server shows it (`GET /api/trash`, the PWA's Trash, the MCP `trash` tool and instructions). Set it to the `--trash-days` the gc runs with (the chart does, from `gc.trashDays`); `off` when no gc purges the trash, so no date is shown. A number below 1, or anything else, stops scrap at start. It does not purge anything itself |

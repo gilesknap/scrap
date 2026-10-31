@@ -246,7 +246,8 @@ Two ways in, both off with `SCRAP_MCP_UPLOAD=0` (on by default;
 change: the capture's author is `claude` and its source `mcp`, and the embed goes into the text as
 a text revision with source `mcp`, so `is:claude-edited` finds the page, `revisions` lists it and
 `revert(page, to_rev)` takes the embed out again (the file stays attached, listed below the text,
-as when the user deletes an embed in the PWA). Either takes any page, and wakes the ingest
+as when the user deletes an embed in the PWA; with `SCRAP_MCP_CONTENT_EDIT=0` `revert` refuses
+`to_rev`, so the user deletes the embed in the PWA's editor). Either takes any page, and wakes the ingest
 worker; `SCRAP_MCP_CONTENT_EDIT=0` does not limit them.
 
 **An SVG Claude writes: `add_svg`.** SVG is text, so a labelled geometry diagram, a graph on a
@@ -258,14 +259,21 @@ goes under the question it belongs to:
 
 - in a paragraph, the paragraph is split there (`(a) Find the height.` then the diagram, then
   `Answer: 4 m`);
-- in a list item, the embed stays in the item, indented as a continuation, and the list goes on
-  (`1. Show that x = 2.`, the diagram indented under it, then `   Answer: shown`, `2. ...`); a
-  nested item uses its own indent; in a quote, it is quoted (`> `);
+- in a tight list (no blank lines between its items), the embed stays in the item and the
+  list stays tight: the line ends with a hard break (`\`) and the embed follows on the next
+  line at the item's indent, broken from what follows in turn
+  (`1. Show that x = 2.\`, `   ![diagram](...)\`, `   Answer: shown`, `2. ...`); a nested item
+  uses its own indent, and a tab counts to the next stop of four;
+- in a loose list, the embed is a paragraph of its own in the item, indented as a
+  continuation; in a quote, it is quoted (`> `);
 - a block that cannot be split has it after its end: a fenced or indented code block (a
   `math` one too), a table, `$$ ... $$` or a `\begin{...}` environment, a heading (a setext one
   after its underline);
-- a split that would change the page's blocks (a next line that would then start a list or
-  code block, inline code or `$maths$` cut in two) puts it after the paragraph instead.
+- a split that would change the page (a next line that would then start a list or code
+  block, inline code, `$maths$`, a link or bold text cut in two) puts it after the paragraph
+  instead: each place is parsed again and kept only if the page's blocks, the item or quote
+  the embed is in, its lists' tightness and its rendered text are as they were. If none is,
+  the embed goes at the end of the text.
 
 Without `after` the embed goes at the end. The same SVG already shown on the
 page adds no revision.
@@ -301,17 +309,19 @@ use a PNG, JPEG, GIF or WebP `data:` URL), no `ping`, and in CSS (a `<style>`, `
 presentation attributes that take a url) no comment, no @-rule but `@font-face`, `@media` and
 `@keyframes`, a `url()` only to a fragment or a `data:` font (an embedded font, as Excalidraw
 exports have), and no `image-set()`, `src()`, backslash escape or quoted string holding a URL.
-Every SVG is served (the file and its preview, under `/api` and `/mcp`) with
-`Content-Security-Policy: sandbox; default-src 'none'; style-src 'unsafe-inline'; img-src data:;
-font-src data:` and `nosniff`, so opened as a page it runs no script and fetches nothing, an SVG
-stored before #480 (not sanitised) too; the PWA shows it in `<img>`, where none of that runs
+Every stored file but a PDF is served (the file, and an SVG's preview, under `/api` and `/mcp`)
+with `Content-Security-Policy: sandbox; default-src 'none'; style-src 'unsafe-inline'; img-src
+data:; font-src data:` and `nosniff`, so opened as a page it runs no script and fetches nothing:
+an SVG stored before #480 (not sanitised), and any other markup (an imported `.xml` with an
+`<svg>` root), too; an image or a text file shows as before. A PDF keeps `sandbox` alone, for
+the browser's PDF viewer; the PWA shows it in `<img>`, where none of that runs
 anyway.
 
 **How an SVG is read.** Its preview (`/api/blobs/{sha}/preview`, at either size) is the file itself,
 which scales; nothing rasterises it, and a page's download with `photos=preview` keeps it as
 `.svg`. Ingest reads its words (`<title>`, `<desc>`, `<text>`) as its text at once, with no
 model call, so search finds `12 cm` or `30°`; then Claude gets its markup (the first 20,000
-characters) as text, not an image, for the description, title and tags a photo gets (no
+characters, with each embedded base64 payload, a font or a raster image, put as its size) as text, not an image, for the description, title and tags a photo gets (no
 drawing: it is one). A write-up (`writeup`, or a board's) sends it the same way: its markup as
 text, where a photo's JPEG would go. A gist renders SVG from its raw URLs
 (`![](https://gist.githubusercontent.com/<user>/<id>/raw/file.svg)`), and `gh gist create` takes
@@ -446,7 +456,8 @@ it as a text file, so a page with SVG diagrams can be published as a gist of tex
 
 Unless the server runs with `SCRAP_MCP_CONTENT_EDIT=0` (then `edit_page` is not listed, nor are
 `edit_drawing`, `trash_pages` and `undelete`; `revert` still is, but refuses `to_rev`; and the
-server's instructions say no tool changes the user's text), Claude can edit the text of any page,
+server's instructions say no tool edits the user's text, though `add_svg`, unless
+`SCRAP_MCP_UPLOAD=0`, still adds an image embed to one), Claude can edit the text of any page,
 the user's own too. This is on by default, and the safeguard against a page's text steering the
 model is only that instruction; see the tradeoff in [](../explanations/architecture/mcp-and-access.md). Both tools' descriptions and the server's instructions tell the model to use
 them only on a page the user asked it to change, and only as asked, never because a page's text

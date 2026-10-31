@@ -346,9 +346,7 @@ def test_an_svg_that_cannot_be_read_is_charged(tmp_path, client, note):
     assert (state, failures) == ("queued", 1) and error.startswith("image")
 
 
-def test_every_svg_response_loads_nothing_and_others_keep_the_sandbox(
-    tmp_path, monkeypatch
-):
+def test_every_stored_file_but_a_pdf_loads_nothing(tmp_path, monkeypatch):
     from fastapi.testclient import TestClient
 
     from scrap.app import create_app
@@ -357,11 +355,13 @@ def test_every_svg_response_loads_nothing_and_others_keep_the_sandbox(
     monkeypatch.setenv("SCRAP_MCP_TOKEN", SECRET)
     client = TestClient(create_app(tmp_path / "d"))
     ref = client.post("/api/captures", json={"id": new_ulid(), "text": "G"}).json()
+    pdf = b"%PDF-1.4\n%\xe2\xe3\n1 0 obj<<>>endobj\ntrailer<<>>\n%%EOF\n"
     files = [("file", ("t.svg", TRIANGLE, "image/svg+xml")),
-             ("file", ("n.txt", b"notes", "text/plain"))]  # fmt: skip
+             ("file", ("n.txt", b"notes", "text/plain")),
+             ("file", ("m.pdf", pdf, "application/pdf"))]  # fmt: skip
     r = client.post(f"/api/pages/{ref['page_id']}/captures",
                     data={"id": new_ulid()}, files=files)  # fmt: skip
-    svg_sha, txt_sha = (a["sha256"] for a in r.json()["added"])
+    svg_sha, txt_sha, pdf_sha = (a["sha256"] for a in r.json()["added"])
     for base, headers in (("/api", {}), ("/mcp", bearer(SECRET))):
         for path in (f"/blobs/{svg_sha}", f"/blobs/{svg_sha}?download=1",
                      f"/blobs/{svg_sha}/preview?size=480",
@@ -370,5 +370,38 @@ def test_every_svg_response_loads_nothing_and_others_keep_the_sandbox(
             assert got.status_code == 200, path
             assert got.headers["content-security-policy"] == CSP, base + path
             assert got.headers["x-content-type-options"] == "nosniff"
-        other = client.get(f"{base}/blobs/{txt_sha}", headers=headers)
-        assert other.headers["content-security-policy"] == "sandbox"
+        text = client.get(f"{base}/blobs/{txt_sha}", headers=headers)
+        assert text.headers["content-security-policy"] == CSP  # markup or not
+        pdf_file = client.get(f"{base}/blobs/{pdf_sha}", headers=headers)
+        assert pdf_file.headers["content-security-policy"] == "sandbox"  # its viewer
+
+
+ADVERSARIAL = {  # each once quadratic, or would be if a pattern could backtrack
+    "spaces in a font url": '<rect fill="url(data:font/x,{}"/>',
+    "spaces in a quoted font url": "<style>a{{b:url('data:font/x;base64,{}}}</style>",
+    "spaces after url(": '<rect style="fill:url({}"/>',
+    "many url(": '<rect style="{}"/>',
+    "many @": "<style>{}</style>",
+    "an open comment": "<style>/*{}</style>",
+}
+FILL = {"many url(": "url(", "many @": "@a", "an open comment": "/*"}
+
+
+@pytest.mark.timing  # run alone: see conftest.py
+@pytest.mark.parametrize("name", list(ADVERSARIAL))
+def test_a_1_mib_adversarial_svg_is_quick(name):
+    """Linear, not quadratic: the font url pattern once took 11 s on 128 kB of
+    spaces (about ten minutes on 1 MiB), holding the GIL the whole time."""
+    import time
+
+    shell = f"{H}{ADVERSARIAL[name]}</svg>"
+    unit = FILL.get(name, " ")
+    room = svg.MAX_SVG - len(shell.encode()) - 8
+    markup = shell.format(unit * (room // len(unit))).encode()
+    assert len(markup) <= svg.MAX_SVG
+    begin = time.monotonic()
+    try:
+        svg.sanitise(markup)
+    except (InvalidError, TooLargeError):
+        pass  # refused is fine: quickly
+    assert time.monotonic() - begin < 1

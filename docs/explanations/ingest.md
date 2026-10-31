@@ -238,7 +238,8 @@ the original that is stored is already that size.
 
 **An SVG** (#480) is not decoded at all. Its job first puts its words (`<title>`, `<desc>`,
 `<text>`) as its text, with no model call, so search has them whatever happens next; then the
-user turn is its markup (the first 20,000 characters) as a text block, said to be data, instead
+user turn is its markup (the first 20,000 characters, an embedded font's or image's base64 put
+as its size) as a text block, said to be data, instead
 of an image block, with no drawing asked for. No JPEG is made, so its run has no `sent_sha256` or
 size. See [ADR 0042](decisions/0042-mcp-clients-add-svg-and-files.md).
 

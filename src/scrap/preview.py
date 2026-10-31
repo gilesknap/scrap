@@ -176,7 +176,7 @@ def own(store: Store, sha: str, size: int) -> Path | None:
     """A stored SVG itself, if sha is one (None if not): the browser scales it to any
     size, so it is its own preview, with no rasteriser (#480). One uploaded or
     imported since #480 was sanitised (svg.sanitise); one stored before was not,
-    and is served as it is, as every SVG is, with blobs_api.SVG_HEADERS: sandboxed,
+    and is served as it is, as every SVG is, with blobs_api.STRICT_HEADERS: sandboxed,
     and a CSP that lets it load nothing but its own inline styles and data: URLs.
     size is checked as for a photo (SIZES), and ignored."""
     if size not in SIZES:

@@ -43,8 +43,9 @@ code block, a table, display maths, a heading); else at the end of the text. A
 retry with the same key adds nothing; the same key with another SVG is
 refused, dry_run too. A new text revision (author claude: is:claude-edited),
 listed by revisions and undone by revert(page, to_rev), which removes the
-embed. dry_run returns the diff and saves nothing. The result has the stored
-file's download_url."""
+embed (with SCRAP_MCP_CONTENT_EDIT off revert refuses that: the user deletes
+the embed in the PWA's editor). dry_run returns the diff and saves nothing.
+The result has the stored file's download_url."""
 
 
 def clean_name(name: str | None) -> str:
@@ -82,7 +83,7 @@ def register_images(mcp: MCPServer, ctx: Ctx) -> None:
             str | None,
             Field(
                 description="Text copied exactly from the body, occurring once: the "
-                "embed goes after the block it ends in (none: at the end)"
+                "embed goes right after the line it ends on (none: at the end)"
             ),
         ] = None,
         key: Annotated[

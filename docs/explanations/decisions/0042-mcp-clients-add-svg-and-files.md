@@ -23,13 +23,16 @@ opened directly.
 
 - **`add_svg`, an MCP tool.** It takes the page, the markup, alt text, an optional file name, an
   optional `after` (text that must occur exactly once, as `edit_page`'s `old`), a `key` and
-  `dry_run`. The embed goes right after the line `after` ends on, as a paragraph of its own: a
-  paragraph is split there, and in a list item or a quote the embed stays in it, indented or
-  quoted as a continuation, so the list goes on. A block that cannot be split (a fenced or
+  `dry_run`. The embed goes right after the line `after` ends on: a paragraph is split there;
+  in a tight list (the owner's decision) the line ends with a hard break (`\`) and the embed
+  follows on the next line at the item's indent, so the list stays tight; in a loose list or
+  a quote it is a paragraph of its own in the item or quote. A block that cannot be split (a fenced or
   indented code block, a table, `$$` or `\begin{...}` maths, a heading) has it after its end.
-  The text is parsed as the page is rendered to find the block (`store/placing.py`), and a
-  place that would change the page's blocks (a line that would start a list once split, say)
-  falls back to the end of the paragraph. So a diagram sits under its question. Without
+  The text is parsed as the page is rendered to find the block (`store/placing.py`, tabs to
+  stops of four), and each place tried is parsed again: kept only if the page's blocks, the
+  item or quote the embed is in, the lists' tightness and the rendered text are unchanged
+  (a split that would start a list, or cut a link or bold text in two, falls back to the end
+  of the paragraph); if no place passes, the embed goes at the end of the text. So a diagram sits under its question. Without
   `after` it goes at the end. The same `key` with another SVG is refused, `dry_run` too. It stores the SVG as a new capture of the page and embeds it as
   the PWA's Add photo does (`store.add_photos`), with the alt text.
 - **The upload, over HTTP.** `POST /api/pages/{key}/captures` is also served at
@@ -59,11 +62,12 @@ opened directly.
   to a fragment or a `data:` font (each one checked on its own), and no `image-set()`, `src()`,
   escape or quoted URL; the passes repeat until nothing changes, so no removal can join what
   is left into a rule.
-- **And a CSP that loads nothing.** Every SVG response (the file, its preview, under `/api` and
-  `/mcp`) has `Content-Security-Policy: sandbox; default-src 'none'; style-src 'unsafe-inline';
-  img-src data:; font-src data:` and `nosniff` (`SVG_HEADERS`): opened as a page it runs no
-  script and fetches nothing, even if the sanitiser misses something or the file predates it.
-  Other files keep `sandbox` alone, as a browser's PDF viewer needs more. In `<img>`, where the
+- **And a CSP that loads nothing.** Every stored file but a PDF (and an SVG's preview), under
+  `/api` and `/mcp`, has `Content-Security-Policy: sandbox; default-src 'none'; style-src 'unsafe-inline';
+  img-src data:; font-src data:` and `nosniff` (`STRICT_HEADERS`): opened as a page it runs no
+  script and fetches nothing, even if the sanitiser misses something, the file predates it,
+  or the file is other markup (an imported `.xml` with an `<svg>` root). An image or a text
+  file shows as before; a PDF keeps `sandbox` alone, as a browser's PDF viewer needs more. In `<img>`, where the
   PWA shows it, an SVG runs nothing and loads nothing anyway.
 - **An SVG is never rasterised.** `/api/blobs/{sha}/preview` serves the SVG itself at either size,
   with the same headers; nothing decodes it with Pillow (preview, Claude's JPEG, a page's
@@ -86,5 +90,5 @@ opened directly.
   `gh gist create` takes it as a text file, so a page with SVG diagrams can be published as a gist
   of text files alone, with no clone or push for binaries.
 - A client with the MCP headers can add files to any page, unless `SCRAP_MCP_UPLOAD=0`.
-- An SVG stored before #480 was not sanitised; `SVG_HEADERS` still keeps it from running or
+- An SVG stored before #480 was not sanitised; `STRICT_HEADERS` still keeps it from running or
   fetching anything when it is opened.

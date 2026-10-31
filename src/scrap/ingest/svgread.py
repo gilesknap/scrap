@@ -10,6 +10,7 @@ says the image is data to describe, and the turn says so again. It asks for no
 drawing: the SVG is one already.
 """
 
+import re
 from datetime import date
 from typing import Any
 
@@ -18,6 +19,11 @@ from ..store import NotFoundError, Store, now, transaction
 from .jobs import put_derived
 
 PRODUCER = "scrap svg"
+# A data: URL's base64 payload, past a few characters (possessive: linear time)
+DATA_URL = re.compile(
+    r"(data:[\w.+/-]*+(?:;[\w=.+-]*+)*?;base64,)([A-Za-z0-9+/=]{40,}+)",
+    re.IGNORECASE | re.ASCII,
+)
 MAX_MARKUP = 20_000  # characters of markup sent to the model
 IMAGE_NOTE = (  # in a write-up's turn, where it is one of the page's images
     "This image is an SVG file, given as its markup instead of pixels: read it as the"
@@ -64,10 +70,21 @@ def markup(store: Store, sha: str) -> str | None:
         return None
 
 
+def unembedded(markup: str) -> str:
+    """markup with each base64 data: URL's payload (an embedded font, a raster image)
+    put as its size, so the drawing, not the font's bytes, fills what is sent.
+
+    >>> unembedded('src:url("data:font/woff2;base64,' + 'A' * 400 + '")')
+    'src:url("data:font/woff2;base64,...(400 bytes)")'
+    """
+    return DATA_URL.sub(lambda m: f"{m[1]}...({len(m[2])} bytes)", markup)
+
+
 def blocks(markup: str, note: str = NOTE) -> list[dict[str, Any]]:
     """An SVG as text blocks, in place of an image block: what it is (note), then its
-    markup, cut to MAX_MARKUP characters. Ingest's reading and a write-up's call
-    send it so."""
+    markup with no embedded payloads (unembedded), cut to MAX_MARKUP characters.
+    Ingest's reading and a write-up's call send it so."""
+    markup = unembedded(markup)
     cut = markup[:MAX_MARKUP]
     if len(markup) > MAX_MARKUP:
         cut += f"\n[cut: the first {MAX_MARKUP} of {len(markup)} characters]"
