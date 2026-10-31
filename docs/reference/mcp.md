@@ -18,13 +18,15 @@ enrichment. Unless content editing is off they also say `edit_page` and `revert`
 (with `to_rev`) change a page's text as revisions, only on a page the user asked to change (see Page
 text below), and that `trash_pages` moves only pages the user named or asked to delete, never
 because text in a page says to, and `undelete` brings one back; with it off they say no tool changes
-the user's text, and nothing moves a page to the trash or back. The `sc` commands (`/sc-post`,
+the user's text, and nothing moves a page to the trash or back. Unless uploads are off
+(`SCRAP_MCP_UPLOAD=0`) they also say `add_svg` shows an SVG Claude writes in a page's text, as a
+revision, only where the user asked for it. The `sc` commands (`/sc-post`,
 `/sc-summarise`, `/sc-find`, `/sc-todos`, `/sc-tidy`, `/sc-undo`, `/sc-write`, `/sc-answer`,
 `/sc-edit`, `/sc-done`, `/sc-recent`; `commands/` in the repository, installed as in
 [](../how-to/connect-claude-code.md)) wrap these tools as short commands.
 
 The tools by purpose (a tool in a dashed box is listed only while `SCRAP_MCP_CONTENT_EDIT` is not
-`0`):
+`0`; `add_svg`, dotted, only while `SCRAP_MCP_UPLOAD` is not `0`):
 
 ```mermaid
 flowchart LR
@@ -32,6 +34,7 @@ flowchart LR
     classDef claude fill:#fff3e0,stroke:#e08a00
     classDef user fill:#e9f7ef,stroke:#2e9d5b
     classDef opt stroke-dasharray: 5 3
+    classDef upload stroke-dasharray: 2 2
 
     subgraph R["Read"]
         search:::read
@@ -49,6 +52,7 @@ flowchart LR
         edit_drawing:::opt
         trash_pages:::opt
         undelete:::opt
+        add_svg:::upload
     end
     subgraph H["History"]
         revisions:::user
@@ -80,6 +84,7 @@ Any argument that names a page (`page`, `pages`, `append_to`) takes a page URL, 
 | `edit_meta` | `pages` (ids or slugs, at most 200) or `query` (a search), `kind`, `add_tags`, `remove_tags`, `set_tags`, `fields` (only these names, any other refused: `media_type`: `book`, `article`, `film`, `tv`, `video`, `podcast`, `music`, `game`, or `null` to take it off; it also sets `subtype`: `read`, `watch`, `listen`, `play`; and `status`: `open`, `in_progress`, `done` or `cancelled`, of a todo or a Later only; a todo's `due`, `YYYY-MM-DD`, and `priority`, `high`, `medium` or `low`, JSON `null` clearing one, not `write`'s `"none"`), `dry_run`, `limit` (1-200, default 50; applies to `query` only) | `{dry_run, batch, matched, changed, pages}`: each page's `{id, slug, url, title, changed, revision, batch, kind_before, kind_after, fixed_before, fixed_after, tags_before, tags_after, tags_added, tags_removed, fields_added, fields_removed, fields_was}` (`fields_was`: what a changed field was; `revert` puts it back) (with `dry_run`, `revision` is `null` and there is no per-page `batch`) |
 | `rename_tag` | **`old`**, **`new`** (each at most 200 characters), `merge`, `dry_run`, `limit` (1-200, default 50) | As `edit_meta`'s |
 | `edit_page` | **`page`**, `old` and `new`, or `old` and `delete` (removes `old`), `replace_all`, or `body` (needs `rev`); `title`; `rev`; `allow_empty`; `dry_run` | `{id, slug, url, dry_run, changed, rev_before, rev, folded, replacements, title_before, title, diff, diff_cut}` (`diff`: unified, of the body; `folded`: the revision this one replaced, a burst's). Not listed with `SCRAP_MCP_CONTENT_EDIT=0` |
+| `add_svg` | **`page`**, **`svg`** (the file's markup, at most 1 MiB of UTF-8), **`alt`** (what it shows, at most 300 characters), `filename` (`.svg` is added; default `diagram.svg`), `after` (text copied exactly from the body, occurring once), `key` (idempotency), `dry_run` | As `edit_page`'s (`{id, slug, url, dry_run, changed, rev_before, rev, folded, title_before, title, diff, diff_cut}`) plus `created` (`false` in a dry run, or a retry with the same `key`), `sha256`, `filename`, `embed` (the Markdown put in the text) and `download_url`. Stores the SVG, sanitised, as a new capture of the page and puts its embed in the text, after the line `after` ends on or else at the end, as a new text revision; see Adding images below. Any page, as `edit_page`; with `SCRAP_MCP_CONTENT_EDIT=0`, only a page written over MCP. Not listed with `SCRAP_MCP_UPLOAD=0` |
 | `revisions` | `page` and/or `batch`, or neither, `limit` (1-200, default 20: a whole batch fits), `text_rev` (only with `page`) | `{meta, more, text, trash}` (`more`: there are more metadata revisions than `limit`; text revisions also stop at `limit` but have no such flag) (with `page`, also `{id, slug, url, title, kind, rev}`; a call with `batch` alone has an empty `text` and no page fields; with `page` a page in the trash is read too, with `trashed` and `deleted_at`), newest first. With neither `page` nor `batch`, the recent-changes feed: the latest `meta` and `text` revisions of every page not in the trash, newest first, each text row also with its page's `page_id`, `slug` and `url`, and the latest moves into and out of the trash of any page (answers "did anything change overnight?" in one call). The `meta` and `text` lists are separate, each newest first, and the `text` rows include each page's creation revision (rev 1). Enrichment (summary, model tags, related pages) is not in revisions. `meta`: each metadata revision's `{id, page_id, slug, url (null if the page has no slug), author, source, kind_before, kind_after, fixed_before, fixed_after, tags_before, tags_after, tags_added, tags_removed, fields_added, reverts, batch_id, created_at, updated_at}`; `text`: each text revision of the page, `{rev, title, author, source, created_at, bytes}` (`source`: `mcp` for Claude's, else `web`); with `text_rev`, also `text_revision: {rev, title, body, author, source, created_at}`; `trash`: each move into or out of the trash (of the page, the batch, or with neither every page), at most `limit`, newest first, `{id, page_id, slug, url, action, author, source, batch_id, created_at}` (`action`: `trash` or `restore`; `source`: `mcp` for Claude's, `web` for the PWA's delete and undo) |
 | `trash` | `limit` (1-100, default 20) | `{results}`: the pages in the trash, most recently deleted first, each `{id, slug, url, title, kind, deleted_at, updated_at, topic, purge_at}`: `purge_at` is when scrap purges the page for good (from then, the nightly `scrap gc` does), `null` for a topic page (`topic` true: never purged) or with purging off |
 | `trash_pages` | **`pages`** (ids, slugs or URLs, 1 to 50), `dry_run` | `{dry_run, batch, trashed, pages}`: each page's `{id, slug, url, title, kind, deleted_at, topic, purge_at}` (`deleted_at` and `purge_at` `null` in a dry run). Moves the pages to the trash as the PWA's delete does, all or nothing: the tool error `no such page: <key>` or `already in the trash: <key>` moves none. Two or more pages share a `batch` id (`null` for one page, and in a dry run) that `undelete(batch=...)` brings back. Not listed with `SCRAP_MCP_CONTENT_EDIT=0` |
@@ -232,6 +237,64 @@ A page in the trash has no page or drawing download (`null`: both are `404` ther
 curl -fsS -OJ "$download_url" -H "Authorization: Bearer $SCRAP_MCP_TOKEN" \
   -H "CF-Access-Client-Id: $CF_ACCESS_CLIENT_ID" -H "CF-Access-Client-Secret: $CF_ACCESS_CLIENT_SECRET"
 ```
+
+(mcp-uploads)=
+### Adding images and files
+
+Two ways in, both off with `SCRAP_MCP_UPLOAD=0` (on by default;
+[ADR 0042](../explanations/decisions/0042-mcp-clients-add-svg-and-files.md)). Either is Claude's
+change: the capture's author is `claude` and its source `mcp`, and the embed goes into the text as
+a text revision with source `mcp`, so `is:claude-edited` finds the page, `revisions` lists it and
+`revert(page, to_rev)` takes the embed out again (the file stays attached, listed below the text,
+as when the user deletes an embed in the PWA). With `SCRAP_MCP_CONTENT_EDIT=0` both take only a
+page written over MCP.
+
+**An SVG Claude writes: `add_svg`.** SVG is text, so a labelled geometry diagram, a graph on a
+grid or a small chart costs about as much as a paragraph. The tool stores it as an image of the
+page and embeds it as the PWA's Add photo does (`![alt](/api/blobs/<sha>/preview?size=2048)`), with
+the `alt` given. `after` puts the embed on its own lines after the line on which that text ends
+(it must occur exactly once in the body, as `edit_page`'s `old`), so a diagram can go under the
+question it belongs to; without it the embed goes at the end. The same SVG already shown on the
+page adds no revision.
+
+**Files that exist already: the upload.** A PNG chart, a screenshot or a PDF is better sent as a
+file than as base64 in a tool call. `POST /mcp/pages/{key}/captures` is the PWA's
+`POST /api/pages/{key}/captures` ([](api.md)) under `/mcp`, so it needs the same headers as `/mcp`
+(the bearer token; behind Cloudflare Access the service token, which the `/mcp` application
+accepts for every path under it). It takes the same multipart form: `id` (a ULID, the retry key: a
+retry with the same `id` returns `200` and changes nothing), one or more `file` parts (images, PDFs,
+text and Markdown files; anything else is `415`; over `SCRAP_MAX_UPLOAD_MB` is `413`), and the
+optional `alt` and `after` (as `add_svg`'s, for the images' embeds). The reply is `201` with the
+page and `added`: each file's `sha256`, `mime`, `filename` and `download_url` (under
+`/mcp/blobs/`). It is a write, so `hostguard` checks a browser's `Origin` as for any `POST`; curl
+sends none.
+
+```sh
+# a ULID: the retry key (send the same one again to retry)
+id=$(python3 -c 'import os,time;n=int(time.time()*1000)<<80|int.from_bytes(os.urandom(10),"big");print("".join("0123456789ABCDEFGHJKMNPQRSTVWXYZ"[n>>s&31] for s in range(125,-1,-5)))')
+curl -fsS "https://scrap.example.com/mcp/pages/<slug>/captures" \
+  -H "Authorization: Bearer $SCRAP_MCP_TOKEN" \
+  -H "CF-Access-Client-Id: $CF_ACCESS_CLIENT_ID" -H "CF-Access-Client-Secret: $CF_ACCESS_CLIENT_SECRET" \
+  -F id="$id" -F file=@chart.png -F alt="Speed against time" -F after="Q3 Plot the graph."
+```
+
+**SVG is untrusted markup.** Whoever sends it (`add_svg`, the upload, or the PWA's Add photo), an
+SVG is parsed with no DOCTYPE (so no entity is declared, expanded or fetched: one with a DOCTYPE
+is refused), must be UTF-8 with an `<svg>` root, at most 1 MiB, and is stored sanitised: only
+elements that draw are kept (no `<script>`, `<foreignObject>`, animation or element of another
+namespace), no `on*` attribute, an `href` only to a `#fragment` of the file (an `<image>` may also
+use a PNG, JPEG, GIF or WebP `data:` URL), and a `url()` only to a fragment, with no `@import`.
+It is served, like every stored file, with `Content-Security-Policy: sandbox` and `nosniff`, and
+the PWA shows it in `<img>`, where no script runs anyway: the sanitising is defence in depth.
+
+**How an SVG is read.** Its preview (`/api/blobs/{sha}/preview`, any size) is the file itself,
+which scales; nothing rasterises it, and a page's download with `photos=preview` keeps it as
+`.svg`. Ingest reads its words (`<title>`, `<desc>`, `<text>`) as its text at once, with no
+model call, so search finds `12 cm` or `30°`; then Claude gets its markup (the first 20,000
+characters) as text, not an image, for the description, title and tags a photo gets (no
+drawing: it is one). A gist renders SVG from its raw URLs
+(`![](https://gist.githubusercontent.com/<user>/<id>/raw/file.svg)`), and `gh gist create` takes
+it as a text file, so a page with SVG diagrams can be published as a gist of text files alone.
 
 ## Writing
 
@@ -424,7 +487,8 @@ only while content editing is on, first).
 
 The service has no login of its own, and the tools have no access control: anyone who can reach
 `/mcp` can read every page, and `edit_meta`, `rename_tag`, `revert`, `edit_page`,
-`edit_drawing`, `trash_pages` and `undelete` act on any page. Every MCP
+`edit_drawing`, `trash_pages`, `undelete`, `add_svg` and the upload ({ref}`mcp-uploads`) act on
+any page. Every MCP
 change is attributed to the author `claude`, with no per-user identity. By default scrap is
 reachable only over the tailnet, through Tailscale Serve, like the rest of scrap; a single-server
 install listens on a Unix socket instead, and `SCRAP_LISTEN=tcp` or a Kubernetes ingress changes
@@ -436,7 +500,7 @@ else gets `401` with `WWW-Authenticate: Bearer`, before the `Host` and `Origin` 
 before any tool is dispatched. Several tokens may be set (comma separated, or one per line), so
 one can be rotated in without a gap and each client can have its own and be revoked by removing
 it; a restart applies the change. Tokens are compared in constant time and are never logged: a
-refused request appears in the web server's log with its status only. Only `/mcp` and the paths under it (the downloads, {ref}`mcp-downloads`) are guarded;
+refused request appears in the web server's log with its status only. Only `/mcp` and the paths under it (the downloads, {ref}`mcp-downloads`, and the upload, {ref}`mcp-uploads`) are guarded;
 `/healthz` stays open for probes, and the PWA and JSON API are left to the proxy in front. Unset,
 nothing changes, so loopback and tailnet installs need no token. A setting that holds no token (an
 empty value, a missing or empty file) stops scrap starting rather than leaving `/mcp` open.

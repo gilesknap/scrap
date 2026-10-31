@@ -81,13 +81,13 @@ your projects. Avoid `--scope project`: it writes the tailnet hostname into a `.
 you would commit. `claude mcp list` should show `scrap` as connected. `claude mcp remove scrap`
 takes it out again.
 
-The server has fifteen tools (eleven with `SCRAP_MCP_CONTENT_EDIT=0`, which drops `edit_page`, `edit_drawing`, `trash_pages` and `undelete`), which appear as `mcp__scrap__search` (it also lists the recent
-pages and the todos), `mcp__scrap__read`, `mcp__scrap__drawing`, `mcp__scrap__tags`,
-`mcp__scrap__topics`,
-`mcp__scrap__write`, `mcp__scrap__edit_meta`, `mcp__scrap__rename_tag`,
+The server has eighteen tools (four fewer with `SCRAP_MCP_CONTENT_EDIT=0`, which drops `edit_page`, `edit_drawing`, `trash_pages` and `undelete`, and one fewer with `SCRAP_MCP_UPLOAD=0`, which drops `add_svg`), which appear as `mcp__scrap__search` (it also lists the recent
+pages and the todos), `mcp__scrap__read`, `mcp__scrap__current_page`, `mcp__scrap__drawing`,
+`mcp__scrap__tags`, `mcp__scrap__topics`,
+`mcp__scrap__write`, `mcp__scrap__writeup`, `mcp__scrap__edit_meta`, `mcp__scrap__rename_tag`,
 `mcp__scrap__revisions`, `mcp__scrap__revert`, `mcp__scrap__edit_page`,
-`mcp__scrap__edit_drawing`, `mcp__scrap__trash`, `mcp__scrap__trash_pages` and
-`mcp__scrap__undelete`; the Tools table in [](../reference/mcp.md) says what each takes and
+`mcp__scrap__edit_drawing`, `mcp__scrap__add_svg`, `mcp__scrap__trash`, `mcp__scrap__trash_pages`
+and `mcp__scrap__undelete`; the Tools table in [](../reference/mcp.md) says what each takes and
 returns.
 
 Try it: ask "get my recent photos". Search results say which pages hold images (`image_count`,
@@ -239,6 +239,34 @@ curl -fsS -OJ "<download_url>" -H "Authorization: Bearer $SCRAP_MCP_TOKEN" \
 Without a token or Access, a plain `curl -OJ <download_url>` works. They are read only; the
 browser's `url` links are unchanged. See {ref}`mcp-downloads` in the reference.
 
+### Adding images and files
+
+Two ways, both on unless the server sets `SCRAP_MCP_UPLOAD=0`, and both Claude's changes (a new
+text revision by `claude`: `is:claude-edited` finds the page, and `/sc-undo` or `revert` takes
+the embed out again):
+
+- **A diagram Claude draws: `add_svg`.** Ask for one ("add a labelled diagram of the triangle
+  under question 1") and Claude writes an SVG and calls `add_svg` with the page, the markup, alt
+  text and, to place it, `after`: text from the page (the end of the question) that occurs once.
+  The diagram shows in the PWA like a photo, and its labels are searchable. scrap stores it
+  sanitised (no scripts, no links out); see {ref}`mcp-uploads`.
+- **A file that exists already: the upload.** A PNG from matplotlib, a screenshot or a PDF goes
+  up as a file, with the same headers as the downloads, to `/mcp/pages/<slug>/captures`, the
+  PWA's Add photo route under `/mcp`. `id` is a ULID, the retry key: send the same one to retry.
+
+```sh
+set -a; . ~/.config/terminal-config/.env; set +a
+id=$(python3 -c 'import os,time;n=int(time.time()*1000)<<80|int.from_bytes(os.urandom(10),"big");print("".join("0123456789ABCDEFGHJKMNPQRSTVWXYZ"[n>>s&31] for s in range(125,-1,-5)))')
+curl -fsS "https://scrap.example.com/mcp/pages/<slug>/captures" \
+  -H "Authorization: Bearer $SCRAP_MCP_TOKEN" \
+  -H "CF-Access-Client-Id: $CF_ACCESS_CLIENT_ID" -H "CF-Access-Client-Secret: $CF_ACCESS_CLIENT_SECRET" \
+  -F id="$id" -F file=@chart.png -F alt="Speed against time" -F after="Q3 Plot the graph."
+```
+
+The reply (`201`, or `200` for a retry) is the page, with `added`: each file's `download_url`.
+An image's embed goes after the line `after` ends on (or at the end of the text), with the `alt`
+given; a PDF or text file is listed below the text and read for search.
+
 ### If it does not connect
 
 - `401`: scrap wants a bearer token and the client sent none, or a wrong one. Check the header
@@ -381,9 +409,11 @@ might allow the read tools (`mcp__scrap__search`, `read`, `tags`) and let
 `write`, `edit_meta` and the rest keep asking.
 
 To keep Claude off the text of your pages, set `SCRAP_MCP_CONTENT_EDIT=0` on the server
-(`edit_page`, `edit_drawing`, `trash_pages` and `undelete` are then not offered, and `revert` refuses `to_rev`), or deny `edit_page` in one
+(`edit_page`, `edit_drawing`, `trash_pages` and `undelete` are then not offered, `revert` refuses `to_rev`, and `add_svg` and the upload take only pages written over MCP), or deny `edit_page` in one
 client's settings: `"permissions": {"deny": ["mcp__scrap__edit_page"]}`. A client
 setting cannot deny only the text mode of `revert`, which also undoes kinds and tags.
+To stop MCP clients adding images and files at all, set `SCRAP_MCP_UPLOAD=0` (`add_svg` is
+not offered and `/mcp/pages/<key>/captures` is not served).
 
 scrap has no login: any device on the tailnet that can reach the port can use `/mcp`, so
 restrict that with the tailnet ACL (see [](deploy-single-server.md)). Off the tailnet, `/mcp`
