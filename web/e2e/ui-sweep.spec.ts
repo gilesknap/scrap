@@ -116,14 +116,14 @@ test("Add photo scrolls clear of the keys, in the page editor", async ({ page })
   await page.setViewportSize({ width: 390, height: 440 });
   await page.goto(`/p/${t.slug}`);
   await page.getByRole("button", { name: "Edit" }).click();
-  const group = page.getByRole("group", { name: "Add photo" });
+  const group = page.getByRole("group", { name: "Add photos and files" });
   await expect(group).toBeVisible();
   // Scrolled to the end of the fields, it is whole and clear of the keys (not under them)
   await page.locator(".editor .fields").evaluate((el) => el.scrollTo(0, el.scrollHeight));
   const inside = () =>
     page.evaluate(() => {
       const r = document
-        .querySelector('.editor [role="group"][aria-label="Add photo"]')
+        .querySelector('.editor [role="group"][aria-label="Add photos and files"]')
         ?.getBoundingClientRect();
       const keys = document.querySelector(".editor .keys")?.getBoundingClientRect();
       return !!r && !!keys && r.bottom <= keys.top + 0.5 && r.top >= 0;

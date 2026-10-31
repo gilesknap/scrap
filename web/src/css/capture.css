@@ -44,6 +44,11 @@
 .tile:active {
   background: var(--accent-soft);
 }
+/* Add files (photos and files in one pick, here and in the editor's row): a computer's only,
+   shown there in place of Camera, Gallery and File (desktop.css) */
+.desk {
+  display: none;
+}
 /* A kept draft: one quiet line over the tiles, the whole width; ✕ at its end */
 .draft {
   grid-column: 1 / -1;

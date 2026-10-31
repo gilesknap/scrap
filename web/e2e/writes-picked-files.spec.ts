@@ -36,7 +36,7 @@ async function choose(page: Page, scope: string, label: string) {
   return { chooser: c, accept: await c.element().getAttribute("accept") };
 }
 
-const ADD = '.editor [role="group"][aria-label="Add photo"]';
+const ADD = '.editor [role="group"][aria-label="Add photos and files"]';
 
 test("Gallery takes photos only and File takes PDFs, text and Markdown, everywhere", async ({
   page,

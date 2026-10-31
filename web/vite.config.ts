@@ -134,6 +134,10 @@ export default defineConfig({
     outDir: "../src/scrap/static",
     emptyOutDir: true,
     chunkSizeWarningLimit: 3000, // the drawing viewer's chunk is big, and lazy
+    // No modulepreload polyfill (0.2 kB of the shell, gzipped): the browsers that lack
+    // <link rel="modulepreload"> (Safari 16, Firefox before 115) only lose the preload, each
+    // module then fetched as it is imported; nothing else changes
+    modulePreload: { polyfill: false },
     rollupOptions: {
       input: { main: "index.html", sw: "src/sw.ts" },
       onwarn(warning, warn) {
