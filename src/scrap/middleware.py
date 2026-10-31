@@ -31,6 +31,7 @@ class BodyLimit:
 
 
 FILES = ("/api/blobs/", "/mcp/blobs/")  # stored files and previews, either path
+DOWNLOADS = ("/download", "/drawing.excalidraw")  # a page's, a drawing's (/mcp)
 
 
 class TextGzip:
@@ -45,7 +46,9 @@ class TextGzip:
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         path = scope.get("path", "")
-        files = path.startswith(FILES) or path.endswith("/download")
+        if (root := scope.get("root_path", "")) and path.startswith(root):
+            path = path[len(root) :]  # as BearerAuth does
+        files = path.startswith(FILES) or path.endswith(DOWNLOADS)
         ranged = any(k == b"range" for k, _ in scope.get("headers", ()))
         if scope["type"] != "http" or files or ranged:
             await self.app(scope, receive, send)

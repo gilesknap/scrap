@@ -7,12 +7,13 @@ import zipfile
 from urllib.parse import urlsplit
 
 import pytest
-from fastapi import Depends, FastAPI
+from fastapi import Depends, FastAPI, Response
 from fastapi.testclient import TestClient
 
 from scrap import ingest, mcp_files
 from scrap.app import create_app
 from scrap.drawing import excalidraw_file
+from scrap.middleware import TextGzip
 from scrap.store import Store, new_ulid
 from test_ingest import BOARD, Fake, jpeg
 from test_mcp import LOCAL, SECRET, bearer, ok
@@ -129,6 +130,21 @@ def test_without_a_token_downloads_are_open_as_mcp_is(tmp_path):
     )
     assert r.status_code == 200 and r.content == text
     assert "content-encoding" not in r.headers  # a file, as on /api: not gzipped
+
+
+@pytest.mark.parametrize("root", ["", "/scrap"])
+def test_mcp_files_are_not_gzipped_under_any_root_path(root):
+    """The /mcp blobs and the .excalidraw download go as they are, as /api's do,
+    also under a root path; JSON beside them is still gzipped."""
+    app = FastAPI()
+    app.get("/{path:path}")(lambda path: Response(b"x" * 5000))
+    client = TestClient(TextGzip(app), root_path=root)
+    gz = {"Accept-Encoding": "gzip"}
+    for path in ("/mcp/blobs/abc", "/mcp/captures/c/photos/s/drawing.excalidraw"):
+        r = client.get(root + path, headers=gz)
+        assert r.status_code == 200 and "content-encoding" not in r.headers, path
+    json_ = client.get(root + "/mcp/captures/c/photos/s/drawing", headers=gz)
+    assert json_.headers["content-encoding"] == "gzip"
 
 
 def test_downloads_leave_mcp_itself_alone(drawn):
