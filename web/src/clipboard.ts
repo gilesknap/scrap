@@ -19,8 +19,12 @@ export async function copyRich(html: () => Promise<string>, text: string) {
   if (typeof ClipboardItem === "undefined" || !navigator.clipboard?.write)
     return copyText(text, "Text");
   const blob = (s: string, type: string) => new Blob([s], { type });
+  const made = html().then((s) => blob(s, "text/html"));
+  // Marked handled: a browser that refuses the write never reads the promise, and its
+  // rejection (offline) must not surface as unhandled; the write still sees it reject
+  made.catch(() => {});
   const item = new ClipboardItem({
-    "text/html": html().then((s) => blob(s, "text/html")),
+    "text/html": made,
     "text/plain": blob(text, "text/plain"),
   });
   try {
