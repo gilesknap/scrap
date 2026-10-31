@@ -654,6 +654,26 @@ def test_edit_meta_marks_a_todo_done_and_reopens_it(store):
     assert store.page(key)["fields"]["status"] == "open"
 
 
+def test_a_field_edit_after_a_kind_change_is_its_own_revision(store):
+    """#411: within the window, a field edit does not fold into a kind change (nor
+    into an edit of another field), so reverting it keeps the kind; repeats of one
+    field still fold."""
+    ref = human(store, "Call the plumber")
+    kind = ok(store, "edit_meta", pages=[ref["slug"]], kind="todo")["pages"][0]
+    done = ok(store, "edit_meta", pages=[ref["slug"]], fields={"status": "done"})
+    rev = done["pages"][0]["revision"]
+    assert rev != kind["revision"]
+    again = ok(store, "edit_meta", pages=[ref["slug"]], fields={"status": "cancelled"})
+    assert again["pages"][0]["revision"] == rev  # the same field: folded
+    due = ok(store, "edit_meta", pages=[ref["slug"]], fields={"due": "2026-12-01"})
+    assert due["pages"][0]["revision"] not in (rev, kind["revision"])
+    assert len(meta(store, ref["slug"])) == 3
+    ok(store, "revert", revision=rev)
+    p = store.page(ref["slug"])
+    assert (p["kind"], p["fields"]["status"]) == ("todo", "open")
+    assert p["due"] == "2026-12-01"
+
+
 def test_a_status_change_is_reverted(store):
     key = todo(store)
     rev = ok(store, "edit_meta", pages=[key], fields={"status": "done"})

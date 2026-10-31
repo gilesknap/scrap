@@ -74,7 +74,8 @@ def register_meta(mcp: MCPServer, ctx: Ctx) -> None:
         other kinds); the response gives the values they had (fields_was). Nothing
         else changes: not the title, the text or when it was last updated. Each page
         changed is a revision that revert undoes; quick changes to one named page fold
-        into one. A query or several pages is a batch: its revisions share the
+        into one if they change the same things (its kind and tags, or one field).
+        A query or several pages is a batch: its revisions share the
         returned batch id, and revert(batch=...) undoes them all at once. All or
         nothing. Try dry_run first for a bulk change."""
         if pages and query is not None:

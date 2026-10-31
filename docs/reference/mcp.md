@@ -417,7 +417,11 @@ it as a text file, so a page with SVG diagrams can be published as a gist of tex
   the kind (and whether it was fixed) and tags before and after, and the default fields a new kind
   added. Changes by the same author from the same source within `SCRAP_REVISION_WINDOW` seconds
   (default 300) of a revision being made fold into it, as long as nothing else changed the page's
-  kind or tags between, so a burst of edits is one revision; a burst that ends where it started
+  kind or tags between and they change the same things, so a burst of edits is one revision:
+  kind and tag changes fold together (with the default fields a new kind adds), and an
+  `edit_meta` of `fields` folds only into one of the same fields (`media_type` and its
+  `subtype` count as one), so a status set just after a kind change is a revision of its own,
+  which a revert undoes keeping the kind; a burst that ends where it started
   leaves none. A revert, and a change in a batch, never folds, nor is folded into. A page's first
   revision records the state it had before (pages need no backfill). Revisions keep kind and tag
   names only: never a copy of the text or of a file, nor what a model derived (summaries, image
@@ -508,8 +512,10 @@ only while content editing is on, first).
   a new number** (rev + 1, never one used before). `rev` is also the PWA's edit token, so an
   editor that loaded the page between two edits of a burst gets a conflict (409) on saving, never
   a silent overwrite; the burst leaves a gap in the numbers. Never folded into: a page's first
-  revision, a revision by anyone else or from another source (a PWA edit between ends the burst), and one holding the
-  body of an earlier revision (a text `revert`'s, whatever its title). A text `revert` itself
+  revision, a revision by anyone else or from another source (a PWA edit between ends the burst), one holding the
+  body of an earlier revision (a text `revert`'s, whatever its title), and one with a file whose
+  address (`/api/blobs/<sha>`) the new text no longer has: deleting an embed keeps the revision
+  that had it, so the file counts as removed from the page, not as attached but never placed. A text `revert` itself
   never folds. Claude's latest revision may be an append to its own page: an edit then folds
   into it, losing only the snapshot just after the append (its text stays in the page, and in
   the append's capture). The author is `claude` for every MCP session, so two sessions editing

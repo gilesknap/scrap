@@ -12,6 +12,7 @@ from .core import Core
 from .db import _rows, transaction
 from .errors import ConflictError, InvalidError, NoSuchRevision, NotFoundError
 from .helpers import (
+    body_refs,
     boxes_before,
     check_page,
     lines,
@@ -255,7 +256,10 @@ class RevisionsMixin(Core):
         Coalescing (fold): if the page's latest text revision is by the same author
         from the same source, is not its first, was made within self.window seconds,
         and does not hold the body of an earlier revision (a revert's, which is never
-        folded into, whatever its title), the burst's text replaces it: that revision
+        folded into, whatever its title), and whose files this text still refers to
+        all of (an embed deleted in the burst keeps the revision that had it, so the
+        file counts as removed, GONE, not as never placed: #490), the burst's text
+        replaces it: that revision
         goes and this one keeps its created_at. The number still moves on (rev + 1,
         never a number used before),
         since rev is the PWA's edit token: an editor holding the folded revision
@@ -264,7 +268,7 @@ class RevisionsMixin(Core):
         stamp = now()
         created, folded = stamp, None
         last = conn.execute(
-            "SELECT rev, author, source, created_at FROM page_rev"
+            "SELECT rev, author, source, body, created_at FROM page_rev"
             " WHERE page_id = ? AND rev = ?",
             (page["id"], page["rev"]),
         ).fetchone()
@@ -274,6 +278,7 @@ class RevisionsMixin(Core):
             and last["rev"] > 1
             and (last["author"], last["source"]) == (author, source)
             and 0 <= seconds_between(last["created_at"], stamp) < self.window
+            and body_refs(last["body"]) <= body_refs(body)
             and not conn.execute(
                 "SELECT 1 FROM page_rev r JOIN page_rev l"
                 " ON l.page_id = r.page_id AND l.rev = ?"

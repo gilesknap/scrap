@@ -297,3 +297,23 @@ def test_the_upload_says_where_the_images_went(client):
     assert r.status_code == 201 and r.json()["placed"] == "after"
     r = upload(client, ref["page_id"], ("b.png", b"y", "image/png"))
     assert r.json()["placed"] is None
+
+
+def test_an_embed_deleted_within_the_window_is_removed_not_unplaced(store):
+    """#490: deleting an embed folds no revision away that had it, so the file counts
+    as removed (GONE), not as a file the text never placed; other edits still fold."""
+    ref = human(store, PAPER)
+    added = ok(store, "add_svg", page=ref["slug"], svg=TRIANGLE.decode(),
+               alt="Triangle", after="hypotenuse.")  # fmt: skip
+    sha = added["sha256"]
+    more = ok(store, "edit_page", page=ref["slug"], old="12.", new="15.")
+    assert more["folded"] == added["rev"]  # a burst that keeps the embed folds
+    assert found(store, "has:image") == {ref["slug"]}
+    gone = ok(store, "edit_page", page=ref["slug"], old=added["embed"], delete=True)
+    assert gone["folded"] is None and gone["rev"] == more["rev"] + 1
+    p = store.page(ref["slug"])
+    assert sha in p["removed"] and "/api/blobs/" not in p["body"]
+    assert ok(store, "read", page=ref["slug"])["images"] == []
+    assert found(store, "has:image") == set()  # GONE, in SQL too
+    after = ok(store, "edit_page", page=ref["slug"], old="15.", new="18.")
+    assert after["folded"] == gone["rev"]  # the burst goes on folding after it
