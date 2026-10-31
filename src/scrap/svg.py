@@ -7,8 +7,10 @@ namespace (or with none, as a hand-written one may) is taken. What is kept is an
 allow-list: the elements that draw (shapes, text, paint servers, filters, a few
 structural ones), never <script>, <foreignObject>, animation (which can set an href)
 or any element of another namespace; no on* attribute; an href only to a fragment of
-the same file (#id) or, on an image, a raster data: URL; a url() in an attribute or a
-<style> only to a fragment, and no @import. Served with BLOB_HEADERS
+the same file (#id) or, on an image, a raster data: URL; no ping; in CSS (a <style>,
+any attribute) a url() only to a fragment, and no @import, image-set(), src() or quoted
+URL. A DOCTYPE that only names the SVG DTD (as matplotlib writes) is dropped unread.
+Served with BLOB_HEADERS
 (Content-Security-Policy: sandbox, nosniff) as well, and shown in <img>, where no
 script runs anyway: this is defence in depth.
 
@@ -42,9 +44,16 @@ ELEMENTS = frozenset(
 IMAGES = ("image", "feImage")  # the elements whose href may be a raster data: URL
 DATA_IMAGE = re.compile(r"data:image/(png|jpeg|gif|webp);base64,[A-Za-z0-9+/=\s]*\Z")
 DECLARATION = re.compile(r"<!\s*(DOCTYPE|ENTITY)", re.IGNORECASE)
+# A DOCTYPE naming only an external DTD (matplotlib's, Illustrator's: the SVG 1.1 one),
+# with no internal subset ([...]) to declare entities in: stripped, never fetched
+PLAIN_DOCTYPE = re.compile(r"<!DOCTYPE\s[^\[\]<>]*>", re.IGNORECASE)
 XML_DECL = re.compile(r"\A\s*<\?xml[^>]*\?>")
-URL = re.compile(r"url\(\s*(['\"]?)(.*?)\1\s*\)", re.IGNORECASE | re.DOTALL)
+URL = re.compile(r"(?<![\w-])url\(", re.IGNORECASE)  # x-url( is no url(
+FRAGMENT = re.compile(r"url\(\s*(['\"]?)#[\w.-]*\1\s*\)", re.IGNORECASE)  # url(#id)
+STRING = re.compile(r"\"[^\"]*\"?|'[^']*'?")
+FETCHING = re.compile(r"(?:-webkit-)?image-set\(|\bsrc\(", re.IGNORECASE)
 IMPORT = re.compile(r"@import\b[^;]*;?", re.IGNORECASE)
+DROPPED = ("ping", "src")  # attributes that fetch: <a ping>, and no SVG one needs src
 SCHEME = re.compile(r"[\x00-\x20]+")  # what a browser skips inside "java script:"
 WORDS = ("title", "desc", "text")
 
@@ -66,18 +75,21 @@ class _Builder(ET.TreeBuilder):
 
 
 def parse(data: bytes) -> ET.Element:
-    """The root <svg> of a file, parsed with no DOCTYPE and so no entities; every
-    element put in the SVG namespace if the file uses none. UTF-8 only, so the scan
-    for a declaration sees every character. InvalidError otherwise."""
+    """The root <svg> of a file, parsed with no DOCTYPE (one naming only an
+    external DTD is dropped, unread; one with an internal subset is refused) and so
+    no entities; every element put in the SVG namespace if the file uses none.
+    UTF-8 only, so the scan for a declaration sees every character. InvalidError
+    otherwise."""
     if len(data) > MAX_SVG:
         raise TooLargeError(f"an SVG is at most {MAX_SVG // 1024} KiB")
     try:
         markup = data.decode("utf-8-sig")
     except UnicodeDecodeError:
         raise InvalidError("an SVG must be UTF-8") from None
-    if DECLARATION.search(markup):
-        _refuse()
     markup = XML_DECL.sub("", markup, count=1)  # its encoding= no longer applies
+    markup = PLAIN_DOCTYPE.sub("", markup, count=1)
+    if DECLARATION.search(markup):  # an internal subset, or an entity: refused
+        _refuse()
     parser = ET.XMLParser(target=_Builder())  # comments and PIs are dropped
     try:
         parser.feed(markup)
@@ -102,13 +114,33 @@ def _local(name: str, ns: str) -> str | None:
 
 
 def _css(value: str) -> str:
-    """CSS with every url() not to a fragment of this file made none, and no @import;
-    no backslash either, so no escape (u\\72l) can spell either out."""
+    """CSS that fetches nothing: no backslash (so no escape can spell a name out), no
+    @import, no quoted string holding a ":" or "//" (a URL, as image-set's), no
+    image-set() or src(), and every url( that is not exactly url(#id), each looked at
+    on its own, dropped with its argument (x-url(): an unknown function, no fetch).
 
-    def one(m: re.Match[str]) -> str:
-        return m[0] if m[2].strip().startswith("#") else "none"
+    >>> _css('fill: url("#" x); background: url(http://e/l.png); --a: ")')
+    'fill: x-url(); background: x-url(); --a: ")'
+    >>> print(_css("fill:url( '#g' ); b: image-set('https://e/x' 1x)"))
+    fill:url( '#g' ); b: x-none("" 1x)
+    """
+    value = IMPORT.sub("", value.replace("\\", "")).replace("//", "/")
 
-    return URL.sub(one, IMPORT.sub("", value.replace("\\", "")))
+    def string(m: re.Match[str]) -> str:
+        return '""' if ":" in m[0] or "//" in m[0] else m[0]
+
+    value = FETCHING.sub("x-none(", STRING.sub(string, value))
+    out, at = [], 0
+    while (m := URL.search(value, at)) is not None:
+        out.append(value[at : m.start()])
+        if FRAGMENT.match(value, m.start()):
+            out.append("url(")
+            at = m.end()
+        else:  # dropped with its argument, to the next ")" (or the end)
+            out.append("x-url()")
+            close = value.find(")", m.end())
+            at = len(value) if close == -1 else close + 1
+    return "".join(out) + value[at:]
 
 
 def _href(value: str, tag: str) -> bool:
@@ -129,7 +161,7 @@ def _clean(el: ET.Element, depth: int) -> None:
         elif name in (f"{{{XML}}}space", f"{{{XML}}}lang"):
             attrs[name] = value
             continue
-        if local is None or local.lower().startswith("on"):
+        if local is None or local.lower().startswith("on") or local in DROPPED:
             continue  # another namespace's (inkscape:...), or an event handler
         if local == "href":
             if _href(value, tag):
@@ -137,7 +169,7 @@ def _clean(el: ET.Element, depth: int) -> None:
             continue
         if "javascript:" in SCHEME.sub("", value).lower():
             continue
-        css = local == "style" or "(" in value or "\\" in value
+        css = local == "style" or any(c in value for c in "(\\\"'")
         attrs[local] = _css(value) if css else value
     el.attrib.clear()
     el.attrib.update(attrs)

@@ -13,7 +13,8 @@ from .. import svg as svgs
 from ..mcp_page import page_key
 from ..store import MCP, InvalidError, TooLargeError, new_ulid
 from ..store.helpers import embeds
-from ..store.photos import MAX_ALT, alt_text, with_embeds
+from ..store.photos import MAX_ALT, alt_text
+from ..store.placing import with_embeds
 from .context import Ctx, key_id, text
 from .limits import AUTHOR, MAX_KEY, DryRun
 
@@ -33,10 +34,12 @@ entities, and any link or url() that is not to a #fragment of the file itself
 (an <image> may also use a PNG, JPEG, GIF or WebP data: URL) are removed or
 refused, so draw with shapes, paths and <text>; give it a <title>. Its
 <title>, <desc> and <text> are what search finds, and alt is what screen
-readers and search get: say what it shows. The embed goes after the line on
-which `after` ends (text copied exactly from the body, occurring exactly
-once, as edit_page's old: say, the end of the question the diagram is for),
-else at the end of the text. A new text revision (author claude:
+readers and search get: say what it shows. The embed goes after the Markdown
+block (paragraph, list, table, code block, heading) in which `after` ends
+(text copied exactly from the body, occurring exactly once, as edit_page's
+old: say, the question the diagram is for), else at the end of the text. A
+retry with the same key adds nothing; the same key with another SVG is
+refused. A new text revision (author claude:
 is:claude-edited), listed by revisions and undone by revert(page, to_rev),
 which removes the embed. dry_run returns the diff and saves nothing. The
 result has the stored file's download_url."""
@@ -82,7 +85,7 @@ def register_images(mcp: MCPServer, ctx: Ctx) -> None:
             str | None,
             Field(
                 description="Text copied exactly from the body, occurring once: the "
-                "embed goes after the line it ends on (none: at the end)"
+                "embed goes after the block it ends in (none: at the end)"
             ),
         ] = None,
         key: Annotated[
@@ -119,8 +122,14 @@ def register_images(mcp: MCPServer, ctx: Ctx) -> None:
             body = checked(with_embeds, before, new, anchor)
             rev, created = rev_before + (1 if new else 0), False
         else:
-            stored, size = store.put_blob(io.BytesIO(clean))
             cid = key_id(key, found["id"]) if key else new_ulid()
+            done = next((c for c in found["captures"] if c["id"] == cid), None)
+            if done is not None and sha not in {b["sha256"] for b in done["blobs"]}:
+                raise ToolError("key was used for another SVG on this page: give a"
+                                " new key for a new one")  # fmt: skip
+            # a retry stores nothing new: its file is there already
+            stored, size = (sha, len(clean)) if done else store.put_blob(
+                io.BytesIO(clean))  # fmt: skip
             added, created = checked(
                 store.add_photos, found["id"], cid, [(stored, svgs.SVG, size, name)],
                 AUTHOR, MCP, after=anchor, alt=label, claude_only=not ctx.editable,

@@ -44,7 +44,7 @@ def test_sanitise_keeps_the_drawing_and_drops_what_could_run_or_fetch():
             "javascript", "evil.example", "<set", "<animate", "@import")  # fmt: skip
     for word in gone:
         assert word not in out, word
-    for kept in ("<text>label</text>", 'href="#r"', 'fill="none"',
+    for kept in ("<text>label</text>", 'href="#r"', 'fill="x-url()"',
                  'href="data:image/png;base64,AAAA"', ".a{fill:url(#g)}",
                  'style="fill:url(#g)"', ">link</a>"):  # fmt: skip
         assert kept in out, kept
@@ -56,11 +56,11 @@ def test_a_doctype_entities_or_another_root_is_refused():
     bomb = (b'<?xml version="1.0"?><!DOCTYPE svg [<!ENTITY a "aaaa">'
             b'<!ENTITY b "&a;&a;&a;">]><svg ' + NS.encode()
             + b">&b;</svg>")  # fmt: skip
-    external = (b'<!DOCTYPE svg SYSTEM "file:///etc/passwd"><svg '
-                + NS.encode() + b"/>")  # fmt: skip
+    subset = b'<!DOCTYPE svg [<!ATTLIST svg a CDATA "x">]><svg ' + NS.encode() + b"/>"
     for data, why in [
         (bomb, "DOCTYPE"),
-        (external, "DOCTYPE"),
+        (subset, "DOCTYPE"),
+        (b"<svg " + NS.encode() + b'><!ENTITY a "x"></svg>', "DOCTYPE"),
         (b"<svg " + NS.encode() + b">&a;</svg>", "undefined entity"),
         (b'<html xmlns="http://www.w3.org/1999/xhtml"/>', "root element"),
         (b'<svg xmlns="http://example.com/other"/>', "root element"),
@@ -75,6 +75,94 @@ def test_a_doctype_entities_or_another_root_is_refused():
     # no namespace, as a hand-written file: taken as SVG, and given one
     bare = svg.sanitise(b"<svg><rect/></svg>")
     assert bare == f"<svg {NS}><rect></rect></svg>".encode()
+
+
+# As matplotlib writes it (savefig format="svg"), DOCTYPE, metadata and all
+MATPLOTLIB = b"""<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN"
+  "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg xmlns:xlink="http://www.w3.org/1999/xlink" width="460.8pt" height="345.6pt"
+ viewBox="0 0 460.8 345.6" xmlns="http://www.w3.org/2000/svg" version="1.1">
+ <metadata>
+  <rdf:RDF xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+   <cc:Work><dc:type rdf:resource="http://purl.org/dc/dcmitype/StillImage"/>
+    <dc:creator><cc:Agent><dc:title>Matplotlib v3.9.2, https://matplotlib.org/</dc:title>
+    </cc:Agent></dc:creator></cc:Work>
+  </rdf:RDF>
+ </metadata>
+ <defs>
+  <style type="text/css">*{stroke-linejoin: round; stroke-linecap: butt}</style>
+ </defs>
+ <g id="figure_1">
+  <g id="patch_1">
+   <path d="M 0 345.6 L 460.8 345.6 L 460.8 0 L 0 0 z" style="fill: #ffffff"/>
+  </g>
+  <g id="axes_1">
+   <g id="line2d_1">
+    <defs><path id="m1e2f" d="M 0 0 L 0 3.5"
+     style="stroke: #000000; stroke-width: 0.8"/>
+    </defs>
+    <g><use xlink:href="#m1e2f" x="57.6" y="307.584" style="stroke: #000000"/></g>
+   </g>
+   <g id="text_1"><text x="57.6" y="322" style="font: 10px 'DejaVu Sans'">0.0</text></g>
+   <path d="M 57.6 307 L 414.7 41" clip-path="url(#p0a1b2c3)"
+    style="fill: none; stroke: #1f77b4; stroke-width: 1.5"/>
+  </g>
+ </g>
+ <defs><clipPath id="p0a1b2c3">
+  <rect x="57.6" y="41.472" width="357.12" height="266.112"/>
+ </clipPath></defs>
+</svg>
+"""
+
+
+def test_a_matplotlib_svg_is_taken_with_its_doctype_dropped():
+    out = svg.sanitise(MATPLOTLIB).decode()
+    assert "DOCTYPE" not in out and "metadata" not in out and "rdf" not in out
+    kept = ('href="#m1e2f"', 'clip-path="url(#p0a1b2c3)"', "stroke-linejoin: round",
+            "font: 10px 'DejaVu Sans'", '<clipPath id="p0a1b2c3">')  # fmt: skip
+    for word in kept:
+        assert word in out, word
+    assert svg.text_of(MATPLOTLIB) == "0.0"
+
+
+H = f'<svg {NS} xmlns:xlink="http://www.w3.org/1999/xlink">'
+BYPASSES = [  # each once fetched evil.example in a browser, or could
+    '<style>svg{fill: url("#" x); background-image: url(http://evil.example/l.png);'
+    ' --a: ")}</style>',
+    """<rect style='fill: url("#" x); mask-image: url(http://evil.example/m.png);"""
+    """ --a:"'/>""",
+    '<rect style="fill: url(&apos;#&apos; x); filter: url(//evil.example/f#f)"/>',
+    '<style>svg{background-image: image-set("http://evil.example/i.png" 1x)}</style>',
+    "<style>svg{background: -webkit-image-set('https://evil.example/i.png' 1x)}"
+    "</style>",
+    "<style>svg{background: image-set(url(https://evil.example/i.png) 1x)}</style>",
+    '<style>svg{background: src("https://evil.example/s.png")}</style>',
+    '<rect fill="URL( http://evil.example/p#p )" filter="url(&#x27;x.svg#f&#x27;)"/>',
+    '<a href="#x" ping="http://evil.example/ping"><text>x</text></a>',
+    '<image src="http://evil.example/s.png"/>',
+]
+
+
+@pytest.mark.parametrize("markup", BYPASSES)
+def test_no_url_out_of_the_file_survives(markup):
+    out = svg.sanitise(f"{H}{markup}</svg>".encode()).decode()
+    out = out.removeprefix(f"<svg {NS}>")
+    assert "evil" not in out and "//" not in out and "x.svg" not in out, out
+
+
+def test_no_escape_spells_a_url():
+    out = svg.sanitise(
+        f"{H}<style>a{{b:u\\72l(http://e.example/x)}}</style></svg>".encode()
+    )
+    assert b"url(" not in out and b"//e.example" not in out
+
+
+def test_a_fragment_url_survives_in_any_spelling():
+    css = "a{fill:url(#g)} b{fill:url( '#g' )} c{fill:URL(\"#g\")}"
+    out = svg.sanitise(f"{H}<style>{css}</style></svg>".encode()).decode()
+    assert "a{fill:url(#g)} b{fill:url( '#g' )} c{fill:url(\"#g\")}" in out
 
 
 def test_its_words_are_title_desc_and_text():
@@ -185,3 +273,36 @@ def test_nothing_decodes_an_svg_as_pixels(tmp_path, client, note):
         preview.preview(store, sha, 480)
     assert preview.own(store, sha, 480) == store.blob(sha)[0]
     assert not preview.raster("image/svg+xml") and preview.raster("image/png")
+
+
+def test_its_words_are_put_once_however_often_the_job_is_picked_up(
+    tmp_path, client, note
+):
+    from scrap.ingest import svgread
+
+    ref = note("Geometry")
+    add(client, ref["page_id"], TRIANGLE)
+    store = Store(tmp_path / "data")
+    with closing(connect(store.db)) as conn:
+        conn.execute("UPDATE job SET state = 'running'")
+        conn.commit()
+        job = conn.execute("SELECT * FROM job").fetchone()
+        for _ in range(3):  # as a paused or retried job is picked up again
+            svgread.read(store, job)
+        versions = conn.execute(
+            "SELECT version FROM derived WHERE kind = 'ocr'").fetchall()  # fmt: skip
+    assert [v[0] for v in versions] == [1]
+
+
+def test_an_svg_that_cannot_be_read_is_charged(tmp_path, client, note):
+    ref = note("Geometry")
+    sha = add(client, ref["page_id"], TRIANGLE).json()["added"][0]["sha256"]
+    store = Store(tmp_path / "data")
+    store.blob(sha)[0].unlink()
+    fake = Fake(SCENE)
+    assert ingest.Worker(store, fake).step()
+    assert fake.calls == []
+    with closing(connect(store.db)) as conn:
+        state, failures, error = conn.execute(
+            "SELECT state, failures, last_error FROM job").fetchone()  # fmt: skip
+    assert (state, failures) == ("queued", 1) and error.startswith("image")

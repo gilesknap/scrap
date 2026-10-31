@@ -264,7 +264,7 @@ curl -fsS "https://scrap.example.com/mcp/pages/<slug>/captures" \
 ```
 
 The reply (`201`, or `200` for a retry) is the page, with `added`: each file's `download_url`.
-An image's embed goes after the line `after` ends on (or at the end of the text), with the `alt`
+An image's embed goes after the Markdown block `after` ends in (or at the end of the text), with the `alt`
 given; a PDF or text file is listed below the text and read for search.
 
 ### If it does not connect

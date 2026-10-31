@@ -257,8 +257,9 @@ flowchart TD
   trashed pages stay recoverable for 30 days. If you read pages you do not trust in a session
   with these tools, set `SCRAP_MCP_CONTENT_EDIT=0` (the edit tools are then not listed at all).
 - **SVG is markup.** An SVG anyone uploads (`add_svg`, the `/mcp` upload, the PWA's Add photo)
-  is parsed with no DOCTYPE and stored sanitised: no script, `foreignObject`, animation, event
-  handler, or link or `url()` out of the file (`svg.py`). It is served, as every file is, with
+  is parsed with no DOCTYPE (one that only names the SVG DTD is dropped unread) and stored
+  sanitised: no script, `foreignObject`, animation, event handler, `ping`, or link, `url()`,
+  `image-set()` or quoted URL out of the file (`svg.py`). It is served, as every file is, with
   `Content-Security-Policy: sandbox` and `nosniff`, and shown in `<img>`; its markup goes to
   Claude as text, quoted like any page text.
 - **Reading is not acting.** A session that holds cluster or other powerful credentials should not

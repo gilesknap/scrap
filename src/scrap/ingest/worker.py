@@ -179,7 +179,12 @@ class Worker:
             return
         words, markup = None, ""  # an SVG's (svgread): read before the budget check
         if mime is not None and svg.is_svg(mime[0]):
-            markup, words = svgread.read(self.store, job)
+            try:
+                markup, words = svgread.read(self.store, job)
+            except Exception as error:  # gone, unreadable: as an image that is
+                with self.store.connect() as conn, transaction(conn):
+                    charge(conn, jid, "image", now(), str(error))
+                return
         with self.store.connect() as conn, transaction(conn):
             over = spent_today(conn, now()) >= self.budget
             announce = over and pause(conn, jid, "budget", now())

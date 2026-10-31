@@ -174,8 +174,10 @@ def _paths(store: Store, sha: str, size: int) -> tuple[Path, Path]:
 
 def own(store: Store, sha: str, size: int) -> Path | None:
     """A stored SVG itself, if sha is one (None if not): the browser scales it to any
-    size, so it is its own preview, with no rasteriser (#480). It was sanitised on
-    upload (svg.sanitise) and is served with BLOB_HEADERS as any blob is."""
+    size, so it is its own preview, with no rasteriser (#480). One uploaded since
+    #480 was sanitised (svg.sanitise); one stored before, or by an import, was not,
+    and is served as it is: with BLOB_HEADERS (Content-Security-Policy: sandbox,
+    nosniff), as any blob is. size is checked as for a photo (SIZES), and ignored."""
     if size not in SIZES:
         raise InvalidError(f"size must be one of {SIZES}")
     src, mime = store.blob(sha)

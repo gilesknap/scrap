@@ -55,7 +55,8 @@ def add_routes(
         claude: bool, claude_only: bool,
     ) -> dict[str, Any]:  # fmt: skip
         cid, source, created = fields(form)  # before writing any file
-        after = form.get("after") or None
+        after = (form.get("after") or "").replace("\r\n", "\n").replace("\r", "\n")
+        after = after or None  # as the text is stored: LF line ends
         alt = form.get("alt") or ""
         if not uploads:
             raise InvalidError("no photo to add")

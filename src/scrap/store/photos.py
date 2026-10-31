@@ -9,6 +9,7 @@ from .core import Core
 from .db import transaction
 from .errors import InvalidError
 from .helpers import boxes_before, check_page, embeds, file_kind, now
+from .placing import with_embeds
 from .roles import by_claude, takes_photos
 
 Blob = tuple[str, str, int, str | None]  # sha256, mime, size, filename
@@ -30,37 +31,6 @@ def addable(mime: str) -> bool:
     """Whether a file can be added to a page: an image, or a file ingest reads (a PDF,
     a text or Markdown file: FILE_TYPES)."""
     return mime.startswith("image/") or file_kind(mime) is not None
-
-
-def placed_after(body: str, after: str, new: list[str]) -> str:
-    """body with the embeds new put as paragraphs of their own after the line on which
-    the text after ends (it must occur exactly once, as edit_page's old: else
-    InvalidError), so a diagram goes under the question it belongs to.
-
-    >>> placed_after("Q1 Find x.\\nWorking:\\n\\nQ2", "Find x", ["![](e)"])
-    'Q1 Find x.\\n\\n![](e)\\n\\nWorking:\\n\\nQ2'
-    """
-    if not after.strip():
-        raise InvalidError("after must not be empty")
-    at, count, start = body.find(after), 0, 0
-    while (found := body.find(after, start)) != -1 and count < 2:
-        count, start = count + 1, found + 1  # overlapping ones count too
-    if count != 1:
-        why = "is not in the page's body" if count == 0 else "occurs more than once"
-        raise InvalidError(f"after {why}: copy enough of the text to occur once")
-    end = at + len(after)
-    if not after.endswith("\n"):  # to the end of the line it ends on
-        end = len(body) if (nl := body.find("\n", end)) == -1 else nl
-    head, tail = body[:end].rstrip(), body[end:].lstrip("\n")
-    return "\n\n".join(x for x in (head, *new, tail) if x)
-
-
-def with_embeds(body: str, new: list[str], after: str | None = None) -> str:
-    """body with the embeds new at its end, or after the line after ends on
-    (placed_after)."""
-    if new and after is not None:
-        return placed_after(body, after, new)
-    return "\n\n".join(x for x in (body.rstrip(), *new) if x)
 
 
 def attach(
@@ -121,11 +91,11 @@ class PhotosMixin(Core):
         for Claude, a file to be read for search (#234). Returns the page, with
         appended_on (the revision the embeds went onto; None on a retry or with no
         image), and whether it is new: a retry with the same cid changes nothing.
-        after: put the embeds after the line that text ends on (placed_after) instead
-        of at the end; alt: their alt text. Source mcp (an MCP client's: add_svg, or
-        the /mcp upload) makes the revision Claude's (source mcp: is:claude-edited);
-        claude_only refuses a page not written over MCP (SCRAP_MCP_CONTENT_EDIT
-        off)."""
+        after: put the embeds after the Markdown block that text ends in
+        (placing.placed_after) instead of at the end; alt: their alt text. Source
+        mcp (an MCP client's: add_svg, or the /mcp upload) makes the revision
+        Claude's (source mcp: is:claude-edited); claude_only refuses a page not
+        written over MCP (SCRAP_MCP_CONTENT_EDIT off)."""
         cid = cid.upper()
         if not ULID.fullmatch(cid):
             raise InvalidError("id must be a ULID")

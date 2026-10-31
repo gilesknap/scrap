@@ -27,15 +27,23 @@ NOTE = (
 
 
 def read(store: Store, job: Any) -> tuple[str, str]:
-    """Put an SVG's words as its ocr (none if it has none) while its job is running;
-    its markup and its words."""
+    """Put an SVG's words as its ocr (none if it has none) while its job is running,
+    once: a job picked up again (a pause, a retry) finds them there and puts nothing.
+    Its markup and its words; an OSError (or NotFoundError) if it cannot be read."""
     cid, sha = job["capture_id"], job["source_sha256"]
     path, _ = store.blob(sha)
     data = path.read_bytes()
     words = svg.text_of(data)
     with store.connect() as conn, transaction(conn):
         row = conn.execute("SELECT state FROM job WHERE id = ?", (job["id"],))
-        if words and (state := row.fetchone()) is not None and state[0] == "running":
+        running = (state := row.fetchone()) is not None and state[0] == "running"
+        have = conn.execute(
+            "SELECT 1 FROM derived WHERE capture_id = ? AND source_sha256 = ?"
+            " AND kind = 'ocr' AND producer = ? AND superseded_at IS NULL"
+            " AND text = ?",
+            (cid, sha, PRODUCER, words),
+        ).fetchone()
+        if words and running and have is None:
             put_derived(
                 conn, cid, sha, "ocr", PRODUCER, now(), text=words,
                 data={"kind": "svg"},

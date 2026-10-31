@@ -50,7 +50,7 @@ def test_add_svg_embeds_it_after_the_question_as_claudes_revision(store):
     assert f"+{embed}" in out["diff"]
     p = store.page(ref["slug"])
     assert p["body"] == (
-        f"Q1 Find the hypotenuse.\n\n{embed}\n\nShow your working.\n\nQ2 Factorise 12."
+        f"Q1 Find the hypotenuse.\nShow your working.\n\n{embed}\n\nQ2 Factorise 12."
     )
     blob = p["captures"][1]["blobs"][0]
     assert (blob["sha256"], blob["mime"], blob["filename"]) == (
@@ -86,6 +86,12 @@ def test_add_svg_goes_at_the_end_by_default_and_a_dry_run_saves_nothing(store):
     again = ok(store, "add_svg", page=key, svg=DOT, alt="A dot", key="k1")
     assert not again["created"] and not again["changed"] and again["rev"] == 2
     assert len(store.page(ref["slug"])["captures"]) == 2  # the retry added nothing
+    files = sorted(p.name for p in (store.dir / "files").rglob("*") if p.is_file())
+    other = DOT.replace('r="4"', 'r="3"')
+    error = refused(store, "add_svg", page=key, svg=other, alt="A dot", key="k1")
+    assert "key was used for another SVG" in error
+    after = sorted(p.name for p in (store.dir / "files").rglob("*") if p.is_file())
+    assert after == files  # nothing stored for the refused one
 
 
 def test_add_svg_refusals(store):
@@ -95,7 +101,7 @@ def test_add_svg_refusals(store):
         ({"after": "horse"}, "is not in the page's body"),
         ({"after": "a cat"}, "occurs more than once"),
         ({"svg": "<html/>"}, "root element must be <svg>"),
-        ({"svg": "<!DOCTYPE svg><svg/>"}, "DOCTYPE"),
+        ({"svg": '<!DOCTYPE svg [<!ENTITY a "x">]><svg/>'}, "DOCTYPE"),
         ({"svg": f"<svg {NS}>" + " " * svg.MAX_SVG + "</svg>"}, "over 1024 KiB"),
         ({"alt": "   "}, "alt must not be empty"),
         ({"page": "no-such-page"}, "no such page"),
@@ -201,6 +207,14 @@ def test_the_upload_needs_the_bearer_and_is_claudes(client, tmp_path):
     again = upload(client, ref["page_id"], png, cid=cid)
     assert again.status_code == 200 and again.json()["appended_on"] is None
     assert again.json()["rev"] == 2
+
+
+def test_after_matches_with_crlf_line_ends(client):
+    ref = page_of(client, "Q1 Find x.\nShow it.\n\nQ2")
+    r = upload(client, ref["page_id"], ("a.png", b"x", "image/png"),
+               after="Find x.\r\nShow it.")  # fmt: skip
+    assert r.status_code == 201, r.text
+    assert r.json()["body"].startswith("Q1 Find x.\nShow it.\n\n![](")
 
 
 def test_the_upload_keeps_the_type_and_size_checks(tmp_path, monkeypatch):
