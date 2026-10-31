@@ -206,7 +206,7 @@ and an entry that is not a unit (`422 bad_unit`).
 | `400` | `digest_mismatch` | `Scrap-Digest` missing or wrong |
 | `401` | `unauthorized` | No token, or the wrong one |
 | `404` | `not_found` | No such route |
-| `405` | `method_not_allowed` | A method the route does not take (with `Allow`) |
+| `405` | `method_not_allowed` | A method the route does not take, or an unknown method (with `Allow`) |
 | `408` | `timeout` | Receiving the request took over 30 s, or stalled |
 | `411` | `length_required` | No `Content-Length`, or a chunked body |
 | `413` | `body_too_large`, `too_many_files`, `file_too_large` | Over a limit |
@@ -219,7 +219,6 @@ and an entry that is not a unit (`422 bad_unit`).
 | `422` | `empty_keep`, `no_home` | A `sync` list that is refused |
 | `431` | `headers_too_large` | The headers are too large |
 | `500` | `server_error` | Anything unexpected in the receiver |
-| `501` | `not_implemented` | A method the server does not know |
 | `503` | `busy` | Another write holds the lock (with `Retry-After: 1`) |
 | `505` | `version_not_supported` | Not HTTP/1.x |
 | `507` | `over_quota` | The site would be over its quota, or the disk itself is full |
@@ -279,16 +278,14 @@ On every response:
 | `/p/<slug>/file-*.pdf` | `sandbox` |
 | `/p/<slug>/img-*`, `/p/<slug>/file-*` (not a PDF) | `sandbox; default-src 'none'; style-src 'unsafe-inline'; img-src data:; font-src data:` |
 | `/p/...` and `/t/...` otherwise (a page's or tag's HTML) | `default-src 'none'; img-src 'self' data:; style-src 'self'; style-src-attr 'unsafe-inline'; font-src 'self'; script-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'` |
-| everything else (home, `/pagefind/`, `/assets/`, a 404 outside `/p/` and `/t/`) | `default-src 'none'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; font-src 'self'; script-src 'self' 'wasm-unsafe-eval'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'` |
+| everything else (home, `/pagefind/`, `/assets/`) | `default-src 'none'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; font-src 'self'; script-src 'self' 'wasm-unsafe-eval'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'` |
+| every `404`, whatever the path: `home/404.html`, which has no script | home's, as the row above |
 
 A page's images and files follow ADR 42's rule for stored files: opened on their own they run
 nothing and load nothing, and a PDF keeps `sandbox` alone so a browser's PDF viewer works. Pages
 and tag pages run no script. The home page's only scripts are Pagefind's and
 `/pagefind/scrap-search.js` (scrap's start-up file; there is no inline script), which fetch the
 index (`connect-src 'self'`) and run WebAssembly (`'wasm-unsafe-eval'`).
-
-A 404 under `/p/` or `/t/` (`home/404.html`) carries the page CSP; that is fine, as the 404 page
-runs no script.
 
 ### Caching
 
