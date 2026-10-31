@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Install scrap on Kubernetes &#8212; scrap 1.0.0rc5.dev1+g61ce89319 documentation</title>
+    <title>Install scrap on Kubernetes &#8212; scrap 1.0.1.dev1+gd85e2a805 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=cb71d813"></script>
+    <script src="../_static/documentation_options.js?v=21acdd88"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -900,9 +900,9 @@ for that reason, and the Deployment stops the old pod before it starts the new o
 <h2>1. Choose a release<a class="headerlink" href="#choose-a-release" title="Link to this heading">#</a></h2>
 <p>The chart is published as an OCI artifact, <code class="docutils literal notranslate"><span class="pre">oci://ghcr.io/gilesknap/charts/scrap</span></code>, and its version
 is the release tag (a pre-release such as <code class="docutils literal notranslate"><span class="pre">1.0.0rc1</span></code> is chart <code class="docutils literal notranslate"><span class="pre">1.0.0-rc.1</span></code>). This page installs
-<code class="docutils literal notranslate"><span class="pre">--version</span> <span class="pre">1.0.0-rc.4</span></code>; use a newer release if there is one (see the
+<code class="docutils literal notranslate"><span class="pre">--version</span> <span class="pre">1.0.0</span></code>; use a newer release if there is one (see the
 <a class="reference external" href="https://github.com/gilesknap/scrap/releases">releases</a>). The chart’s <code class="docutils literal notranslate"><span class="pre">appVersion</span></code> is the same tag,
-so it runs <code class="docutils literal notranslate"><span class="pre">ghcr.io/gilesknap/scrap:1.0.0rc4</span></code> (amd64 and arm64). There is nothing to build
+so it runs <code class="docutils literal notranslate"><span class="pre">ghcr.io/gilesknap/scrap:1.0.0</span></code> (amd64 and arm64). There is nothing to build
 and nothing to clone.</p>
 </section>
 <section id="create-the-secrets">
@@ -968,7 +968,7 @@ Cloudflare. Cluster admins, node access and <code class="docutils literal notran
 plus a monthly one kept longer.</p></li>
 </ul>
 <p>Install it:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">helm</span> <span class="n">install</span> <span class="n">scrap</span> <span class="n">oci</span><span class="p">:</span><span class="o">//</span><span class="n">ghcr</span><span class="o">.</span><span class="n">io</span><span class="o">/</span><span class="n">gilesknap</span><span class="o">/</span><span class="n">charts</span><span class="o">/</span><span class="n">scrap</span> <span class="o">--</span><span class="n">version</span> <span class="mf">1.0.0</span><span class="o">-</span><span class="n">rc</span><span class="mf">.4</span> \
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">helm</span> <span class="n">install</span> <span class="n">scrap</span> <span class="n">oci</span><span class="p">:</span><span class="o">//</span><span class="n">ghcr</span><span class="o">.</span><span class="n">io</span><span class="o">/</span><span class="n">gilesknap</span><span class="o">/</span><span class="n">charts</span><span class="o">/</span><span class="n">scrap</span> <span class="o">--</span><span class="n">version</span> <span class="mf">1.0.0</span> \
     <span class="o">--</span><span class="n">namespace</span> <span class="n">scrap</span> <span class="o">-</span><span class="n">f</span> <span class="n">my</span><span class="o">-</span><span class="n">values</span><span class="o">.</span><span class="n">yaml</span>
 <span class="n">kubectl</span> <span class="o">-</span><span class="n">n</span> <span class="n">scrap</span> <span class="n">rollout</span> <span class="n">status</span> <span class="n">deploy</span><span class="o">/</span><span class="n">scrap</span>
 </pre></div>
@@ -1127,19 +1127,22 @@ the browser’s Install on Android). Take a photo and capture it. See <a class="
 </section>
 <section id="connect-claude-code">
 <h2>7. Connect Claude Code<a class="headerlink" href="#connect-claude-code" title="Link to this heading">#</a></h2>
-<p>Claude Code needs three headers: both Cloudflare ones and the bearer token. Put the values in
-your environment (a password manager or <code class="docutils literal notranslate"><span class="pre">direnv</span></code> is a good home):</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">export</span> <span class="n">CF_ACCESS_CLIENT_ID</span><span class="o">=&lt;</span><span class="n">client</span> <span class="nb">id</span><span class="o">&gt;</span>
-<span class="n">export</span> <span class="n">CF_ACCESS_CLIENT_SECRET</span><span class="o">=&lt;</span><span class="n">client</span> <span class="n">secret</span><span class="o">&gt;</span>
-<span class="n">export</span> <span class="n">SCRAP_MCP_TOKEN</span><span class="o">=&lt;</span><span class="n">the</span> <span class="n">token</span> <span class="kn">from</span><span class="w"> </span><span class="nn">step</span> <span class="mi">2</span><span class="o">&gt;</span>
-</pre></div>
-</div>
-<p>Then add the server. Single quotes keep the shell from expanding the variables, so Claude Code
-reads them at start up instead:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">claude</span> <span class="n">mcp</span> <span class="n">add</span> <span class="o">--</span><span class="n">transport</span> <span class="n">http</span> <span class="o">--</span><span class="n">scope</span> <span class="n">user</span> <span class="n">scrap</span> <span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">scrap</span><span class="o">.</span><span class="n">example</span><span class="o">.</span><span class="n">com</span><span class="o">/</span><span class="n">mcp</span> \
-  <span class="o">--</span><span class="n">header</span> <span class="s1">'CF-Access-Client-Id: $</span><span class="si">{CF_ACCESS_CLIENT_ID}</span><span class="s1">'</span> \
-  <span class="o">--</span><span class="n">header</span> <span class="s1">'CF-Access-Client-Secret: $</span><span class="si">{CF_ACCESS_CLIENT_SECRET}</span><span class="s1">'</span> \
-  <span class="o">--</span><span class="n">header</span> <span class="s1">'Authorization: Bearer $</span><span class="si">{SCRAP_MCP_TOKEN}</span><span class="s1">'</span>
+<p>Claude Code needs three headers: both Cloudflare ones and the bearer token. The recommended way
+is a small <code class="docutils literal notranslate"><span class="pre">headersHelper</span></code> script that reads them from an env file (<code class="docutils literal notranslate"><span class="pre">~/.config/terminal-config/.env</span></code>
+with <code class="docutils literal notranslate"><span class="pre">CF_ACCESS_CLIENT_ID</span></code>, <code class="docutils literal notranslate"><span class="pre">CF_ACCESS_CLIENT_SECRET</span></code> and <code class="docutils literal notranslate"><span class="pre">SCRAP_MCP_TOKEN</span></code>, the token from
+step 2), so it also works in a devcontainer or claude-sandbox. Set it up as in
+<a class="reference internal" href="../how-to/connect-claude-code.html#mcp-secrets"><span class="std std-ref">If /mcp needs a token</span></a>, with <code class="docutils literal notranslate"><span class="pre">https://scrap.example.com/mcp</span></code> as the URL.</p>
+<p>If you prefer, and the variables are exported in the shell that starts <code class="docutils literal notranslate"><span class="pre">claude</span></code>, add the server
+with <code class="docutils literal notranslate"><span class="pre">${VAR}</span></code> headers instead. Single quotes keep the shell from expanding the variables, so
+Claude Code reads them at start up:</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span><span class="nb">export</span><span class="w"> </span><span class="nv">CF_ACCESS_CLIENT_ID</span><span class="o">=</span>&lt;client<span class="w"> </span>id&gt;
+<span class="nb">export</span><span class="w"> </span><span class="nv">CF_ACCESS_CLIENT_SECRET</span><span class="o">=</span>&lt;client<span class="w"> </span>secret&gt;
+<span class="nb">export</span><span class="w"> </span><span class="nv">SCRAP_MCP_TOKEN</span><span class="o">=</span>&lt;the<span class="w"> </span>token<span class="w"> </span>from<span class="w"> </span>step<span class="w"> </span><span class="m">2</span>&gt;
+
+claude<span class="w"> </span>mcp<span class="w"> </span>add<span class="w"> </span>--transport<span class="w"> </span>http<span class="w"> </span>--scope<span class="w"> </span>user<span class="w"> </span>scrap<span class="w"> </span>https://scrap.example.com/mcp<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--header<span class="w"> </span><span class="s1">'CF-Access-Client-Id: ${CF_ACCESS_CLIENT_ID}'</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--header<span class="w"> </span><span class="s1">'CF-Access-Client-Secret: ${CF_ACCESS_CLIENT_SECRET}'</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--header<span class="w"> </span><span class="s1">'Authorization: Bearer ${SCRAP_MCP_TOKEN}'</span>
 </pre></div>
 </div>
 <p><code class="docutils literal notranslate"><span class="pre">claude</span> <span class="pre">mcp</span> <span class="pre">list</span></code> should show <code class="docutils literal notranslate"><span class="pre">scrap</span></code> as connected. Ask Claude to search your pages. More in

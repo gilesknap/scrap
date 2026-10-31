@@ -111,18 +111,94 @@ add `http://127.0.0.1:8790/mcp` instead; loopback needs no `SCRAP_PUBLIC_URL`. A
 cannot reach the tailnet (a hosted or cloud Claude session, claude.ai) cannot use scrap this way,
 unless scrap is published through Cloudflare Access with a service token and a bearer token (below).
 
+(mcp-secrets)=
 ### If `/mcp` needs a token
 
-If scrap has `SCRAP_MCP_TOKEN` or `SCRAP_MCP_TOKEN_FILE` set (see [](../reference/mcp.md)), send
-the token as a header. With `claude mcp add`:
+If scrap has `SCRAP_MCP_TOKEN` or `SCRAP_MCP_TOKEN_FILE` set (see [](../reference/mcp.md)), or sits
+behind Cloudflare Access, the session must send secrets as headers: the bearer token and, behind
+Access, the service token (`CF_ACCESS_CLIENT_ID` and `CF_ACCESS_CLIENT_SECRET`). The recommended
+route is a `headersHelper` script that reads an env file, because it works in a devcontainer or
+a jail where nothing exports those variables, and the secrets stay out of every shell's
+environment.
 
+**1. The env file.** Put the values in one file that is never committed, for example
+`~/.config/terminal-config/.env`, and make it private:
+
+```sh
+CF_ACCESS_CLIENT_ID=<client id>
+CF_ACCESS_CLIENT_SECRET=<client secret>
+SCRAP_MCP_TOKEN=<the token>
 ```
+
+```sh
+chmod 600 ~/.config/terminal-config/.env
+```
+
+Leave out the two `CF_` lines if scrap is not behind Cloudflare Access. This file is the one
+place to rotate a token: the next connection reads the new value, with no `claude mcp` change.
+
+**2. The helper.** Claude Code runs this each time it connects and reads the headers it prints as
+JSON. Save it as `~/.claude/scrap-headers.sh` and make it executable (`chmod 700`):
+
+```sh
+#!/bin/sh
+# Headers for scrap's /mcp: Cloudflare Access service token + bearer token
+set -a; . ~/.config/terminal-config/.env; set +a
+printf '{"CF-Access-Client-Id":"%s","CF-Access-Client-Secret":"%s","Authorization":"Bearer %s"}\n' \
+  "$CF_ACCESS_CLIENT_ID" "$CF_ACCESS_CLIENT_SECRET" "$SCRAP_MCP_TOKEN"
+```
+
+Without Cloudflare Access, print only `{"Authorization":"Bearer %s"}`.
+
+The `printf` does no JSON escaping, so a secret containing a double quote or a backslash would
+break the output (real tokens are alphanumeric or hex, so this does not normally arise). The
+helper sources the env file as shell, so a value with spaces or a `$` must be quoted in the file.
+
+**3. Register it.** In `~/.claude.json` (user scope), under `mcpServers`, with the full absolute
+path, since `~` may not expand there:
+
+```json
+"scrap": {
+  "type": "http",
+  "url": "https://scrap.example.com/mcp",
+  "headersHelper": "/home/<you>/.claude/scrap-headers.sh"
+}
+```
+
+**4. Check it.** `claude mcp list` should show `scrap` as connected. To check the helper on its
+own, confirm it prints valid JSON without showing the values:
+
+```sh
+~/.claude/scrap-headers.sh | python3 -c 'import json,sys; print(sorted(json.load(sys.stdin)))'
+```
+
+It should print the header names only. Do not paste the helper's raw output into an issue or a
+log, and keep the env file out of git.
+
+**In claude-sandbox or a devcontainer.** claude-sandbox mounts the host's
+`~/.config/terminal-config` at `/user-terminal-config` in the container, and from there read-only
+into the jail, and keeps `~/.claude` and `~/.claude.json` in the container too (see
+[Use the container image](https://diamondlightsource.github.io/claude-sandbox/how-to/use-the-container-image.html)
+and [Deliberately exposed](https://diamondlightsource.github.io/claude-sandbox/reference/deliberately-exposed.html)).
+So put the env file at `~/.config/terminal-config/.env` on the host, and have the helper source
+`/user-terminal-config/.env` instead. Keep the helper at `~/.claude/scrap-headers.sh` and
+register scrap with user scope (`--scope user`, or in `~/.claude.json`): both then reach every
+project container and survive `claude-sandbox --recreate`, with nothing to set up per project.
+If scrap is on a private or loopback address instead, see [](connect-claude-sandbox.md) for the
+`local-port` and `allow-ip` settings.
+A devcontainer that is not claude-sandbox needs the same bind mount
+(`${localEnv:HOME}/.config/terminal-config` to `/user-terminal-config`), as in scrap's own
+`.devcontainer/devcontainer.json`.
+
+**The simple alternative.** In a shell where the variables are exported, Claude Code expands
+`${VAR}` in header values. With `claude mcp add`:
+
+```sh
 claude mcp add --transport http scrap https://myhost.my-tailnet.ts.net:8446/mcp \
   --header 'Authorization: Bearer ${SCRAP_MCP_TOKEN}'
 ```
 
-or in `.mcp.json`, where Claude Code expands `${VAR}` in header values, so the token can stay in
-the environment (or an env file you do not commit):
+or in `.mcp.json`:
 
 ```json
 {
@@ -136,9 +212,10 @@ the environment (or an env file you do not commit):
 }
 ```
 
-Behind Cloudflare Access, add its service-token headers too, so the request carries
-`CF-Access-Client-Id: ${CF_ACCESS_CLIENT_ID}`, `CF-Access-Client-Secret: ${CF_ACCESS_CLIENT_SECRET}`
-and the `Authorization` header. Keep all of these in an env file and do not commit it.
+Behind Cloudflare Access, add `CF-Access-Client-Id: ${CF_ACCESS_CLIENT_ID}` and
+`CF-Access-Client-Secret: ${CF_ACCESS_CLIENT_SECRET}` too. If a variable is not set in the process
+that starts `claude`, the header goes out empty and scrap answers `401` or `403`; use the helper
+above when that can happen.
 
 ### If it does not connect
 

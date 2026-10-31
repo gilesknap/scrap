@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Connect a Claude Code session &#8212; scrap 1.0.0rc5.dev1+g61ce89319 documentation</title>
+    <title>Connect a Claude Code session &#8212; scrap 1.0.1.dev1+gd85e2a805 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=cb71d813"></script>
+    <script src="../_static/documentation_options.js?v=21acdd88"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -950,15 +950,75 @@ add <code class="docutils literal notranslate"><span class="pre">http://127.0.0.
 cannot reach the tailnet (a hosted or cloud Claude session, claude.ai) cannot use scrap this way,
 unless scrap is published through Cloudflare Access with a service token and a bearer token (below).</p>
 <section id="if-mcp-needs-a-token">
-<h3>If <code class="docutils literal notranslate"><span class="pre">/mcp</span></code> needs a token<a class="headerlink" href="#if-mcp-needs-a-token" title="Link to this heading">#</a></h3>
-<p>If scrap has <code class="docutils literal notranslate"><span class="pre">SCRAP_MCP_TOKEN</span></code> or <code class="docutils literal notranslate"><span class="pre">SCRAP_MCP_TOKEN_FILE</span></code> set (see <a class="reference internal" href="../reference/mcp.html"><span class="std std-doc">MCP server</span></a>), send
-the token as a header. With <code class="docutils literal notranslate"><span class="pre">claude</span> <span class="pre">mcp</span> <span class="pre">add</span></code>:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">claude</span> <span class="n">mcp</span> <span class="n">add</span> <span class="o">--</span><span class="n">transport</span> <span class="n">http</span> <span class="n">scrap</span> <span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">myhost</span><span class="o">.</span><span class="n">my</span><span class="o">-</span><span class="n">tailnet</span><span class="o">.</span><span class="n">ts</span><span class="o">.</span><span class="n">net</span><span class="p">:</span><span class="mi">8446</span><span class="o">/</span><span class="n">mcp</span> \
-  <span class="o">--</span><span class="n">header</span> <span class="s1">'Authorization: Bearer $</span><span class="si">{SCRAP_MCP_TOKEN}</span><span class="s1">'</span>
+<span id="mcp-secrets"></span><h3>If <code class="docutils literal notranslate"><span class="pre">/mcp</span></code> needs a token<a class="headerlink" href="#if-mcp-needs-a-token" title="Link to this heading">#</a></h3>
+<p>If scrap has <code class="docutils literal notranslate"><span class="pre">SCRAP_MCP_TOKEN</span></code> or <code class="docutils literal notranslate"><span class="pre">SCRAP_MCP_TOKEN_FILE</span></code> set (see <a class="reference internal" href="../reference/mcp.html"><span class="std std-doc">MCP server</span></a>), or sits
+behind Cloudflare Access, the session must send secrets as headers: the bearer token and, behind
+Access, the service token (<code class="docutils literal notranslate"><span class="pre">CF_ACCESS_CLIENT_ID</span></code> and <code class="docutils literal notranslate"><span class="pre">CF_ACCESS_CLIENT_SECRET</span></code>). The recommended
+route is a <code class="docutils literal notranslate"><span class="pre">headersHelper</span></code> script that reads an env file, because it works in a devcontainer or
+a jail where nothing exports those variables, and the secrets stay out of every shell’s
+environment.</p>
+<p><strong>1. The env file.</strong> Put the values in one file that is never committed, for example
+<code class="docutils literal notranslate"><span class="pre">~/.config/terminal-config/.env</span></code>, and make it private:</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span><span class="nv">CF_ACCESS_CLIENT_ID</span><span class="o">=</span>&lt;client<span class="w"> </span>id&gt;
+<span class="nv">CF_ACCESS_CLIENT_SECRET</span><span class="o">=</span>&lt;client<span class="w"> </span>secret&gt;
+<span class="nv">SCRAP_MCP_TOKEN</span><span class="o">=</span>&lt;the<span class="w"> </span>token&gt;
 </pre></div>
 </div>
-<p>or in <code class="docutils literal notranslate"><span class="pre">.mcp.json</span></code>, where Claude Code expands <code class="docutils literal notranslate"><span class="pre">${VAR}</span></code> in header values, so the token can stay in
-the environment (or an env file you do not commit):</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>chmod<span class="w"> </span><span class="m">600</span><span class="w"> </span>~/.config/terminal-config/.env
+</pre></div>
+</div>
+<p>Leave out the two <code class="docutils literal notranslate"><span class="pre">CF_</span></code> lines if scrap is not behind Cloudflare Access. This file is the one
+place to rotate a token: the next connection reads the new value, with no <code class="docutils literal notranslate"><span class="pre">claude</span> <span class="pre">mcp</span></code> change.</p>
+<p><strong>2. The helper.</strong> Claude Code runs this each time it connects and reads the headers it prints as
+JSON. Save it as <code class="docutils literal notranslate"><span class="pre">~/.claude/scrap-headers.sh</span></code> and make it executable (<code class="docutils literal notranslate"><span class="pre">chmod</span> <span class="pre">700</span></code>):</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span><span class="ch">#!/bin/sh</span>
+<span class="c1"># Headers for scrap's /mcp: Cloudflare Access service token + bearer token</span>
+<span class="nb">set</span><span class="w"> </span>-a<span class="p">;</span><span class="w"> </span>.<span class="w"> </span>~/.config/terminal-config/.env<span class="p">;</span><span class="w"> </span><span class="nb">set</span><span class="w"> </span>+a
+<span class="nb">printf</span><span class="w"> </span><span class="s1">'{"CF-Access-Client-Id":"%s","CF-Access-Client-Secret":"%s","Authorization":"Bearer %s"}\n'</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span><span class="s2">"</span><span class="nv">$CF_ACCESS_CLIENT_ID</span><span class="s2">"</span><span class="w"> </span><span class="s2">"</span><span class="nv">$CF_ACCESS_CLIENT_SECRET</span><span class="s2">"</span><span class="w"> </span><span class="s2">"</span><span class="nv">$SCRAP_MCP_TOKEN</span><span class="s2">"</span>
+</pre></div>
+</div>
+<p>Without Cloudflare Access, print only <code class="docutils literal notranslate"><span class="pre">{&quot;Authorization&quot;:&quot;Bearer</span> <span class="pre">%s&quot;}</span></code>.</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">printf</span></code> does no JSON escaping, so a secret containing a double quote or a backslash would
+break the output (real tokens are alphanumeric or hex, so this does not normally arise). The
+helper sources the env file as shell, so a value with spaces or a <code class="docutils literal notranslate"><span class="pre">$</span></code> must be quoted in the file.</p>
+<p><strong>3. Register it.</strong> In <code class="docutils literal notranslate"><span class="pre">~/.claude.json</span></code> (user scope), under <code class="docutils literal notranslate"><span class="pre">mcpServers</span></code>, with the full absolute
+path, since <code class="docutils literal notranslate"><span class="pre">~</span></code> may not expand there:</p>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="nt">"scrap"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="nt">"type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"http"</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">"url"</span><span class="p">:</span><span class="w"> </span><span class="s2">"https://scrap.example.com/mcp"</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">"headersHelper"</span><span class="p">:</span><span class="w"> </span><span class="s2">"/home/&lt;you&gt;/.claude/scrap-headers.sh"</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p><strong>4. Check it.</strong> <code class="docutils literal notranslate"><span class="pre">claude</span> <span class="pre">mcp</span> <span class="pre">list</span></code> should show <code class="docutils literal notranslate"><span class="pre">scrap</span></code> as connected. To check the helper on its
+own, confirm it prints valid JSON without showing the values:</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>~/.claude/scrap-headers.sh<span class="w"> </span><span class="p">|</span><span class="w"> </span>python3<span class="w"> </span>-c<span class="w"> </span><span class="s1">'import json,sys; print(sorted(json.load(sys.stdin)))'</span>
+</pre></div>
+</div>
+<p>It should print the header names only. Do not paste the helper’s raw output into an issue or a
+log, and keep the env file out of git.</p>
+<p><strong>In claude-sandbox or a devcontainer.</strong> claude-sandbox mounts the host’s
+<code class="docutils literal notranslate"><span class="pre">~/.config/terminal-config</span></code> at <code class="docutils literal notranslate"><span class="pre">/user-terminal-config</span></code> in the container, and from there read-only
+into the jail, and keeps <code class="docutils literal notranslate"><span class="pre">~/.claude</span></code> and <code class="docutils literal notranslate"><span class="pre">~/.claude.json</span></code> in the container too (see
+<a class="reference external" href="https://diamondlightsource.github.io/claude-sandbox/how-to/use-the-container-image.html">Use the container image</a>
+and <a class="reference external" href="https://diamondlightsource.github.io/claude-sandbox/reference/deliberately-exposed.html">Deliberately exposed</a>).
+So put the env file at <code class="docutils literal notranslate"><span class="pre">~/.config/terminal-config/.env</span></code> on the host, and have the helper source
+<code class="docutils literal notranslate"><span class="pre">/user-terminal-config/.env</span></code> instead. Keep the helper at <code class="docutils literal notranslate"><span class="pre">~/.claude/scrap-headers.sh</span></code> and
+register scrap with user scope (<code class="docutils literal notranslate"><span class="pre">--scope</span> <span class="pre">user</span></code>, or in <code class="docutils literal notranslate"><span class="pre">~/.claude.json</span></code>): both then reach every
+project container and survive <code class="docutils literal notranslate"><span class="pre">claude-sandbox</span> <span class="pre">--recreate</span></code>, with nothing to set up per project.
+If scrap is on a private or loopback address instead, see <a class="reference internal" href="connect-claude-sandbox.html"><span class="std std-doc">Connect Claude Code in claude-sandbox</span></a> for the
+<code class="docutils literal notranslate"><span class="pre">local-port</span></code> and <code class="docutils literal notranslate"><span class="pre">allow-ip</span></code> settings.
+A devcontainer that is not claude-sandbox needs the same bind mount
+(<code class="docutils literal notranslate"><span class="pre">${localEnv:HOME}/.config/terminal-config</span></code> to <code class="docutils literal notranslate"><span class="pre">/user-terminal-config</span></code>), as in scrap’s own
+<code class="docutils literal notranslate"><span class="pre">.devcontainer/devcontainer.json</span></code>.</p>
+<p><strong>The simple alternative.</strong> In a shell where the variables are exported, Claude Code expands
+<code class="docutils literal notranslate"><span class="pre">${VAR}</span></code> in header values. With <code class="docutils literal notranslate"><span class="pre">claude</span> <span class="pre">mcp</span> <span class="pre">add</span></code>:</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>claude<span class="w"> </span>mcp<span class="w"> </span>add<span class="w"> </span>--transport<span class="w"> </span>http<span class="w"> </span>scrap<span class="w"> </span>https://myhost.my-tailnet.ts.net:8446/mcp<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--header<span class="w"> </span><span class="s1">'Authorization: Bearer ${SCRAP_MCP_TOKEN}'</span>
+</pre></div>
+</div>
+<p>or in <code class="docutils literal notranslate"><span class="pre">.mcp.json</span></code>:</p>
 <div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
 <span class="w">  </span><span class="nt">"mcpServers"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="nt">"scrap"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
@@ -970,9 +1030,10 @@ the environment (or an env file you do not commit):</p>
 <span class="p">}</span>
 </pre></div>
 </div>
-<p>Behind Cloudflare Access, add its service-token headers too, so the request carries
-<code class="docutils literal notranslate"><span class="pre">CF-Access-Client-Id:</span> <span class="pre">${CF_ACCESS_CLIENT_ID}</span></code>, <code class="docutils literal notranslate"><span class="pre">CF-Access-Client-Secret:</span> <span class="pre">${CF_ACCESS_CLIENT_SECRET}</span></code>
-and the <code class="docutils literal notranslate"><span class="pre">Authorization</span></code> header. Keep all of these in an env file and do not commit it.</p>
+<p>Behind Cloudflare Access, add <code class="docutils literal notranslate"><span class="pre">CF-Access-Client-Id:</span> <span class="pre">${CF_ACCESS_CLIENT_ID}</span></code> and
+<code class="docutils literal notranslate"><span class="pre">CF-Access-Client-Secret:</span> <span class="pre">${CF_ACCESS_CLIENT_SECRET}</span></code> too. If a variable is not set in the process
+that starts <code class="docutils literal notranslate"><span class="pre">claude</span></code>, the header goes out empty and scrap answers <code class="docutils literal notranslate"><span class="pre">401</span></code> or <code class="docutils literal notranslate"><span class="pre">403</span></code>; use the helper
+above when that can happen.</p>
 </section>
 <section id="if-it-does-not-connect">
 <h3>If it does not connect<a class="headerlink" href="#if-it-does-not-connect" title="Link to this heading">#</a></h3>
