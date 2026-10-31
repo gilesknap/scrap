@@ -70,6 +70,9 @@ class Fake(FakeClaude):
     def record(self, kind, **call):
         self.calls.append(kind)
 
+    def kinds(self):
+        return self.calls
+
     def answer(self, kind, system, messages):
         return {
             "photo": lambda: BOARD,
