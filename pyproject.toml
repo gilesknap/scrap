@@ -25,6 +25,7 @@ dependencies = [
     "uvicorn",
     "mcp>=2.3,<3",
     "pypdf>=6.21",
+    "google-re2>=1.1.20251105",
 ]
 dynamic = ["version"]
 license.file = "LICENSE"

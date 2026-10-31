@@ -119,7 +119,9 @@ class SearchMixin(Core):
             slug, slug, slug,
         )  # fmt: skip
 
-    def search(self, query: str, limit: int, offset: int = 0) -> list[dict[str, Any]]:
+    def search(
+        self, query: str, limit: int, offset: int = 0, among: list[str] | None = None
+    ) -> list[dict[str, Any]]:
         """Pages matching a query (see scrap.query): every word somewhere in the page
         (its title, tags, summary, body, or a photo's text or description; each
         word as a prefix), no NOT word anywhere, and all the filters. Ranked by bm25 of
@@ -128,39 +130,26 @@ class SearchMixin(Core):
         title, tags and summary tier; a query
         of filters alone lists its pages newest first; sort: orders either its own
         way, and group: puts the pages in their sections first (grouping.py), each page
-        with its tags. offset: skip that many hits (the next page of results)."""
+        with its tags. offset: skip that many hits (the next page of results).
+        among: only these pages (ids), as grep's hits."""
         q = checked_query(query)
         if not q.terms and not q.filters:
             return []
         where, args = self._where(q)
+        if among is not None:
+            where += " AND p.id IN (SELECT value FROM json_each(?))"
+            args.append(json.dumps(among))
         order, section_args = self._order(q)
         hits: dict[str, dict[str, Any]] = {}  # a page once, at its best chunk
         with self.connect() as conn:
             if q.group == "area":
                 use_areas(conn)
             if q.positive:  # bm25() and snippet() refuse GROUP BY: group here instead
-                # First the pages with every word in the title, then those with every
-                # word in the title, tags or summary: bm25 alone lets a short body
-                # that says a word twice beat a long page tagged with it. Within
-                # each of those tiers a topic page comes first (it gathers the
-                # others); one matching only in its synthesis or text does not.
-                every = " AND ".join(q.fts(t) for t in q.positive)
-                topic = IS_TOPIC.format(p="p")
-                tier = " c.id IN (SELECT rowid FROM chunk_fts WHERE chunk_fts MATCH ?)"
-                rows = conn.execute(
-                    f"SELECT p.id, p.slug, p.title, p.kind, p.fields, {todo_cols()},"
+                rows = self._ranked(
+                    conn, q, where, [*args, *section_args], order,
+                    f"p.id, p.slug, p.title, p.kind, p.fields, {todo_cols()},"
                     " p.task_done, p.task_total,"
-                    " snippet(chunk_fts, 3, char(2), char(3), '…', 16) AS snippet"
-                    " FROM chunk_fts JOIN chunk c ON c.id = chunk_fts.rowid"
-                    " JOIN page p ON p.id = c.page_id"
-                    f" WHERE chunk_fts MATCH ? AND {where}"
-                    f" ORDER BY {order}({topic} AND {tier}) DESC, {tier} DESC,"
-                    f" ({topic} AND {tier}) DESC, {tier} DESC,"
-                    f" bm25(chunk_fts, {WEIGHTS}), c.id",
-                    (" OR ".join(q.fts(t) for t in q.positive), *args, *section_args,
-                     f"title : ({every})", f"title : ({every})",
-                     f"{{title tags summary}} : ({every})",
-                     f"{{title tags summary}} : ({every})"),
+                    " snippet(chunk_fts, 3, char(2), char(3), '…', 16) AS snippet",
                 )  # fmt: skip
             else:
                 rows = conn.execute(
@@ -256,6 +245,39 @@ class SearchMixin(Core):
             ).fetchall()
         own = Counter(tag for _, tag in rows)
         return [[t, n, own[t]] for t, n in sorted(tag_counts(rows).items())]
+
+    def _ranked(
+        self,
+        conn: sqlite3.Connection,
+        q: Query,
+        where: str,
+        args: list[Any],
+        order: str,
+        columns: str,
+    ) -> sqlite3.Cursor:
+        """A word query's chunks, best first (a page's best chunk before its others):
+        columns of chunk_fts, chunk c and page p, for search and grep."""
+        # First the pages with every word in the title, then those with every
+        # word in the title, tags or summary: bm25 alone lets a short body
+        # that says a word twice beat a long page tagged with it. Within
+        # each of those tiers a topic page comes first (it gathers the
+        # others); one matching only in its synthesis or text does not.
+        every = " AND ".join(q.fts(t) for t in q.positive)
+        topic = IS_TOPIC.format(p="p")
+        tier = " c.id IN (SELECT rowid FROM chunk_fts WHERE chunk_fts MATCH ?)"
+        return conn.execute(
+            f"SELECT {columns}"
+            " FROM chunk_fts JOIN chunk c ON c.id = chunk_fts.rowid"
+            " JOIN page p ON p.id = c.page_id"
+            f" WHERE chunk_fts MATCH ? AND {where}"
+            f" ORDER BY {order}({topic} AND {tier}) DESC, {tier} DESC,"
+            f" ({topic} AND {tier}) DESC, {tier} DESC,"
+            f" bm25(chunk_fts, {WEIGHTS}), c.id",
+            (" OR ".join(q.fts(t) for t in q.positive), *args,
+             f"title : ({every})", f"title : ({every})",
+             f"{{title tags summary}} : ({every})",
+             f"{{title tags summary}} : ({every})"),
+        )  # fmt: skip
 
     def _order(self, q: Query) -> tuple[str, list[Any]]:
         """The start of search's ORDER BY on page p (each term ending ", "), and its

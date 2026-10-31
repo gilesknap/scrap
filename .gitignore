@@ -72,3 +72,6 @@ lockfiles/
 
 # PWA build output (npm --prefix web run build)
 src/scrap/static/
+
+# Claude Code worktrees
+.claude/worktrees/
