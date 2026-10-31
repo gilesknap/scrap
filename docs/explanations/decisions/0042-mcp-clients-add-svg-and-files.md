@@ -62,7 +62,7 @@ opened directly.
   to a fragment or a `data:` font (each one checked on its own), and no `image-set()`, `src()`,
   escape or quoted URL; the passes repeat until nothing changes, so no removal can join what
   is left into a rule.
-- **And a CSP that loads nothing.** Every stored file but a PDF (and an SVG's preview), under
+- **And a CSP that loads nothing.** Every stored file but a PDF, and an SVG's preview too, under
   `/api` and `/mcp`, has `Content-Security-Policy: sandbox; default-src 'none'; style-src 'unsafe-inline';
   img-src data:; font-src data:` and `nosniff` (`STRICT_HEADERS`): opened as a page it runs no
   script and fetches nothing, even if the sanitiser misses something, the file predates it,

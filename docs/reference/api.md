@@ -59,8 +59,8 @@ address to SCRAP_PUBLIC_URL)`):
 
 Stored files and previews are content-addressed, so they are served with `Cache-Control: private,
 max-age=31536000, immutable`, `X-Content-Type-Options: nosniff` and `Content-Security-Policy:
-sandbox` (an uploaded HTML file cannot run scripts), and every one but a PDF (and an SVG's
-preview) with `Content-Security-Policy: sandbox; default-src 'none'; style-src 'unsafe-inline';
+sandbox` (an uploaded HTML file cannot run scripts). Every stored file but a PDF, and an SVG's
+preview too, has the stricter `Content-Security-Policy: sandbox; default-src 'none'; style-src 'unsafe-inline';
 img-src data:; font-src data:`, so it fetches nothing either; a PDF keeps `sandbox` alone, which
 the browser's PDF viewer needs. A SHA-256 is 64 lower-case hex digits (the
 `uses` and drawing routes also take upper case); any other value, or a file not stored, is `404`. A page download is `Cache-Control: no-store`. The
