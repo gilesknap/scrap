@@ -512,11 +512,11 @@ only while content editing is on, first).
   a new number** (rev + 1, never one used before). `rev` is also the PWA's edit token, so an
   editor that loaded the page between two edits of a burst gets a conflict (409) on saving, never
   a silent overwrite; the burst leaves a gap in the numbers. Never folded into: a page's first
-  revision, a revision by anyone else or from another source (a PWA edit between ends the burst), one holding the
-  body of an earlier revision (a text `revert`'s, whatever its title), and one with a file whose
-  address (`/api/blobs/<sha>`) the new text no longer has: deleting an embed keeps the revision
-  that had it, so the file counts as removed from the page, not as attached but never placed. A text `revert` itself
-  never folds. Claude's latest revision may be an append to its own page: an edit then folds
+  revision, a revision by anyone else or from another source (a PWA edit between ends the
+  burst), one holding the body of an earlier revision (a text `revert`'s, whatever its title),
+  and one with a file whose address (`/api/blobs/<sha>`) the new text no longer has: deleting an
+  embed keeps the revision that had it, so the file counts as removed from the page, not as
+  attached but never placed. A text `revert` itself never folds. Claude's latest revision may be an append to its own page: an edit then folds
   into it, losing only the snapshot just after the append (its text stays in the page, and in
   the append's capture). The author is `claude` for every MCP session, so two sessions editing
   one page within the window fold into each other.

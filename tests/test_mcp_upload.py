@@ -317,3 +317,24 @@ def test_an_embed_deleted_within_the_window_is_removed_not_unplaced(store):
     assert found(store, "has:image") == set()  # GONE, in SQL too
     after = ok(store, "edit_page", page=ref["slug"], old="15.", new="18.")
     assert after["folded"] == gone["rev"]  # the burst goes on folding after it
+
+
+def test_an_embed_swapped_within_the_window_keeps_the_old_one_removed(store):
+    ref = human(store, PAPER)
+    a = ok(store, "add_svg", page=ref["slug"], svg=TRIANGLE.decode(), alt="A")
+    b = svg.sanitise(DOT.encode()).decode()
+    new = ok(store, "add_svg", page=ref["slug"], svg=b, alt="B", dry_run=True)
+    swap = ok(store, "edit_page", page=ref["slug"], old=a["embed"], new=new["embed"])
+    assert swap["folded"] is None  # A left the text: its revision stays
+    assert a["sha256"] in store.page(ref["slug"])["removed"]
+
+
+def test_an_embed_put_back_within_the_window_folds_and_is_not_removed(store):
+    ref = human(store, PAPER)
+    added = ok(store, "add_svg", page=ref["slug"], svg=TRIANGLE.decode(), alt="A")
+    gone = ok(store, "edit_page", page=ref["slug"], old=added["embed"], delete=True)
+    assert gone["folded"] is None
+    back = ok(store, "edit_page", page=ref["slug"], old="Factorise 12.",
+              new=f"Factorise 12.\n\n{added['embed']}")  # fmt: skip
+    assert back["folded"] == gone["rev"]  # the set grows: folds into the removal
+    assert added["sha256"] not in store.page(ref["slug"])["removed"]

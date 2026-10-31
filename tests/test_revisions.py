@@ -607,6 +607,16 @@ def test_folded_field_edits_revert_to_what_was_never_there(store):
     assert "media_type" not in fields and fields["subtype"] == "read"
 
 
+def test_media_type_and_its_subtype_count_as_one_field_for_folding(store):
+    ref = later(store, "Pair")
+    for made in meta(store, ref["slug"]):
+        age(store, made["id"])
+    one = ok(store, "edit_meta", pages=[ref["slug"]], fields={"media_type": "book"})
+    two = ok(store, "edit_meta", pages=[ref["slug"]], fields={"media_type": "film"})
+    assert "subtype" in two["pages"][0]["fields_added"]  # read becomes watch
+    assert two["pages"][0]["revision"] == one["pages"][0]["revision"]  # folded
+
+
 def test_edit_meta_refuses_reserved_and_unpaired_fields(store):
     ref = later(store, "A")
     key = ref["slug"]

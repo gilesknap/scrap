@@ -205,7 +205,8 @@ def test_reverting_a_burst_that_made_a_note_a_todo_and_cleared_gives_back(
     key = todo(store, priority="low")
     ok(store, "edit_meta", pages=[key], kind="note")
     age(store)
-    # a burst folded before #411, which now keeps a field edit apart from a kind change
+    # simulate a legacy row: a revision folded before #411 (which now keeps a field
+    # edit apart from a kind change), still in a store made by an older scrap
     monkeypatch.setattr(meta, "_touched", lambda *_: frozenset())
     ok(store, "edit_meta", pages=[key], kind="todo")
     ok(store, "edit_meta", pages=[key], fields={"priority": None})
