@@ -334,31 +334,15 @@ scrap, not only in the `sc` commands: a todo, note or search result is shown as
 Code session: `scrap-links` is listed when you ask "what skills do you have",
 and asking "what todos are for today" lists every todo as a link.
 
-It also installs the `scrap-to-gist` skill (`skills/scrap-to-gist`), into
-`~/.claude/skills/scrap-to-gist` in the same way. Ask Claude to "put this scrap page in a gist" and
-it publishes the page as a secret GitHub gist that looks as it does in scrap: maths centred or
-left-aligned as in scrap and sized to match the text, `[[slug]]` links pointing at the scrap page,
-and `\cancel` (which GitHub cannot draw) replaced by images of scrap's rendering. Ask it to update
-the gist and it changes the gist and the scrap page together. It needs `gh` logged in with a
-token that can create gists (a fine-grained token often cannot; Claude then asks for a token with
-the `gist` scope), and, for `\cancel`, Chrome or Chromium (run headless) and internet access.
-The page's images (photos, drawings, attached images and SVGs) are copied into the gist too, as
-scrap shows them: only the 2048-pixel previews are fetched, never the originals, so no EXIF or GPS
-position is published. That needs scrap 1.2.0 or later (its `/mcp` downloads, "Downloading files"
-above). The images are fetched only from the `url` of the `scrap` entry in your `~/.claude.json`,
-with that entry's headers (the `headersHelper` of {ref}`mcp-secrets`, or its `headers`); a
-project's `.mcp.json` is never read, and with a `User-Agent` of `scrap-to-gist/1` (Cloudflare refuses
-Python's default one, with error code 1010). The images are fetched before the gist is created, so
-an image that cannot be fetched stops Claude before anything is published. With an older scrap the
-images are left out, with a note.
-Claude asks before publishing photos that look personal: anyone with a gist's link can see its
-images.
-
 These commands replace the earlier single `/s <verb>` skill (`/s post`, `/s tidy`, and so on), the
 `s-` and `sc-` skill sets that briefly preceded them, and the older `scrap-post` skill. Delete
 `~/.claude/skills/s`, `~/.claude/skills/s-*`, `~/.claude/skills/sc` and `~/.claude/skills/sc-*`
 (a skill and a command of the same name clash) and `~/.claude/skills/scrap-post` after installing
-these. Only the scrap tools are used. `<SCRAP_URL>` in the
+these. The `scrap-to-gist` skill, which earlier releases installed, is removed
+too ([ADR 43](../explanations/decisions/0043-public-pages-a-static-site-scrap-pushes-to.md):
+public pages, still being built, are planned to take its place); the installer leaves an
+installed copy alone, so delete `~/.claude/skills/scrap-to-gist` when you no longer want it.
+Only the scrap tools are used. `<SCRAP_URL>` in the
 commands is a placeholder (the hint they give when the tools are missing, and the shape of the
 page URL they report); the real URL comes from the `write` tool, built from `SCRAP_PUBLIC_URL`.
 

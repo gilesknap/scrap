@@ -324,9 +324,7 @@ which scales; nothing rasterises it, and a page's download with `photos=preview`
 model call, so search finds `12 cm` or `30°`; then Claude gets its markup (the first 20,000
 characters, with each embedded base64 payload, a font or a raster image, put as its size) as text, not an image, for the description, title and tags a photo gets (no
 drawing: it is one). A write-up (`writeup`, or a board's) sends it the same way: its markup as
-text, where a photo's JPEG would go. A gist renders SVG from its raw URLs
-(`![](https://gist.githubusercontent.com/<user>/<id>/raw/file.svg)`), and `gh gist create` takes
-it as a text file, so a page with SVG diagrams can be published as a gist of text files alone.
+text, where a photo's JPEG would go.
 
 ## Writing
 
