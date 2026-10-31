@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Import your pages &#8212; scrap 1.1.2.dev6+gc42c92b97 documentation</title>
+    <title>Import your pages &#8212; scrap 1.1.2.dev7+g993f72a06 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=2cfe92ec"></script>
+    <script src="../_static/documentation_options.js?v=570b6529"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -570,6 +570,9 @@ imported with its whole text as the page’s text, so nothing is lost.</p>
 <li><p>A Claude topic page (<code class="docutils literal notranslate"><span class="pre">made_by:</span> <span class="pre">topic</span></code>) and <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">gc</span></code>’s review page: Claude makes topics again.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">pinned.md</span></code> when this store has a Pinned page already.</p></li>
 <li><p>A page over 1 MB, and a file over the upload limit.</p></li>
+<li><p>An SVG that is not one, has a DOCTYPE with entities, or is over 1 MiB (listed as <em>SVG
+refused</em>; its link is kept as typed). Any other SVG is stored sanitised, as one added in the
+PWA is: no scripts, nothing it loads from elsewhere (see <a class="reference internal" href="../reference/mcp.html#mcp-uploads"><span class="std std-ref">Adding images and files</span></a>).</p></li>
 <li><p>Any file outside the zip: a zip with a name that would reach outside it (<code class="docutils literal notranslate"><span class="pre">../</span></code>), or with more
 files or bytes than it may hold, is refused whole.</p></li>
 </ul>

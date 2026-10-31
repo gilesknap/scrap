@@ -73,6 +73,9 @@ imported with its whole text as the page's text, so nothing is lost.
 - A Claude topic page (`made_by: topic`) and `scrap gc`'s review page: Claude makes topics again.
 - `pinned.md` when this store has a Pinned page already.
 - A page over 1 MB, and a file over the upload limit.
+- An SVG that is not one, has a DOCTYPE with entities, or is over 1 MiB (listed as *SVG
+  refused*; its link is kept as typed). Any other SVG is stored sanitised, as one added in the
+  PWA is: no scripts, nothing it loads from elsewhere (see {ref}`mcp-uploads`).
 - Any file outside the zip: a zip with a name that would reach outside it (`../`), or with more
   files or bytes than it may hold, is refused whole.
 

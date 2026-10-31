@@ -236,6 +236,13 @@ photo is sent as 2048×1536 and a square one as 1932×1932.
 The PWA itself shrinks a photo over 2560 px on the long edge (JPEG, quality 85) before it queues it, so
 the original that is stored is already that size.
 
+**An SVG** (#480) is not decoded at all. Its job first puts its words (`<title>`, `<desc>`,
+`<text>`) as its text, with no model call, so search has them whatever happens next; then the
+user turn is its markup (the first 20,000 characters, an embedded font's or image's base64 put
+as its size) as a text block, said to be data, instead
+of an image block, with no drawing asked for. No JPEG is made, so its run has no `sent_sha256` or
+size. See [ADR 0042](decisions/0042-mcp-clients-add-svg-and-files.md).
+
 The image block sets `"transformations": {"oversized_image": "error"}`, so the API never
 rescales it silently and drawing coordinates are in sent pixels. The JPEG is stored as a blob
 (`model_run.sent_sha256`) with its `image_width` and `image_height`. The PWA scales the drawing

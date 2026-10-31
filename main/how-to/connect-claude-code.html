@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Connect a Claude Code session &#8212; scrap 1.1.2.dev6+gc42c92b97 documentation</title>
+    <title>Connect a Claude Code session &#8212; scrap 1.1.2.dev7+g993f72a06 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=2cfe92ec"></script>
+    <script src="../_static/documentation_options.js?v=570b6529"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -925,13 +925,13 @@ Tailscale operator’s address (no port, since it serves on 443):</p>
 your projects. Avoid <code class="docutils literal notranslate"><span class="pre">--scope</span> <span class="pre">project</span></code>: it writes the tailnet hostname into a <code class="docutils literal notranslate"><span class="pre">.mcp.json</span></code> that
 you would commit. <code class="docutils literal notranslate"><span class="pre">claude</span> <span class="pre">mcp</span> <span class="pre">list</span></code> should show <code class="docutils literal notranslate"><span class="pre">scrap</span></code> as connected. <code class="docutils literal notranslate"><span class="pre">claude</span> <span class="pre">mcp</span> <span class="pre">remove</span> <span class="pre">scrap</span></code>
 takes it out again.</p>
-<p>The server has fifteen tools (eleven with <code class="docutils literal notranslate"><span class="pre">SCRAP_MCP_CONTENT_EDIT=0</span></code>, which drops <code class="docutils literal notranslate"><span class="pre">edit_page</span></code>, <code class="docutils literal notranslate"><span class="pre">edit_drawing</span></code>, <code class="docutils literal notranslate"><span class="pre">trash_pages</span></code> and <code class="docutils literal notranslate"><span class="pre">undelete</span></code>), which appear as <code class="docutils literal notranslate"><span class="pre">mcp__scrap__search</span></code> (it also lists the recent
-pages and the todos), <code class="docutils literal notranslate"><span class="pre">mcp__scrap__read</span></code>, <code class="docutils literal notranslate"><span class="pre">mcp__scrap__drawing</span></code>, <code class="docutils literal notranslate"><span class="pre">mcp__scrap__tags</span></code>,
-<code class="docutils literal notranslate"><span class="pre">mcp__scrap__topics</span></code>,
-<code class="docutils literal notranslate"><span class="pre">mcp__scrap__write</span></code>, <code class="docutils literal notranslate"><span class="pre">mcp__scrap__edit_meta</span></code>, <code class="docutils literal notranslate"><span class="pre">mcp__scrap__rename_tag</span></code>,
+<p>The server has eighteen tools (four fewer with <code class="docutils literal notranslate"><span class="pre">SCRAP_MCP_CONTENT_EDIT=0</span></code>, which drops <code class="docutils literal notranslate"><span class="pre">edit_page</span></code>, <code class="docutils literal notranslate"><span class="pre">edit_drawing</span></code>, <code class="docutils literal notranslate"><span class="pre">trash_pages</span></code> and <code class="docutils literal notranslate"><span class="pre">undelete</span></code>, and one fewer with <code class="docutils literal notranslate"><span class="pre">SCRAP_MCP_UPLOAD=0</span></code>, which drops <code class="docutils literal notranslate"><span class="pre">add_svg</span></code>), which appear as <code class="docutils literal notranslate"><span class="pre">mcp__scrap__search</span></code> (it also lists the recent
+pages and the todos), <code class="docutils literal notranslate"><span class="pre">mcp__scrap__read</span></code>, <code class="docutils literal notranslate"><span class="pre">mcp__scrap__current_page</span></code>, <code class="docutils literal notranslate"><span class="pre">mcp__scrap__drawing</span></code>,
+<code class="docutils literal notranslate"><span class="pre">mcp__scrap__tags</span></code>, <code class="docutils literal notranslate"><span class="pre">mcp__scrap__topics</span></code>,
+<code class="docutils literal notranslate"><span class="pre">mcp__scrap__write</span></code>, <code class="docutils literal notranslate"><span class="pre">mcp__scrap__writeup</span></code>, <code class="docutils literal notranslate"><span class="pre">mcp__scrap__edit_meta</span></code>, <code class="docutils literal notranslate"><span class="pre">mcp__scrap__rename_tag</span></code>,
 <code class="docutils literal notranslate"><span class="pre">mcp__scrap__revisions</span></code>, <code class="docutils literal notranslate"><span class="pre">mcp__scrap__revert</span></code>, <code class="docutils literal notranslate"><span class="pre">mcp__scrap__edit_page</span></code>,
-<code class="docutils literal notranslate"><span class="pre">mcp__scrap__edit_drawing</span></code>, <code class="docutils literal notranslate"><span class="pre">mcp__scrap__trash</span></code>, <code class="docutils literal notranslate"><span class="pre">mcp__scrap__trash_pages</span></code> and
-<code class="docutils literal notranslate"><span class="pre">mcp__scrap__undelete</span></code>; the Tools table in <a class="reference internal" href="../reference/mcp.html"><span class="std std-doc">MCP server</span></a> says what each takes and
+<code class="docutils literal notranslate"><span class="pre">mcp__scrap__edit_drawing</span></code>, <code class="docutils literal notranslate"><span class="pre">mcp__scrap__add_svg</span></code>, <code class="docutils literal notranslate"><span class="pre">mcp__scrap__trash</span></code>, <code class="docutils literal notranslate"><span class="pre">mcp__scrap__trash_pages</span></code>
+and <code class="docutils literal notranslate"><span class="pre">mcp__scrap__undelete</span></code>; the Tools table in <a class="reference internal" href="../reference/mcp.html"><span class="std std-doc">MCP server</span></a> says what each takes and
 returns.</p>
 <p>Try it: ask “get my recent photos”. Search results say which pages hold images (<code class="docutils literal notranslate"><span class="pre">image_count</span></code>,
 and the first image’s kind, description and thumbnail URL), and <code class="docutils literal notranslate"><span class="pre">has:image</span></code> or <code class="docutils literal notranslate"><span class="pre">image:photo</span></code>
@@ -1054,6 +1054,33 @@ curl<span class="w"> </span>-fsS<span class="w"> </span>-OJ<span class="w"> </sp
 </div>
 <p>Without a token or Access, a plain <code class="docutils literal notranslate"><span class="pre">curl</span> <span class="pre">-OJ</span> <span class="pre">&lt;download_url&gt;</span></code> works. They are read only; the
 browser’s <code class="docutils literal notranslate"><span class="pre">url</span></code> links are unchanged. See <a class="reference internal" href="../reference/mcp.html#mcp-downloads"><span class="std std-ref">Downloads</span></a> in the reference.</p>
+</section>
+<section id="adding-images-and-files">
+<h3>Adding images and files<a class="headerlink" href="#adding-images-and-files" title="Link to this heading">#</a></h3>
+<p>Two ways, both on unless the server sets <code class="docutils literal notranslate"><span class="pre">SCRAP_MCP_UPLOAD=0</span></code>, and both Claude’s changes (a new
+text revision by <code class="docutils literal notranslate"><span class="pre">claude</span></code>: <code class="docutils literal notranslate"><span class="pre">is:claude-edited</span></code> finds the page, and <code class="docutils literal notranslate"><span class="pre">/sc-undo</span></code> or <code class="docutils literal notranslate"><span class="pre">revert</span></code> takes
+the embed out again):</p>
+<ul class="simple">
+<li><p><strong>A diagram Claude draws: <code class="docutils literal notranslate"><span class="pre">add_svg</span></code>.</strong> Ask for one (“add a labelled diagram of the triangle
+under question 1”) and Claude writes an SVG and calls <code class="docutils literal notranslate"><span class="pre">add_svg</span></code> with the page, the markup, alt
+text and, to place it, <code class="docutils literal notranslate"><span class="pre">after</span></code>: text from the page (the end of the question) that occurs once.
+The diagram shows in the PWA like a photo, and its labels are searchable. scrap stores it
+sanitised (no scripts, no links out); see <a class="reference internal" href="../reference/mcp.html#mcp-uploads"><span class="std std-ref">Adding images and files</span></a>.</p></li>
+<li><p><strong>A file that exists already: the upload.</strong> A PNG from matplotlib, a screenshot or a PDF goes
+up as a file, with the same headers as the downloads, to <code class="docutils literal notranslate"><span class="pre">/mcp/pages/&lt;slug&gt;/captures</span></code>, the
+PWA’s Add photo route under <code class="docutils literal notranslate"><span class="pre">/mcp</span></code>. <code class="docutils literal notranslate"><span class="pre">id</span></code> is a ULID, the retry key: send the same one to retry.</p></li>
+</ul>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span><span class="nb">set</span><span class="w"> </span>-a<span class="p">;</span><span class="w"> </span>.<span class="w"> </span>~/.config/terminal-config/.env<span class="p">;</span><span class="w"> </span><span class="nb">set</span><span class="w"> </span>+a
+<span class="nv">id</span><span class="o">=</span><span class="k">$(</span>python3<span class="w"> </span>-c<span class="w"> </span><span class="s1">'import os,time;n=int(time.time()*1000)&lt;&lt;80|int.from_bytes(os.urandom(10),"big");print("".join("0123456789ABCDEFGHJKMNPQRSTVWXYZ"[n&gt;&gt;s&amp;31] for s in range(125,-1,-5)))'</span><span class="k">)</span>
+curl<span class="w"> </span>-fsS<span class="w"> </span><span class="s2">"https://scrap.example.com/mcp/pages/&lt;slug&gt;/captures"</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-H<span class="w"> </span><span class="s2">"Authorization: Bearer </span><span class="nv">$SCRAP_MCP_TOKEN</span><span class="s2">"</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-H<span class="w"> </span><span class="s2">"CF-Access-Client-Id: </span><span class="nv">$CF_ACCESS_CLIENT_ID</span><span class="s2">"</span><span class="w"> </span>-H<span class="w"> </span><span class="s2">"CF-Access-Client-Secret: </span><span class="nv">$CF_ACCESS_CLIENT_SECRET</span><span class="s2">"</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-F<span class="w"> </span><span class="nv">id</span><span class="o">=</span><span class="s2">"</span><span class="nv">$id</span><span class="s2">"</span><span class="w"> </span>-F<span class="w"> </span><span class="nv">file</span><span class="o">=</span>@chart.png<span class="w"> </span>-F<span class="w"> </span><span class="nv">alt</span><span class="o">=</span><span class="s2">"Speed against time"</span><span class="w"> </span>-F<span class="w"> </span><span class="nv">after</span><span class="o">=</span><span class="s2">"Q3 Plot the graph."</span>
+</pre></div>
+</div>
+<p>The reply (<code class="docutils literal notranslate"><span class="pre">201</span></code>, or <code class="docutils literal notranslate"><span class="pre">200</span></code> for a retry) is the page, with <code class="docutils literal notranslate"><span class="pre">added</span></code>: each file’s <code class="docutils literal notranslate"><span class="pre">download_url</span></code>.
+An image’s embed goes right after the line <code class="docutils literal notranslate"><span class="pre">after</span></code> ends on, inside its list item or quote (or at the end of the text), with the <code class="docutils literal notranslate"><span class="pre">alt</span></code>
+given; a PDF or text file is listed below the text and read for search.</p>
 </section>
 <section id="if-it-does-not-connect">
 <h3>If it does not connect<a class="headerlink" href="#if-it-does-not-connect" title="Link to this heading">#</a></h3>
@@ -1220,9 +1247,11 @@ hook described in <a class="reference internal" href="auto-summary-on-compact.ht
 might allow the read tools (<code class="docutils literal notranslate"><span class="pre">mcp__scrap__search</span></code>, <code class="docutils literal notranslate"><span class="pre">read</span></code>, <code class="docutils literal notranslate"><span class="pre">tags</span></code>) and let
 <code class="docutils literal notranslate"><span class="pre">write</span></code>, <code class="docutils literal notranslate"><span class="pre">edit_meta</span></code> and the rest keep asking.</p>
 <p>To keep Claude off the text of your pages, set <code class="docutils literal notranslate"><span class="pre">SCRAP_MCP_CONTENT_EDIT=0</span></code> on the server
-(<code class="docutils literal notranslate"><span class="pre">edit_page</span></code>, <code class="docutils literal notranslate"><span class="pre">edit_drawing</span></code>, <code class="docutils literal notranslate"><span class="pre">trash_pages</span></code> and <code class="docutils literal notranslate"><span class="pre">undelete</span></code> are then not offered, and <code class="docutils literal notranslate"><span class="pre">revert</span></code> refuses <code class="docutils literal notranslate"><span class="pre">to_rev</span></code>), or deny <code class="docutils literal notranslate"><span class="pre">edit_page</span></code> in one
+(<code class="docutils literal notranslate"><span class="pre">edit_page</span></code>, <code class="docutils literal notranslate"><span class="pre">edit_drawing</span></code>, <code class="docutils literal notranslate"><span class="pre">trash_pages</span></code> and <code class="docutils literal notranslate"><span class="pre">undelete</span></code> are then not offered, and <code class="docutils literal notranslate"><span class="pre">revert</span></code> refuses <code class="docutils literal notranslate"><span class="pre">to_rev</span></code>; <code class="docutils literal notranslate"><span class="pre">add_svg</span></code> and the upload are governed by <code class="docutils literal notranslate"><span class="pre">SCRAP_MCP_UPLOAD</span></code> alone), or deny <code class="docutils literal notranslate"><span class="pre">edit_page</span></code> in one
 client’s settings: <code class="docutils literal notranslate"><span class="pre">&quot;permissions&quot;:</span> <span class="pre">{&quot;deny&quot;:</span> <span class="pre">[&quot;mcp__scrap__edit_page&quot;]}</span></code>. A client
-setting cannot deny only the text mode of <code class="docutils literal notranslate"><span class="pre">revert</span></code>, which also undoes kinds and tags.</p>
+setting cannot deny only the text mode of <code class="docutils literal notranslate"><span class="pre">revert</span></code>, which also undoes kinds and tags.
+To stop MCP clients adding images and files at all, set <code class="docutils literal notranslate"><span class="pre">SCRAP_MCP_UPLOAD=0</span></code> (<code class="docutils literal notranslate"><span class="pre">add_svg</span></code> is
+not offered and <code class="docutils literal notranslate"><span class="pre">/mcp/pages/&lt;key&gt;/captures</span></code> is not served).</p>
 <p>scrap has no login: any device on the tailnet that can reach the port can use <code class="docutils literal notranslate"><span class="pre">/mcp</span></code>, so
 restrict that with the tailnet ACL (see <a class="reference internal" href="deploy-single-server.html"><span class="std std-doc">Deploy on a single server</span></a>). Off the tailnet, <code class="docutils literal notranslate"><span class="pre">/mcp</span></code>
 can require a bearer token (<code class="docutils literal notranslate"><span class="pre">SCRAP_MCP_TOKEN</span></code>, ADR 0023), behind Cloudflare Access on
@@ -1284,6 +1313,7 @@ them.</p>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#add-the-server-to-claude-code">2. Add the server to Claude Code</a><ul class="nav section-nav flex-column">
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#if-mcp-needs-a-token">If <code class="docutils literal notranslate"><span class="pre">/mcp</span></code> needs a token</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#downloading-files">Downloading files</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#adding-images-and-files">Adding images and files</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#if-it-does-not-connect">If it does not connect</a></li>
 </ul>
 </li>

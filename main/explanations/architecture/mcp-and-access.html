@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>MCP server and access &#8212; scrap 1.1.2.dev6+gc42c92b97 documentation</title>
+    <title>MCP server and access &#8212; scrap 1.1.2.dev7+g993f72a06 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../../_static/documentation_options.js?v=2cfe92ec"></script>
+    <script src="../../_static/documentation_options.js?v=570b6529"></script>
     <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -823,6 +823,7 @@ window.runMermaid = runMermaid;</script>
 <li class="toctree-l2"><a class="reference internal" href="../decisions/0039-generated-content-keeps-only-its-current-version.html">39. Generated content keeps only its current version</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../decisions/0040-search-greps-raw-text.html">40. Search greps raw text: a parameter, and a scan</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../decisions/0041-mcp-clients-download-under-mcp.html">41. MCP clients download files under /mcp</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../decisions/0042-mcp-clients-add-svg-and-files.html">42. MCP clients add SVG diagrams and files to pages</a></li>
 </ul>
 </details></li>
 <li class="toctree-l1 current active has-children"><a class="reference internal" href="../design.html">Architecture</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
@@ -1103,11 +1104,15 @@ arguments, limits and result shapes are in
 <td><p><code class="docutils literal notranslate"><span class="pre">edit_page</span></code>, <code class="docutils literal notranslate"><span class="pre">edit_drawing</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">edit_page</span></code>: one passage found exactly once, or the whole body given its current <code class="docutils literal notranslate"><span class="pre">rev</span></code> (<a class="reference internal" href="../decisions/0022-page-text-editable-over-mcp-with-revisions.html"><span class="std std-doc">ADR 0022</span></a>); <code class="docutils literal notranslate"><span class="pre">edit_drawing</span></code>: a new current version of an image’s drawing, given the <code class="docutils literal notranslate"><span class="pre">base_version</span></code> read (<a class="reference internal" href="../../reference/mcp.html"><span class="std std-doc">MCP server</span></a>)</p></td>
 </tr>
-<tr class="row-even"><td><p>History</p></td>
+<tr class="row-even"><td><p>Images and files</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">add_svg</span></code> (and the upload below)</p></td>
+<td><p>an SVG Claude writes, sanitised, embedded at the end or right after the line an exact anchor ends on (inside its list item or quote), as a text revision by <code class="docutils literal notranslate"><span class="pre">claude</span></code>; listed only while <code class="docutils literal notranslate"><span class="pre">SCRAP_MCP_UPLOAD</span></code> is on (default), whatever <code class="docutils literal notranslate"><span class="pre">SCRAP_MCP_CONTENT_EDIT</span></code> (<a class="reference internal" href="../decisions/0042-mcp-clients-add-svg-and-files.html"><span class="std std-doc">ADR 0042</span></a>)</p></td>
+</tr>
+<tr class="row-odd"><td><p>History</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">revisions</span></code>, <code class="docutils literal notranslate"><span class="pre">revert</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">revert</span></code> undoes metadata by revision or batch, or text with <code class="docutils literal notranslate"><span class="pre">to_rev</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p>Trash</p></td>
+<tr class="row-even"><td><p>Trash</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">trash</span></code>, <code class="docutils literal notranslate"><span class="pre">trash_pages</span></code>, <code class="docutils literal notranslate"><span class="pre">undelete</span></code></p></td>
 <td><p>the user’s deletes land in trash, as do pages the user asks Claude to delete (<code class="docutils literal notranslate"><span class="pre">trash_pages</span></code>, at most 50 a call, as a batch <code class="docutils literal notranslate"><span class="pre">undelete</span></code> brings back); nothing over MCP deletes for good or empties the trash (<a class="reference internal" href="../decisions/0025-trash-and-recent-changes-over-mcp.html"><span class="std std-doc">ADR 0025</span></a>, <a class="reference internal" href="../decisions/0034-claude-can-move-pages-to-the-trash.html"><span class="std std-doc">ADR 0034</span></a>); every move is in <code class="docutils literal notranslate"><span class="pre">revisions</span></code>; <code class="docutils literal notranslate"><span class="pre">trash</span></code> gives each page’s <code class="docutils literal notranslate"><span class="pre">purge_at</span></code>, as nightly gc purges it after N days (<a class="reference internal" href="../decisions/0030-trash-purged-after-n-days.html"><span class="std std-doc">ADR 0030</span></a>)</p></td>
 </tr>
@@ -1177,7 +1182,11 @@ headers as <code class="docutils literal notranslate"><span class="pre">/mcp</sp
 <td><p>bearer, then <code class="docutils literal notranslate"><span class="pre">Host</span></code></p></td>
 <td><p>(<code class="docutils literal notranslate"><span class="pre">/mcp</span></code> only) the drawing as a file</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">/api/...</span></code>, the PWA</p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">POST</span> <span class="pre">/mcp/pages/{key}/captures</span></code> (only with <code class="docutils literal notranslate"><span class="pre">SCRAP_MCP_UPLOAD</span></code> on)</p></td>
+<td><p>bearer, then <code class="docutils literal notranslate"><span class="pre">Host</span></code>, and <code class="docutils literal notranslate"><span class="pre">Origin</span></code> if sent (<code class="docutils literal notranslate"><span class="pre">hostguard</span></code>)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">POST</span> <span class="pre">/api/pages/{key}/captures</span></code>, but Claude’s: author <code class="docutils literal notranslate"><span class="pre">claude</span></code>, source <code class="docutils literal notranslate"><span class="pre">mcp</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">/api/...</span></code>, the PWA</p></td>
 <td><p>the proxy (email login); <code class="docutils literal notranslate"><span class="pre">Host</span></code>, and <code class="docutils literal notranslate"><span class="pre">Origin</span></code> on writes</p></td>
 <td><p></p></td>
 </tr>
@@ -1185,7 +1194,8 @@ headers as <code class="docutils literal notranslate"><span class="pre">/mcp</sp
 </table>
 </div>
 <p>With no token set they are open, as <code class="docutils literal notranslate"><span class="pre">/mcp</span></code> is; behind Access the <code class="docutils literal notranslate"><span class="pre">/mcp</span></code> application’s path
-covers them.</p>
+covers them. The one write, the upload (<a class="reference internal" href="../decisions/0042-mcp-clients-add-svg-and-files.html"><span class="std std-doc">ADR 0042</span></a>),
+is a separate list in <code class="docutils literal notranslate"><span class="pre">mcp_files.py</span></code> (<code class="docutils literal notranslate"><span class="pre">WRITES</span></code>), served only with <code class="docutils literal notranslate"><span class="pre">SCRAP_MCP_UPLOAD</span></code> on.</p>
 </li>
 <li><p>Limits per write: body 200 000 bytes, 20 tags, 200-character title, 200 pages per bulk
 <code class="docutils literal notranslate"><span class="pre">edit_meta</span></code>, request 2 MB.</p></li>
@@ -1230,6 +1240,14 @@ them, and the only defence is the instruction not to act on page text, which a m
 still fail. The damage is bounded: every edit is a revision, <code class="docutils literal notranslate"><span class="pre">revert</span></code> undoes it, and
 trashed pages stay recoverable for 30 days. If you read pages you do not trust in a session
 with these tools, set <code class="docutils literal notranslate"><span class="pre">SCRAP_MCP_CONTENT_EDIT=0</span></code> (the edit tools are then not listed at all).</p></li>
+<li><p><strong>SVG is markup.</strong> An SVG anyone uploads (<code class="docutils literal notranslate"><span class="pre">add_svg</span></code>, the <code class="docutils literal notranslate"><span class="pre">/mcp</span></code> upload, the PWA’s Add photo,
+an import)
+is parsed with no DOCTYPE (one that only names the SVG DTD is dropped unread) and stored
+sanitised: no script, <code class="docutils literal notranslate"><span class="pre">foreignObject</span></code>, animation, event handler, <code class="docutils literal notranslate"><span class="pre">ping</span></code>, or link, <code class="docutils literal notranslate"><span class="pre">url()</span></code>,
+<code class="docutils literal notranslate"><span class="pre">image-set()</span></code> or quoted URL out of the file, no CSS &#64;-rule but <code class="docutils literal notranslate"><span class="pre">&#64;font-face</span></code>, <code class="docutils literal notranslate"><span class="pre">&#64;media</span></code> and
+<code class="docutils literal notranslate"><span class="pre">&#64;keyframes</span></code> (<code class="docutils literal notranslate"><span class="pre">svg.py</span></code>). Every stored file but a PDF is served with
+<code class="docutils literal notranslate"><span class="pre">Content-Security-Policy:</span> <span class="pre">sandbox;</span> <span class="pre">default-src</span> <span class="pre">'none';</span> <span class="pre">style-src</span> <span class="pre">'unsafe-inline';</span> <span class="pre">img-src</span> <span class="pre">data:;</span> <span class="pre">font-src</span> <span class="pre">data:</span></code> and <code class="docutils literal notranslate"><span class="pre">nosniff</span></code>, and shown in <code class="docutils literal notranslate"><span class="pre">&lt;img&gt;</span></code>; its markup goes to
+Claude as text, quoted like any page text.</p></li>
 <li><p><strong>Reading is not acting.</strong> A session that holds cluster or other powerful credentials should not
 mount the scrap MCP server, since pages may contain injected text.</p></li>
 </ul>
