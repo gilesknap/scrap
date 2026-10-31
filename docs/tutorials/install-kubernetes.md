@@ -307,19 +307,21 @@ the browser's Install on Android). Take a photo and capture it. See [](../how-to
 
 ## 7. Connect Claude Code
 
-Claude Code needs three headers: both Cloudflare ones and the bearer token. Put the values in
-your environment (a password manager or `direnv` is a good home):
+Claude Code needs three headers: both Cloudflare ones and the bearer token. The recommended way
+is a small `headersHelper` script that reads them from an env file (`~/.config/terminal-config/.env`
+with `CF_ACCESS_CLIENT_ID`, `CF_ACCESS_CLIENT_SECRET` and `SCRAP_MCP_TOKEN`, the token from
+step 2), so it also works in a devcontainer or claude-sandbox. Set it up as in
+{ref}`mcp-secrets`, with `https://scrap.example.com/mcp` as the URL.
 
-```
+If you prefer, and the variables are exported in the shell that starts `claude`, add the server
+with `${VAR}` headers instead. Single quotes keep the shell from expanding the variables, so
+Claude Code reads them at start up:
+
+```sh
 export CF_ACCESS_CLIENT_ID=<client id>
 export CF_ACCESS_CLIENT_SECRET=<client secret>
 export SCRAP_MCP_TOKEN=<the token from step 2>
-```
 
-Then add the server. Single quotes keep the shell from expanding the variables, so Claude Code
-reads them at start up instead:
-
-```
 claude mcp add --transport http --scope user scrap https://scrap.example.com/mcp \
   --header 'CF-Access-Client-Id: ${CF_ACCESS_CLIENT_ID}' \
   --header 'CF-Access-Client-Secret: ${CF_ACCESS_CLIENT_SECRET}' \
