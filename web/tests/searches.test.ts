@@ -1,20 +1,9 @@
 import { afterEach, expect, it } from "vitest";
 import { kept } from "../src/api";
 import { added, forget, load, remember } from "../src/searches";
+import { dropStorage, storage } from "./helpers";
 
-/** A localStorage that keeps what is set, as a phone's would. */
-function storage() {
-  const m = new Map<string, string>();
-  (globalThis as { localStorage?: Storage }).localStorage = {
-    getItem: (k: string) => m.get(k) ?? null,
-    setItem: (k: string, v: string) => void m.set(k, String(v)),
-    removeItem: (k: string) => void m.delete(k),
-  } as Storage;
-  return m;
-}
-afterEach(() => {
-  delete (globalThis as { localStorage?: Storage }).localStorage;
-});
+afterEach(dropStorage);
 
 it("keeps searches newest first, once each, at most ten", () => {
   expect(added([], "  kind:todo   tag:home ")).toEqual(["kind:todo tag:home"]);

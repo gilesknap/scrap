@@ -2,6 +2,7 @@
 // ones folded away), Upcoming and All, the switch in the address, and its rows' tick.
 import { expect, type Page, test } from "@playwright/test";
 import { lowContrast } from "./contrast";
+import { day, ulid } from "./helpers";
 import { openFold } from "./panel";
 
 // The top bar's Back shows only in an iPhone's home-screen app (navigator.standalone), which
@@ -10,19 +11,6 @@ test.beforeEach(({ context }) =>
   context.addInitScript(() => Object.defineProperty(navigator, "standalone", { value: true })),
 );
 
-/** A day from today on this machine's calendar (the server's too), as YYYY-MM-DD. */
-const day = (n: number) => {
-  const d = new Date();
-  d.setDate(d.getDate() + n);
-  return new Date(d.getTime() - d.getTimezoneOffset() * 60_000).toISOString().slice(0, 10);
-};
-
-// Random ids: a worker started again after a failure runs this file's beforeAll again, and a
-// counted id would then be one already used, so the capture would return another test's page
-const ulid = () => {
-  const c = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
-  return Array.from({ length: 26 }, (_, i) => c[i ? Math.floor(Math.random() * 32) : 0]).join("");
-};
 /** A word of this run only: every spec, and every repeat of this one, shares one store. */
 const word = () => ulid().slice(-5).toLowerCase();
 async function todo(page: Page, text: string, extra: Record<string, string> = {}) {

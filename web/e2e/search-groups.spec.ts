@@ -3,17 +3,8 @@
 // and later: terms, the Done fold, relative due, and no sideways scroll at phone widths.
 import { expect, type Page, test } from "@playwright/test";
 import { lowContrast } from "./contrast";
+import { day, deletePages, ulid } from "./helpers";
 import { filters } from "./panel";
-
-const ulid = () => {
-  const c = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
-  return Array.from({ length: 26 }, (_, i) => c[i ? Math.floor(Math.random() * 32) : 0]).join("");
-};
-const day = (n: number) => {
-  const d = new Date();
-  d.setDate(d.getDate() + n);
-  return new Date(d.getTime() - d.getTimezoneOffset() * 60_000).toISOString().slice(0, 10);
-};
 
 const mark = ulid().slice(-8).toLowerCase(); // this run's own pages, whatever else is stored
 const tag = `grp${mark}`;
@@ -55,7 +46,7 @@ test.beforeAll(async ({ request }) => {
 });
 
 test.afterAll(async ({ request }) => {
-  for (const id of mine) await request.delete(`/api/pages/${id}`);
+  await deletePages(request, mine);
 });
 
 const heads = (page: Page) => page.locator(".groups h2.label");

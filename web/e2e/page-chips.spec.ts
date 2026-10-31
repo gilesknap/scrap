@@ -3,18 +3,12 @@
 // says the full path too, as do the search chips.
 import { execFileSync } from "node:child_process";
 import { expect, type Locator, type Page, test } from "@playwright/test";
+import { deletedAfterEach, ulid } from "./helpers";
 
-const ulid = () => {
-  const c = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
-  return Array.from({ length: 26 }, (_, i) => c[i ? Math.floor(Math.random() * 32) : 0]).join("");
-};
 const word = () => ulid().slice(-6).toLowerCase();
 
 // Every page made here is deleted after, so other specs' counts of the store's pages hold
-const made: string[] = [];
-test.afterEach(async ({ request }) => {
-  for (const id of made.splice(0)) await request.delete(`/api/pages/${id}`);
-});
+const made = deletedAfterEach();
 
 /** A page with those tags (and kind, and due date): its slug and id. Queued for deletion first. */
 async function make(

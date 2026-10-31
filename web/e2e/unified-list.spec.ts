@@ -1,12 +1,8 @@
 // The one list screen (Recent merged into Search): an empty box lists every page newest first,
 // the kind row and Clear, and the query in the address, so Back and a delete come back to it.
 import { expect, type Page, test } from "@playwright/test";
+import { ulid } from "./helpers";
 import { filtersButton } from "./panel";
-
-const ulid = () => {
-  const c = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
-  return Array.from({ length: 26 }, (_, i) => c[i ? Math.floor(Math.random() * 32) : 0]).join("");
-};
 
 async function make(page: Page, text: string, kind = "note") {
   const r = await page.request.post("/api/captures", { data: { id: ulid(), text, kind } });

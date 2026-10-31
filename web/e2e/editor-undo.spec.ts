@@ -2,11 +2,10 @@
 // It takes back typing and the editor's keys in order, is off until there is something to
 // take back, and the six keys fit on one line on any phone.
 import { expect, type Page, test } from "@playwright/test";
+import { deletedAfterEach, ulid } from "./helpers";
 
-const ulid = () => {
-  const c = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
-  return Array.from({ length: 26 }, (_, i) => c[i ? Math.floor(Math.random() * 32) : 0]).join("");
-};
+// Every page made here is deleted after, so other specs' counts of the store's pages hold
+const made = deletedAfterEach();
 
 const keyIn = (page: Page) => (name: string) =>
   page.locator(".editor .keys").getByRole("button", { name });
@@ -139,7 +138,8 @@ test("in a page's editor: off as it opens, as a draft comes back, and after Disc
   const r = await page.request.post("/api/captures", {
     data: { id: ulid(), text: `Undo page ${ulid().slice(-6)}\n\nfirst line` },
   });
-  const { slug } = (await r.json()) as { slug: string };
+  const { slug, page_id } = (await r.json()) as { slug: string; page_id: string };
+  made.push(page_id);
   await page.goto(`/p/${slug}`);
   await page.getByRole("button", { name: "Edit", exact: true }).click();
   const body = page.getByLabel("Body");

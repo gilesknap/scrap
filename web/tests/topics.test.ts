@@ -3,20 +3,9 @@ import type { Source, TopicRow } from "../src/api";
 import { kindWord, ordered } from "../src/topic";
 import { groups, matches, said } from "../src/topics";
 import { changed, dots, look, seen, seenTopic } from "../src/topicseen";
+import { dropStorage, storage } from "./helpers";
 
-/** A localStorage that keeps what is set, as a phone's would. */
-function storage() {
-  const m = new Map<string, string>();
-  (globalThis as { localStorage?: Storage }).localStorage = {
-    getItem: (k: string) => m.get(k) ?? null,
-    setItem: (k: string, v: string) => void m.set(k, String(v)),
-    removeItem: (k: string) => void m.delete(k),
-  } as Storage;
-  return m;
-}
-afterEach(() => {
-  delete (globalThis as { localStorage?: Storage }).localStorage;
-});
+afterEach(dropStorage);
 
 const row = (id: string, over: Partial<TopicRow> = {}): TopicRow => ({
   id,

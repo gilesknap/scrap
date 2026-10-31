@@ -14,6 +14,7 @@ import pytest
 from fastapi.testclient import TestClient
 from mcp.client.client import Client
 
+from fakeclaude import FakeClaude, run_all
 from scrap import claude, enrich, ingest, mcp_server
 from scrap.app import create_app
 from scrap.store import (
@@ -62,44 +63,23 @@ def numbered(messages, title: str) -> int:
     raise AssertionError(f"{title} is not in the index")
 
 
-class Fake:
+class Fake(FakeClaude):
     """claude.complete, faked: the answer by the call's schema; discovery's is a
     function of the user turn (to find pages' numbers); each call recorded."""
 
+    schemas = ("discovery", "topic", "related")
+
     def __init__(self, discovery: Any = None, synthesis: Any = SYNTHESIS):
+        super().__init__()
         self.discovery = discovery or (lambda messages: {"new": [], "add": []})
         self.synthesis = synthesis
-        self.calls: list[dict[str, Any]] = []
 
-    def __call__(self, model, system, messages, schema, blob, **kw):
-        kind = (
-            "discovery" if schema is enrich.DISCOVERY_SCHEMA
-            else "topic" if schema is enrich.TOPIC_SCHEMA
-            else "related" if schema is enrich.RELATED_SCHEMA else "enrich"
-        )  # fmt: skip
-        self.calls.append({"kind": kind, "model": model, "system": system,
-                           "messages": messages, **kw})  # fmt: skip
-        out = {
-            "discovery": lambda: self.discovery(messages),
-            "topic": lambda: self.synthesis,
-            "related": lambda: {"related": []},
-            "enrich": lambda: {"tags": [], "summary": "", "title": "",
-                               "intent": "other", "confidence": "low", "items": []},
-        }[kind]()  # fmt: skip
-        if isinstance(out, BaseException):
-            raise out
-        usage = {"input_tokens": 1000, "output_tokens": 100}
-        content = [{"type": "text", "text": json.dumps(out)}]
-        return claude.Completion(out, content, usage, model, "end_turn")
-
-    def kinds(self):
-        return [c["kind"] for c in self.calls]
-
-
-def run_all(store, fake):
-    w = ingest.Worker(store, fake)
-    while w.step():
-        pass
+    def answer(self, kind, system, messages):
+        if kind == "discovery":
+            return self.discovery(messages)
+        if kind == "topic":
+            return self.synthesis
+        return {"related": []}
 
 
 def jobs(store):

@@ -2,13 +2,8 @@
 // report of a violation in the flows that reach for WebAssembly (Excalidraw's image resize and
 // font subsetting on export) or for Mermaid. Runs after smoke.spec.ts, like whiteboard.spec.ts.
 import { execFileSync } from "node:child_process";
-import { deflateSync } from "node:zlib";
 import { expect, type Page, test } from "@playwright/test";
-
-const ulid = () => {
-  const c = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
-  return Array.from({ length: 26 }, (_, i) => c[i ? Math.floor(Math.random() * 32) : 0]).join("");
-};
+import { png, ulid } from "./helpers";
 
 /** Every console message or page error that reports the policy blocking something, less
  * Excalidraw's font subsetting (the fonts themselves are served by scrap, and vite.config.ts
@@ -28,37 +23,6 @@ function violations(page: Page) {
   page.on("console", (m) => check(m.text()));
   page.on("requestfailed", (r) => check(`${r.url()} ${r.failure()?.errorText}`));
   return seen;
-}
-
-/** A grey w x h PNG. */
-function png(w: number, h: number): Buffer {
-  const crc = (b: Buffer) => {
-    let c = ~0;
-    for (const x of b) {
-      c ^= x;
-      for (let k = 0; k < 8; k++) c = (c >>> 1) ^ (0xedb88320 & -(c & 1));
-    }
-    return ~c >>> 0;
-  };
-  const chunk = (type: string, data: Buffer) => {
-    const body = Buffer.concat([Buffer.from(type), data]);
-    const out = Buffer.alloc(body.length + 8);
-    out.writeUInt32BE(data.length, 0);
-    body.copy(out, 4);
-    out.writeUInt32BE(crc(body), body.length + 4);
-    return out;
-  };
-  const head = Buffer.alloc(13);
-  head.writeUInt32BE(w, 0);
-  head.writeUInt32BE(h, 4);
-  head.set([8, 0, 0, 0, 0], 8);
-  const rows = Buffer.alloc((w + 1) * h, 128);
-  return Buffer.concat([
-    Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]),
-    chunk("IHDR", head),
-    chunk("IDAT", deflateSync(rows)),
-    chunk("IEND", Buffer.alloc(0)),
-  ]);
 }
 
 test("WebAssembly may compile under the policy", async ({ page }) => {
@@ -118,7 +82,7 @@ test("a drawing opens, takes a photo, and exports with fonts, without a policy v
   // Insert an image: Excalidraw resizes it with pica (WebAssembly)
   await dialog.getByRole("button", { name: /^Edit/ }).click();
   // The image tool is off here, but a dropped photo still goes through the resize
-  const bytes = [...png(2400, 1800)];
+  const bytes = [...png(2400, 1800, 128, { filterBytes: false })];
   await page.evaluate((data) => {
     const file = new File([new Uint8Array(data)], "big.png", { type: "image/png" });
     const dt = new DataTransfer();

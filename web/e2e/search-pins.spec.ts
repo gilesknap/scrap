@@ -1,11 +1,8 @@
 // Search phase 2 (#314): pins (one ordinary page of links), New from a filtered search, and the
 // results header (count, Pin, Copy link) in the order the mock has it.
 import { expect, type Page, test } from "@playwright/test";
+import { deletePages, ulid } from "./helpers";
 
-const ulid = () => {
-  const c = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
-  return Array.from({ length: 26 }, (_, i) => c[i ? Math.floor(Math.random() * 32) : 0]).join("");
-};
 const mark = ulid().slice(-8).toLowerCase();
 const tag = `pin${mark}`;
 const mine: string[] = [];
@@ -34,7 +31,7 @@ test.beforeAll(async ({ request }) => {
 });
 
 test.afterAll(async ({ request }) => {
-  for (const id of mine) await request.delete(`/api/pages/${id}`);
+  await deletePages(request, mine);
   // The Pinned page too (to the trash: other specs count the pages in the store)
   const r = await request.get("/api/pages/pinned");
   if (r.ok()) await request.delete(`/api/pages/${((await r.json()) as { id: string }).id}`);

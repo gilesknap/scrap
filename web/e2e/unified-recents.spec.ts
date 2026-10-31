@@ -1,11 +1,8 @@
 // Recent searches (handover item 2): the last ten run on this phone, under the empty box while
 // it has focus. Named to sort after smoke.spec.ts, which wants an empty store.
 import { expect, type Page, test } from "@playwright/test";
+import { ulid } from "./helpers";
 
-const ulid = () => {
-  const c = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
-  return Array.from({ length: 26 }, (_, i) => c[i ? Math.floor(Math.random() * 32) : 0]).join("");
-};
 async function make(page: Page, text: string) {
   await page.request.post("/api/captures", { data: { id: ulid(), text, kind: "note" } });
 }

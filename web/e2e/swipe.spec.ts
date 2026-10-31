@@ -2,6 +2,7 @@
 // it was opened from (pager, swipe, arrow keys). Touches are sent through the DevTools
 // protocol, as a finger would make them.
 import { type CDPSession, expect, type Locator, type Page, test } from "@playwright/test";
+import { capture, ulid } from "./helpers";
 
 // The top bar's Back shows only in an iPhone's home-screen app (navigator.standalone), which
 // has no Back of its own; tests here use it, so they run as one
@@ -9,15 +10,7 @@ test.beforeEach(({ context }) =>
   context.addInitScript(() => Object.defineProperty(navigator, "standalone", { value: true })),
 );
 
-const ulid = () => {
-  const c = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
-  return Array.from({ length: 26 }, (_, i) => c[i ? Math.floor(Math.random() * 32) : 0]).join("");
-};
-
-async function note(page: Page, text: string) {
-  const r = await page.request.post("/api/captures", { data: { id: ulid(), text } });
-  return (await r.json()).slug as string;
-}
+const note = async (page: Page, text: string) => (await capture(page, text)).slug;
 
 /** Three new pages, newest first in Recent: [c, b, a]. */
 async function three(page: Page) {

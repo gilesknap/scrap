@@ -1,10 +1,6 @@
 // Deleting an image's line in the editor: Save warns, naming the image, before it goes.
 import { expect, type Page, test } from "@playwright/test";
-
-const ulid = () => {
-  const c = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
-  return Array.from({ length: 26 }, (_, i) => c[i ? Math.floor(Math.random() * 32) : 0]).join("");
-};
+import { ulid } from "./helpers";
 
 async function photoPage(page: Page, text: string, bytes: number) {
   const r = await page.request.post("/api/captures", {

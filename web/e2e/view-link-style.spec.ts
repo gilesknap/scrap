@@ -4,19 +4,13 @@
 // rows, chips and the like not underlined. And the Claude card's Topics fold and its state line's
 // gap (#375). Named to run after smoke.spec.ts, which wants an empty store.
 import { expect, type Locator, type Page, test } from "@playwright/test";
+import { deletedAfterEach, ulid } from "./helpers";
 import { filters } from "./panel";
 
-const ulid = () => {
-  const c = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
-  return Array.from({ length: 26 }, (_, i) => c[i ? Math.floor(Math.random() * 32) : 0]).join("");
-};
 const word = () => ulid().slice(-6).toLowerCase();
 
 // Every page made here is deleted after, so other specs' counts of the store's pages hold
-const made: string[] = [];
-test.afterEach(async ({ request }) => {
-  for (const id of made.splice(0)) await request.delete(`/api/pages/${id}`);
-});
+const made = deletedAfterEach();
 
 async function note(page: Page, text: string, tags: string[] = [], kind?: string) {
   const r = await page.request.post("/api/captures", { data: { id: ulid(), text, kind } });

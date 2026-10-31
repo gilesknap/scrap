@@ -5,6 +5,7 @@ import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { expect, type Page, test } from "@playwright/test";
 import { lowContrast } from "./contrast";
+import { ulid } from "./helpers";
 
 interface Board {
   slug: string;
@@ -19,10 +20,6 @@ function board(state?: "failed" | "pause" | "resume"): Board {
   return JSON.parse(out.trim().split("\n").pop() || "null");
 }
 
-const ulid = () => {
-  const c = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
-  return Array.from({ length: 26 }, (_, i) => c[i ? Math.floor(Math.random() * 32) : 0]).join("");
-};
 // This test idles for seconds between API calls (page loads, `uv run` shell-outs), longer than the
 // server keeps an idle connection (uvicorn closes it after 5 s). A call that reuses a pooled socket
 // the server is closing fails with "socket hang up" (#333), so each call opens its own.

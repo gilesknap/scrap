@@ -2,14 +2,8 @@
 // (overdue in red until done), and a todo search's orders and typed due: searches.
 import { expect, type Page, test } from "@playwright/test";
 import { lowContrast } from "./contrast";
+import { day } from "./helpers";
 import { filters, openFold } from "./panel";
-
-/** A day from today on this machine's calendar (the server's too), as YYYY-MM-DD. */
-const day = (n: number) => {
-  const d = new Date();
-  d.setDate(d.getDate() + n);
-  return new Date(d.getTime() - d.getTimezoneOffset() * 60_000).toISOString().slice(0, 10);
-};
 
 let n = 0;
 async function todo(page: Page, text: string, extra: Record<string, string> = {}) {

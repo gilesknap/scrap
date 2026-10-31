@@ -3,25 +3,12 @@
 // toast, and the offline search. Named to run after smoke.spec.ts, which wants an empty store.
 import { execFileSync } from "node:child_process";
 import { expect, type Page, test } from "@playwright/test";
+import { day, deletedAfterEach, ulid } from "./helpers";
 
-const ulid = () => {
-  const c = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
-  return Array.from({ length: 26 }, (_, i) => c[i ? Math.floor(Math.random() * 32) : 0]).join("");
-};
 const word = () => ulid().slice(-6).toLowerCase();
 
-/** A day from today on this machine's calendar (the server's too), as YYYY-MM-DD. */
-const day = (n: number) => {
-  const d = new Date();
-  d.setDate(d.getDate() + n);
-  return new Date(d.getTime() - d.getTimezoneOffset() * 60_000).toISOString().slice(0, 10);
-};
-
 // Every page made here is deleted after, so other specs' counts of the store's pages hold
-const made: string[] = [];
-test.afterEach(async ({ request }) => {
-  for (const id of made.splice(0)) await request.delete(`/api/pages/${id}`);
-});
+const made = deletedAfterEach();
 
 /** A page of that kind, its other columns patched in: its slug and id. */
 async function make(page: Page, text: string, kind: string, patch: Record<string, unknown> = {}) {
