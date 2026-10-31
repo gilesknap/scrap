@@ -92,6 +92,7 @@ def create_app(data_dir: Path | str | None = None) -> FastAPI:
 
     app = FastAPI(title="scrap", version=__version__, lifespan=lifespan)
     app.state.worker = worker
+    app.state.mcp_editable = mcp_server.content_edit()  # what an /mcp upload may change
     app.add_middleware(BodyLimit, limit=limit)
     app.add_middleware(TextGzip)
     # Host and Origin on every route but /mcp (it has the same check in its transport)
@@ -168,7 +169,8 @@ def create_app(data_dir: Path | str | None = None) -> FastAPI:
     search_api.add_routes(app, store)
     blobs_api.add_routes(app, store)
     trash_api.add_routes(app, store)
-    mcp_files.add_routes(app, store)  # after the /api routes it mirrors
+    # after the /api routes it mirrors; its upload only with SCRAP_MCP_UPLOAD on
+    mcp_files.add_routes(app, store, mcp_server.upload())
 
     app.router.routes.extend(mcp_routes)  # before the PWA's catch-all mount
     pwa.add_routes(app)

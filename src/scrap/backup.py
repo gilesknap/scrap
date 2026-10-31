@@ -17,7 +17,7 @@ from urllib.parse import quote, unquote
 
 from .drawing import excalidraw_file
 from .page_notes import Extras, file_text, gather
-from .preview import preview
+from .preview import preview, raster
 from .store import (
     InvalidError,
     NoSuchPage,
@@ -382,7 +382,7 @@ def file_name(name: str | None, sha: str, mime: str) -> str:
 
 def _friendly_name(blob: sqlite3.Row, taken: set[str], jpeg: bool = False) -> str:
     name = file_name(blob["filename"], blob["sha256"], blob["mime"])
-    if jpeg and blob["mime"].startswith("image/"):  # its preview is a JPEG
+    if jpeg and raster(blob["mime"]):  # its preview is a JPEG (an SVG's is itself)
         name = f"{name.rpartition('.')[0] or name}.jpg"
     stem, dot, ext = name.rpartition(".")
     if not stem:
@@ -437,7 +437,7 @@ def download(
     for name, content in files:
         if isinstance(content, str):
             paths[name] = store.blob_path(content)
-            if previews and store.blob(content)[1].startswith("image/"):
+            if previews and raster(store.blob(content)[1]):
                 try:
                     paths[name] = preview(store, content, PREVIEW_SIZE)
                 except InvalidError:  # one it cannot decode is not sent as the original

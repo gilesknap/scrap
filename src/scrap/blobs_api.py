@@ -16,6 +16,7 @@ from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 
 from . import backup, export, preview
 from .store import Store
+from .svg import SVG
 
 BLOB_HEADERS = {
     "X-Content-Type-Options": "nosniff",
@@ -79,8 +80,11 @@ def add_routes(app: FastAPI, store: Store) -> None:
     @app.get("/api/blobs/{sha}/preview")
     async def blob_preview(sha: str, size: int = 2048) -> Response:
         """A JPEG preview of a stored photo (HEIC too), turned upright, at most size
-        (480 or 2048) pixels a side; made on first request, then cached. 503 while
-        the decoder is busy for long."""
+        (480 or 2048) pixels a side; made on first request, then cached. An SVG is
+        its own preview: the file itself, which scales (#480). 503 while the decoder
+        is busy for long."""
+        if (svg := await run_in_threadpool(preview.own, store, sha, size)) is not None:
+            return FileResponse(svg, media_type=SVG, headers=BLOB_HEADERS)
         busy = JSONResponse(
             {"detail": preview.BusyError.__doc__}, 503, {"Retry-After": "5"}
         )
