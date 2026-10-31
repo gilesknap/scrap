@@ -69,7 +69,7 @@ export function todoSays(v: { due: string | null; priority: string | null }) {
 }
 
 /** The editor keys' icons, drawn here (not in the shell's icons): a task's empty box, a
- * bulleted and a numbered list, and lines moved in and out. */
+ * bulleted and a numbered list, lines moved in and out, and Undo's arrow turning back. */
 const KEY_ICONS = {
   task: '<rect x="4.5" y="4.5" width="15" height="15" rx="3"/>',
   bullet:
@@ -77,6 +77,7 @@ const KEY_ICONS = {
   numbered: '<path d="M4 4.5h1.5V9M4 9h3M4 14.5h3l-3 4h3M10.5 6.5h9m-9 5.5h9m-9 5.5h9"/>',
   indent: '<path d="M4 5h16M11 10h9m-9 4h9M4 19h16M4 9.5l3 2.5-3 2.5"/>',
   outdent: '<path d="M4 5h16M11 10h9m-9 4h9M4 19h16M7 9.5 4 12l3 2.5"/>',
+  undo: '<path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/>',
 };
 const keyIcon = (name: keyof typeof KEY_ICONS) => {
   const t = document.createElement("template");
@@ -249,6 +250,86 @@ const later = () => {
 vv?.addEventListener("resize", later);
 vv?.addEventListener("scroll", later);
 
+/** One of the editor's keys: its icon over its word, named for what it does. */
+const keyButton = (
+  glyph: keyof typeof KEY_ICONS,
+  label: string,
+  name: string,
+  onclick: () => void,
+) =>
+  h(
+    "button",
+    { type: "button", className: "ghost", "aria-label": name, onclick },
+    keyIcon(glyph),
+    h("span", {}, label),
+  );
+
+/** A field whose typing goes in the page's undo history: a text box, a text-like input (a
+ * tag, the title); not a kind's radio, a date or a select. */
+const typed = (el: EventTarget | null) =>
+  el instanceof HTMLTextAreaElement ||
+  (el instanceof HTMLInputElement &&
+    ["text", "search", "url", "email", "tel", "password", "number"].includes(el.type));
+
+/** The keys' last, Undo (no Redo): the browser's own undo, as Ctrl+Z, for phones whose
+ * keyboard has none (Gboard). Typing and the other keys go through the same history (edit(),
+ * listedit.ts), so it takes them back in order. Nothing says what the history holds, so it is
+ * judged against a floor, the text as it was when the history last held nothing of the box's
+ * that Undo may take back: the text it opened with; after typing in another field (a tag, the
+ * title), the text then, since the history is the page's and an undo past that point would
+ * take back the other field's typing; after text set by code (a file added, which the history
+ * doesn't hold), the text then. Off on a fresh editor, on after input typed in the text box,
+ * off again when an undo (the key's, or the phone's or computer's own: Ctrl+Z, a shake) brings
+ * the text back to the floor or changes nothing. Should an
+ * undo still reach another field, it is redone at once and the key goes off. reset(): the
+ * text was replaced as a whole (Discard it); stop(): the editor closed. */
+function undoKey(text: HTMLTextAreaElement) {
+  let floor = text.value;
+  const key = keyButton("undo", "Undo", "Undo", () => {
+    text.focus();
+    const was = text.value;
+    let elsewhere = false;
+    const watch = (e: Event) => {
+      if (e.target !== text) elsewhere = true;
+    };
+    document.addEventListener("input", watch, true);
+    own = true;
+    document.execCommand("undo");
+    // Another field's: put it back. Should the redo fail, nothing more can be done here; the
+    // key goes off either way
+    const redone = elsewhere && document.execCommand("redo");
+    own = false;
+    document.removeEventListener("input", watch, true);
+    if (elsewhere || redone || text.value === was || text.value === floor) {
+      floor = text.value;
+      key.disabled = true;
+    }
+  });
+  key.disabled = true;
+  // Capturing, so it sees every field's input, whatever stops it later
+  let own = false; // the key's own undo (and redo), which its click judges
+  const oninput = (e: Event) => {
+    const history = (e as InputEvent).inputType?.startsWith("history");
+    // The phone's or the computer's own undo or redo (Ctrl+Z, a shake): on unless back at the floor
+    if (e.target === text && e.isTrusted && history) {
+      if (!own) key.disabled = text.value === floor;
+    } else if (e.target === text && e.isTrusted) key.disabled = false;
+    else if (e.target === text || typed(e.target)) {
+      floor = text.value;
+      key.disabled = true;
+    }
+  };
+  document.addEventListener("input", oninput, true);
+  return {
+    key,
+    reset: () => {
+      floor = text.value;
+      key.disabled = true;
+    },
+    stop: () => document.removeEventListener("input", oninput, true),
+  };
+}
+
 export interface Editor {
   form: HTMLFormElement;
   save: HTMLButtonElement;
@@ -278,28 +359,20 @@ export function editor(o: {
   const preview = previewer(o.text, o.read);
   // Just above the keyboard (the layer is the visual viewport's height): the keys that make
   // the line (or the lines selected) a task, a bullet or a numbered item, or indent or outdent
-  // it. In a code block the list keys do nothing. A tap keeps the keyboard up.
+  // it, and Undo. In a code block the list keys do nothing. A tap keeps the keyboard up.
+  const undo = undoKey(o.text);
   const keys = h(
     "div",
     { className: "keys", onpointerdown: (e: Event) => e.preventDefault() },
     ...KEYS.map(([glyph, label, name, change, code]) =>
-      h(
-        "button",
-        {
-          type: "button",
-          className: "ghost",
-          "aria-label": name,
-          onclick: () => {
-            const t = o.text;
-            t.focus();
-            if (!code && inCode(t.value, t.selectionStart)) return;
-            edit(t, change(t.value, t.selectionStart, t.selectionEnd));
-          },
-        },
-        keyIcon(glyph),
-        h("span", {}, label),
-      ),
+      keyButton(glyph, label, name, () => {
+        const t = o.text;
+        t.focus();
+        if (!code && inCode(t.value, t.selectionStart)) return;
+        edit(t, change(t.value, t.selectionStart, t.selectionEnd));
+      }),
     ),
+    undo.key,
   );
   const save = h("button", { type: "submit", className: "primary" }, "Save");
   const behind = [...document.querySelectorAll<HTMLElement>("body > :is(header, main, nav)")];
@@ -334,6 +407,7 @@ export function editor(o: {
   let closing: (() => void) | null = null;
   const teardown = (left = false) => {
     removeEventListener("popstate", onpop, true);
+    undo.stop();
     removeEventListener("pagehide", flush);
     document.removeEventListener("visibilitychange", onhide);
     form.remove();
@@ -385,6 +459,7 @@ export function editor(o: {
             onclick: () => {
               void drop();
               o.ondiscard();
+              undo.reset(); // the text it opened with again, and no history to undo
               hint?.remove();
             },
           },

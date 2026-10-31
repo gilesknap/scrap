@@ -94,10 +94,11 @@
   border-color: transparent;
   background: transparent;
 }
-/* Just above the keyboard, the editor's keys: Task, Bullet, Number, Indent, Outdent (the
-   line becomes a task, a bullet or a numbered item, or moves in or out). One line of equal
-   keys, an icon over a word; narrower than any phone, icons alone (they have aria-labels).
-   Not while the text is previewed */
+/* Just above the keyboard, the editor's keys: Task, Bullet, Number, Indent, Outdent, Undo (the
+   line becomes a task, a bullet or a numbered item, or moves in or out; the last change is
+   taken back, greyed out while there is none). One line of equal keys, an icon over a word;
+   where the six words won't fit, icons alone (they have aria-labels). The row is the
+   container its width is asked of. Not while the text is previewed */
 .editor > .keys {
   flex: none;
   display: flex;
@@ -105,6 +106,7 @@
     max(env(safe-area-inset-left), var(--s-2));
   border-top: 1px solid var(--line);
   background: var(--bg);
+  container-type: inline-size;
 }
 .editor > .keys button {
   flex: 1 1 0;
@@ -116,7 +118,10 @@
   line-height: 1.2;
   white-space: nowrap;
 }
-@media (max-width: 299px) {
+/* Six equal keys need six times the longest word ("Number" and "Outdent" at --t-xs are about
+   3rem; 3.1rem leaves a little for another font) and 4 px between words: at 100% text, a
+   phone under about 356 px (320 px: icons alone; 360 px: words), and wider at a larger text */
+@container (width < calc(18.6rem + 24px)) {
   .editor > .keys button > span {
     display: none;
   }
