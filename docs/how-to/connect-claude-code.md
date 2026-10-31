@@ -93,8 +93,9 @@ returns.
 Try it: ask "get my recent photos". Search results say which pages hold images (`image_count`,
 and the first image's kind, description and thumbnail URL), and `has:image` or `image:photo`
 lists them newest first; see [](../reference/mcp.md). The kind and description are there only
-once ingest has read the photo (`SCRAP_INGEST=on`), and the image URLs can be fetched only from
-the tailnet (see "Images" in the reference).
+once ingest has read the photo (`SCRAP_INGEST=on`). The image URLs are the browser's and can be
+fetched only from the tailnet; results also give download URLs under `/mcp` that take the same
+headers as `/mcp` (see "Downloading files" below).
 
 Check it from a shell without Claude:
 
@@ -216,6 +217,27 @@ Behind Cloudflare Access, add `CF-Access-Client-Id: ${CF_ACCESS_CLIENT_ID}` and
 `CF-Access-Client-Secret: ${CF_ACCESS_CLIENT_SECRET}` too. If a variable is not set in the process
 that starts `claude`, the header goes out empty and scrap answers `401` or `403`; use the helper
 above when that can happen.
+
+### Downloading files
+
+`read` gives each image and file a `download_url`, an image with a drawing a
+`drawing_download_url` (the whole drawing as an `.excalidraw` file), and the page a
+`download_url` (the page as `.md`, or with its files as `.zip`); `search` rows have
+`image_download_url` and `drawing` a `download_url` (the page and drawing ones are `null` for a
+page in the trash). They are under `/mcp`
+(`/mcp/blobs/<sha>`, `/mcp/pages/<id>/download`, ...), so they need the same headers as the
+MCP connection: the bearer token if scrap has one, and behind Cloudflare Access the service
+token, which the `/mcp` application already covers. No other Access application or setting is
+needed. Fetch one with the values from the env file above:
+
+```sh
+set -a; . ~/.config/terminal-config/.env; set +a
+curl -fsS -OJ "<download_url>" -H "Authorization: Bearer $SCRAP_MCP_TOKEN" \
+  -H "CF-Access-Client-Id: $CF_ACCESS_CLIENT_ID" -H "CF-Access-Client-Secret: $CF_ACCESS_CLIENT_SECRET"
+```
+
+Without a token or Access, a plain `curl -OJ <download_url>` works. They are read only; the
+browser's `url` links are unchanged. See {ref}`mcp-downloads` in the reference.
 
 ### If it does not connect
 

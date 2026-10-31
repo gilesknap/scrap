@@ -885,6 +885,10 @@ def test_drawing_by_sha_prefix_or_alone(store):
     with_drawing(store, ref, sha, [BOX])
     for args in ({"image": sha}, {"image": sha[:6]}, {}):
         out = ok(store, "drawing", page=ref["page_id"], **args)
+        cid = store.page(ref["page_id"])["captures"][0]["id"]
+        assert out.pop("download_url") == (
+            f"/mcp/captures/{cid}/photos/{sha}/drawing.excalidraw"
+        )
         assert out == {
             "version": 1,
             "producer": "model",

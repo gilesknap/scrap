@@ -30,7 +30,7 @@ flowchart LR
     A1 --> APP["FastAPI app<br/>author = identity header"]
     A2 --> APP
     A3 --> APP
-    APP --> MCP["/mcp<br/>bearer check"]
+    APP --> MCP["/mcp and /mcp/... downloads<br/>bearer check"]
     APP --> REST["PWA + JSON API<br/>no token"]
     classDef user fill:#e9f7ef,stroke:#2e9d5b
     classDef claude fill:#fff3e0,stroke:#e08a00
@@ -40,7 +40,7 @@ flowchart LR
     class APP store
 ```
 
-| Route | Gate | Who can connect | Identity | `/mcp` token |
+| Route | Gate | Who can connect | Identity | `/mcp` token (and `/mcp/...`) |
 | --- | --- | --- | --- | --- |
 | Single server | Tailscale Serve (Funnel off) and the tailnet ACL | the owner's devices; locally only the scrap user, root and Serve (socket) | `Tailscale-User-Login` set by Serve | optional |
 | Kubernetes | Cloudflare Access with a service token | whoever passes Access; the Service is a ClusterIP, a NetworkPolicy narrows who may reach the pod | header from the proxy, if it sets one | `SCRAP_MCP_TOKEN`, recommended |
@@ -187,13 +187,29 @@ sequenceDiagram
 ```
 
 - The bearer check runs first, ahead of the `Host` and `Origin` checks and every tool; only
-  `/mcp` is guarded. Tokens (`SCRAP_MCP_TOKEN`, comma separated, or `SCRAP_MCP_TOKEN_FILE`, one per
+  `/mcp` and the paths under it are guarded. Tokens (`SCRAP_MCP_TOKEN`, comma separated, or `SCRAP_MCP_TOKEN_FILE`, one per
   line) compare in constant time and are never logged. A setting that yields no token stops
   startup rather than leaving `/mcp` open.
 - Then the transport checks `Host` and `Origin` against loopback and `SCRAP_PUBLIC_URL` (DNS
   rebinding protection). Set it to the Serve address or clients get `421` or `403`.
 - The web app and the API (every route but `/mcp` and `/healthz`) check `Host` and, on writes, `Origin`
   the same way (`hostguard.py`, #238), so another site cannot write through the owner's browser.
+- **Downloads.** An MCP client fetches files under `/mcp`, by the `/api` routes' own handlers
+  (`mcp_files.py`, [ADR 0041](../decisions/0041-mcp-clients-download-under-mcp.md)), since behind
+  Cloudflare Access only `/mcp` takes the service token. They are read only and need the same
+  headers as `/mcp`; the browser's `/api` paths are unchanged:
+
+  | Path | Gate | Same as |
+  | --- | --- | --- |
+  | `/mcp` | bearer, then the transport's `Host` and `Origin` | (the MCP endpoint) |
+  | `GET /mcp/blobs/{sha}`, `/preview`, `/uses` | bearer, then `Host` (`hostguard`) | `GET /api/blobs/...` |
+  | `GET /mcp/pages/{key}/download` | bearer, then `Host` | `GET /api/pages/{key}/download` |
+  | `GET /mcp/captures/{cid}/photos/{sha}/drawing`, `/versions` | bearer, then `Host` | the `/api` drawing GETs |
+  | `GET /mcp/captures/{cid}/photos/{sha}/drawing.excalidraw` | bearer, then `Host` | (`/mcp` only) the drawing as a file |
+  | `/api/...`, the PWA | the proxy (email login); `Host`, and `Origin` on writes | |
+
+  With no token set they are open, as `/mcp` is; behind Access the `/mcp` application's path
+  covers them.
 - Limits per write: body 200 000 bytes, 20 tags, 200-character title, 200 pages per bulk
   `edit_meta`, request 2 MB.
 

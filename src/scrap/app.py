@@ -22,6 +22,7 @@ from . import (
     import_api,
     ingest,
     ingest_api,
+    mcp_files,
     mcp_server,
     pages_api,
     photos_api,
@@ -167,6 +168,7 @@ def create_app(data_dir: Path | str | None = None) -> FastAPI:
     search_api.add_routes(app, store)
     blobs_api.add_routes(app, store)
     trash_api.add_routes(app, store)
+    mcp_files.add_routes(app, store)  # after the /api routes it mirrors
 
     app.router.routes.extend(mcp_routes)  # before the PWA's catch-all mount
     pwa.add_routes(app)
