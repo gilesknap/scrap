@@ -26,11 +26,12 @@ from .search import SearchMixin
 
 MAX_PATTERN = 200  # characters of a grep pattern
 MAX_MEM = 8 << 20  # bytes RE2 may use to compile one pattern
-SECONDS = 2.0  # the whole scan's budget, checked between texts
+SECONDS = 2.0  # the whole scan's budget, checked before each search
+WINDOW = 16 << 10  # bytes of text one search reads, rounded up to a line's end
 MAX_LINES = 5  # matching lines returned a page
 MAX_COUNT = 1000  # matching lines counted a page: match_count stops there
 LINE = 200  # characters of a matching line returned
-BATCH = 200  # pages read from the database at a time
+BATCH = 50  # pages read from the database at a time
 
 
 def compile_pattern(pattern: str, is_regex: bool) -> Any:
@@ -44,6 +45,7 @@ def compile_pattern(pattern: str, is_regex: bool) -> Any:
     options = re2.Options()
     options.max_mem = MAX_MEM
     options.log_errors = False
+    options.never_capture = True  # only where a match starts is used
     if not is_regex:
         options.literal = True
         options.case_sensitive = False
@@ -64,12 +66,21 @@ def clip(line: str, at: int) -> str:
     return ("…" if start else "") + out + ("…" if start + LINE < len(line) else "")
 
 
+def late(deadline: float) -> None:
+    """Refuse a scan past its budget."""
+    if time.monotonic() > deadline:
+        raise InvalidError(f"grep took over {SECONDS:g} seconds: narrow the query")
+
+
 def scan(
-    pat: Any, text: str, where: dict[str, Any]
+    pat: Any, text: str, where: dict[str, Any], deadline: float
 ) -> tuple[list[dict[str, Any]], int]:
-    """The lines of text a pattern matches (those a match starts on): the first
-    MAX_LINES as {**where, line (1-based), text}, and how many, up to MAX_COUNT.
-    One search a matching line: after a hit, the next starts at the next line."""
+    """The lines of text a pattern matches (those a match starts on, matches not
+    overlapping): the first MAX_LINES as {**where, line (1-based), text}, and how
+    many, up to MAX_COUNT. Each search is of a window of whole lines, WINDOW bytes
+    or so, and the next starts after the match (or its line), so each byte is
+    searched about once and one search costs at most a window: a match longer than
+    a window is missed. The deadline is checked before every search."""
     data = text.encode()  # RE2 works in UTF-8: once, not per search
     if not data:
         return [], 0
@@ -78,9 +89,13 @@ def scan(
     found: list[dict[str, Any]] = []
     count, pos = 0, 0
     while count < MAX_COUNT and pos <= end:
-        m = pat.search(data, pos)
+        late(deadline)
+        stop = data.find(b"\n", pos + WINDOW)  # the window ends at a line's end
+        stop = len(data) if stop < 0 else stop
+        m = pat.search(data, pos, stop)
         if m is None or m.start() > end:
-            break
+            pos = stop + 1  # the next window: the line after this one's last
+            continue
         if not starts:
             starts = [0]
             i = data.find(b"\n")
@@ -90,12 +105,12 @@ def scan(
         n = bisect_right(starts, m.start())
         count += 1
         begin = starts[n - 1]
-        stop = starts[n] - 1 if n < len(starts) else len(data)
+        line_end = starts[n] - 1 if n < len(starts) else len(data)
         if len(found) < MAX_LINES:
-            line = data[begin:stop].decode(errors="replace")
+            line = data[begin:line_end].decode(errors="replace")
             at = len(data[begin : m.start()].decode(errors="replace"))
             found.append({**where, "line": n, "text": clip(line, at)})
-        pos = stop + 1
+        pos = max(line_end + 1, m.end())
     return found, count
 
 
@@ -118,15 +133,12 @@ class GrepMixin(SearchMixin):
         found: dict[str, tuple[list[dict[str, Any]], int]] = {}
         ids = self._grep_order(q)
         for i in range(0, len(ids), BATCH):
+            late(deadline)
             for page_id, texts in self._texts(ids[i : i + BATCH]):
                 lines: list[dict[str, Any]] = []
                 count = 0
                 for where, text in texts:
-                    if time.monotonic() > deadline:
-                        raise InvalidError(
-                            f"grep took over {SECONDS:g} seconds: narrow the query"
-                        )
-                    got, n = scan(pat, text, where)
+                    got, n = scan(pat, text, where, deadline)
                     lines += got
                     count += n
                 if count:

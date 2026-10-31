@@ -1,6 +1,8 @@
 """MCP search's grep (#474): raw text matched as a substring or a regex, narrowed by
 the query, with matching lines; the trash left out and the guards."""
 
+import random
+import string
 import time
 
 import pytest
@@ -8,6 +10,7 @@ import pytest
 from scrap.ingest import put_derived
 from scrap.store import Store, now
 from scrap.store import grep as greps
+from scrap.store.errors import InvalidError
 from test_mcp import human, ok, refused, write
 
 TABLE = "Intro\n\n| a | b |\n|---|---|\n| 1 | 2 |\n"
@@ -128,9 +131,43 @@ def test_refusals(store):
 
 
 def test_the_scan_has_a_time_budget(store, monkeypatch):
-    monkeypatch.setattr(greps, "SECONDS", 0)
+    monkeypatch.setattr(greps, "SECONDS", -1)  # spent before it starts
     write(store, title="T", body="text")
-    assert "took over 0 seconds" in refused(store, "search", grep="text")
+    assert "took over -1 seconds" in refused(store, "search", grep="text")
+
+
+@pytest.mark.parametrize(
+    "pattern, text",
+    [  # once near-quadratic: each line's search re-read the rest of the text
+        (r"(?s)(?:a|b|\n)*a(?:a|b|\n){999}", "".join(
+            random.Random(1).choice("ab\n" if i % 50 else "\n") for i in range(8000)
+        )),
+        (r"(?:(\w)|(\s)){1,999}", "".join(  # captures, which RE2 need not track
+            random.Random(1).choice(string.ascii_lowercase + " \n")
+            for _ in range(100_000)
+        )),
+    ],
+)  # fmt: skip
+def test_a_costly_regex_ends_within_the_budget(pattern, text):
+    pat = greps.compile_pattern(pattern, True)
+    start = time.monotonic()
+    try:
+        _, count = greps.scan(pat, text, {}, start + greps.SECONDS)
+        assert count >= 1
+    except InvalidError as e:
+        assert "took over" in str(e)
+    assert time.monotonic() - start < greps.SECONDS + 2
+
+
+def test_a_long_text_is_searched_in_windows(monkeypatch):
+    monkeypatch.setattr(greps, "WINDOW", 10)
+    pat = greps.compile_pattern("x", False)
+    text = "\n".join(["aaaa"] * 30 + ["xx", "a", "x"] + ["aaaa"] * 30) + "\n"
+    found, count = greps.scan(pat, text, {}, time.monotonic() + 10)
+    assert count == 2 and [m["line"] for m in found] == [31, 33]
+    # a match longer than a window is missed
+    assert greps.scan(greps.compile_pattern("(?s)a{4}.a{4}.a{4}.a{4}", True),
+                      "aaaa\n" * 4, {}, time.monotonic() + 10)[1] == 0  # fmt: skip
 
 
 def test_a_compile_bomb_is_refused_quickly(store):

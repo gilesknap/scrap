@@ -124,17 +124,21 @@ exact string: a Markdown table (`|---|`), a command line, an IP address, `foo_ba
 matches the stored text itself instead: each page's title, its Markdown body and the current text
 scrap read from its files (a PDF's, a text file's, a photo's transcription). Without `regex` it is
 a case-insensitive substring; with `regex=true` a regex in
-[RE2 syntax](https://github.com/google/re2/wiki/Syntax) (Python's, less backreferences and
-lookaround) in which `^` and `$` match at each line, case kept (`(?i)` ignores it). RE2 matches in
-linear time and bounds the memory a pattern compiles to, so no pattern can hang or exhaust the
-server.
+[RE2 syntax](https://github.com/google/re2/wiki/Syntax), in which `^` and `$` match at each line
+and case is kept (`(?i)` ignores it). RE2 has no backreferences or lookaround; `\w`, `\b`, `\d` and
+`\s` are ASCII only (`caf\w\b` does not match `café`: use `\pL` or `\p{L}` for a letter); and the
+end of the text is `\z`, not `\Z`. RE2 matches in linear time and bounds the memory a pattern
+compiles to. Each search reads a window of whole lines about 16 KB long, so a match longer than
+that is missed, and the whole scan has a time budget (below), checked before every search, so
+a costly pattern is stopped rather than left to run.
 
 `query` still chooses the pages, and their order: its filters and words apply as they do without
 `grep`, and `grep` must match as well. An empty `query` scans every page, newest changed first.
 The trash is never scanned. `limit` and `offset` page through the pages that match. Each row is
 `search`'s, plus:
 
-- `match_count`: how many lines match (title, body and files together; at most 1,000).
+- `match_count`: how many lines a match starts on (title, body and files together; at most
+  1,000). Matches do not overlap: a match over several lines counts once, on its first.
 - `matches`: the first 5 of them, each `{in, line, text}`: `in` is `title`, `body` or `file` (a
   file's also has its `sha256`, as `read` lists it), `line` is 1-based within that text and `text`
   the line, cut to about 200 characters around the match. A file's line is untrusted
@@ -150,7 +154,7 @@ and only the todos with an IP address: `{"query": "kind:todo", "grep": "10.0.0."
 errors: `invalid regex: <why>` (also for what RE2 does not do, such as `\1` or `(?=`, and for a
 pattern too large to compile, such as nested counted repeats); a pattern over 200 characters;
 `regex needs grep`; and `grep took over 2 seconds: narrow the query` when the whole scan runs past
-its time budget (checked between texts). See
+its time budget (checked before every search). See
 [](../explanations/decisions/0040-search-greps-raw-text.md).
 
 ## Images

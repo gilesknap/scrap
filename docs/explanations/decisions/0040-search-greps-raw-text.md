@@ -32,13 +32,20 @@ have a table?" took a SQL scan in the pod (#473).
 - The regex engine is [RE2](https://github.com/google/re2) (`google-re2`), not Python's `re`.
   `re` backtracks, so a pattern like `^(a|aa)+$` can run for ever, and neither it nor the `regex`
   package (whose `timeout` bounds matching) bounds compiling: `(((a{1000}){1000}){1000})`, 25
-  characters, takes gigabytes to compile, enough to have the pod killed. RE2 matches in linear
-  time and refuses a pattern whose program would pass `max_mem` (8 MiB) or whose counted repeats
-  pass 1,000 (nested ones multiplied). The cost: no backreferences or lookaround, which is refused as an invalid regex.
+  characters, takes gigabytes to compile, enough to have the pod killed. RE2 refuses a pattern
+  whose program would pass `max_mem` (8 MiB) or whose counted repeats pass 1,000 (nested ones
+  multiplied), and matches in time linear in the text, though for a large pattern, once RE2's
+  DFA gives up, the constant is the pattern's size: `a.{999}b.{999}a` reads about 100 KB a
+  second. The cost: no backreferences or lookaround (refused as an invalid regex), and `\w`,
+  `\b`, `\d`, `\s` are ASCII only.
+- So that the scan stays linear too, each search reads a window of whole lines about 16 KiB long,
+  and the next starts after the match (or its line): each byte is read about once, and one
+  search costs at most a window. A match longer than a window is missed. Matches do not overlap.
 - Guards: a pattern of at most 200 characters; a 2-second budget for the whole scan, checked
-  between texts, past which the call is a tool error; at most 1,000 matching lines counted and 5
-  returned a page (one search a matching line), each line cut to about 200 characters; the scan
-  stops once it has the page of results asked for. An invalid regex is a tool error.
+  before every search, so a call ends within the budget and one window's search (a tool error
+  past it); at most 1,000 matching lines counted and 5 returned a page, each line cut to about
+  200 characters; the scan stops once it has the page of results asked for; pages are read 50
+  at a time. An invalid regex is a tool error.
 
 ## Consequences
 
