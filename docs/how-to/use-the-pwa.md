@@ -497,10 +497,12 @@ Page text is Markdown as GitHub writes it:
 **Share** asks **Link**, **Text**, **Print / Save as PDF**, **HTML** and **Zip** (both saved like Download where the browser cannot share them: Chrome on Android cannot share a zip) or **Download**. Where the browser cannot share an HTML file, HTML is **Download HTML**. Tap **Share** again or elsewhere to close.
 
 On a computer with no share sheet (Firefox, Chrome on Linux) **Share** copies instead: **Copy
-link**, **Copy as Markdown** (the Text below), **Copy as rich text** (the page as formatted text,
-with the Markdown as its plain text, to paste into an email or a document; photos are named, not
-included), then **Print / Save as PDF**, **Download HTML** and **Download**. Each copy says so,
-for example *Link copied*.
+link**, **Copy as Markdown** (the Text below), **Copy as rich text** (the title and text as
+formatted text, with the Markdown as its plain text, to paste into an email or a document; no
+meta line, tags, Claude's card or files, and photos are named, not included), then **Print /
+Save as PDF**, **Download HTML**, **Download** and **Pin to Search**. Each copy says so, for
+example *Link copied*; where the browser can't put formatted text on the clipboard, Copy as rich
+text copies the plain text and says *Text copied*.
 
 | Choice | Sends |
 | --- | --- |
@@ -664,6 +666,8 @@ Tap the drawing to open it full screen.
   version (theirs stays in History), or **Discard mine, show theirs**.
 - **More, History** lists every version (Claude's, yours, restored) with **Restore**, which makes
   an old version current again as a new copy. Nothing is overwritten.
+- **More, Share** sends the drawing as a PNG, where the phone can share files; elsewhere there is
+  no Share, and **Export PNG** saves it.
 - **More, Export** saves `.excalidraw`, PNG or SVG. The page's **Download** zip includes it beside
   the photo, with the description and text in the Markdown.
 - It follows the phone's light or dark theme and needs the server.

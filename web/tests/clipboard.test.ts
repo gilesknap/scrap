@@ -49,6 +49,18 @@ describe("copyRich", () => {
     expect(toast).toHaveBeenCalledWith("Rich text copied");
   });
 
+  it("copies the plain text where the write is refused (a promise it can't take, offline)", async () => {
+    vi.stubGlobal("ClipboardItem", class {});
+    const write = vi.fn(async () => Promise.reject(new TypeError("no promises")));
+    const writeText = vi.fn(async () => {});
+    vi.stubGlobal("navigator", { clipboard: { write, writeText } });
+    await copyRich(async () => Promise.reject(new Error("offline")), "# Hi");
+    expect(write).toHaveBeenCalledOnce();
+    expect(writeText).toHaveBeenCalledWith("# Hi");
+    expect(toast).toHaveBeenCalledWith("Text copied");
+    expect(toast).not.toHaveBeenCalledWith("Rich text copied");
+  });
+
   it("copies the plain text where the browser has no ClipboardItem, making no html", async () => {
     vi.stubGlobal("ClipboardItem", undefined);
     const writeText = vi.fn(async () => {});

@@ -240,19 +240,27 @@ describe("the meta line", () => {
 });
 
 describe("articleHtml (Copy as rich text)", () => {
-  it("is the page's markup alone, its photos named and nothing fetched", async () => {
+  it("is the title and the text alone, its photos named and nothing fetched", async () => {
     const page = e(
       "article",
       { class: "page" },
       e("h1", {}, "Title"),
-      e("p", {}, "Some ", e("strong", {}, "bold")),
-      e("img", { src: `/api/blobs/${SHA}`, alt: "Beach" }),
+      e("p", { class: "meta dates" }, "Note · Created today"),
+      e("div", { class: "tags" }, e("a", { href: "/search?q=tag:x" }, "#x")),
+      e(
+        "div",
+        { class: "body md" },
+        e("p", {}, "Some ", e("strong", {}, "bold")),
+        e("img", { src: `/api/blobs/${SHA}`, alt: "Beach" }),
+      ),
+      e("div", { class: "originals" }, e("figure", {}, "scan.pdf")),
+      e("section", { class: "enrich claude" }, e("h3", {}, "About this page")),
       e("div", { class: "bar tools" }, e("button", {}, "Share")),
     );
     const html = await articleHtml(page);
     expect(html).toBe(
-      '<article class="page"><h1>Title</h1><p>Some <strong>bold</strong></p>' +
-        '<em class="named">[Beach]</em></article>',
+      '<h1>Title</h1><div class="body md"><p>Some <strong>bold</strong></p>' +
+        '<em class="named">[Beach]</em></div>',
     );
     expect(html).not.toMatch(/data:|<style|<!doctype|\/api\//i);
   });

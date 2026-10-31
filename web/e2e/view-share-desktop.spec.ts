@@ -15,15 +15,16 @@ test.use({
   permissions: ["clipboard-read", "clipboard-write"],
 });
 
-async function open(page: Page) {
-  await page.addInitScript(() => {
-    // No share sheet, as on Firefox; print() counted, not shown
+async function open(page: Page, sheet = false) {
+  await page.addInitScript((sheet) => {
+    // No share sheet, as on Firefox (or one, as on Chrome for Windows); print() counted, not shown
     delete (Navigator.prototype as Partial<Navigator>).share;
     delete (Navigator.prototype as Partial<Navigator>).canShare;
+    if (sheet) Object.assign(navigator, { share: async () => {}, canShare: () => true });
     const w = window as unknown as { printed: number };
     w.printed = 0;
     window.print = () => void w.printed++;
-  });
+  }, sheet);
   const r = await page.request.post("/api/captures", { data: { id: ulid(), text: BODY } });
   const { slug, page_id } = (await r.json()) as { slug: string; page_id: string };
   await page.goto(`/p/${slug}`);
@@ -58,8 +59,24 @@ test("Share on a computer copies, prints and downloads", async ({ page }) => {
     "Download",
     "Pin to Search",
   ]);
+  // Under Share (a computer's tools are at the top), inside the window
+  const below = async () => {
+    const b = await tools.getByRole("button", { name: "Share" }).boundingBox();
+    const m = await menu.boundingBox();
+    const h = page.viewportSize()?.height ?? 0;
+    return !!b && !!m && m.y >= b.y + b.height && m.y + m.height <= h;
+  };
+  expect(await below()).toBe(true);
+  await page.keyboard.press("Escape");
+  // A short window: capped to the room below, and it scrolls
+  await page.setViewportSize({ width: 1280, height: 400 });
+  await share();
+  expect(await below()).toBe(true);
+  expect(await menu.evaluate((m) => m.scrollHeight > m.clientHeight)).toBe(true);
+  await page.keyboard.press("Escape");
+  await page.setViewportSize({ width: 1280, height: 900 });
 
-  await menu.getByRole("button", { name: "Copy link" }).click();
+  await (await share()).getByRole("button", { name: "Copy link" }).click();
   await expect(menu).toHaveCount(0);
   await expect(page.locator(".toast", { hasText: "Link copied" })).toBeVisible();
   expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(
@@ -75,7 +92,9 @@ test("Share on a computer copies, prints and downloads", async ({ page }) => {
   const html = (await clip(page, "text/html")) ?? "";
   expect(html).toContain("<strong>bold</strong>");
   expect(html).toContain('href="https://example.com/"'); // as the browser writes it
-  expect(html).not.toMatch(/<button|Share|<style/);
+  expect(html).toContain("<h1");
+  // The title and text only, as the Markdown: no meta line, no buttons
+  expect(html).not.toMatch(/<button|Share|<style|Created|class="meta/);
   expect(await clip(page, "text/plain")).toBe(BODY.trimEnd());
 
   await (await share()).getByRole("button", { name: "Print / Save as PDF" }).click();
@@ -105,5 +124,24 @@ test("Copy as rich text falls back to plain text without ClipboardItem", async (
   await (await share()).getByRole("button", { name: "Copy as rich text" }).click();
   await expect(page.locator(".toast", { hasText: "Text copied" })).toBeVisible();
   expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(BODY.trimEnd());
+  expect((await page.request.delete(`/api/pages/${page_id}`)).ok()).toBe(true);
+});
+
+test("a computer with a share sheet has the phone's menu: no Copy rows, nothing twice", async ({
+  page,
+}) => {
+  const { page_id, menu, share } = await open(page, true);
+  await share();
+  const rows = await menu.locator(":scope > *").allTextContents();
+  expect(rows).toEqual([
+    "Link",
+    "Text",
+    "Print / Save as PDF",
+    "HTML",
+    "Zip",
+    "Download",
+    "Pin to Search",
+  ]);
+  expect(new Set(rows).size).toBe(rows.length);
   expect((await page.request.delete(`/api/pages/${page_id}`)).ok()).toBe(true);
 });

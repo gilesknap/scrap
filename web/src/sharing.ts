@@ -7,16 +7,18 @@ import { icon } from "./icons";
 import { articleHtml, makeHtml } from "./pagehtml";
 import { h, toast } from "./ui";
 
-// Icons only this menu draws, kept out of the app shell's icons.ts (its budget): drawn as it does
+// Icons only this menu draws, kept out of the app shell's icons.ts (its budget), drawn as
+// icons.ts draws them
 const EXTRA = {
   copy: '<rect x="8.5" y="8.5" width="11" height="12" rx="1.5"/><path d="M15.5 8.5v-4h-11v12h4"/>',
   print: '<path d="M7 9V3.5h10V9M7 17H4.5V9h15v8H17"/><path d="M7 14h10v6.5H7z"/>',
 };
-function glyph(name: Icon | keyof typeof EXTRA): SVGSVGElement {
+type Glyph = Icon | keyof typeof EXTRA;
+function glyph(name: Glyph): SVGSVGElement {
   if (!(name in EXTRA)) return icon(name as Icon);
-  const svg = icon("note");
-  svg.innerHTML = EXTRA[name as keyof typeof EXTRA];
-  return svg;
+  const t = document.createElement("template");
+  t.innerHTML = `<svg class="i" viewBox="0 0 24 24" aria-hidden="true">${EXTRA[name as keyof typeof EXTRA]}</svg>`;
+  return t.content.firstChild as SVGSVGElement;
 }
 
 const mb = (n: number) =>
@@ -73,22 +75,24 @@ export function saveBlob(blob: Blob, name: string) {
 }
 
 /** Where a menu of this size goes: just above its button, kept on the screen; below it where
- * it does not fit above (a computer's tools are at the top, under its top bar). */
+ * it does not fit above (a computer's tools are at the top, under its top bar). `max` is the
+ * room it has there: a taller menu scrolls (a short window). */
 export function menuSpot(
   button: DOMRect,
   width: number,
   screenW: number,
   screenH: number,
   height = 0,
-): { left: number; bottom?: number; top?: number } {
+): { left: number; bottom?: number; top?: number; max: number } {
   const gap = 8;
   const left = Math.round(
     Math.max(Math.min(button.left + (button.width - width) / 2, screenW - width - gap), gap),
   );
-  const below = screenH - button.top - button.height;
-  if (button.top - 2 * gap < height && below > button.top)
-    return { left, top: Math.round(button.top + button.height + gap) };
-  return { left, bottom: Math.round(screenH - button.top + gap) };
+  const above = Math.round(button.top - 2 * gap);
+  const below = Math.round(screenH - button.top - button.height - 2 * gap);
+  if (above < height && below > above)
+    return { left, top: Math.round(button.top + button.height + gap), max: below };
+  return { left, bottom: Math.round(screenH - button.top + gap), max: above };
 }
 
 /** Whether a share failed because the tap's permission ran out (a slow download outlasts
@@ -97,7 +101,7 @@ export const tapExpired = (err: unknown, active = navigator.userActivation?.isAc
   (err as Error).name === "NotAllowedError" && active === false;
 
 /** Whether this phone can share a file like this, asked before downloading it. */
-function canShareFile(name: string, type: string) {
+export function canShareFile(name: string, type: string) {
   try {
     return !!navigator.canShare?.({ files: [new File([], name, { type })] });
   } catch {
@@ -185,7 +189,7 @@ export function attach(b: HTMLButtonElement, s: Sharing) {
     b.onclick = shareContent; // nothing to choose, or no menu on this browser
     return shareContent;
   }
-  const pick = (name: Parameters<typeof glyph>[0], label: string, go: () => void) =>
+  const pick = (name: Glyph, label: string, go: () => void) =>
     h(
       "button",
       {
@@ -202,13 +206,8 @@ export function attach(b: HTMLButtonElement, s: Sharing) {
   // The page's Download (an <a download>) is among `more`: Share can send what it saves
   const saved = s.more?.find((r) => r instanceof HTMLAnchorElement && r.hasAttribute("download"));
   const article = saved instanceof HTMLAnchorElement && b.closest<HTMLElement>("article.page");
-  if ("share" in navigator)
-    menu.append(
-      pick("link", "Link", () => void send({ title: s.what().title, url: link })),
-      pick(...s.content, () => void shareContent()),
-    );
-  else {
-    // No share sheet: what it would send goes on the clipboard
+  if (!navigator.share) {
+    // No share sheet (a computer, ui.ts): what it would send goes on the clipboard
     const copy = (name: "link" | "copy", label: string, job: () => Promise<void>) =>
       pick(name, label, () => void busy(b, "Copy", job));
     const text = () => s.what().text ?? "";
@@ -220,7 +219,11 @@ export function attach(b: HTMLButtonElement, s: Sharing) {
       menu.append(
         copy("copy", "Copy as rich text", () => copyRich(() => articleHtml(article), text())),
       );
-  }
+  } else
+    menu.append(
+      pick("link", "Link", () => void send({ title: s.what().title, url: link })),
+      pick(...s.content, () => void shareContent()),
+    );
   const done = (f: File) => saveBlob(f, f.name);
   if (article) {
     // Printing, or saving as a PDF from the print dialog, works on phones too
@@ -275,7 +278,13 @@ export function attach(b: HTMLButtonElement, s: Sharing) {
     const { offsetWidth: w, offsetHeight: tall } = menu;
     const spot = menuSpot(b.getBoundingClientRect(), w, innerWidth, innerHeight, tall);
     const px = (n?: number) => (n === undefined ? "" : `${n}px`);
-    Object.assign(menu.style, { left: px(spot.left), bottom: px(spot.bottom), top: px(spot.top) });
+    const { left, bottom, top, max } = spot;
+    Object.assign(menu.style, {
+      left: px(left),
+      bottom: px(bottom),
+      top: px(top),
+      maxHeight: px(max),
+    });
     // The menu comes last in the page's tab order: put focus in it (Escape or a choice
     // returns it to Share, as a popover does)
     menu.querySelector("button")?.focus();

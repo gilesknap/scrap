@@ -258,7 +258,15 @@ export async function makeHtml(root: HTMLElement, title: string, fetcher = fetch
   return new File([pageHtml(root, title, shown, swaps)], htmlName(title), { type: "text/html" });
 }
 
-/** The page's view as formatted text for the clipboard (Copy as rich text): the same markup as
- * the file, without its document or style, and with every photo named, not inlined (megabytes
- * of base64 on the clipboard, and an address on this server would not load where it is pasted). */
-export const articleHtml = async (root: N) => render(root, new Map(), await swapsOf(root));
+/** The page's title and text as formatted text for the clipboard (Copy as rich text), as the
+ * Markdown its plain half is: no meta line, tags, Claude's card or file rows. The same markup
+ * as the file, without its document or style, and every photo named, not inlined (megabytes of
+ * base64 on the clipboard, and an address on this server would not load where it is pasted). */
+export async function articleHtml(root: N): Promise<string> {
+  const own = (n: N) => el(n) && (tag(n) === "h1" || / body /.test(` ${attr(n, "class")} `));
+  const part: N = { nodeType: ELEMENT, nodeName: "DIV", childNodes: kids(root).filter(own) };
+  const swaps = await swapsOf(part);
+  return kids(part)
+    .map((n) => render(n, new Map(), swaps))
+    .join("");
+}

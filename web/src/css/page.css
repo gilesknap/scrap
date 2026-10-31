@@ -415,6 +415,7 @@ div.orig {
   background: var(--surface);
   color: var(--ink);
   box-shadow: var(--shadow-2);
+  overflow-y: auto; /* past the room it has (sharing.ts menuSpot): a short window */
 }
 .share-menu:popover-open {
   display: flex;

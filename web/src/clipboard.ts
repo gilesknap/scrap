@@ -14,7 +14,7 @@ export async function copyText(text: string, what: string) {
  * a document keeps the headings, lists and links, and a plain editor gets the text. The html
  * is made as a promise given to the clipboard within the tap (Safari and Firefox want the
  * write called in it, before the html is ready). Plain text only where the browser has no
- * ClipboardItem. */
+ * ClipboardItem, or the write fails. */
 export async function copyRich(html: () => Promise<string>, text: string) {
   if (typeof ClipboardItem === "undefined" || !navigator.clipboard?.write)
     return copyText(text, "Text");
@@ -23,6 +23,12 @@ export async function copyRich(html: () => Promise<string>, text: string) {
     "text/html": html().then((s) => blob(s, "text/html")),
     "text/plain": blob(text, "text/plain"),
   });
-  await navigator.clipboard.write([item]);
+  try {
+    await navigator.clipboard.write([item]);
+  } catch {
+    // A browser that takes a ClipboardItem but not a promise in it, or the html could not be
+    // made (offline): the plain text still goes
+    return copyText(text, "Text");
+  }
   toast("Rich text copied");
 }
