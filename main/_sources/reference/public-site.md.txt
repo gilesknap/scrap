@@ -398,9 +398,14 @@ open):
 
 ```html
 <details class="reading"><summary>Claude's reading</summary><div class="claude">
-<p>...the photo's description...</p><pre>...the text read from it, or a PDF's text...</pre>
+<p>...the photo's description...</p>
+<details class="readtext"><summary>Text read</summary><pre>...the text read
+from it...</pre></details>
 </div></details>
 ```
+
+A photo's read text is a fold of its own inside it (#538), published closed too, and still
+indexed by Pagefind; a PDF's text is a plain `<pre>` in the fold, as before.
 
 It follows the photo (and its drawing's links), or the file's row. Its text is scrubbed as page
 text is (no address of scrap's own, no `/api/`: "a private link"), scrap's check holds it to the
@@ -412,6 +417,8 @@ photos and files" when the page has any.
 
 **Left out**: Claude's notes on a photo outside its fold (where its reading is up to, Generate
 and Regenerate), revisions, the PWA's controls, and every `/api` or other private address.
+**Never published**: the owner's **Guidance for Claude**, the page's (for its write-up) and each
+photo's (for its reading, #538): the publish mode never writes it, nor does Share as HTML.
 
 **Head**: the fixed meta CSP, `/assets/page.css`, `/assets/katex.css` for a page with maths, the
 site's icons (#527), `<link rel="icon" href="/assets/icon.svg" type="image/svg+xml">` and

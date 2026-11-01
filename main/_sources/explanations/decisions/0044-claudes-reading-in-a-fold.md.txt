@@ -4,7 +4,7 @@ Date: 2026-11-01
 
 ## Status
 
-Accepted. Amends [ADR 43](0043-public-pages-a-static-site-scrap-pushes-to.md) (what a public
+Accepted; amended for 1.4.0 (#538, below). Amends [ADR 43](0043-public-pages-a-static-site-scrap-pushes-to.md) (what a public
 page holds) and [ADR 42](0042-mcp-clients-add-svg-and-files.md) (an SVG read as text).
 
 ## Context
@@ -51,3 +51,32 @@ model call per diagram, describing what Claude had just drawn and labelled (#521
 - A page of Claude's diagrams is no longer made a board by their readings, so it gets no
   write-up of its own; Ask Claude still reads the page's text.
 - An imported page (source `import`) is read as any import is, Claude's diagrams included.
+
+## Amendment: Guidance for Claude per image, and the read text folded (#538, 1.4.0)
+
+- **The text read from an image is a fold of its own** inside Claude's reading, "Text
+  read" (short, so it fits on one line on the owner's phone), closed, in the app and on
+  public pages. It is mostly there for search, and is indexed as before (search, and
+  Pagefind on the site). A PDF's text in its fold is unchanged.
+- **Guidance for Claude, per image**, at the bottom of an image's reading (before Regenerate at
+  the card's end): the same fold as a write-up's in About this page, one function for both
+  (`web/src/guidance.ts`). Closed until opened, "(set)" once saved, a 3-row box of at most 2,000
+  characters, and Save, which only stores it. Only images Claude reads have one: not files
+  (scrap reads their text itself), not Claude's own images (no fold at all).
+- **Stored per (capture, image)** in a table of its own, `image_guidance` (migration 0021,
+  `user_version` 21), as `writeup_guidance` is per page; it goes with its image when the file is
+  taken off the capture, and with the capture. `PUT /api/captures/{id}/photos/{sha}/guidance`.
+- **The next Regenerate sends it** with the image, as a text block after it in the user turn,
+  delimited as the owner's note (`<guidance>`, any such tag in it neutralised). It steers the
+  description, the read text and Claude's drawing; a drawing the owner edited is still kept
+  unless they choose to replace it. The run's stored request keeps the guidance it was made with.
+- **The fixed prompt is unchanged** (`photo.md`), so its version is too: a reading with no
+  guidance is sent exactly as before, and no reading is marked outdated by the change. The block's
+  own words say how to use it, only when there is some.
+- **Kept apart from the write-up.** An image's guidance never reaches its page's write-up, nor
+  the page's guidance a reading.
+- **Never published.** The publish mode never writes it (the reading's fold is rebuilt from its
+  description and read text alone), and Share as HTML leaves the guidance folds out, the page's
+  and each image's. scrap does not check a publish for it on the server: a word-by-word check
+  was tried and dropped (owner, 1 Nov 2026), as it refused ordinary pages whose own words
+  matched a note.

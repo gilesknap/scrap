@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>44. Claude’s reading in a fold, and Claude’s own images not read &#8212; scrap 1.3.5.dev3+g0fe3085d3 documentation</title>
+    <title>44. Claude’s reading in a fold, and Claude’s own images not read &#8212; scrap 1.3.5.dev4+gbbb646792 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../../_static/documentation_options.js?v=619a377d"></script>
+    <script src="../../_static/documentation_options.js?v=d06766b8"></script>
     <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -552,7 +552,7 @@
 <p>Date: 2026-11-01</p>
 <section id="status">
 <h2>Status<a class="headerlink" href="#status" title="Link to this heading">#</a></h2>
-<p>Accepted. Amends <a class="reference internal" href="0043-public-pages-a-static-site-scrap-pushes-to.html"><span class="std std-doc">ADR 43</span></a> (what a public
+<p>Accepted; amended for 1.4.0 (#538, below). Amends <a class="reference internal" href="0043-public-pages-a-static-site-scrap-pushes-to.html"><span class="std std-doc">ADR 43</span></a> (what a public
 page holds) and <a class="reference internal" href="0042-mcp-clients-add-svg-and-files.html"><span class="std std-doc">ADR 42</span></a> (an SVG read as text).</p>
 </section>
 <section id="context">
@@ -602,6 +602,37 @@ what it shows.</p></li>
 <li><p>A page of Claude’s diagrams is no longer made a board by their readings, so it gets no
 write-up of its own; Ask Claude still reads the page’s text.</p></li>
 <li><p>An imported page (source <code class="docutils literal notranslate"><span class="pre">import</span></code>) is read as any import is, Claude’s diagrams included.</p></li>
+</ul>
+</section>
+<section id="amendment-guidance-for-claude-per-image-and-the-read-text-folded-538-1-4-0">
+<h2>Amendment: Guidance for Claude per image, and the read text folded (#538, 1.4.0)<a class="headerlink" href="#amendment-guidance-for-claude-per-image-and-the-read-text-folded-538-1-4-0" title="Link to this heading">#</a></h2>
+<ul class="simple">
+<li><p><strong>The text read from an image is a fold of its own</strong> inside Claude’s reading, “Text
+read” (short, so it fits on one line on the owner’s phone), closed, in the app and on
+public pages. It is mostly there for search, and is indexed as before (search, and
+Pagefind on the site). A PDF’s text in its fold is unchanged.</p></li>
+<li><p><strong>Guidance for Claude, per image</strong>, at the bottom of an image’s reading (before Regenerate at
+the card’s end): the same fold as a write-up’s in About this page, one function for both
+(<code class="docutils literal notranslate"><span class="pre">web/src/guidance.ts</span></code>). Closed until opened, “(set)” once saved, a 3-row box of at most 2,000
+characters, and Save, which only stores it. Only images Claude reads have one: not files
+(scrap reads their text itself), not Claude’s own images (no fold at all).</p></li>
+<li><p><strong>Stored per (capture, image)</strong> in a table of its own, <code class="docutils literal notranslate"><span class="pre">image_guidance</span></code> (migration 0021,
+<code class="docutils literal notranslate"><span class="pre">user_version</span></code> 21), as <code class="docutils literal notranslate"><span class="pre">writeup_guidance</span></code> is per page; it goes with its image when the file is
+taken off the capture, and with the capture. <code class="docutils literal notranslate"><span class="pre">PUT</span> <span class="pre">/api/captures/{id}/photos/{sha}/guidance</span></code>.</p></li>
+<li><p><strong>The next Regenerate sends it</strong> with the image, as a text block after it in the user turn,
+delimited as the owner’s note (<code class="docutils literal notranslate"><span class="pre">&lt;guidance&gt;</span></code>, any such tag in it neutralised). It steers the
+description, the read text and Claude’s drawing; a drawing the owner edited is still kept
+unless they choose to replace it. The run’s stored request keeps the guidance it was made with.</p></li>
+<li><p><strong>The fixed prompt is unchanged</strong> (<code class="docutils literal notranslate"><span class="pre">photo.md</span></code>), so its version is too: a reading with no
+guidance is sent exactly as before, and no reading is marked outdated by the change. The block’s
+own words say how to use it, only when there is some.</p></li>
+<li><p><strong>Kept apart from the write-up.</strong> An image’s guidance never reaches its page’s write-up, nor
+the page’s guidance a reading.</p></li>
+<li><p><strong>Never published.</strong> The publish mode never writes it (the reading’s fold is rebuilt from its
+description and read text alone), and Share as HTML leaves the guidance folds out, the page’s
+and each image’s. scrap does not check a publish for it on the server: a word-by-word check
+was tried and dropped (owner, 1 Nov 2026), as it refused ordinary pages whose own words
+matched a note.</p></li>
 </ul>
 </section>
 </section>
@@ -657,6 +688,7 @@ write-up of its own; Ask Claude still reads the page’s text.</p></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#context">Context</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#decision">Decision</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#consequences">Consequences</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#amendment-guidance-for-claude-per-image-and-the-read-text-folded-538-1-4-0">Amendment: Guidance for Claude per image, and the read text folded (#538, 1.4.0)</a></li>
 </ul>
   </nav></div>
 
