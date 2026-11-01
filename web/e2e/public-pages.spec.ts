@@ -126,12 +126,17 @@ test("Make public warns first, with Cancel focused, then the page is on the site
   expect(ico.headers().location).toBe("/assets/icon.svg");
   // Opened in a browser, under nginx's CSP: drawn with the site's CSS and KaTeX's fonts
   const csp = violations(page);
+  const markLoaded = page.waitForResponse(`${SITE}/assets/icon.svg`);
   await page.goto(`${site(page)}/p/${n.slug}`);
   await expect(page.locator(".katex-html").first()).toBeVisible();
   await expect(page.locator(".site.foot")).toContainText("from scrap · All pages");
+  // scrap's mark left of the site's name (#527), from the site's own icon, under its CSP
+  expect((await markLoaded).status()).toBe(200);
+  await expectMark(page, ".site.top > a:first-child");
 
-  // Pagefind, on the home page, finds the word
+  // Pagefind, on the home page, finds the word; home has the mark too
   await page.goto(`${site(page)}/`);
+  await expectMark(page, ".site-head > a:first-child");
   await expect(page.locator(".site-list")).toContainText(`Public e2e ${word}`);
   await page.locator(".pagefind-ui__search-input").fill(word);
   await expect(page.locator(".pagefind-ui__result-link").first()).toHaveAttribute(
@@ -140,6 +145,21 @@ test("Make public warns first, with Cancel focused, then the page is on the site
   );
   expect(csp).toEqual([]);
 });
+
+/** scrap's mark before a header link (#527): the site's icon, about the line's height. */
+async function expectMark(page: Page, link: string) {
+  const mark = await page.locator(link).evaluate((a) => {
+    const m = getComputedStyle(a, "::before");
+    return {
+      image: m.backgroundImage,
+      width: Number.parseFloat(m.width),
+      line: Number.parseFloat(getComputedStyle(a).fontSize),
+    };
+  });
+  expect(mark.image).toMatch(/^url\("http:\/\/127\.0\.0\.1:\d+\/assets\/icon\.svg"\)$/);
+  expect(mark.width).toBeGreaterThanOrEqual(mark.line);
+  expect(mark.width).toBeLessThanOrEqual(mark.line * 1.5);
+}
 
 test("making a page public publishes the public pages linking to it again", async ({ page }) => {
   await phone(page);
@@ -419,6 +439,32 @@ test.describe("the reader's theme and width (#519)", () => {
     await page.setViewportSize({ width: 412, height: 800 });
     await expect(width).toBeHidden();
     await expect(page.getByRole("button", { name: "Dark theme" })).toBeVisible();
+  });
+
+  test("the header keeps one row at 308 px and 130 % text: a long name is cut (#527)", async ({
+    page,
+  }) => {
+    const n = await publicOne(page, "Public e2e long name");
+    await page.setViewportSize({ width: 308, height: 800 });
+    await page.goto(`${SITE}/p/${n.slug}`);
+    const theme = page.getByRole("button", { name: "Dark theme" });
+    await expect(theme).toBeVisible();
+    // the phone's 130 % text, and a site name far too long for the row
+    const row = await page.evaluate(() => {
+      document.documentElement.style.fontSize = "22.1px";
+      const a = document.querySelector(".site.top > a") as HTMLElement;
+      a.textContent = "a-very-long-public-site-name.pages.example.org";
+      const switches = document.querySelector(".site.top .prefs") as HTMLElement;
+      const [r, p] = [a.getBoundingClientRect(), switches.getBoundingClientRect()];
+      return {
+        cut: a.scrollWidth > a.clientWidth,
+        ellipsis: getComputedStyle(a).textOverflow,
+        sameRow: Math.abs(r.top + r.height / 2 - (p.top + p.height / 2)) < 4,
+        clear: r.right <= p.left,
+      };
+    });
+    expect(row).toEqual({ cut: true, ellipsis: "ellipsis", sameRow: true, clear: true });
+    await expectMark(page, ".site.top > a:first-child");
   });
 });
 

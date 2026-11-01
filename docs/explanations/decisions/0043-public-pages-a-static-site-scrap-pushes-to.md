@@ -13,8 +13,8 @@ own (#519), and drawings published, downloadable and opened in excalidraw.com (#
 [](#amendment-reader-preferences-and-drawings) at the end.
 
 Amended 2026-11-01 (1.3.2): a drawing replaces its photo, with no photo in it (#524); an SVG
-served as exactly `image/svg+xml`, so excalidraw.com opens it (#526); and the site's icons,
-scrap's own (#527). See [](#amendment-drawings-without-the-photo-and-the-sites-icon) at the end.
+served as exactly `image/svg+xml`, so excalidraw.com opens it (#526); and the site's icons and
+header mark, scrap's own (#527). See [](#amendment-drawings-without-the-photo-and-the-sites-icon) at the end.
 
 ## Context
 
@@ -399,7 +399,11 @@ Date: 2026-11-01
   `icon.svg` is the only SVG there, and it goes out under the image CSP.
 - **`/favicon.ico`**, which browsers ask for on their own, is a `302` to `/assets/icon.svg`
   rather than a `404`, so an image or PDF opened alone has the icon too.
-- **Not yet:** the scrap mark beside the site's name in the header, waiting on a mock.
+- **The scrap mark in the header** (the owner chose "mark + name" from a mock): `icon.svg` at
+  about the line's height, left of the site's name on a page and of "Pages · Tags" on the
+  site's own pages. It is `page.css` alone (a `::before` background, `img-src 'self'`), so no
+  markup, check or receiver change. A long name is cut with "…" rather than wrapping under the
+  switches.
 
 ### Consequences of the 1.3.2 amendment
 

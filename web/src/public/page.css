@@ -43,10 +43,29 @@ div.site a {
 .site.top:has(.prefs),
 .site-head:has(.prefs) {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap; /* a name too long is cut (…), never wrapped under the switches */
   align-items: center;
   gap: 0 0.3em;
   min-height: var(--tap);
+}
+/* scrap's mark (#527) left of the site's name, about the line's height: CSS alone, the site's
+   own /assets/icon.svg (img-src 'self'). The name is cut with … rather than wrapping */
+:is(.site.top, .site-head) > a:first-child {
+  display: inline-block;
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+:is(.site.top, .site-head) > a:first-child::before {
+  content: "";
+  display: inline-block;
+  width: 1.25em;
+  height: 1.25em;
+  margin-inline-end: 0.4em;
+  vertical-align: -0.3em;
+  background: url("/assets/icon.svg") center / contain no-repeat;
 }
 .prefs {
   display: flex;

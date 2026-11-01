@@ -848,6 +848,12 @@ The derived units are built only from the kept copies and their `meta.json`
 Each of the site's own pages loads `/assets/page.css` and `/assets/prefs.js` and names the two
 icons from its head, as a published page does.
 
+Every page's header, a published page's site name and the site's own "Pages · Tags", starts
+with scrap's mark (#527): `/assets/icon.svg`, about the line's height, drawn by `page.css` alone
+(a `::before` background on the header's first link, under `img-src 'self'`), so the markup, the
+check and the receiver are unchanged. The header keeps one row: a name too long for it is cut
+with "…" rather than wrapping under the theme and width switches.
+
 Titles and tag names come from `meta.json`. Every build is deterministic: the same copies give
 the same bytes (sorted order, no timestamps), so an unchanged unit has an unchanged digest.
 
