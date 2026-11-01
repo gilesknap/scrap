@@ -153,12 +153,12 @@ async function expectMark(page: Page, link: string) {
     return {
       image: m.backgroundImage,
       width: Number.parseFloat(m.width),
-      line: Number.parseFloat(getComputedStyle(a).fontSize),
+      size: Number.parseFloat(getComputedStyle(a).fontSize),
     };
   });
   expect(mark.image).toMatch(/^url\("http:\/\/127\.0\.0\.1:\d+\/assets\/icon\.svg"\)$/);
-  expect(mark.width).toBeGreaterThanOrEqual(mark.line);
-  expect(mark.width).toBeLessThanOrEqual(mark.line * 1.5);
+  expect(mark.width).toBeGreaterThanOrEqual(mark.size); // about the line's height
+  expect(mark.width).toBeLessThanOrEqual(mark.size * 1.5);
 }
 
 test("making a page public publishes the public pages linking to it again", async ({ page }) => {
@@ -478,6 +478,27 @@ test("with JavaScript off a page is light, at the default width, with no switche
   await plain.goto(`${SITE}/p/${n.slug}`);
   expect(await bg(plain)).toBe(LIGHT_BG);
   await expect(plain.locator(".pref")).toHaveCount(0);
+  // the header is no flex row then: at 308 px and 130 % text a long name is still cut in the
+  // column (#527), not run off the screen
+  await plain.setViewportSize({ width: 308, height: 800 });
+  const cut = await plain.evaluate(() => {
+    document.documentElement.style.fontSize = "22.1px";
+    const a = document.querySelector(".site.top > a") as HTMLElement;
+    a.textContent = "a-very-long-public-site-name.pages.example.org";
+    const r = a.getBoundingClientRect();
+    return {
+      cut: a.scrollWidth > a.clientWidth,
+      inside: r.left >= 0 && r.right <= document.documentElement.clientWidth,
+      noScroll: document.documentElement.scrollWidth <= document.documentElement.clientWidth,
+    };
+  });
+  expect(cut).toEqual({ cut: true, inside: true, noScroll: true });
+  // home's "Pages · Tags", the mark before Pages: the two words on one baseline
+  await plain.goto(`${SITE}/`);
+  const [pages, tags] = await plain
+    .locator(".site-head > a")
+    .evaluateAll((as) => as.map((a) => a.getBoundingClientRect().bottom));
+  expect(Math.abs(pages - tags)).toBeLessThanOrEqual(2);
   await off.close();
 });
 

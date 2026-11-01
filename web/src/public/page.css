@@ -54,6 +54,8 @@ div.site a {
   display: inline-block;
   flex: 0 1 auto;
   min-width: 0;
+  max-width: 100%; /* cut within the column with JavaScript off too (no flex row then) */
+  vertical-align: bottom; /* on the line's baseline, as "· Tags" is, though it clips */
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
