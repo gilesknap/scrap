@@ -2,7 +2,7 @@
 // and Refresh all's one question before pages go public for the first time. In-app dialogs, not
 // confirm(): Cancel has focus, so Enter never publishes, and the amber button is the only one.
 import type { FileRef, Page, PublicPage } from "./api";
-import { claudeMade } from "./claudemade";
+import { byClaude, claudeMade } from "./claudemade";
 import { h } from "./ui";
 import "./css/publicpages.css";
 
@@ -30,12 +30,12 @@ export const drawingsOn = (p: Page): number =>
     .filter((b) => b.ingest && "drawing" in b.ingest && b.ingest.drawing).length;
 
 /** Whether any of the page's photos or files has a reading that goes public in its fold
- * (#521): a photo's description or text, or a PDF's text. Not an image Claude made (it shows
- * nothing: claudemade.ts), nor a file whose embed was deleted. */
+ * (#521): a photo's description or text, or a PDF's text, from the owner's captures. Not an
+ * image Claude made (it shows nothing: claudemade.ts), nor a file whose embed was deleted. */
 export const readingsOn = (p: Page): boolean => {
   const skip = new Set([...claudeMade(p), ...(p.removed ?? [])]);
   return p.captures
-    .flatMap((c) => c.blobs)
+    .flatMap((c) => (byClaude(c) ? [] : c.blobs)) // a Claude capture's: its own, or the owner's
     .some((b) => {
       const i = b.ingest;
       if (!i || skip.has(b.sha256)) return false;

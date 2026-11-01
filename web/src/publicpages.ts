@@ -122,15 +122,21 @@ export async function drawingsFor(root: HTMLElement): Promise<{ key: string; svg
 }
 
 /** The text of each PDF whose reading fold the view shows (#521), by sha, as the fold shows
- * it when opened (filecard.ts): fetched, as the view has only "…" until then. */
+ * it when opened (filecard.ts): fetched, as the view has only "…" until then, all at once. One
+ * that can't be fetched (gone meanwhile) has no fold, rather than holding the page back. */
 export async function fileTextsFor(root: HTMLElement): Promise<Map<string, string>> {
-  const out = new Map<string, string>();
-  for (const f of fileTextsOf(root)) {
-    const path = `captures/${encodeURIComponent(f.cid)}/files/${f.sha}/text`;
-    const r = await api<{ text: string | null; truncated: boolean }>(path); // as a drawing's
-    if (r.text) out.set(f.sha, r.text + (r.truncated ? "\n\n… (the start only)" : ""));
-  }
-  return out;
+  const got = await Promise.all(
+    fileTextsOf(root).map(async (f): Promise<[string, string] | null> => {
+      const path = `captures/${encodeURIComponent(f.cid)}/files/${f.sha}/text`;
+      try {
+        const r = await api<{ text: string | null; truncated: boolean }>(path);
+        return r.text ? [f.sha, r.text + (r.truncated ? "\n\n… (the start only)" : "")] : null;
+      } catch {
+        return null;
+      }
+    }),
+  );
+  return new Map(got.filter((x): x is [string, string] => !!x));
 }
 
 /** What a page is published as: its HTML and its drawings' SVGs. */

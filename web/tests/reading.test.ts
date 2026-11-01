@@ -58,6 +58,22 @@ describe("the reading fold", () => {
     expect(opened).toHaveBeenCalledOnce();
   });
 
+  it("turns its button off while what it does runs", async () => {
+    let done = () => {};
+    const f = node(
+      readingFold({
+        body: [],
+        regen: { label: "Generate", onclick: () => new Promise<void>((ok) => (done = ok)) },
+      }),
+    );
+    const button = one(f, "BUTTON");
+    const ran = (button.onclick as () => Promise<void>)();
+    expect(button.disabled).toBe(true);
+    done();
+    await ran;
+    expect(button.disabled).toBe(false);
+  });
+
   it("puts where the reading is up to outside, as words with its action", () => {
     const s = node(readingState("Failed: overloaded", "failed", { label: "Retry", onclick: noop }));
     expect(s.className).toBe("reading-state");
@@ -155,6 +171,12 @@ describe("Claude's own images", () => {
     expect(goesWith(owner)).toContain("Claude's reading of its photos and files");
     const gone = { ...owner, removed: ["a".repeat(64)] } as Page;
     expect(readingsOn(gone)).toBe(false);
+    // the owner's copy of Claude's file, not read: Claude's capture's old reading isn't his
+    const shared = {
+      ...base,
+      captures: [cap("A", "mcp", "claude", [blob("a", read)]), cap("B", "pwa", "you", [blob("a")])],
+    } as Page;
+    expect(readingsOn(shared)).toBe(false);
   });
 
   it("count a PDF read with text as a reading, not a text file or one with none", () => {

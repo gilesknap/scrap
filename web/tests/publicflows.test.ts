@@ -135,6 +135,7 @@ beforeEach(() => {
       if (/^\/api\/captures\/c1\/photos\/[0-9a-f]+\/drawing$/.test(u.pathname))
         return reply(200, { data: { format: "scene", elements: [{}, {}] } });
       const text = /^\/api\/captures\/c2\/files\/([0-9a-f]+)\/text$/.exec(u.pathname);
+      if (text && text[1] === "dd") return reply(404, { detail: "gone" });
       if (text) return reply(200, { text: text[1] === "cd" ? "Long text" : null, truncated: true });
       if (u.pathname.endsWith("/preview"))
         return new Response(new Uint8Array([1, 2, 3]), {
@@ -207,11 +208,12 @@ describe("a page with a PDF's reading (#521)", () => {
     (v.root as unknown as { files: unknown[] }).files = [
       { cid: "c2", sha: "cd" },
       { cid: "c2", sha: "ef" }, // no text read: no fold text
+      { cid: "c2", sha: "dd" }, // gone meanwhile: no fold, and the page is still published
     ];
     await pub.makePublic(v);
     const put = calls.find((c) => c.method === "PUT");
     expect(put?.body?.html).toBe("<!DOCTYPE html>A [cd: Long text\n\n… (the start only)]");
-    expect(calls.filter((c) => c.url.endsWith("/text"))).toHaveLength(2);
+    expect(calls.filter((c) => c.url.endsWith("/text"))).toHaveLength(3);
   });
 });
 

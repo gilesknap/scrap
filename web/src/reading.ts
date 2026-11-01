@@ -10,28 +10,35 @@ import { h } from "./ui";
 export const READING = "Claude's reading";
 
 /** The fold: body inside Claude's card, then regen (Regenerate, or Generate the first time) at
- * the card's end; onOpen runs each time it opens. */
+ * the card's end, its button off while what it does (a promise) runs; onOpen runs each time
+ * it opens. */
 export function readingFold(o: {
   body: (Node | string | false | null | undefined)[];
-  regen?: { label: string; onclick: () => void } | null;
+  regen?: { label: string; onclick: () => void | Promise<void> } | null;
   onOpen?: () => void;
 }): HTMLElement {
-  const regen =
+  const act = o.regen?.onclick;
+  const button =
     o.regen &&
     h(
-      "div",
-      { className: "regen-row" },
-      h(
-        "button",
-        {
-          type: "button",
-          // Regenerate is rarely wanted: a quiet text button; Generate, the first time, a full one
-          className: o.regen.label === "Regenerate" ? "link" : "",
-          onclick: o.regen.onclick,
-        },
-        o.regen.label,
-      ),
+      "button",
+      {
+        type: "button",
+        // Regenerate is rarely wanted: a quiet text button; Generate, the first time, a full one
+        className: o.regen.label === "Regenerate" ? "link" : "",
+      },
+      o.regen.label,
     );
+  if (button && act)
+    button.onclick = async () => {
+      button.disabled = true;
+      try {
+        await act();
+      } finally {
+        button.disabled = false;
+      }
+    };
+  const regen = button && h("div", { className: "regen-row" }, button);
   const fold = h(
     "details",
     { className: "reading-fold" },

@@ -129,13 +129,17 @@ export function photoPanel(o: {
     panel.append(choice);
   };
   // What Claude read from it, in one closed fold: its description and the text in it, and
-  // Regenerate (only once read). None until there is something to show.
-  if (i.description || i.text)
+  // Regenerate (only once read). None until there is something to show, or it is read.
+  if (i.description || i.text || i.state === "done")
     panel.append(
       readingFold({
         body: [
           i.description && h("p", { className: "desc" }, i.description),
           i.text && h("pre", {}, i.text),
+          // read, and nothing came of it: Regenerate is still a fold away
+          !i.description &&
+            !i.text &&
+            h("p", { className: "did" }, "Claude found nothing to say about it."),
         ],
         regen: i.state === "done" ? { label: "Regenerate", onclick: ask } : null,
       }),

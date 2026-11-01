@@ -18,7 +18,7 @@ import {
   shareable,
 } from "./api";
 import { plain } from "./app";
-import { claudeMade } from "./claudemade";
+import { byClaude, claudeMade } from "./claudemade";
 import { fileCard } from "./filecard";
 import { fileRow } from "./filerow";
 import { photoPanel } from "./ingest";
@@ -47,6 +47,8 @@ export function figures(
   const claude = claudeMade(p);
   for (const c of p.captures)
     for (const b of c.blobs) {
+      // A file the owner's capture holds too is the owner's: never Claude's capture's reading
+      if (byClaude(c) && !claude.has(b.sha256)) continue;
       const had = files.get(b.sha256);
       if (!had || (!had.ingest && b.ingest))
         files.set(b.sha256, { ...b, cid: c.id, byClaude: claude.has(b.sha256) });
@@ -139,7 +141,7 @@ export function figures(
             "Not read yet. Claude can describe it and read any text in it.",
           ),
         ],
-        regen: { label: "Generate", onclick: () => void askClaude(f.cid, sha, refresh) },
+        regen: { label: "Generate", onclick: () => askClaude(f.cid, sha, refresh) },
       }),
     );
   };
