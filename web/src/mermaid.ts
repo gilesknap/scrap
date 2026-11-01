@@ -77,3 +77,21 @@ export function svgFor(text: string, theme: "light" | "dark"): Promise<string> {
     return new XMLSerializer().serializeToString(root);
   });
 }
+
+/** A diagram's alt text at most this long. */
+const MAX_ALT = 300;
+
+/** The words drawn in a diagram's SVG, for its alt text: each label once, its wrapped lines
+ * joined with a space. */
+export function wordsOf(svg: string): string {
+  const doc = new DOMParser().parseFromString(svg, "image/svg+xml");
+  const said = new Set<string>();
+  for (const text of Array.from(doc.getElementsByTagName("text"))) {
+    const rows = Array.from(text.children).filter((k) => k.classList.contains("row"));
+    const line = (rows.length ? rows : [text]).map((k) => k.textContent ?? "").join(" ");
+    const tidy = line.replace(/\s+/g, " ").trim();
+    if (tidy) said.add(tidy);
+  }
+  const all = [...said].join(", ");
+  return all.length > MAX_ALT ? `${all.slice(0, MAX_ALT - 1).trimEnd()}…` : all;
+}

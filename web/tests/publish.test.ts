@@ -14,9 +14,8 @@ import { CSP, check } from "./publiccheck";
 // scrap's own address, as the app sees it: a full address of a page here is the page's
 (globalThis as { location?: { origin: string } }).location = { origin: "http://scrap.example" };
 const { markdown: marked } = await import("../src/render");
-const { bare, bareSlugs, diagramsOf, hasMaths, idsOf, publishHtml, webLink } = await import(
-  "../src/publish"
-);
+const mod = await import("../src/publish");
+const { bare, bareSlugs, diagramsOf, hasMaths, idsOf, publishHtml, webLink } = mod;
 
 const markdown = (s: string) => marked(s).replace(/ data-at="\d+,\d+"/g, "");
 const SHA = (c: string) => c.repeat(64);
@@ -261,14 +260,14 @@ describe("what a public page holds", () => {
     expect(found).toEqual(["graph LR; X-->Y", "graph TD; A-->B\n", "not one\n"]);
     // the first and second drawn (publicpages.ts), the third not: its source
     const diagrams = new Map([
-      [found[0], 1],
-      [found[1], 2],
+      [found[0], { key: 1, words: "X, Y" }],
+      [found[1], { key: 2, words: "" }],
     ]);
     const h = publishHtml(root, ctx({ diagrams }), swaps);
     expect(check(h, LIVE, ["scrap.example"])).toEqual([]);
-    const fig = (k: number) =>
-      `<figure class="diagram"><img class="light" src="scrap-diagram:${k}-light" alt="Diagram"><img class="dark" src="scrap-diagram:${k}-dark" alt="Diagram"></figure>`;
-    expect(h).toContain(fig(1) + fig(2));
+    const fig = (k: number, alt: string) =>
+      `<figure class="diagram"><img class="light" src="scrap-diagram:${k}-light" alt="${alt}"><img class="dark" src="scrap-diagram:${k}-dark" alt="${alt}"></figure>`;
+    expect(h).toContain(fig(1, "Diagram: X, Y") + fig(2, "Diagram"));
     expect(h).toContain('<pre><code class="language-mermaid">not one\n</code></pre>');
     expect(h).not.toMatch(/<svg|X--&gt;Y|A--&gt;B/);
   });
@@ -308,6 +307,14 @@ describe("what a public page holds", () => {
     );
     // outside code, as before
     expect(h).toContain("Text: a private link goes.");
+  });
+
+  it("hides scrap's own address in a long word in linear time", () => {
+    const { codeText } = mod;
+    const start = performance.now();
+    expect(codeText("z".repeat(400_000), ORIGINS)).toHaveLength(400_000);
+    expect(performance.now() - start).toBeLessThan(2000); // was quadratic: minutes
+    expect(codeText("see http://scrap.example/p/x]", ORIGINS)).toBe("see a private link]");
   });
 
   it("writes maths as KaTeX's markup, and a formula it can't draw as its TeX", () => {

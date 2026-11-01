@@ -329,8 +329,8 @@ figure.drawing img {
   min-height: var(--tap);
 }
 /* A Mermaid diagram (#525), drawn when published in both themes, as the app's .md .diagram
-   (css/page.css): centred, scaled down to the column, a wide one scrolling. The light one
-   unless the page is dark, as tokens.css's themes: no script */
+   (css/page.css): centred and scaled down to the column. The light one unless the page is
+   dark, as tokens.css's themes: no script; on paper always the light one */
 figure.diagram {
   margin: var(--s-3) 0;
   overflow-x: auto;
@@ -509,6 +509,12 @@ body.site h2.site-search-label {
   }
   img {
     break-inside: avoid;
+  }
+  [data-theme] figure.diagram img.light {
+    display: inline;
+  }
+  [data-theme] figure.diagram img.dark {
+    display: none;
   }
   /* on paper, both the photo and its drawing */
   .pair .tabs {

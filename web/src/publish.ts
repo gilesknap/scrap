@@ -26,7 +26,13 @@ export interface Context {
   tex: ((tex: string, display: boolean) => string) | null; // KaTeX, for a page with maths
   date: string; // when it is published, for the footer
   drawn?: ReadonlySet<string>; // the drawings (by id) publicpages.ts drew: shown with their photos
-  diagrams?: ReadonlyMap<string, number>; // the diagrams publicpages.ts drew: source -> key
+  diagrams?: ReadonlyMap<string, DiagramKey>; // the diagrams publicpages.ts drew, by source
+}
+
+/** A diagram publicpages.ts drew (#525): its key, and the words drawn in it (its alt text). */
+export interface DiagramKey {
+  key: number;
+  words: string;
 }
 
 /** The meta CSP every public page carries (the contract's, exactly): the site's own scripts
@@ -78,7 +84,7 @@ function privates(origins: readonly string[], code = false): RegExp {
     .filter((h): h is string => !!h)
     .map((h) => [...h].map((c) => (c === "." ? "[.\\u3002\\uff0e\\uff61]" : reEscape(c))).join(zw));
   const own = hosts.length
-    ? `(?:[a-z][a-z0-9+.-]*://)?(?<![\\w.-])(?:${hosts.join("|")})(?![\\w-]|\\.[\\w-])\\.?(?::\\d+)?(?:[/?#]${tail})?|`
+    ? `(?:(?<![a-z0-9+.-])[a-z][a-z0-9+.-]*://)?(?<![\\w.-])(?:${hosts.join("|")})(?![\\w-]|\\.[\\w-])\\.?(?::\\d+)?(?:[/?#]${tail})?|`
     : "";
   const blobs = `/api/blobs/(?:${tail})?`;
   const api = code
@@ -86,6 +92,10 @@ function privates(origins: readonly string[], code = false): RegExp {
     : `https?://[^\\s/<>"]*/api/(?:${tail})?|(?<![\\w.~/-])/api/(?:${tail})?|${blobs}`;
   return new RegExp(own + api, "gi");
 }
+/** Code's text as published (#529): only scrap's own addresses hidden. A diagram is drawn
+ * from its source so (#525): Mermaid may split a long word across a label's lines. */
+export const codeText = (s: string, origins: readonly string[]) =>
+  s.replace(privates(origins, true), PRIVATE_LINK);
 /** A tag as a scrap-tag: placeholder, every character but letters, digits and -_.~ escaped. */
 const tagHref = (t: string) =>
   `scrap-tag:${encodeURIComponent(t).replace(/[!'()*]/g, (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`)}`;
@@ -308,10 +318,11 @@ export function publishHtml(root: N, ctx: Context, swaps: Swaps = new Map()): st
     if (m !== null) return m;
     // A diagram drawn for the page (#525): its two images, else its source as a code block
     const source = sourceOf(n);
-    const key = source === null ? undefined : ctx.diagrams?.get(source);
-    if (key !== undefined) {
+    const drawn = source === null ? undefined : ctx.diagrams?.get(source);
+    if (drawn !== undefined) {
+      const alt = codeWords(drawn.words ? `Diagram: ${drawn.words}` : "Diagram");
       const img = (theme: string) =>
-        `<img class="${theme}" src="scrap-diagram:${key}-${theme}" alt="Diagram">`;
+        `<img class="${theme}" src="scrap-diagram:${drawn.key}-${theme}" alt="${alt}">`;
       return `<figure class="diagram">${img("light")}${img("dark")}</figure>`;
     }
     if (cls.has("diagram")) {

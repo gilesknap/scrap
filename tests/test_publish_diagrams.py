@@ -167,7 +167,14 @@ def test_a_diagram_counts_toward_the_caps(client, monkeypatch):
 
 
 def test_search_reads_a_diagrams_words_once() -> None:
-    files = {"img-1-0123456789.svg": drawn("Offline queue").encode(),
+    wrapped = drawn("Offline queue").replace(
+        '<tspan x="0" dy="1.1em">Offline queue</tspan>',
+        '<tspan class="text-outer-tspan row"><tspan>A label that</tspan></tspan>'
+        '<tspan class="text-outer-tspan row"><tspan>would</tspan>'
+        "<tspan> wrap</tspan></tspan>",
+    )
+    assert wrapped != drawn("Offline queue")
+    files = {"img-1-0123456789.svg": wrapped.encode(),
              "img-2-0123456789.svg": drawn("Dark words").encode()}  # fmt: skip
     html = (
         '<p>Before</p><figure class="diagram">'
@@ -175,7 +182,8 @@ def test_search_reads_a_diagrams_words_once() -> None:
         '<img class="dark" src="/p/a/img-2-0123456789.svg" alt="Diagram">'
         "</figure><p>After</p>"
     )
-    assert index_text(html, lambda n: files.get(n, b"")) == "Before Offline queue After"
+    got = index_text(html, lambda n: files.get(n, b""))
+    assert got == "Before A label that would wrap After"
     assert index_text(html) == "Before After"
 
 
@@ -196,3 +204,26 @@ def test_code_keeps_its_api_paths(monkeypatch) -> None:
         == "GET https://other.example/api/x"
     )
     assert scrub_code("/API/Blobs/abc") == "a private link"
+
+
+def test_an_address_mermaid_wrapped_is_hidden_whole(monkeypatch) -> None:
+    monkeypatch.setenv("SCRAP_PUBLIC_URL", OWN)
+    split = drawn().replace(
+        '<tspan x="0" dy="1.1em">Phone</tspan>',
+        '<tspan class="row">see https://scrap.exam</tspan>'
+        '<tspan class="row">ple.org/p/secret-page</tspan>',
+    )
+    out = clean_diagram(split).decode()
+    assert "exam" not in out and "secret-page" not in out
+    assert '<text y="20">a private link</text>' in out
+    blobs = drawn().replace("Phone", "/api/blo</tspan><tspan>bs/abc")
+    assert "bs/abc" not in clean_diagram(blobs).decode()
+
+
+def test_a_long_word_is_scrubbed_in_linear_time(monkeypatch) -> None:
+    import time
+
+    monkeypatch.setenv("SCRAP_PUBLIC_URL", OWN)
+    start = time.perf_counter()
+    assert scrub_code("z" * 400_000) == "z" * 400_000
+    assert time.perf_counter() - start < 2  # was quadratic: minutes

@@ -32,7 +32,15 @@ import {
   whyNot,
 } from "./publicapi";
 import { ask, firstTime, warning } from "./publicask";
-import { bareSlugs, diagramsOf, drawingsOf, hasMaths, publishHtml } from "./publish";
+import {
+  bareSlugs,
+  codeText,
+  type DiagramKey,
+  diagramsOf,
+  drawingsOf,
+  hasMaths,
+  publishHtml,
+} from "./publish";
 import { origins } from "./render";
 import { toast } from "./ui";
 
@@ -122,25 +130,30 @@ export async function drawingsFor(root: HTMLElement): Promise<{ key: string; svg
   return out;
 }
 
+/** At most this many images, drawings and files go with a page (scrap's cap, files.py). */
+const MAX_FILES = 20;
 /** The view's Mermaid diagrams drawn as public pages show them (#525), light and dark, each by
- * its key, and the key of each source: Mermaid's chunk is loaded only for a page that has one.
- * One that cannot be drawn so is left out (the page shows its source). */
-export async function diagramsFor(
-  root: HTMLElement,
-): Promise<{ diagrams: Diagram[]; keys: Map<string, number> }> {
+ * its key, and each source's key and words: Mermaid's chunk is loaded only for a page that has
+ * one. One that cannot be drawn so is left out (the page shows its source). */
+export async function diagramsFor(root: HTMLElement): Promise<{
+  diagrams: Diagram[];
+  keys: Map<string, DiagramKey>;
+}> {
   const found = diagramsOf(root);
   const diagrams: Diagram[] = [];
-  const keys = new Map<string, number>();
+  const keys = new Map<string, DiagramKey>();
   if (!found.length) return { diagrams, keys };
   const mod = await import("./mermaid").catch(() => {
     throw new TypeError("Mermaid could not be loaded"); // as offline: not reached
   });
   for (const [i, source] of found.entries()) {
     try {
-      const light = await mod.svgFor(source, "light");
-      const dark = await mod.svgFor(source, "dark");
+      // drawn from its source as a code block publishes it: no address of scrap's own
+      const text = codeText(source, origins());
+      const light = await mod.svgFor(text, "light");
+      const dark = await mod.svgFor(text, "dark");
       diagrams.push({ key: String(i + 1), light, dark });
-      keys.set(source, i + 1);
+      keys.set(source, { key: i + 1, words: mod.wordsOf(light) });
     } catch (err) {
       console.warn(`A diagram is published as its source: ${err}`);
     }
@@ -156,14 +169,29 @@ export interface Rendered {
 }
 
 /** The page's public HTML from its view, with its drawings and diagrams: the public pages
- * known, the titles of private pages its bare links name fetched. */
+ * known, the titles of private pages its bare links name fetched. Diagrams take two images
+ * each: those over scrap's cap, after the page's own images and files, go out as their source. */
 export async function renderedOf(d: Drawn, r: Run): Promise<Rendered> {
   const drawn = await drawingsFor(d.root);
   const shown = await diagramsFor(d.root);
-  const html = await htmlOf(d, r, new Set(drawn.map((x) => x.key)), shown.keys);
+  const ids = new Set(drawn.map((x) => x.key));
+  let html = await htmlOf(d, r, ids, shown.keys);
+  const showing = (key: string) => html.includes(`"scrap-diagram:${key}-light"`);
+  const files = new Set(html.match(/"scrap-(?:blob|drawing):[^"]*"/g)).size;
+  const room = Math.max(0, Math.floor((MAX_FILES - files) / 2));
+  if (shown.diagrams.filter((x) => showing(x.key)).length > room) {
+    const kept = new Set(
+      shown.diagrams
+        .filter((x) => showing(x.key))
+        .slice(0, room)
+        .map((x) => x.key),
+    );
+    for (const [source, k] of shown.keys) if (!kept.has(String(k.key))) shown.keys.delete(source);
+    html = await htmlOf(d, r, ids, shown.keys);
+  }
   // only those the page shows (a drawing without its photo's figure is not)
   const drawings = drawn.filter((x) => html.includes(`"scrap-drawing:${x.key}"`));
-  const diagrams = shown.diagrams.filter((x) => html.includes(`"scrap-diagram:${x.key}-light"`));
+  const diagrams = shown.diagrams.filter((x) => showing(x.key));
   return { html, drawings, diagrams };
 }
 
@@ -173,7 +201,7 @@ export async function htmlOf(
   d: Drawn,
   r: Run,
   drawn: ReadonlySet<string> = new Set(),
-  diagrams: ReadonlyMap<string, number> = new Map(),
+  diagrams: ReadonlyMap<string, DiagramKey> = new Map(),
 ): Promise<string> {
   const swaps = await swapsOf(d.root);
   // A public page that links to itself is public: this one is

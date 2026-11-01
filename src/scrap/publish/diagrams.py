@@ -16,7 +16,8 @@ from .. import svg
 from ..store import InvalidError, TooLargeError
 from .checker import DIAGRAM_PREFIX, Checked
 from .errors import CheckError
-from .links import scrub_code
+from .files import MAX_FILES
+from .links import PRIVATE_LINK, private_text, scrub_code
 
 __all__ = ["MAX_DIAGRAM", "THEMES", "clean_diagram", "page_diagrams"]
 
@@ -51,6 +52,14 @@ def _scrubbed(root: ET.Element, scrub: Callable[[str], str]) -> None:
         for child in el:
             child.tail = scrub(child.tail) if child.tail else child.tail
             stack.append(child)
+    # A label Mermaid wrapped is one <text> of several pieces, a long word split
+    # between them: read whole, one that still names scrap is said as a private link
+    for el in root.iter():
+        if el.tag.rpartition("}")[2] in svg.WORDS and private_text(
+            "".join(el.itertext())
+        ):
+            el.text = PRIVATE_LINK
+            el[:] = []
 
 
 def clean_diagram(text: str, scrub: Callable[[str], str] = scrub_code) -> bytes:
@@ -94,6 +103,12 @@ def page_diagrams(
             raise _refuse("on the page was not sent with it")
     if set(uploads) - set(keys):
         raise _refuse("was sent that the page does not show")
+    if len(keys) * len(THEMES) > MAX_FILES:  # before any is cleaned (files counts all)
+        raise CheckError(
+            f"Not published: a page publishes at most {MAX_FILES} images, drawings,"
+            " diagrams (two images each) and files.",
+            "too_many_files",
+        )
     out: dict[str, bytes] = {}
     for key in keys:
         for theme, text in zip(THEMES, uploads[key], strict=True):

@@ -794,18 +794,28 @@ drops one, and its words with it); the font named as `tokens.css`'s `--font` sta
 inherits none); and the root's `width` and `height` set from its `viewBox`, its `style`
 removed, so the image has a size of its own. Diagrams are keyed `1`, `2`, ... by their sources,
 in order (the same source twice is one diagram). One Mermaid cannot draw so is left out, and
-the page shows its source as a code block, as before (the reason goes to the console).
+the page shows its source as a code block, as before (the reason goes to the console): a user
+journey (`journey`), whose labels Mermaid always writes as HTML, and one whose own
+configuration turns HTML labels back on. Each diagram is two of the page's 20 files, so a page
+with more diagrams than the cap leaves room for, after its images and files, publishes the
+rest as their source. A `gitGraph` without its own commit ids gets new random ones from
+Mermaid each time it is drawn, so its two images differ in those, and it is a new file on each
+publish.
 
 **What the page holds:**
 
 ```html
-<figure class="diagram"><img class="light" src="scrap-diagram:1-light" alt="Diagram"><img
-class="dark" src="scrap-diagram:1-dark" alt="Diagram"></figure>
+<figure class="diagram"><img class="light" src="scrap-diagram:1-light" alt="Diagram: Phone,
+share, Offline queue"><img class="dark" src="scrap-diagram:1-dark" alt="Diagram: Phone, share,
+Offline queue"></figure>
 ```
 
+The `alt` is "Diagram: " and the words drawn in it, each label once (at most 300 characters),
+scrubbed as a code block's text.
+
 `/assets/page.css` shows one, by the page's theme: the light one unless `data-theme="dark"`
-([](#reader-preferences)), so with no script, or on paper, it is light. Centred, scaled down
-to the column, and a wide one scrolls, as the app's. There is no Source fold: search reads the
+([](#reader-preferences)), so with no script, or on paper, it is light. Centred and scaled
+down to the column, as the app's. There is no Source fold: search reads the
 diagram's words from the SVG instead ([](#what-scrap-builds)).
 
 **What scrap does with each SVG**, before anything is pushed: every diagram the HTML names must
@@ -870,7 +880,8 @@ The derived units are built only from the kept copies and their `meta.json`
   in-memory copy with its `.katex` elements removed and the formula's TeX (from its
   `annotation encoding="application/x-tex"`) put in their place, so search finds the TeX, not
   KaTeX's glyph spans, a Mermaid diagram (`figure.diagram`) as the words of its light image's
-  SVG (its `<text>`, `<title>` and `<desc>`, as `svg.text_of` reads them), once, and without the site's lines and the page's header (title, meta and
+  SVG (its `<text>`, `<title>` and `<desc>`, each once, a label's wrapped lines joined with a
+  space), and without the site's lines and the page's header (title, meta and
   dates lines, tag chips), so a result's excerpt is the page's text. The unit is cached, keyed
   on a digest of the pinned version, `scrap-search.js` and every record, so an unchanged index
   is not built again; a build has about 120 seconds, and if it fails or runs out the site keeps

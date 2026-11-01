@@ -118,7 +118,7 @@ def _privates(code: bool = False) -> re.Pattern[str]:
         for host in sorted(own_hosts())
     ]
     own = (
-        rf"(?:[a-z][a-z0-9+.-]*://)?(?<![\w.-])(?:{'|'.join(hosts)})"
+        rf"(?:(?<![a-z0-9+.-])[a-z][a-z0-9+.-]*://)?(?<![\w.-])(?:{'|'.join(hosts)})"
         rf"(?![\w-]|\.[\w-])\.?(?::\d+)?(?:[/?#]{_TAIL})?|"
         if hosts
         else ""

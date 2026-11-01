@@ -543,6 +543,7 @@ test("a Mermaid diagram is published drawn, light and dark, and search finds its
     "flowchart LR",
     `  Phone -->|share| Q[${word}]`,
     "  Q --> API[/api/captures/]",
+    '  API --> P["GET /api/pages/x"]',
     "```",
     "",
     "```sh",
@@ -558,7 +559,7 @@ test("a Mermaid diagram is published drawn, light and dark, and search finds its
   const got = await onSite(page, `/p/${n.slug}`);
   const img = (theme: string) =>
     new RegExp(
-      `<img class="${theme}" src="(/p/${n.slug}/img-\\d-[0-9a-f]{10}\\.svg)" alt="Diagram">`,
+      `<img class="${theme}" src="(/p/${n.slug}/img-\\d-[0-9a-f]{10}\\.svg)" alt="Diagram: [^"]*${word}[^"]*">`,
     );
   const light = img("light").exec(got.text)?.[1];
   const dark = img("dark").exec(got.text)?.[1];
@@ -573,6 +574,7 @@ test("a Mermaid diagram is published drawn, light and dark, and search finds its
     const svg = await served.text();
     expect(svg).toContain(word);
     expect(svg).toContain("api/captures");
+    expect(svg).toContain("> /api/pages/x</tspan>"); // a label's /api/ path as written (#529)
     expect(svg).not.toMatch(/<script|<foreignObject|\son\w+=/i);
   }
 
