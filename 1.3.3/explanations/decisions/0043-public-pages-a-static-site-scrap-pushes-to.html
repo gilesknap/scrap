@@ -1,0 +1,1155 @@
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="../../" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>43. Public pages: a static site scrap pushes to &#8212; scrap 1.3.3 documentation</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  <!--
+    this give us a css class that will be invisible only if js is disabled
+  -->
+  <noscript>
+    <style>
+      .pst-js-only { display: none !important; }
+
+    </style>
+  </noscript>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="../../_static/styles/theme.css?digest=18bd87630a240e9c25be" rel="stylesheet" />
+<link href="../../_static/styles/pydata-sphinx-theme.css?digest=18bd87630a240e9c25be" rel="stylesheet" />
+
+    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=03e43079" />
+    <link rel="stylesheet" type="text/css" href="../../_static/graphviz.css?v=4ae1632d" />
+    <link rel="stylesheet" type="text/css" href="../../_static/copybutton.css?v=76b2166b" />
+    <link rel="stylesheet" type="text/css" href="../../_static/sphinx-design.min.css?v=95c83b7e" />
+  
+  <!-- So that users can add custom icons -->
+  <script defer src="../../_static/scripts/fontawesome.js?digest=18bd87630a240e9c25be"></script>
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
+<link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
+
+    <script src="../../_static/documentation_options.js?v=28d163b9"></script>
+    <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
+    <script src="../../_static/copybutton.js?v=30646c52"></script>
+    <script src="../../_static/design-tabs.js?v=f930bc37"></script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'explanations/decisions/0043-public-pages-a-static-site-scrap-pushes-to';</script>
+    <script>
+        DOCUMENTATION_OPTIONS.theme_version = '0.23.0';
+        DOCUMENTATION_OPTIONS.theme_switcher_json_url = 'https://gilesknap.github.io/scrap/switcher.json';
+        DOCUMENTATION_OPTIONS.theme_switcher_version_match = '1.3.3';
+        DOCUMENTATION_OPTIONS.show_version_warning_banner =
+            false;
+        </script>
+    <script>DOCUMENTATION_OPTIONS.search_as_you_type = false;</script>
+    <link rel="icon" href="../../_static/dls-logo.svg"/>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="44. Claude’s reading in a fold, and Claude’s own images not read" href="0044-claudes-reading-in-a-fold.html" />
+    <link rel="prev" title="42. MCP clients add SVG diagrams and files to pages" href="0042-mcp-clients-add-svg-and-files.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="color-scheme" content="light dark"/>
+  <meta name="docsearch:language" content="en"/>
+  <meta name="docsearch:version" content="1.3.3" />
+  
+    
+    <script src="../../_static/searchtools.js"></script>
+    <script src="../../_static/language_data.js"></script>
+    <script src="../../searchindex.js"></script>
+  
+  </head>
+  <body data-default-mode="">
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+  
+  
+  
+  
+  <dialog id="pst-search-dialog">
+    
+<form class="bd-search d-flex align-items-center"
+      action="../../search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         placeholder="Search the docs ..."
+         aria-label="Search the docs ..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form>
+  </dialog>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+
+  
+    <header id="pst-header" class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+<div class="bd-header__inner bd-page-width">
+  <button type="button" class="pst-navbar-icon sidebar-toggle primary-toggle" aria-label="Site navigation">
+    <span class="fa-solid fa-bars"></span>
+  </button>
+  
+  
+  <div class="col-lg-3 navbar-header-items__start">
+    
+      <div class="navbar-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="../../index.html">
+  
+  
+  
+  
+  
+    
+    
+      
+    
+    
+    <img src="../../_static/dls-logo.svg" class="logo__image only-light" alt=""/>
+    <img src="../../_static/dls-logo.svg" class="logo__image only-dark pst-js-only" alt=""/>
+  
+  
+    <p class="title logo__title">scrap</p>
+  
+</a></div>
+    
+  </div>
+  
+  <div class="col-lg-9 navbar-header-items">
+    
+    <div class="me-auto navbar-header-items__center">
+      
+        <div class="navbar-item">
+<nav>
+  <ul class="bd-navbar-elements navbar-nav">
+    
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../tutorials.html">
+    Tutorials
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../how-to.html">
+    How-to Guides
+  </a>
+</li>
+
+
+<li class="nav-item current active">
+  <a class="nav-link nav-internal" href="../../explanations.html">
+    Explanations
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../reference.html">
+    Reference
+  </a>
+</li>
+
+  </ul>
+</nav></div>
+      
+    </div>
+    
+    
+    <div class="navbar-header-items__end">
+      
+        <div class="navbar-item navbar-persistent--container">
+          
+
+<button type="button" class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button>
+        </div>
+      
+      
+        <div class="navbar-item">
+
+<div class="theme-switch-container dropdown pst-js-only" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Color mode">
+  <button type="button" class="btn btn-sm nav-link pst-navbar-icon theme-switch-button dropdown-toggle" aria-label="Color mode" data-bs-toggle="dropdown">
+    <i class="theme-switch fa-solid fa-sun fa-lg fa-fw" data-mode="light" title="Light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg fa-fw" data-mode="dark" title="Dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg fa-fw" data-mode="auto" title="System Settings"></i>
+  </button>
+  <ul class="dropdown-menu dropdown-menu-end">
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="auto"><i class="fa-solid fa-circle-half-stroke fa-lg fa-fw me-1"></i>System Settings</button></li>
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="light"><i class="fa-solid fa-sun fa-lg fa-fw me-1"></i>Light</button></li>
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="dark"><i class="fa-solid fa-moon fa-lg fa-fw me-1"></i>Dark</button></li>
+  </ul>
+</div></div>
+      
+        <div class="navbar-item"><ul class="navbar-icon-links"
+    aria-label="Icon Links">
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://github.com/gilesknap/scrap" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-square-github fa-lg" aria-hidden="true"></i><span class="visually-hidden">GitHub</span></a>
+        </li>
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://pypi.org/project/scrap" title="PyPI" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fas fa-cube fa-lg" aria-hidden="true"></i><span class="visually-hidden">PyPI</span></a>
+        </li>
+</ul></div>
+      
+        <div class="navbar-item">
+<div class="version-switcher__container dropdown pst-js-only">
+  <button id="pst-version-switcher-button-2"
+    type="button"
+    class="version-switcher__button btn btn-sm dropdown-toggle"
+    data-bs-toggle="dropdown"
+    aria-haspopup="listbox"
+    aria-controls="pst-version-switcher-list-2"
+    aria-label="Version switcher list"
+  >
+    Choose version  <!-- this text may get changed later by javascript -->
+    <span class="caret"></span>
+  </button>
+  <div id="pst-version-switcher-list-2"
+    class="version-switcher__menu dropdown-menu list-group-flush py-0"
+    role="listbox" aria-labelledby="pst-version-switcher-button-2">
+    <!-- dropdown will be populated by javascript on page load -->
+  </div>
+</div></div>
+      
+    </div>
+    
+  </div>
+  
+  
+    <div class="navbar-persistent--mobile">
+
+<button type="button" class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button>
+    </div>
+  
+
+  
+    <button type="button" class="pst-navbar-icon sidebar-toggle secondary-toggle" aria-label="On this page">
+      <span class="fa-solid fa-outdent"></span>
+    </button>
+  
+</div>
+
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+      <dialog id="pst-primary-sidebar-modal"></dialog>
+      <div id="pst-primary-sidebar" class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+      <div class="sidebar-header-items__center">
+        
+          
+          
+            <div class="navbar-item">
+<nav>
+  <ul class="bd-navbar-elements navbar-nav">
+    
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../tutorials.html">
+    Tutorials
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../how-to.html">
+    How-to Guides
+  </a>
+</li>
+
+
+<li class="nav-item current active">
+  <a class="nav-link nav-internal" href="../../explanations.html">
+    Explanations
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../reference.html">
+    Reference
+  </a>
+</li>
+
+  </ul>
+</nav></div>
+          
+        
+      </div>
+    
+    
+    
+      <div class="sidebar-header-items__end">
+        
+          <div class="navbar-item">
+
+<div class="theme-switch-container dropdown pst-js-only" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Color mode">
+  <button type="button" class="btn btn-sm nav-link pst-navbar-icon theme-switch-button dropdown-toggle" aria-label="Color mode" data-bs-toggle="dropdown">
+    <i class="theme-switch fa-solid fa-sun fa-lg fa-fw" data-mode="light" title="Light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg fa-fw" data-mode="dark" title="Dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg fa-fw" data-mode="auto" title="System Settings"></i>
+  </button>
+  <ul class="dropdown-menu dropdown-menu-end">
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="auto"><i class="fa-solid fa-circle-half-stroke fa-lg fa-fw me-1"></i>System Settings</button></li>
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="light"><i class="fa-solid fa-sun fa-lg fa-fw me-1"></i>Light</button></li>
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="dark"><i class="fa-solid fa-moon fa-lg fa-fw me-1"></i>Dark</button></li>
+  </ul>
+</div></div>
+        
+          <div class="navbar-item"><ul class="navbar-icon-links"
+    aria-label="Icon Links">
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://github.com/gilesknap/scrap" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-square-github fa-lg" aria-hidden="true"></i><span class="visually-hidden">GitHub</span></a>
+        </li>
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://pypi.org/project/scrap" title="PyPI" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fas fa-cube fa-lg" aria-hidden="true"></i><span class="visually-hidden">PyPI</span></a>
+        </li>
+</ul></div>
+        
+          <div class="navbar-item">
+<div class="version-switcher__container dropdown pst-js-only">
+  <button id="pst-version-switcher-button-3"
+    type="button"
+    class="version-switcher__button btn btn-sm dropdown-toggle"
+    data-bs-toggle="dropdown"
+    aria-haspopup="listbox"
+    aria-controls="pst-version-switcher-list-3"
+    aria-label="Version switcher list"
+  >
+    Choose version  <!-- this text may get changed later by javascript -->
+    <span class="caret"></span>
+  </button>
+  <div id="pst-version-switcher-list-3"
+    class="version-switcher__menu dropdown-menu list-group-flush py-0"
+    role="listbox" aria-labelledby="pst-version-switcher-button-3">
+    <!-- dropdown will be populated by javascript on page load -->
+  </div>
+</div></div>
+        
+      </div>
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item pst-sidebar-collapse"><button type="button" id="pst-collapse-sidebar-button" aria-expanded="true" aria-controls="pst-primary-sidebar">
+  <svg class="pst-icon" role="img" aria-hidden="true" focusable="false" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
+    <path fill="currentColor" d="M3 15.5C2.36232 15.5 1.74874 15.2564 1.28478 14.8189C0.820828 14.3815 0.541576 13.7832 0.504167 13.1467L0.5 13L0.5 3C0.499965 2.36232 0.743605 1.74874 1.18107 1.28478C1.61854 0.820828 2.21676 0.541576 2.85333 0.504167L3 0.5L13 0.5C13.6377 0.499965 14.2513 0.743605 14.7152 1.18107C15.1792 1.61854 15.4584 2.21676 15.4958 2.85333L15.5 3L15.5 13C15.5 13.6377 15.2564 14.2513 14.8189 14.7152C14.3815 15.1792 13.7832 15.4584 13.1467 15.4958L13 15.5L3 15.5ZM3 13.8333L10.5 13.8333L10.5 2.16667L3 2.16667C2.79589 2.16669 2.59889 2.24163 2.44636 2.37726C2.29383 2.5129 2.19638 2.69979 2.1725 2.9025L2.16667 3L2.16667 13C2.16669 13.2041 2.24163 13.4011 2.37726 13.5536C2.5129 13.7062 2.69979 13.8036 2.9025 13.8275L3 13.8333ZM6.65583 10.325L6.5775 10.2558L4.91083 8.58917C4.76735 8.44567 4.68116 8.25476 4.66843 8.05223C4.65569 7.84971 4.71729 7.6495 4.84167 7.48917L4.91083 7.41083L6.5775 5.74417C6.72747 5.59471 6.9287 5.50794 7.14032 5.50148C7.35194 5.49502 7.55809 5.56935 7.7169 5.70937C7.8757 5.8494 7.97525 6.04463 7.99533 6.25539C8.01541 6.46616 7.95451 6.67667 7.825 6.84417L7.75583 6.9225L6.67917 8L7.75583 9.0775C7.89931 9.22099 7.98551 9.41191 7.99824 9.61443C8.01097 9.81695 7.94938 10.0172 7.825 10.1775L7.75583 10.2558C7.61234 10.3993 7.42142 10.4855 7.2189 10.4982C7.01638 10.511 6.81617 10.4494 6.65583 10.325Z"/>
+  </svg>
+  <span class="pst-collapse-sidebar-label">Collapse Sidebar</span>
+  <span class="pst-expand-sidebar-label">Expand Sidebar</span>
+</button></div>
+        <div class="sidebar-primary-item">
+
+<nav class="bd-docs-nav bd-links"
+     aria-label="Section Navigation">
+  <p class="bd-links__title" role="heading" aria-level="1">Section Navigation</p>
+  <div class="bd-toc-item navbar-nav"><ul class="current nav bd-sidenav">
+<li class="toctree-l1 current active has-children"><a class="reference internal" href="../decisions.html">Architectural Decision Records</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="0001-record-architecture-decisions.html">1. Record architecture decisions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="0002-switched-to-python-copier-template.html">2. Adopt python-copier-template for project structure</a></li>
+<li class="toctree-l2"><a class="reference internal" href="0003-one-process-sqlite-and-a-folder.html">3. One process, one SQLite database, one folder of files</a></li>
+<li class="toctree-l2"><a class="reference internal" href="0004-originals-kept-everything-else-derived.html">4. Originals are kept; everything else is derived, versioned or disposable</a></li>
+<li class="toctree-l2"><a class="reference internal" href="0005-capture-never-waits.html">5. Capture never waits: client-minted ids, an offline queue, no LLM on the save path</a></li>
+<li class="toctree-l2"><a class="reference internal" href="0006-vanilla-typescript-pwa-with-lazy-chunks.html">6. A vanilla TypeScript PWA with a size budget and lazy chunks</a></li>
+<li class="toctree-l2"><a class="reference internal" href="0007-tailscale-serve-for-access-and-identity.html">7. Tailscale Serve is the only way in; no login code</a></li>
+<li class="toctree-l2"><a class="reference internal" href="0008-search-fts5-only-for-now.html">8. Search is SQLite FTS5 with a shared query syntax; embeddings are deferred</a></li>
+<li class="toctree-l2"><a class="reference internal" href="0009-claude-ingest-via-messages-api.html">9. Claude ingest: Messages API, no tools, one structured call per photo</a></li>
+<li class="toctree-l2"><a class="reference internal" href="0010-job-queue-pauses-instead-of-failing.html">10. Queue error classes: outages pause, charged failures count, spend is capped</a></li>
+<li class="toctree-l2"><a class="reference internal" href="0011-drawings-as-skeletons-excalidraw.html">11. Whiteboards become Excalidraw drawings: model skeletons, human scenes, two sanitisers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="0012-kinds-flat-fields-and-typed-todo-columns.html">12. Page kinds with flat fields; due date and priority as typed columns</a></li>
+<li class="toctree-l2"><a class="reference internal" href="0013-mcp-server-inside-the-app.html">13. The MCP server is part of the app: streamable HTTP, add-only writes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="0014-markdown-parsed-by-a-library-on-both-sides.html">14. Page text is Markdown, parsed by a library on both sides</a></li>
+<li class="toctree-l2"><a class="reference internal" href="0015-images-in-text-and-gc.html">15. Images are embedded in the page text; <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">gc</span></code> is conservative</a></li>
+<li class="toctree-l2"><a class="reference internal" href="0016-deployment-single-server-and-helm.html">16. Deployment: rootless podman units for one server, a Helm chart for Kubernetes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="0017-thoth-vault-import-through-the-store.html">17. Import from a Thoth vault goes through <code class="docutils literal notranslate"><span class="pre">Store</span></code> and is idempotent</a></li>
+<li class="toctree-l2"><a class="reference internal" href="0018-unix-socket-for-single-server-installs.html">18. Single-server installs listen on a Unix socket, reached only through Tailscale Serve</a></li>
+<li class="toctree-l2"><a class="reference internal" href="0019-kinds-and-tags-editable-with-revisions.html">19. Kinds and tags editable over MCP, made safe by metadata revisions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="0020-text-enrichment.html">20. Text enrichment: Claude tags, summarises and relates text pages, apart from the text</a></li>
+<li class="toctree-l2"><a class="reference internal" href="0021-ingest-on-a-claude-seat-through-claude-p.html">21. Ingest on a Claude seat: <code class="docutils literal notranslate"><span class="pre">claude</span> <span class="pre">-p</span></code> with a long-lived token</a></li>
+<li class="toctree-l2"><a class="reference internal" href="0022-page-text-editable-over-mcp-with-revisions.html">22. Page text editable over MCP, made safe by text revisions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="0023-bearer-token-on-mcp-and-an-identity-header-setting.html">23. Bearer token on /mcp and an identity-header setting</a></li>
+<li class="toctree-l2"><a class="reference internal" href="0024-settings-pane-theme-overrides.html">24. A settings pane in the top bar, with theme overrides</a></li>
+<li class="toctree-l2"><a class="reference internal" href="0025-trash-and-recent-changes-over-mcp.html">25. The trash and a recent-changes feed over MCP</a></li>
+<li class="toctree-l2"><a class="reference internal" href="0026-claude-appends-task-boxes-to-a-list-of-actions.html">26. Claude appends task boxes to a list of actions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="0027-claude-write-ups-of-boards-apart-from-the-text.html">27. Claude’s write-ups of boards, apart from the text</a></li>
+<li class="toctree-l2"><a class="reference internal" href="0028-claude-maintained-topic-pages.html">28. Claude-maintained topic pages</a></li>
+<li class="toctree-l2"><a class="reference internal" href="0029-store-health-checks-as-search-filters.html">29. Store health checks as search filters; outdated write-ups are the owner’s to regenerate</a></li>
+<li class="toctree-l2"><a class="reference internal" href="0030-fewer-mcp-tools.html">30. Fewer MCP tools: recent, todos and revert_text folded away</a></li>
+<li class="toctree-l2"><a class="reference internal" href="0030-trash-purged-after-n-days.html">30. The trash is purged after N days</a></li>
+<li class="toctree-l2"><a class="reference internal" href="0031-search-orders-by-section-on-the-server.html">31. Search orders results by section on the server</a></li>
+<li class="toctree-l2"><a class="reference internal" href="0032-pins-are-a-page-of-links.html">32. Pins are an ordinary page of links</a></li>
+<li class="toctree-l2"><a class="reference internal" href="0033-who-made-a-page-is-stored.html">33. Who made a page, and where a text revision came from, are stored</a></li>
+<li class="toctree-l2"><a class="reference internal" href="0034-claude-can-move-pages-to-the-trash.html">34. Claude can move pages to the trash</a></li>
+<li class="toctree-l2"><a class="reference internal" href="0035-files-are-read-locally-for-search.html">35. Files are read locally, for search</a></li>
+<li class="toctree-l2"><a class="reference internal" href="0036-todo-values-in-a-side-table.html">36. A todo’s due date, priority and snooze are in a table of their own</a></li>
+<li class="toctree-l2"><a class="reference internal" href="0037-one-baseline-schema-for-1-0.html">37. One baseline schema for 1.0</a></li>
+<li class="toctree-l2"><a class="reference internal" href="0038-file-text-is-sent-to-claude-on-capture-bounded.html">38. File text is sent to Claude on capture, bounded</a></li>
+<li class="toctree-l2"><a class="reference internal" href="0039-generated-content-keeps-only-its-current-version.html">39. Generated content keeps only its current version</a></li>
+<li class="toctree-l2"><a class="reference internal" href="0040-search-greps-raw-text.html">40. Search greps raw text: a parameter, and a scan</a></li>
+<li class="toctree-l2"><a class="reference internal" href="0041-mcp-clients-download-under-mcp.html">41. MCP clients download files under /mcp</a></li>
+<li class="toctree-l2"><a class="reference internal" href="0042-mcp-clients-add-svg-and-files.html">42. MCP clients add SVG diagrams and files to pages</a></li>
+<li class="toctree-l2 current active"><a aria-current="page" class="current reference internal" href="#">43. Public pages: a static site scrap pushes to</a></li>
+<li class="toctree-l2"><a class="reference internal" href="0044-claudes-reading-in-a-fold.html">44. Claude’s reading in a fold, and Claude’s own images not read</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../design.html">Architecture</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../architecture/data-model.html">Data model and storage</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../architecture/capture-and-files.html">Capture, files and backup</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../architecture/claude-pipeline.html">Job queue and Claude features</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../architecture/search.html">Search</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../architecture/mcp-and-access.html">MCP server and access</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../architecture/frontend-pwa.html">The PWA</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../architecture/deployment.html">Deployment and operations</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1"><a class="reference internal" href="../design-system.html">The PWA’s design system</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../ingest.html">Claude ingest</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../llm-calls.html">What Claude is asked, per page</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../overview.html">Scope and stack</a></li>
+</ul>
+</div>
+</nav></div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+      <div class="sidebar-primary-item">
+<div id="ethical-ad-placement"
+      class="flat"
+      data-ea-publisher="readthedocs"
+      data-ea-type="readthedocs-sidebar"
+      data-ea-manual="true">
+</div></div>
+  </div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item">
+
+<nav aria-label="Breadcrumb" class="d-print-none">
+  <ul class="bd-breadcrumbs">
+    
+    <li class="breadcrumb-item breadcrumb-home">
+      <a href="../../index.html" class="nav-link" aria-label="Home">
+        <i class="fa-solid fa-home"></i>
+      </a>
+    </li>
+    
+    <li class="breadcrumb-item"><a href="../../explanations.html" class="nav-link">Explanations</a></li>
+    
+    
+    <li class="breadcrumb-item"><a href="../decisions.html" class="nav-link">Architectural Decision Records</a></li>
+    
+    <li class="breadcrumb-item active" aria-current="page"><span class="ellipsis">43. Public pages: a static site scrap pushes to</span></li>
+  </ul>
+</nav>
+</div>
+      
+    </div>
+  
+  
+</div>
+</div>
+              
+              
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <section id="public-pages-a-static-site-scrap-pushes-to">
+<h1>43. Public pages: a static site scrap pushes to<a class="headerlink" href="#public-pages-a-static-site-scrap-pushes-to" title="Link to this heading">#</a></h1>
+<p>Date: 2026-10-31 (#497)</p>
+<section id="status">
+<h2>Status<a class="headerlink" href="#status" title="Link to this heading">#</a></h2>
+<p>Accepted. Replaces the scrap-to-gist skill (#481, #484, #489), which is removed. Keeps the
+access model of <a class="reference internal" href="0007-tailscale-serve-for-access-and-identity.html"><span class="std std-doc">7. Tailscale Serve is the only way in; no login code</span></a>: scrap itself never becomes
+public.</p>
+<p>Amended 2026-11-01 (1.3.1): a reader’s theme and column width, by one script of the site’s
+own (#519), and drawings published, downloadable and opened in excalidraw.com (#520). See
+<a class="reference internal" href="#amendment-reader-preferences-and-drawings"><span class="std std-ref">Amendment: reader preferences and drawings (1.3.1, #519, #520)</span></a> at the end.</p>
+<p>Amended 2026-11-01 (1.3.2): a drawing replaces its photo, with no photo in it (#524); an SVG
+served as exactly <code class="docutils literal notranslate"><span class="pre">image/svg+xml</span></code>, so excalidraw.com opens it (#526); the site’s icons and
+header mark, scrap’s own (#527); and tables shown as the app shows them (#530). See <a class="reference internal" href="#amendment-drawings-without-the-photo-and-the-sites-icon"><span class="std std-ref">Amendment: drawings without the photo, and the site’s icon (1.3.2, #524, #526, #527, #530)</span></a> at the end.</p>
+<p>Amended 2026-11-01 (1.3.3): Mermaid diagrams drawn, light and dark, rather than as their source
+(#525), and code left as written but for scrap’s own addresses (#529). See
+<a class="reference internal" href="#amendment-mermaid-diagrams-drawn"><span class="std std-ref">Amendment: Mermaid diagrams drawn (1.3.3, #525, #529)</span></a> at the end.</p>
+</section>
+<section id="context">
+<h2>Context<a class="headerlink" href="#context" title="Link to this heading">#</a></h2>
+<p>The owner wants to show a page to anyone with its address, read only. The motivating case is a
+whiteboard photographed in a meeting, with Claude’s write-up of it. Until now the way out was the
+scrap-to-gist skill: Claude turned a page into GitHub-flavoured Markdown, worked around what GitHub
+cannot draw (<code class="docutils literal notranslate"><span class="pre">\cancel</span></code>, maths alignment), copied the images in, and made a secret gist. It needed
+<code class="docutils literal notranslate"><span class="pre">gh</span></code> with a token that can make gists, Chrome for the maths, a second Markdown renderer kept in
+step with scrap’s by hand, and it published a copy that no longer changed when the page did.</p>
+<p>scrap has no login code (<a class="reference internal" href="0007-tailscale-serve-for-access-and-identity.html"><span class="std std-doc">7. Tailscale Serve is the only way in; no login code</span></a>). Everything it
+serves is behind the tailnet or Cloudflare Access, and its API reaches every page. A public page
+must not open any path to that.</p>
+<p>The PWA already turns a page into one self-contained HTML file: Share as HTML (#485,
+<code class="docutils literal notranslate"><span class="pre">web/src/pagehtml.ts</span></code>). It reads the page’s own rendered view, by allow-list, so its output is
+the page as scrap shows it, with no script, form or server address, and only its own <code class="docutils literal notranslate"><span class="pre">&lt;style&gt;</span></code>.
+It writes maths as its TeX, because KaTeX’s markup needs CSS and fonts that the file does not
+carry.</p>
+</section>
+<section id="decision">
+<h2>Decision<a class="headerlink" href="#decision" title="Link to this heading">#</a></h2>
+<ul>
+<li><p><strong>A static site.</strong> Public pages live on a static site, <code class="docutils literal notranslate"><span class="pre">https://pages.gkcluster.org</span></code> for the
+owner, served by nginx from a separate <code class="docutils literal notranslate"><span class="pre">scrap-public</span></code> image. The same image holds a small upload
+<strong>receiver</strong>: internal only, it needs a token, and all it can do is write or delete files in the
+site’s folder. The public side has no database, no Python app of scrap’s, no login and no
+route to scrap: nobody can ask it for anything that was not deliberately written out.</p></li>
+<li><p><strong>The PWA renders; there is no second renderer.</strong> A public page is the PWA’s own view of the
+page, written out by <code class="docutils literal notranslate"><span class="pre">pagehtml.ts</span></code> in a new publish mode as one HTML file. Because it reads the
+rendered page, the public copy cannot drift from what scrap shows: tables, the Claude card, and
+maths too, since the publish mode writes each formula as <code class="docutils literal notranslate"><span class="pre">katex.renderToString</span></code> with the PWA’s
+own options (KaTeX’s exact markup, not the browser’s serialisation) rather than the TeX. The
+page’s CSS moves out of the file: it links <code class="docutils literal notranslate"><span class="pre">/assets/page.css</span></code> and <code class="docutils literal notranslate"><span class="pre">/assets/katex.css</span></code>, which
+scrap pushes with KaTeX’s fonts from its own static build, and has no <code class="docutils literal notranslate"><span class="pre">&lt;style&gt;</span></code> element. The PWA
+uploads the file to scrap (<code class="docutils literal notranslate"><span class="pre">PUT</span> <span class="pre">/api/pages/{key}/published</span></code>, with the <code class="docutils literal notranslate"><span class="pre">base_rev</span></code> it rendered);
+scrap checks it, adds the page’s files (below) and pushes the lot to the receiver. The PWA never
+talks to the receiver, and only scrap holds the token.</p></li>
+<li><p><strong>Only the owner’s PWA publishes.</strong> The publishing routes are under <code class="docutils literal notranslate"><span class="pre">/api</span></code>, the owner’s PWA
+session behind Cloudflare Access or Tailscale. They are not served under <code class="docutils literal notranslate"><span class="pre">/mcp</span></code>, so an MCP
+bearer token cannot publish HTML. <code class="docutils literal notranslate"><span class="pre">GET</span> <span class="pre">/api/public</span></code> lists the public pages (and, with
+<code class="docutils literal notranslate"><span class="pre">?links_to=</span></code>, those linking to a page) for the PWA’s link decisions and Refresh all, and
+<code class="docutils literal notranslate"><span class="pre">POST</span> <span class="pre">/api/public/rebuild</span></code> builds the index units once after a batch. The routes, their bodies
+and their errors are in the contract.</p></li>
+<li><p><strong>Turned down: a renderer in Python on the server.</strong> The first plan had scrap render public
+pages itself, from the Markdown, with the HTML download, the print view, KaTeX and SVG
+sanitising reused (#497’s first comments). It would publish without the PWA, after an MCP edit
+or a regenerated write-up. It was turned down because it is a second renderer: Markdown
+extensions, maths, task lists, embeds and the Claude card would have to be rebuilt in Python and
+kept in step with the PWA by hand, which is exactly what made the gist skill fragile. Refresh
+all (below) covers what only a server renderer would have caught.</p></li>
+<li><p><strong>The flag.</strong> <code class="docutils literal notranslate"><span class="pre">page.public</span></code>, 0 or 1 (migration <code class="docutils literal notranslate"><span class="pre">0020_public_pages.sql</span></code>), set by
+<code class="docutils literal notranslate"><span class="pre">PATCH</span> <span class="pre">/api/pages/{key}</span></code> or MCP <code class="docutils literal notranslate"><span class="pre">edit_meta(public=...)</span></code> like the other fields, so each change is
+a revision (<code class="docutils literal notranslate"><span class="pre">page_meta_rev.public_before</span></code> and <code class="docutils literal notranslate"><span class="pre">public_after</span></code>) that <code class="docutils literal notranslate"><span class="pre">revert</span></code> can undo. A page is
+made public one at a time (a request matching more than one is <code class="docutils literal notranslate"><span class="pre">422</span> <span class="pre">one_at_a_time</span></code>); pages can be
+made private in bulk. Turning it on by either route only sets the flag; turning it off
+unpublishes at once, after the change has committed. If the receiver is down then, the change
+still succeeds with <code class="docutils literal notranslate"><span class="pre">&quot;unpublish&quot;:</span> <span class="pre">&quot;pending&quot;</span></code> and reconcile finishes the deletion. Undelete and
+revert keep the flag. <code class="docutils literal notranslate"><span class="pre">published_at</span></code> is read from the kept copy (there is no column), and is
+null when there is none: the PWA then shows “Public · not published yet” (a page made public
+over MCP, by a revert or an undelete), and Refresh all publishes it, after asking. That is a
+null timestamp, not stale tracking.</p></li>
+<li><p><strong>A first publish needs the owner’s yes in the PWA.</strong> The flag can be set without the PWA
+(MCP, a revert, an undelete), but such a page reaches the site only once the owner has
+confirmed it there: Make public’s warning, or Refresh all’s question. Those alone send
+<code class="docutils literal notranslate"><span class="pre">&quot;confirmed&quot;:</span> <span class="pre">true</span></code>, and scrap refuses a publish of a page with no kept copy without it
+(<code class="docutils literal notranslate"><span class="pre">409</span> <span class="pre">unconfirmed</span></code>). A save, a tick and links coming alive pass such a page by. Without this,
+a page flagged over MCP would have gone public at its next save with no warning at all.</p></li>
+<li><p><strong>A publish re-checks the flag.</strong> Under scrap’s lock a publish reads the page again and is
+refused (<code class="docutils literal notranslate"><span class="pre">409</span> <span class="pre">not_public</span></code>) unless the page is public and not in the trash, so a render that
+raced an unpublish can never put the page back.</p></li>
+<li><p><strong>When a page is published.</strong></p>
+<ul class="simple">
+<li><p>Making a page public, after a warning shown every time (Cancel or Make public) listing
+what goes public with it: its tags, Claude’s write-up and summary, its attached files by
+name (on a topic, its synthesis, which draws on its source pages), and “Links to private
+pages show their titles as plain text.”</p></li>
+<li><p>Saving a public page in the PWA, once it has been published.</p></li>
+<li><p><strong>Links coming alive.</strong> When a page is made public or private, the PWA also renders and uploads
+again the public pages that refer to it (<code class="docutils literal notranslate"><span class="pre">GET</span> <span class="pre">/api/public?links_to=</span></code>, from scrap’s own link
+data: pages whose text or write-up links to it, and pages related to it either way; not
+the published HTML, where a link to a private page is only a label), so a label becomes a
+link, or a link a label, without anyone editing those pages.</p></li>
+<li><p><strong>Settings, “Refresh all public pages”.</strong> One action renders and uploads every public page
+again. It covers what the PWA did not see: edits over MCP, a regenerated write-up, a change in
+scrap’s look. There is no stale tracking, no outbox, no trigger and no render on the server:
+the owner presses Refresh all when he wants the site current. If any public page has never
+been published, Refresh all lists them and asks once before they go public for the first time
+(a default the owner may change).</p></li>
+<li><p><strong>Publishing needs the network.</strong> A save of a public page queued offline is saved but not
+published, with a toast: “Saved. Not published while offline: Refresh all public pages in
+Settings later.” Publishes are never queued.</p></li>
+</ul>
+</li>
+<li><p><strong>Unpublishing is immediate and done by scrap</strong>, however the flag turns off or the page leaves:
+Public turned off in the PWA or over MCP, a <code class="docutils literal notranslate"><span class="pre">revert</span></code>, or the page going to the trash. scrap
+deletes its kept copy of the page first (after the flag change or the trash has committed),
+then the page’s unit on the site, then builds the home, tag and search units again, without
+the PWA. A <code class="docutils literal notranslate"><span class="pre">revert</span></code> that turns the flag back on
+publishes nothing by itself: the page goes out the next time the PWA renders it, or on Refresh
+all. Off always takes effect at once; on waits for a render.</p></li>
+<li><p><strong>URLs.</strong> A page is at <code class="docutils literal notranslate"><span class="pre">/p/&lt;slug&gt;</span></code>, the same slug as in scrap. <code class="docutils literal notranslate"><span class="pre">/</span></code> is an index of the public
+pages with their tags, <code class="docutils literal notranslate"><span class="pre">/tags</span></code> lists the tags, and <code class="docutils literal notranslate"><span class="pre">/t/&lt;key&gt;</span></code> lists one tag’s pages. A tag’s key
+is computed in Python only, by a rule of its own (not <code class="docutils literal notranslate"><span class="pre">slug_base</span></code>, the rule for page slugs): an
+ASCII slug of the tag of at most 60 characters, <code class="docutils literal notranslate"><span class="pre">-</span></code>, and 8 hex digits of the tag’s SHA-256, so
+<code class="docutils literal notranslate"><span class="pre">personal/family</span></code> is <code class="docutils literal notranslate"><span class="pre">personal-family-1a2b3c4d</span></code>. scrap’s tags may hold spaces, <code class="docutils literal notranslate"><span class="pre">/</span></code> and letters
+outside ASCII, and two tags with the same slug still get different keys. The publish mode writes
+a tag chip’s link as <code class="docutils literal notranslate"><span class="pre">scrap-tag:&lt;tag&gt;</span></code> and scrap swaps in <code class="docutils literal notranslate"><span class="pre">/t/&lt;key&gt;</span></code>. Pagefind gives search with
+a static index, so search needs no server either; its start-up script is scrap’s own
+<code class="docutils literal notranslate"><span class="pre">pagefind/scrap-search.js</span></code>. The site is <code class="docutils literal notranslate"><span class="pre">noindex</span></code> by default (<code class="docutils literal notranslate"><span class="pre">X-Robots-Tag:</span> <span class="pre">noindex,</span> <span class="pre">nofollow</span></code>
+and a <code class="docutils literal notranslate"><span class="pre">robots.txt</span></code> of <code class="docutils literal notranslate"><span class="pre">Disallow:</span> <span class="pre">/</span></code>); the image’s <code class="docutils literal notranslate"><span class="pre">INDEXING=on</span></code> switch lifts it.</p></li>
+<li><p><strong>What a public page holds</strong>, as the contract’s “What the publish mode writes” spells out:</p>
+<ul class="simple">
+<li><p>The body as shown, Claude’s write-up and summary, and the tags (as chips linking to their
+tag pages). Mermaid diagrams went out as their source, not rendered (drawn since 1.3.3:
+<a class="reference internal" href="#amendment-mermaid-diagrams-drawn"><span class="std std-ref">Amendment: Mermaid diagrams drawn (1.3.3, #525, #529)</span></a>).</p></li>
+<li><p>Links to public pages stay links. A link to a private page becomes a plain <code class="docutils literal notranslate"><span class="pre">&lt;span&gt;</span></code> holding
+the label the owner typed, or, when there is none (a bare <code class="docutils literal notranslate"><span class="pre">[[slug]]</span></code> or address), that
+page’s title as plain text. The owner chose the title over a neutral “a private page”: it
+reads naturally, and the warning on making a page public says so.</p></li>
+<li><p>Linked from and Related keep an entry only if the other page is public; otherwise the
+entry is left out of those lists.</p></li>
+<li><p>No address of scrap’s own, and no <code class="docutils literal notranslate"><span class="pre">/api/</span></code> path, in a page’s text: the publish mode writes
+“a private link” in its place, and scrap’s check refuses text that still holds one.</p></li>
+<li><p><strong>Private titles.</strong> A private page’s title shows, as words, on the public pages that link
+to it. When a page is made private or deleted in the PWA, the PWA publishes those pages
+again. When it happens elsewhere (over MCP, by a revert, or trashed from another device), the
+title stays on them until Refresh all or their next save in the PWA: accepted, since there
+is no stale tracking. The contract says so.</p></li>
+<li><p>An image’s <code class="docutils literal notranslate"><span class="pre">alt</span></code> is published as the app has it, a file name the PWA filled in included
+(the owner’s choice; a link’s label may show a file’s name too).</p></li>
+<li><p>Left out: Claude’s notes (a photo’s description, the read text), revisions, the
+extracted text of files, and every <code class="docutils literal notranslate"><span class="pre">/api</span></code> or other private address. Since 1.3.3 a photo’s
+or PDF’s reading is published in a closed fold (<a class="reference internal" href="0044-claudes-reading-in-a-fold.html"><span class="std std-doc">ADR 44</span></a>).</p></li>
+<li><p><strong>Drawings (Excalidraw)</strong> were left out in the first version (a photo with a drawing
+published as the photo alone); 1.3.1 publishes them (<a class="reference internal" href="#amendment-reader-preferences-and-drawings"><span class="std std-ref">Amendment: reader preferences and drawings (1.3.1, #519, #520)</span></a>).</p></li>
+<li><p>External links (<code class="docutils literal notranslate"><span class="pre">http:</span></code> and <code class="docutils literal notranslate"><span class="pre">https:</span></code>) stay, except those to scrap’s own origins (hosts
+compared case-insensitively, a trailing dot removed), any URL whose path starts with
+<code class="docutils literal notranslate"><span class="pre">/api/</span></code>, and any URL with userinfo, which are refused.</p></li>
+</ul>
+</li>
+<li><p><strong>Images and attached files are files of the page, not inlined.</strong> The publish mode writes each
+<code class="docutils literal notranslate"><span class="pre">&lt;img</span> <span class="pre">src&gt;</span></code> and file link as a placeholder, <code class="docutils literal notranslate"><span class="pre">scrap-blob:&lt;sha&gt;</span></code> (the regex
+<code class="docutils literal notranslate"><span class="pre">scrap-blob:[0-9a-f]{64}</span></code>), and scrap replaces it only where it is the whole value of an <code class="docutils literal notranslate"><span class="pre">img</span></code>’s
+<code class="docutils literal notranslate"><span class="pre">src</span></code> or an <code class="docutils literal notranslate"><span class="pre">a</span></code>’s <code class="docutils literal notranslate"><span class="pre">href</span></code>; anywhere else a placeholder refuses the publish. <strong>An image’s
+original is never published:</strong> whichever element names it, it goes out as its 2048-pixel
+preview or sanitised SVG, and an <code class="docutils literal notranslate"><span class="pre">a</span></code> naming it links to that same file. Only files that are not
+images go out as stored. Each one becomes an absolute path, <code class="docutils literal notranslate"><span class="pre">/p/&lt;slug&gt;/&lt;name&gt;</span></code>, under a new
+name: <code class="docutils literal notranslate"><span class="pre">img-&lt;n&gt;-&lt;hex&gt;.jpg</span></code>, <code class="docutils literal notranslate"><span class="pre">.png</span></code> or <code class="docutils literal notranslate"><span class="pre">.svg</span></code> for an image and <code class="docutils literal notranslate"><span class="pre">file-&lt;n&gt;-&lt;hex&gt;.&lt;ext&gt;</span></code> for another
+file, where <code class="docutils literal notranslate"><span class="pre">&lt;hex&gt;</span></code> is 10 hex digits of the SHA-256 of the
+bytes published, keyed with the page’s slug (SHA-256 of slug, NUL, bytes) so a name never reveals the stored sha. Neither the stored sha nor the uploaded file name is published (a link’s label
+may still show the name). scrap copies the bytes itself: a photo’s 2048-pixel preview (EXIF and
+GPS already stripped by <code class="docutils literal notranslate"><span class="pre">preview._make</span></code>), other files as stored, and every SVG run through the
+sanitiser of <a class="reference internal" href="0042-mcp-clients-add-svg-and-files.html"><span class="std std-doc">42. MCP clients add SVG diagrams and files to pages</span></a> again at publish, since SVGs stored
+before #480 were never sanitised. An attachment is never published as HTML, script, CSS or SVG:
+an SVG attachment goes out as an image, and an unlisted type as <code class="docutils literal notranslate"><span class="pre">bin</span></code>. <code class="docutils literal notranslate"><span class="pre">pagehtml.ts</span></code> drops <code class="docutils literal notranslate"><span class="pre">svg</span></code>
+elements today, so its publish mode must keep SVG embeds, as images.</p></li>
+<li><p><strong>Caps.</strong> A page publishes at most 20 images and files, each at most 20 MiB, and at most 200 MiB
+in all (under the receiver’s 256 MiB body). Over any of them scrap refuses the publish, saying
+why, before pushing anything. The receiver allows 30 s to receive a request, so a unit must
+also be small enough to upload in that time.</p></li>
+<li><p><strong>No script on a page, checked twice.</strong> (1.3.1 allows one, the site’s own <code class="docutils literal notranslate"><span class="pre">prefs.js</span></code>:
+<a class="reference internal" href="#amendment-reader-preferences-and-drawings"><span class="std std-ref">Amendment: reader preferences and drawings (1.3.1, #519, #520)</span></a>.) The publish mode writes a fixed meta CSP into the page,
+<code class="docutils literal notranslate"><span class="pre">default-src</span> <span class="pre">'none';</span> <span class="pre">img-src</span> <span class="pre">'self'</span> <span class="pre">data:;</span> <span class="pre">style-src</span> <span class="pre">'self';</span> <span class="pre">style-src-attr</span> <span class="pre">'unsafe-inline';</span> <span class="pre">font-src</span> <span class="pre">'self'</span></code>, with no <code class="docutils literal notranslate"><span class="pre">script-src</span></code> (inline styles only as attributes, for KaTeX), and scrap
+checks it is there. scrap parses the upload with a WHATWG-conformant parser (html5lib), matches
+elements and attributes by namespace and name, and checks it against pagehtml’s allow-list
+(elements, attributes, <code class="docutils literal notranslate"><span class="pre">href</span></code> and <code class="docutils literal notranslate"><span class="pre">src</span></code> values, no <code class="docutils literal notranslate"><span class="pre">&lt;style&gt;</span></code> element, and <code class="docutils literal notranslate"><span class="pre">style</span></code> attributes
+only inside KaTeX’s markup, limited to the attributes and properties KaTeX itself writes, taken
+from <code class="docutils literal notranslate"><span class="pre">katex.mjs</span></code>). A mismatch is refused with <code class="docutils literal notranslate"><span class="pre">422</span></code>; scrap never cleans the HTML. The <code class="docutils literal notranslate"><span class="pre">katex</span></code>
+class gate is visual hygiene, not a security boundary: the boundary is the CSP with
+<code class="docutils literal notranslate"><span class="pre">script-src</span> <span class="pre">'none'</span></code>, the allow-list, and an upload reachable only from the owner’s PWA
+session. nginx sends <code class="docutils literal notranslate"><span class="pre">script-src</span> <span class="pre">'none'</span></code> on everything under <code class="docutils literal notranslate"><span class="pre">/p/</span></code> and <code class="docutils literal notranslate"><span class="pre">/t/</span></code>; only the home
+page may run a script, Pagefind’s. The receiver limits what each unit may hold: a page only its
+<code class="docutils literal notranslate"><span class="pre">index.html</span></code>, <code class="docutils literal notranslate"><span class="pre">img-*</span></code> and <code class="docutils literal notranslate"><span class="pre">file-*</span></code>; <code class="docutils literal notranslate"><span class="pre">.js</span></code> and <code class="docutils literal notranslate"><span class="pre">.wasm</span></code> only in <code class="docutils literal notranslate"><span class="pre">pagefind</span></code>; CSS and fonts only in
+<code class="docutils literal notranslate"><span class="pre">assets</span></code>; a tag unit only its <code class="docutils literal notranslate"><span class="pre">index.html</span></code>, and <code class="docutils literal notranslate"><span class="pre">home</span></code> only one-segment HTML files.</p></li>
+<li><p><strong>scrap keeps what it pushed.</strong> For each public page scrap keeps the unit as last pushed under
+<code class="docutils literal notranslate"><span class="pre">&lt;data&gt;/cache/publish/p/&lt;slug&gt;/</span></code>: <code class="docutils literal notranslate"><span class="pre">index.html</span></code>, its <code class="docutils literal notranslate"><span class="pre">img-*</span></code> and <code class="docutils literal notranslate"><span class="pre">file-*</span></code>, and <code class="docutils literal notranslate"><span class="pre">meta.json</span></code> (the
+page’s id, title, tags at publish time and <code class="docutils literal notranslate"><span class="pre">published_at</span></code>). It
+is derived data, not backed up; a copy is damaged when its files’ digest no longer matches the
+digest scrap last pushed. From these copies, and nothing else, scrap builds the
+home page (newest <code class="docutils literal notranslate"><span class="pre">published_at</span></code> first), the tag pages and the Pagefind index (the
+<code class="docutils literal notranslate"><span class="pre">pagefind[bin]</span></code> Python package, at a pinned version), with plain Python templates and no
+Markdown. Pagefind indexes each page with its KaTeX markup removed and the formula’s TeX in its
+place. Builds are deterministic (sorted order, no timestamps), so an unchanged unit keeps its
+digest.</p></li>
+<li><p><strong>Reconciling</strong>, at startup and every 10 minutes, in this order: <strong>prune</strong> the kept copies (and
+their units) of pages that are not public or are in the trash, and of damaged copies; <strong>build</strong>
+every derived unit (home, the tag pages, search, assets) fresh from the copies that remain,
+which also picks up a new KaTeX, new templates or a new Pagefind after an upgrade; <strong>push</strong>
+every unit that is missing from the receiver’s manifest or differs (page units from their kept
+bytes, compared with the digest scrap stored; derived units from the fresh build); then
+<strong>sync</strong>, deleting any stray. Nothing is rendered, so a site that lost its files is refilled
+without the PWA or a restart. A page whose damaged copy was pruned comes back on the next
+Refresh all.</p></li>
+<li><p><strong>One lock in scrap.</strong> Every publish, unpublish and reconcile step runs under a single lock,
+and reconcile reads the kept copies again under it before each push, so an unpublish can never
+be undone by a reconcile that read the copy just before it was deleted. The receiver has its
+own lock over its writes.</p></li>
+<li><p><strong>The receiver contract</strong> is fixed in <a class="reference internal" href="../../reference/public-site.html"><span class="std std-doc">Public site</span></a>, the one source of
+truth for both sides. In short: HTTP/1.1 with a bearer token of at least 32 characters; the
+site is made of <strong>units</strong> (a page <code class="docutils literal notranslate"><span class="pre">p/&lt;slug&gt;</span></code>, a tag <code class="docutils literal notranslate"><span class="pre">t/&lt;key&gt;</span></code>, <code class="docutils literal notranslate"><span class="pre">home</span></code>, <code class="docutils literal notranslate"><span class="pre">pagefind</span></code> and <code class="docutils literal notranslate"><span class="pre">assets</span></code>),
+each replaced whole by a <code class="docutils literal notranslate"><span class="pre">PUT</span></code> of a tar and swapped in atomically, or removed by an idempotent
+<code class="docutils literal notranslate"><span class="pre">DELETE</span></code>; <code class="docutils literal notranslate"><span class="pre">POST</span> <span class="pre">/v1/sync</span></code> deletes every unit not in a list; <code class="docutils literal notranslate"><span class="pre">GET</span> <span class="pre">/v1/manifest</span></code> says what is
+there. Paths, file names, sizes and the site’s total are checked strictly, and a digest over
+the files catches a damaged upload.</p></li>
+<li><p><strong>Kubernetes first.</strong> The chart gets a <code class="docutils literal notranslate"><span class="pre">public</span></code> section, off by default:</p>
+<ul class="simple">
+<li><p>a <code class="docutils literal notranslate"><span class="pre">scrap-public</span></code> namespace under Pod Security <code class="docutils literal notranslate"><span class="pre">restricted</span></code>;</p></li>
+<li><p>a NetworkPolicy per port: nginx’s port (8080) takes traffic from the chart’s
+<code class="docutils literal notranslate"><span class="pre">public.networkPolicy.webFrom</span></code>, the receiver’s port (8081) only from scrap’s pods, and the
+public pods have no egress at all. <code class="docutils literal notranslate"><span class="pre">webFrom</span></code> defaults to <code class="docutils literal notranslate"><span class="pre">[]</span></code>, which admits anyone to nginx’s
+port (it is the public side); set it to narrow that to the ingress controller;</p></li>
+<li><p>the token in a Secret the chart names but never creates (as for scrap’s other secrets),
+mounted as a file in both scrap and the receiver;</p></li>
+<li><p>nginx alone behind an Ingress; the receiver has a cluster-internal Service only,
+<code class="docutils literal notranslate"><span class="pre">&lt;fullname&gt;-receiver</span></code> (<code class="docutils literal notranslate"><span class="pre">http://scrap-receiver.scrap-public.svc:8081</span></code> for a release named
+<code class="docutils literal notranslate"><span class="pre">scrap</span></code>);</p></li>
+<li><p>the site in an <code class="docutils literal notranslate"><span class="pre">emptyDir</span></code> shared by nginx (read only) and the receiver: a restarted pod comes
+back empty and scrap’s reconcile fills it again, with no Refresh all.</p></li>
+</ul>
+<p>The single-server install (a second rootless podman service under its own user, the receiver on
+a Unix socket, the pattern of <a class="reference internal" href="0018-unix-socket-for-single-server-installs.html"><span class="std std-doc">18. Single-server installs listen on a Unix socket, reached only through Tailscale Serve</span></a>) is later
+work in a follow-up issue.</p>
+</li>
+<li><p><strong>Unpublishing and caches.</strong> A delete removes the page from the site, from the home and tag pages
+and from the search index. HTML is served <code class="docutils literal notranslate"><span class="pre">no-cache</span></code>, so a browser or proxy asks again before
+showing it; other files are <code class="docutils literal notranslate"><span class="pre">public,</span> <span class="pre">max-age=300</span></code>, so a copy can live up to five minutes more.
+Nothing can reach copies people saved, or caches outside the site’s control. The docs say so
+plainly.</p></li>
+<li><p><strong>Headers.</strong> The home page’s HTML gets a strict CSP that allows only scripts from the site
+(Pagefind’s and <code class="docutils literal notranslate"><span class="pre">scrap-search.js</span></code>; there is no inline script), with <code class="docutils literal notranslate"><span class="pre">connect-src</span> <span class="pre">'self'</span></code> for the
+index Pagefind fetches. Pages and tag pages get <code class="docutils literal notranslate"><span class="pre">script-src</span> <span class="pre">'none'</span></code>, and styles only from
+<code class="docutils literal notranslate"><span class="pre">/assets/</span></code> plus KaTeX’s style attributes (<code class="docutils literal notranslate"><span class="pre">style-src</span> <span class="pre">'self';</span> <span class="pre">style-src-attr</span> <span class="pre">'unsafe-inline'</span></code>).
+A page’s images and files get the headers ADR 42 gives stored files: a sandboxing CSP that
+loads nothing, and for a PDF <code class="docutils literal notranslate"><span class="pre">sandbox</span></code> alone, so a browser’s PDF viewer works.</p></li>
+<li><p><strong>The scrap-to-gist skill is removed</strong> from the repo: <code class="docutils literal notranslate"><span class="pre">skills/scrap-to-gist/</span></code>, its tests, its
+<code class="docutils literal notranslate"><span class="pre">install.sh</span></code> entry and its docs. <code class="docutils literal notranslate"><span class="pre">install.sh</span></code> does not delete a copy already installed in
+<code class="docutils literal notranslate"><span class="pre">~/.claude/skills/scrap-to-gist</span></code>: it is the owner’s to remove.</p></li>
+</ul>
+</section>
+<section id="consequences">
+<h2>Consequences<a class="headerlink" href="#consequences" title="Link to this heading">#</a></h2>
+<ul class="simple">
+<li><p>A page can be shown to anyone without scrap being reachable: the internet reaches only nginx
+serving files, and the receiver accepts only scrap. A bug in scrap’s API cannot leak through
+the public site, which holds only what was pushed to it.</p></li>
+<li><p>A public page looks as it does in scrap, maths included, with no second renderer to keep in
+step.</p></li>
+<li><p>The site is only as current as the last render. A page edited over MCP, or whose write-up was
+regenerated, keeps its old public copy until it is saved in the PWA or Refresh all is pressed.
+Unpublishing never waits.</p></li>
+<li><p>Publishing needs the PWA open on the owner’s device; MCP can set the flag, but not render.</p></li>
+<li><p>Tags, Claude’s write-up and the summary are public with the page.</p></li>
+<li><p>A public page that links to a page unpublished without the PWA’s re-render (over MCP, by a
+revert or by the trash) keeps a live link to a 404, and a page’s title stays on the public
+pages linking to it after it is made private or trashed that way, until Refresh all, the
+PWA’s re-render of linking pages, or that page’s next save. That is accepted: there is no
+stale tracking. Make private, and deleting a page, in the PWA re-render them at once.</p></li>
+<li><p>If the receiver can’t be told at once, Make private says the page comes off “shortly”
+(<code class="docutils literal notranslate"><span class="pre">&quot;unpublish&quot;:</span> <span class="pre">&quot;pending&quot;</span></code>), and reconcile finishes it.</p></li>
+<li><p>A public page’s photos are its 2048-pixel previews, and at most 20 images, drawings and files
+go with it.</p></li>
+<li><p>Any change to what <code class="docutils literal notranslate"><span class="pre">pagehtml.ts</span></code> writes in publish mode must keep to the allow-list scrap
+checks, or publishing fails with <code class="docutils literal notranslate"><span class="pre">422</span></code>: the two change together.</p></li>
+<li><p>The site can be lost and rebuilt at any time; scrap’s data folder holds the copy that matters.</p></li>
+<li><p>scrap gains settings for the push (<code class="docutils literal notranslate"><span class="pre">SCRAP_PUBLISH_TO</span></code>, <code class="docutils literal notranslate"><span class="pre">SCRAP_PUBLISH_SITE</span></code>,
+<code class="docutils literal notranslate"><span class="pre">SCRAP_PUBLISH_TOKEN_FILE</span></code>: the token only from a file); without them the feature is off.</p></li>
+<li><p>CI builds and publishes a second image, <code class="docutils literal notranslate"><span class="pre">scrap-public</span></code>, beside scrap’s, and scrap gains the
+<code class="docutils literal notranslate"><span class="pre">pagefind[bin]</span></code> dependency.</p></li>
+<li><p>The gist workflow goes: no <code class="docutils literal notranslate"><span class="pre">gh</span></code> token with the <code class="docutils literal notranslate"><span class="pre">gist</span></code> scope, no headless Chrome, no second
+Markdown renderer. Gists already made stay as they are.</p></li>
+</ul>
+</section>
+<section id="amendment-reader-preferences-and-drawings-1-3-1-519-520">
+<span id="amendment-reader-preferences-and-drawings"></span><h2>Amendment: reader preferences and drawings (1.3.1, #519, #520)<a class="headerlink" href="#amendment-reader-preferences-and-drawings-1-3-1-519-520" title="Link to this heading">#</a></h2>
+<p>Public pages went live at <code class="docutils literal notranslate"><span class="pre">pages.gkcluster.org</span></code>, and two things were missing: readers could not
+choose a theme (a phone in dark mode always got dark pages), and drawings, the point of a
+whiteboard page, were left out. The owner decided both on 1 Nov 2026.</p>
+<section id="reader-preferences-one-script-of-the-site-s-own-519">
+<h3>Reader preferences: one script of the site’s own (#519)<a class="headerlink" href="#reader-preferences-one-script-of-the-site-s-own-519" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><strong>Light by default.</strong> A public page is light, whatever the device’s <code class="docutils literal notranslate"><span class="pre">prefers-color-scheme</span></code>
+(the build leaves that default out of the site’s <code class="docutils literal notranslate"><span class="pre">page.css</span></code>); dark only when the reader chose
+it. With JavaScript off, a page is light.</p></li>
+<li><p><strong>One static script, <code class="docutils literal notranslate"><span class="pre">/assets/prefs.js</span></code>,</strong> built with the PWA and pushed by scrap in the
+<code class="docutils literal notranslate"><span class="pre">assets</span></code> unit. It sets the kept theme (<code class="docutils literal notranslate"><span class="pre">data-theme=&quot;dark&quot;</span></code>) and column width (<code class="docutils literal notranslate"><span class="pre">--column</span></code>, the
+app’s four widths, 720 to 960 px, 800 by default) on <code class="docutils literal notranslate"><span class="pre">&lt;html&gt;</span></code>, and adds two quiet buttons to the
+site’s header: a sun or moon (“Dark theme”, pressed while dark) and the width, cycling. Every
+page, tag page, home and the 404 load it from <code class="docutils literal notranslate"><span class="pre">&lt;head&gt;</span></code> as <code class="docutils literal notranslate"><span class="pre">&lt;script</span> <span class="pre">src=&quot;/assets/prefs.js&quot;</span> <span class="pre">defer</span> <span class="pre">blocking=&quot;render&quot;&gt;</span></code>: deferred, and render-blocking where the browser supports it (Chromium
+today), so a kept dark theme is on before the first paint, with no flash; elsewhere a reader
+who chose dark may see one light frame. The owner chose <code class="docutils literal notranslate"><span class="pre">defer</span></code> (or <code class="docutils literal notranslate"><span class="pre">async</span></code>) over a
+parser-blocking script. The buttons are made by the script, so
+without it there are none.</p></li>
+<li><p><strong>The CSP relaxation.</strong> Pages and tag pages go from <code class="docutils literal notranslate"><span class="pre">script-src</span> <span class="pre">'none'</span></code> to <code class="docutils literal notranslate"><span class="pre">script-src</span> <span class="pre">'self'</span></code>, in nginx’s header and the page’s meta CSP. That is what it costs, and why it is
+bounded: there is still no inline script anywhere (no <code class="docutils literal notranslate"><span class="pre">'unsafe-inline'</span></code>), so markup that slipped
+into a page could not run; scrap’s check still refuses every <code class="docutils literal notranslate"><span class="pre">&lt;script&gt;</span></code> but exactly <code class="docutils literal notranslate"><span class="pre">prefs.js</span></code>
+(<code class="docutils literal notranslate"><span class="pre">defer</span></code> or <code class="docutils literal notranslate"><span class="pre">async</span></code>, <code class="docutils literal notranslate"><span class="pre">blocking=&quot;render&quot;</span></code>, nothing else); the receiver still refuses <code class="docutils literal notranslate"><span class="pre">.js</span></code> in
+page, tag and home units, and allows it in <code class="docutils literal notranslate"><span class="pre">assets</span></code> for <code class="docutils literal notranslate"><span class="pre">prefs.js</span></code> alone, so the only scripts
+<code class="docutils literal notranslate"><span class="pre">'self'</span></code> can name are that file and Pagefind’s, all built by scrap. A <code class="docutils literal notranslate"><span class="pre">sha256-</span></code> hash of
+<code class="docutils literal notranslate"><span class="pre">prefs.js</span></code> was considered on top and not added: a hash source allows an external script only
+with an <code class="docutils literal notranslate"><span class="pre">integrity</span></code> attribute and only in some browsers, <code class="docutils literal notranslate"><span class="pre">'self'</span></code> allows it anyway, and the
+hash would tie the image’s nginx configuration to each scrap build.</p></li>
+<li><p><strong>Turned down:</strong> an inline script (needs <code class="docutils literal notranslate"><span class="pre">'unsafe-inline'</span></code> or a per-page hash), and a theme in
+CSS alone (no memory across pages).</p></li>
+</ul>
+</section>
+<section id="drawings-an-svg-that-is-also-the-scene-520">
+<h3>Drawings: an SVG that is also the scene (#520)<a class="headerlink" href="#drawings-an-svg-that-is-also-the-scene-520" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><strong>The PWA draws them.</strong> scrap has no renderer of drawings: the PWA’s publish mode draws each
+drawing on the page with Excalidraw’s <code class="docutils literal notranslate"><span class="pre">exportToSvg</span></code>, as the page view does, on white with its
+fonts inlined and <code class="docutils literal notranslate"><span class="pre">exportEmbedScene</span></code> on, so the one SVG is both the picture and the editable
+scene. A drawing of a photo has the photo under it (its 2048-pixel preview), so the file opens
+as the drawing over its whiteboard. Excalidraw’s chunk loads only when publishing a page that
+has drawings; the app shell does not grow. The PWA reads each SVG back with Excalidraw’s own
+<code class="docutils literal notranslate"><span class="pre">loadFromBlob</span></code> before sending it.</p></li>
+<li><p><strong>The upload carries them:</strong> <code class="docutils literal notranslate"><span class="pre">PUT</span> <span class="pre">/api/pages/{key}/published</span></code> gains <code class="docutils literal notranslate"><span class="pre">drawings:</span> <span class="pre">[{key,</span> <span class="pre">svg}]</span></code>,
+and the HTML names each as <code class="docutils literal notranslate"><span class="pre">scrap-drawing:&lt;id&gt;</span></code> (its <code class="docutils literal notranslate"><span class="pre">img</span></code>, and a download link) and
+<code class="docutils literal notranslate"><span class="pre">scrap-excalidraw:&lt;id&gt;</span></code> (Open in Excalidraw).</p></li>
+<li><p><strong>scrap cleans every one</strong>, never trusting it: exactly one Excalidraw scene block, in
+Excalidraw’s own markers and encoding, decoded and kept by an allow-list; every embedded image
+only if its bytes are one of the page’s photos, and then as that photo’s 2048-pixel preview
+(no original bytes, no EXIF or GPS), else dropped; every text, and every link, by the page
+text’s and links’ rules (no address of scrap’s own, no <code class="docutils literal notranslate"><span class="pre">/api/</span></code>, no private page); then the SVG
+through the SVG sanitiser of <a class="reference internal" href="0042-mcp-clients-add-svg-and-files.html"><span class="std std-doc">42. MCP clients add SVG diagrams and files to pages</span></a>, its drawn images and
+text cleaned the same way, and the cleaned scene put back. It goes out as <code class="docutils literal notranslate"><span class="pre">img-&lt;n&gt;-&lt;hex&gt;.svg</span></code>,
+under the image CSP that runs and loads nothing, and counts toward the 20 files and 200 MiB.</p></li>
+<li><p><strong>No separate <code class="docutils literal notranslate"><span class="pre">.excalidraw</span></code> file</strong> (the issue’s first design): the SVG already carries the
+scene, so the receiver needs no new type and there is one file to clean, not two.</p></li>
+<li><p><strong>Photo | Drawing tabs in CSS alone</strong>, as the app’s: two radio inputs and their labels, which
+scrap’s check allows in exactly that form (<code class="docutils literal notranslate"><span class="pre">type=&quot;radio&quot;</span></code>, names and ids <code class="docutils literal notranslate"><span class="pre">pair-&lt;n&gt;…</span></code>, a
+<code class="docutils literal notranslate"><span class="pre">role=&quot;radiogroup&quot;</span></code> div) and nothing else form-like. Without <code class="docutils literal notranslate"><span class="pre">:has()</span></code> both show.</p></li>
+<li><p><strong>Open in Excalidraw.</strong> The page links each drawing to
+<code class="docutils literal notranslate"><span class="pre">https://excalidraw.com/#url=&lt;the</span> <span class="pre">SVG's</span> <span class="pre">address</span> <span class="pre">on</span> <span class="pre">the</span> <span class="pre">site&gt;</span></code> (in a new tab), which
+excalidraw.com fetches in the reader’s browser and opens as a file: nothing is uploaded to
+Excalidraw. nginx sends <code class="docutils literal notranslate"><span class="pre">Access-Control-Allow-Origin:</span> <span class="pre">https://excalidraw.com</span></code> on a page’s SVG
+images only, for that fetch. scrap writes the link itself from the site’s <code class="docutils literal notranslate"><span class="pre">https</span></code> address, so it
+can name nothing but the drawing. <code class="docutils literal notranslate"><span class="pre">#url=</span></code> is undocumented on Excalidraw’s side and could change;
+<strong>Download</strong> (“Download, then open in excalidraw.com to edit” where there is no Open link)
+stays as the fallback.</p></li>
+<li><p><strong>The warning</strong> on Make public lists “its N drawings, downloadable” when the page has any.</p></li>
+</ul>
+</section>
+<section id="consequences-of-the-amendment">
+<h3>Consequences of the amendment<a class="headerlink" href="#consequences-of-the-amendment" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p>Pages and tag pages run one script, the site’s own; the attack surface is that file and the
+receiver’s refusal of any other.</p></li>
+<li><p>A reader’s theme and width are kept per browser; there is no account and nothing is sent.</p></li>
+<li><p>A whiteboard page shows its drawing, and anyone can download it, or open it on excalidraw.com,
+as an editable scene with the photo at preview size. Drawing elements’ text and links are
+published as cleaned, like the page’s own text.</p></li>
+<li><p>Publishing a page with drawings loads Excalidraw in the PWA and takes longer; a drawing that
+cannot be drawn fails the publish rather than going out half made.</p></li>
+</ul>
+</section>
+</section>
+<section id="amendment-drawings-without-the-photo-and-the-site-s-icon-1-3-2-524-526-527-530">
+<span id="amendment-drawings-without-the-photo-and-the-sites-icon"></span><h2>Amendment: drawings without the photo, and the site’s icon (1.3.2, #524, #526, #527, #530)<a class="headerlink" href="#amendment-drawings-without-the-photo-and-the-site-s-icon-1-3-2-524-526-527-530" title="Link to this heading">#</a></h2>
+<p>Date: 2026-11-01</p>
+<section id="a-drawing-replaces-its-photo-524">
+<h3>A drawing replaces its photo (#524)<a class="headerlink" href="#a-drawing-replaces-its-photo-524" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><strong>The drawing alone.</strong> In the app a photo’s drawing replaces the photo in its Drawing tab; it
+is not an overlay. 1.3.1 published the drawing over the photo’s preview, which made it hard to
+read. The PWA now draws it as the app’s Drawing tab does, framed as the photo is, with no photo
+under it. The Photo tab still shows the photo.</p></li>
+<li><p><strong>No photo in the scene either</strong> (the owner’s decision, 1 Nov 2026): the scene opened in
+Excalidraw is the drawing, as in the app, not the drawing on its whiteboard. So the one SVG is
+right for showing, opening and downloading, and no second file is needed.</p></li>
+<li><p><strong>scrap keeps no image in a drawing.</strong> The cleaner drops every image element and file from the
+scene, and every <code class="docutils literal notranslate"><span class="pre">&lt;image&gt;</span></code>, <code class="docutils literal notranslate"><span class="pre">&lt;feImage&gt;</span></code> and image symbol from the picture, whatever they are:
+a drawing sent by 1.3.1’s PWA, the photo under it, comes out as the drawing alone. Matching
+images to the page’s photos by their bytes is no longer needed, so it is gone, and no photo
+bytes, original or preview, can go out in a drawing.</p></li>
+</ul>
+</section>
+<section id="an-svg-is-exactly-image-svg-xml-526">
+<h3>An SVG is exactly <code class="docutils literal notranslate"><span class="pre">image/svg+xml</span></code> (#526)<a class="headerlink" href="#an-svg-is-exactly-image-svg-xml-526" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><strong>The cause.</strong> excalidraw.com opens <code class="docutils literal notranslate"><span class="pre">#url=</span></code> with <code class="docutils literal notranslate"><span class="pre">loadFromBlob</span></code>, which takes a file as an SVG
+only if the Blob’s type is exactly <code class="docutils literal notranslate"><span class="pre">image/svg+xml</span></code>. nginx sent <code class="docutils literal notranslate"><span class="pre">image/svg+xml;</span> <span class="pre">charset=utf-8</span></code>,
+so the browser’s Blob type had the parameter, Excalidraw read the SVG as JSON, and refused it
+(“doesn’t contain valid Excalidraw JSON data”). The test in 1.3.1 built its Blob by hand, with
+the exact type, so it passed.</p></li>
+<li><p><strong>The fix.</strong> nginx adds no <code class="docutils literal notranslate"><span class="pre">charset</span></code> to SVG (an SVG is XML, UTF-8 unless it says otherwise).
+The e2e test now fetches the published SVG from the site in the browser, as excalidraw.com
+does, and opens that Blob with <code class="docutils literal notranslate"><span class="pre">loadFromBlob</span></code>.</p></li>
+<li><p><strong>Turned down:</strong> a sibling <code class="docutils literal notranslate"><span class="pre">.excalidraw</span></code> file for Open in Excalidraw. With the type fixed the
+SVG opens as it is, and without the photo there is nothing the SVG cannot carry.</p></li>
+</ul>
+</section>
+<section id="the-site-s-icon-527">
+<h3>The site’s icon (#527)<a class="headerlink" href="#the-site-s-icon-527" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><strong>scrap’s own icons</strong>, <code class="docutils literal notranslate"><span class="pre">icon.svg</span></code> and <code class="docutils literal notranslate"><span class="pre">icon-192.png</span></code> from the PWA, are in the <code class="docutils literal notranslate"><span class="pre">assets</span></code> unit,
+and every page the site serves names them in <code class="docutils literal notranslate"><span class="pre">&lt;head&gt;</span></code>:
+<code class="docutils literal notranslate"><span class="pre">&lt;link</span> <span class="pre">rel=&quot;icon&quot;</span> <span class="pre">href=&quot;/assets/icon.svg&quot;</span> <span class="pre">type=&quot;image/svg+xml&quot;&gt;</span></code> and
+<code class="docutils literal notranslate"><span class="pre">&lt;link</span> <span class="pre">rel=&quot;apple-touch-icon&quot;</span> <span class="pre">href=&quot;/assets/icon-192.png&quot;&gt;</span></code>. scrap’s check allows exactly
+these two links; the receiver allows exactly these two files, at the top of <code class="docutils literal notranslate"><span class="pre">assets</span></code> only, so
+<code class="docutils literal notranslate"><span class="pre">icon.svg</span></code> is the only SVG there, and it goes out under the image CSP.</p></li>
+<li><p><strong><code class="docutils literal notranslate"><span class="pre">/favicon.ico</span></code></strong>, which browsers ask for on their own, is a <code class="docutils literal notranslate"><span class="pre">302</span></code> to <code class="docutils literal notranslate"><span class="pre">/assets/icon.svg</span></code>
+rather than a <code class="docutils literal notranslate"><span class="pre">404</span></code>, so an image or PDF opened alone has the icon too.</p></li>
+<li><p><strong>The scrap mark in the header</strong> (the owner chose “mark + name” from a mock): <code class="docutils literal notranslate"><span class="pre">icon.svg</span></code> at
+about the line’s height, left of the site’s name on a page and of “Pages · Tags” on the
+site’s own pages. It is <code class="docutils literal notranslate"><span class="pre">page.css</span></code> alone (a <code class="docutils literal notranslate"><span class="pre">::before</span></code> background, <code class="docutils literal notranslate"><span class="pre">img-src</span> <span class="pre">'self'</span></code>), so no
+markup, check or receiver change. A long name is cut with “…” rather than wrapping under the
+switches.</p></li>
+</ul>
+</section>
+<section id="tables-as-the-app-s-530">
+<h3>Tables as the app’s (#530)<a class="headerlink" href="#tables-as-the-app-s-530" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p>A published table looked unlike the app’s and broke words (“Dem/o” even at an 880 px
+column): the page’s <code class="docutils literal notranslate"><span class="pre">overflow-wrap:</span> <span class="pre">anywhere</span></code> reached into it, so its first column could
+shrink to a letter while the long cells filled the column. <code class="docutils literal notranslate"><span class="pre">page.css</span></code> now has the app’s table rules: the table in its own box that scrolls sideways
+(the page never does), sized to its content, a shaded header row, the app’s smaller text and
+padding, and words kept whole. The markup was already the app’s (<code class="docutils literal notranslate"><span class="pre">&lt;div</span> <span class="pre">class=&quot;table&quot;&gt;</span></code>), so
+nothing else changes.</p></li>
+</ul>
+</section>
+<section id="consequences-of-the-1-3-2-amendment">
+<h3>Consequences of the 1.3.2 amendment<a class="headerlink" href="#consequences-of-the-1-3-2-amendment" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p>A published drawing shows and opens as the app shows it, without its whiteboard: a reader who
+wants the photo has the Photo tab. Pages published by 1.3.1 keep the overlay until the owner
+presses Refresh all after the deploy.</p></li>
+<li><p>The scrap-public image changes (nginx’s types, the receiver’s <code class="docutils literal notranslate"><span class="pre">assets</span></code> rule), so both images
+ship together, as before.</p></li>
+</ul>
+</section>
+</section>
+<section id="amendment-mermaid-diagrams-drawn-1-3-3-525-529">
+<span id="amendment-mermaid-diagrams-drawn"></span><h2>Amendment: Mermaid diagrams drawn (1.3.3, #525, #529)<a class="headerlink" href="#amendment-mermaid-diagrams-drawn-1-3-3-525-529" title="Link to this heading">#</a></h2>
+<p>A public page should look like the private one, and the app draws Mermaid diagrams. The owner
+approved the design on a mock, 1 Nov 2026.</p>
+<ul class="simple">
+<li><p><strong>The PWA draws them, as drawings (#520).</strong> The publish mode draws each diagram with the
+app’s own Mermaid (its lazy chunk, loaded only for a page with one) and options, plus SVG
+labels (<code class="docutils literal notranslate"><span class="pre">htmlLabels:</span> <span class="pre">false</span></code>: no <code class="docutils literal notranslate"><span class="pre">foreignObject</span></code>, so the sanitiser keeps the words), the font
+stack named and a size from the <code class="docutils literal notranslate"><span class="pre">viewBox</span></code>, and sends the SVGs beside the page as
+<code class="docutils literal notranslate"><span class="pre">diagrams:</span> <span class="pre">[{key,</span> <span class="pre">light,</span> <span class="pre">dark}]</span></code>. The app shell does not grow.</p></li>
+<li><p><strong>Light and dark, by CSS.</strong> Mermaid bakes its colours in, so each diagram is drawn twice
+(Mermaid’s <code class="docutils literal notranslate"><span class="pre">neutral</span></code> and <code class="docutils literal notranslate"><span class="pre">dark</span></code> themes, as the app) and the page holds both <code class="docutils literal notranslate"><span class="pre">img</span></code>s
+(<code class="docutils literal notranslate"><span class="pre">scrap-diagram:&lt;n&gt;-light</span></code>, <code class="docutils literal notranslate"><span class="pre">-dark</span></code>) in a <code class="docutils literal notranslate"><span class="pre">figure.diagram</span></code>; <code class="docutils literal notranslate"><span class="pre">page.css</span></code> shows the one for the
+page’s theme, light by default and with no script. The hidden one costs a download of about
+20 kB. Each counts toward the 20-file cap as an image.</p></li>
+<li><p><strong>scrap trusts neither SVG</strong>: each goes through the SVG sanitiser, its text and attributes
+are scrubbed of scrap’s own addresses, and a <code class="docutils literal notranslate"><span class="pre">&lt;style&gt;</span></code> naming one is refused. The page CSP,
+the image CSP and the receiver are unchanged (<code class="docutils literal notranslate"><span class="pre">img-*.svg</span></code> files, as drawings).</p></li>
+<li><p><strong>No Source fold</strong> (the owner’s choice, as the app has none). Search reads the diagram’s
+words from its light SVG instead, so a node’s label is found, and nothing shows twice.</p></li>
+<li><p><strong>A diagram Mermaid cannot draw so</strong> goes out as its source, as before.</p></li>
+<li><p><strong>Code is left as written (#529).</strong> In a code block and in a diagram, only scrap’s own
+addresses (its hosts, <code class="docutils literal notranslate"><span class="pre">/api/blobs/</span></code>) become “a private link”; other <code class="docutils literal notranslate"><span class="pre">/api/...</span></code> paths are the
+code’s own text (<code class="docutils literal notranslate"><span class="pre">API[/api/captures/]</span></code> stays, so a diagram’s source still parses). scrap’s
+check, which refuses only those addresses, is unchanged.</p></li>
+</ul>
+</section>
+</section>
+
+
+                </article>
+              
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+    <a class="left-prev"
+       href="0042-mcp-clients-add-svg-and-files.html"
+       title="previous page">
+      <i class="fa-solid fa-angle-left"></i>
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">previous</p>
+        <p class="prev-next-title">42. MCP clients add SVG diagrams and files to pages</p>
+      </div>
+    </a>
+    <a class="right-next"
+       href="0044-claudes-reading-in-a-fold.html"
+       title="next page">
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">next</p>
+        <p class="prev-next-title">44. Claude’s reading in a fold, and Claude’s own images not read</p>
+      </div>
+      <i class="fa-solid fa-angle-right"></i>
+    </a>
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+                <dialog id="pst-secondary-sidebar-modal"></dialog>
+                <div id="pst-secondary-sidebar" class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
+
+
+  <div class="sidebar-secondary-item">
+<div
+    id="pst-page-navigation-heading-2"
+    class="page-toc tocsection onthispage">
+    <i class="fa-solid fa-list"></i> On this page
+  </div>
+  <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
+    <ul class="pst-show_toc_level nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#status">Status</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#context">Context</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#decision">Decision</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#consequences">Consequences</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#amendment-reader-preferences-and-drawings-1-3-1-519-520">Amendment: reader preferences and drawings (1.3.1, #519, #520)</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#reader-preferences-one-script-of-the-site-s-own-519">Reader preferences: one script of the site’s own (#519)</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#drawings-an-svg-that-is-also-the-scene-520">Drawings: an SVG that is also the scene (#520)</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#consequences-of-the-amendment">Consequences of the amendment</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#amendment-drawings-without-the-photo-and-the-site-s-icon-1-3-2-524-526-527-530">Amendment: drawings without the photo, and the site’s icon (1.3.2, #524, #526, #527, #530)</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#a-drawing-replaces-its-photo-524">A drawing replaces its photo (#524)</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#an-svg-is-exactly-image-svg-xml-526">An SVG is exactly <code class="docutils literal notranslate"><span class="pre">image/svg+xml</span></code> (#526)</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#the-site-s-icon-527">The site’s icon (#527)</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#tables-as-the-app-s-530">Tables as the app’s (#530)</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#consequences-of-the-1-3-2-amendment">Consequences of the 1.3.2 amendment</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#amendment-mermaid-diagrams-drawn-1-3-3-525-529">Amendment: Mermaid diagrams drawn (1.3.3, #525, #529)</a></li>
+</ul>
+  </nav></div>
+
+  <div class="sidebar-secondary-item">
+
+  
+  <div class="tocsection editthispage">
+    <a href="https://github.com/gilesknap/scrap/edit/1.3.3/docs/explanations/decisions/0043-public-pages-a-static-site-scrap-pushes-to.md">
+      <i class="fa-solid fa-pencil"></i>
+      
+      
+        
+          Edit on GitHub
+        
+      
+    </a>
+  </div>
+</div>
+
+  <div class="sidebar-secondary-item">
+
+  <div class="tocsection sourcelink">
+    <a href="../../_sources/explanations/decisions/0043-public-pages-a-static-site-scrap-pushes-to.md.txt">
+      <i class="fa-solid fa-file-lines"></i> Show Source
+    </a>
+  </div>
+</div>
+
+</div></div>
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+          </footer>
+        
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script defer src="../../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be"></script>
+<script defer src="../../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be"></script>
+
+  <footer class="bd-footer">
+<div class="bd-footer__inner bd-page-width">
+  
+  
+  
+    <div class="footer-items__end">
+      
+        <div class="footer-item">
+<p class="theme-version">
+  <!-- # L10n: Setting the PST URL as an argument as this does not need to be localized -->
+  Built with the <a href="https://pydata-sphinx-theme.readthedocs.io/en/stable/index.html">PyData Sphinx Theme</a> 0.23.0.
+</p></div>
+      
+    </div>
+  
+</div>
+
+  </footer>
+  </body>
+</html>
