@@ -81,6 +81,7 @@ export function pick(): Promise<string | null> {
   let timer = 0;
   const find = async () => {
     ask?.abort();
+    ask = null; // its answer dropped, whatever this call does next (offline: no new request)
     const q = box.value.trim();
     if (!navigator.onLine) return draw([], q, "Offline: pages can't be found now.");
     const mine = new AbortController();
@@ -113,8 +114,15 @@ export function pick(): Promise<string | null> {
     if (d.open && shown === box.value.trim() && rows[0]) d.close(rows[0].slug);
   });
   close.onclick = () => d.close();
-  // A tap outside the sheet: its backdrop, which is the dialog itself
-  d.addEventListener("click", (e) => e.target === d && d.close());
+  // A tap outside the sheet: on its backdrop, which reports the dialog itself as the target,
+  // as the sheet's own padding does; so only outside the sheet's box
+  d.addEventListener("click", (e) => {
+    if (e.target !== d) return;
+    const r = d.getBoundingClientRect();
+    const x = e.clientX;
+    const y = e.clientY;
+    if (x < r.left || x > r.right || y < r.top || y > r.bottom) d.close();
+  });
   // Its keys are its own: not the editor's (Ctrl+Enter there saves)
   d.addEventListener("keydown", (e) => e.stopPropagation());
 

@@ -118,6 +118,9 @@ test("cancelled (Escape, a tap outside, ✕, Back), the brackets stay with the c
   const sheet = await picker.boundingBox();
   const vp = page.viewportSize();
   expect(sheet && vp && sheet.y + sheet.height < vp.height - 20).toBe(true);
+  // A tap on the sheet's own padding is inside it: it stays open
+  if (sheet) await page.mouse.click(sheet.x + 3, sheet.y + sheet.height - 3);
+  await expect(picker).toBeVisible();
   await page.mouse.click(10, vp ? vp.height - 10 : 600);
   await closed(page);
   await expect.poll(() => caret(page)).toBe("a[[]] b[[|]]");
