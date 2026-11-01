@@ -27,6 +27,7 @@ from ..store import Store, body_refs, now
 from . import derived, pages
 from .checker import check
 from .client import Receiver
+from .drawings import page_drawings
 from .errors import (
     CheckError,
     NotConfigured,
@@ -83,12 +84,13 @@ class Publisher:
 
     def publish(
         self, key: str, html: str, base_rev: int, defer: bool,
-        confirmed: bool = False,
+        confirmed: bool = False, drawings: dict[str, str] | None = None,
     ) -> dict:  # fmt: skip
         """Publish a page from the PWA's publish mode (see the module docstring):
         {url, published_at, files}; NotPublic, Unconfirmed (a first publish, with no
         kept copy, needs confirmed), Stale, CheckError, PublishFailed or
-        NotConfigured otherwise."""
+        NotConfigured otherwise. drawings: each drawing's SVG the page shows, by
+        its id (#520), cleaned by publish.drawings."""
         if not enabled():
             raise NotConfigured()
         with self.lock:
@@ -102,17 +104,24 @@ class Publisher:
                 raise Unconfirmed()
             if base_rev != page.rev:
                 raise Stale(page.rev)
-            checked = check(html, pages.public_slugs(self.store).__contains__)
+            is_public = pages.public_slugs(self.store).__contains__
+            checked = check(html, is_public)
             if gone := [t for t in checked.tags if t not in page.tags]:
                 raise CheckError(
                     f"Not published: the page no longer has the tag {gone[0]!r}.",
                     "stale_tags",
                 )
             on_page = body_refs(page.body) | page.attached  # its text's, its own
+            site = publish_site()
+            drawn = page_drawings(
+                self.store, checked, drawings or {}, page.drawings, on_page,
+                is_public, site,
+            )  # fmt: skip
             files = page_files(
-                self.store, page.slug, checked.blobs, on_page, len(html.encode())
-            )
-            unit = {"index.html": swap(html, page.slug, files.names).encode()}
+                self.store, page.slug, checked.blobs, on_page, len(html.encode()),
+                drawn,
+            )  # fmt: skip
+            unit = {"index.html": swap(html, page.slug, files.names, site).encode()}
             unit |= files.data
             if sum(len(v) for v in unit.values()) > MAX_UNIT:
                 raise CheckError(

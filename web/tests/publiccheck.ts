@@ -4,10 +4,13 @@
 import { type El, parse, type T } from "./htmlparse";
 
 export const CSP =
-  "default-src 'none'; img-src 'self' data:; style-src 'self'; style-src-attr 'unsafe-inline'; font-src 'self'";
+  "default-src 'none'; img-src 'self' data:; style-src 'self'; style-src-attr 'unsafe-inline'; font-src 'self'; script-src 'self'";
+const PAIR = /^pair-[0-9]{1,3}(-photo|-drawing)?$/;
+const DRAWING = /^scrap-drawing:[1-9][0-9]{0,17}$/;
+const EXCALIDRAW = /^scrap-excalidraw:[1-9][0-9]{0,17}$/;
 
 const KEPT = new Set(
-  "a abbr article aside b blockquote br caption code dd del details div dl dt em figcaption figure h1 h2 h3 h4 h5 h6 hr i img ins kbd li mark ol p pre q s section small span strong sub summary sup table tbody td tfoot th thead time tr u ul".split(
+  "a abbr article aside b blockquote br caption code dd del details div dl dt em figcaption figure h1 h2 h3 h4 h5 h6 hr i img ins kbd li mark ol p pre q s section small span strong sub summary sup table tbody td tfoot th thead time tr u ul input label".split(
     " ",
   ),
 );
@@ -40,12 +43,13 @@ STYLE.position = (v) => v === "relative";
 STYLE["text-shadow"] = (v, el) =>
   ["span", "mstyle"].includes(el) && v.split(/\s+/).every((x) => LENGTH.test(x));
 
-const PLACEHOLDER = /scrap-(blob|tag):/i;
+const PLACEHOLDER = /scrap-(blob|tag|drawing|excalidraw):/i;
 const BLOB = /^scrap-blob:[0-9a-f]{64}$/;
 
 /** Whether an a's href is one scrap takes: public is the public pages' slugs, own scrap's hosts. */
 function hrefOk(href: string, live: ReadonlySet<string>, own: readonly string[]): boolean {
   if (BLOB.test(href) || /^scrap-tag:\S+$/.test(href)) return true;
+  if (DRAWING.test(href) || EXCALIDRAW.test(href)) return true;
   if (/^mailto:/i.test(href) || /^#[a-z0-9_-]{1,80}$/.test(href)) return true;
   const page = /^\/p\/([a-z0-9-]{1,120})$/.exec(href);
   if (page) return live.has(page[1]);
@@ -81,6 +85,17 @@ export function check(html: string, live: ReadonlySet<string>, own: readonly str
       continue;
     }
     if (name(n) === "title") continue;
+    // the one script: prefs.js, deferred (or async), render-blocking if it likes
+    if (name(n) === "script") {
+      const keys = n.attrs.map(([k]) => k).sort();
+      const ok =
+        a("src") === "/assets/prefs.js" &&
+        n.childNodes.every((k) => k.nodeType === 3 && !(k as T).data) &&
+        ["async", "defer"].filter((k) => keys.includes(k)).length === 1 &&
+        keys.every((k) => ["src", "async", "defer", "blocking"].includes(k)) &&
+        (a("blocking") ?? "render") === "render";
+      if (ok) continue;
+    }
     const href = a("href") ?? "";
     if (
       name(n) === "link" &&
@@ -104,6 +119,7 @@ export function check(html: string, live: ReadonlySet<string>, own: readonly str
         : katex &&
           (ns === "math" ? MATHML.has(t) : SVG.has(t) && !(t === "svg" && space !== "html"));
     if (!ok) bad.push(`element <${t}>`);
+    if (t === "input" && n.getAttribute?.("type") !== "radio") bad.push("an input not a radio");
     const inKatex = katex || (t === "span" && cls.includes("katex"));
     const seen = new Set<string>();
     for (const [k, v] of n.attrs) {
@@ -113,13 +129,28 @@ export function check(html: string, live: ReadonlySet<string>, own: readonly str
         bad.push(`a placeholder in ${t}@${k}`);
       const fine = (() => {
         if (ns === "html" && (k === "class" || k === "dir")) return true;
+        if (k === "id" && t === "input") return PAIR.test(v);
         if (k === "id")
           return (/^h[1-6]$/.test(t) || t === "a" || t === "li") && /^[a-z0-9_-]{1,80}$/.test(v);
         if (k === "colspan" || k === "rowspan")
           return ["td", "th"].includes(t) && /^\d{1,3}$/.test(v);
         if (k === "open") return t === "details" && v === "";
         if (k === "alt") return t === "img";
-        if (k === "src") return t === "img" && BLOB.test(v);
+        if (k === "src") return t === "img" && (BLOB.test(v) || DRAWING.test(v));
+        const href = n.getAttribute?.("href") ?? "";
+        if (k === "download") return t === "a" && v === "" && DRAWING.test(href);
+        if (k === "target") return t === "a" && v === "_blank" && EXCALIDRAW.test(href);
+        if (k === "rel") return t === "a" && v === "noopener noreferrer" && EXCALIDRAW.test(href);
+        if (t === "input")
+          return (
+            (k === "type" && v === "radio") ||
+            ((k === "name" || k === "id") && PAIR.test(v)) ||
+            (k === "checked" && v === "") ||
+            k === "aria-label"
+          );
+        if (t === "label") return k === "for" && PAIR.test(v);
+        if (t === "div" && k === "role") return v === "radiogroup";
+        if (t === "div" && k === "aria-label") return true;
         if (k === "href") return t === "a" && hrefOk(v, live, own);
         if (k === "aria-hidden") return t === "span" && inKatex && v === "true";
         if (k === "style") {

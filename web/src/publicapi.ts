@@ -29,11 +29,18 @@ export const publishPage = (
   base_rev: number,
   defer = false,
   confirmed = false,
+  drawings: { key: string; svg: string }[] = [], // its drawings' SVGs, by id (#520)
 ) =>
   api<Published>(`pages/${encodeURIComponent(key)}/published`, {
     method: "PUT",
     headers: JSON_TYPE,
-    body: JSON.stringify({ html, base_rev, defer, ...(confirmed && { confirmed }) }),
+    body: JSON.stringify({
+      html,
+      base_rev,
+      defer,
+      ...(confirmed && { confirmed }),
+      ...(drawings.length && { drawings }),
+    }),
   });
 
 /** Whether publishing is on on the server (/healthz's publish block; offline: assumed on). */

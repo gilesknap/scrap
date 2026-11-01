@@ -10,7 +10,9 @@
 // a tick or a link coming alive passes it by; scrap refuses it too (409 unconfirmed).
 import type { Page, PublicPage } from "./api";
 import { api } from "./api";
+import type { Drawing } from "./board/frame";
 import { copyText } from "./clipboard";
+import { loadBoard } from "./drawing";
 import { KATEX } from "./katexopts";
 import { page, pages, type View } from "./page";
 import { publishing } from "./pagehead";
@@ -28,7 +30,7 @@ import {
   whyNot,
 } from "./publicapi";
 import { ask, firstTime, warning } from "./publicask";
-import { bareSlugs, hasMaths, publishHtml } from "./publish";
+import { bareSlugs, drawingsOf, hasMaths, publishHtml } from "./publish";
 import { origins } from "./render";
 import { toast } from "./ui";
 
@@ -73,9 +75,54 @@ async function tex() {
   return katex;
 }
 
+/** A photo's 2048 px preview as a data: URL, as the drawing of it embeds it (scrap matches
+ * these bytes to the page's photo). */
+async function photoUrl(sha: string): Promise<string> {
+  const got = await fetch(`/api/blobs/${sha}/preview?size=2048`);
+  if (!got.ok) throw new Error(`the photo of a drawing could not be fetched (${got.status})`);
+  const bytes = new Uint8Array(await got.arrayBuffer());
+  let text = "";
+  for (let i = 0; i < bytes.length; i += 0x8000)
+    text += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  return `data:${got.headers.get("Content-Type") || "image/jpeg"};base64,${btoa(text)}`;
+}
+
+/** The view's drawings drawn as public pages show them (#520), by id: Excalidraw's chunk is
+ * loaded only for a page that has one. */
+export async function drawingsFor(root: HTMLElement): Promise<{ key: string; svg: string }[]> {
+  const found = drawingsOf(root);
+  if (!found.length) return [];
+  const board = await loadBoard();
+  const out: { key: string; svg: string }[] = [];
+  for (const d of found) {
+    const path = `captures/${encodeURIComponent(d.cid)}/photos/${d.sha}/drawing`;
+    const drawing = await api<Drawing>(path);
+    out.push({ key: d.id, svg: await board.publishSvg(drawing.data, await photoUrl(d.sha)) });
+  }
+  return out;
+}
+
+/** What a page is published as: its HTML and its drawings' SVGs. */
+export interface Rendered {
+  html: string;
+  drawings: { key: string; svg: string }[];
+}
+
+/** The page's public HTML from its view, with its drawings: the public pages known, the
+ * titles of private pages its bare links name fetched. */
+export async function renderedOf(d: Drawn, r: Run): Promise<Rendered> {
+  const drawings = await drawingsFor(d.root);
+  const html = await htmlOf(d, r, new Set(drawings.map((x) => x.key)));
+  return { html, drawings };
+}
+
 /** The page's public HTML from its view: the public pages known, the titles of private pages
- * its bare links name fetched. */
-export async function htmlOf(d: Drawn, r: Run): Promise<string> {
+ * its bare links name fetched; drawn, the drawings drawn (shown with their photos). */
+export async function htmlOf(
+  d: Drawn,
+  r: Run,
+  drawn: ReadonlySet<string> = new Set(),
+): Promise<string> {
   const swaps = await swapsOf(d.root);
   // A public page that links to itself is public: this one is
   r.live.add(d.page.slug);
@@ -109,6 +156,7 @@ export async function htmlOf(d: Drawn, r: Run): Promise<string> {
       site: d.page.site ?? null,
       tex: hasMaths(d.root) ? await tex() : null,
       date,
+      drawn,
     },
     swaps,
   );
@@ -126,9 +174,9 @@ async function publishOne(
   for (let again = false; ; again = true) {
     const d = await draw(again);
     if (!confirmed && !d.page.published_at) return null;
-    const html = await htmlOf(d, r);
+    const { html, drawings } = await renderedOf(d, r);
     try {
-      const done = await publishPage(d.page.id, html, d.page.rev, defer, confirmed);
+      const done = await publishPage(d.page.id, html, d.page.rev, defer, confirmed, drawings);
       return { page: d.page, done };
     } catch (err) {
       if (codeOf(err) === "unconfirmed") return null; // unpublished meanwhile

@@ -3,8 +3,8 @@ sends for a page"): parsed with html5lib, the tree a browser would build, and ma
 by (namespace, local name) against an allow-list. Anything not listed refuses the
 publish (CheckError, 422): scrap never cleans the HTML.
 
-Placeholders (scrap-blob:, scrap-tag:) are allowed only as the whole value of an
-img's src or an a's href. scrap later swaps them in the text as uploaded
+Placeholders (scrap-blob:, scrap-tag:, scrap-drawing:) are allowed only as the whole
+value of an img's src or an a's href. scrap later swaps them in the text as uploaded
 (rewrite.swap), so the check also makes sure each one is written there plainly: the
 same placeholders, as many times, as the tree holds."""
 
@@ -31,29 +31,40 @@ from .katex import (
     no_url,
     style_ok,
 )
-from .links import ID, classify, private_text
+from .links import DRAWING, EXCALIDRAW, ID, classify, private_text
 
-__all__ = ["CSP", "KEPT", "RAW_PLACEHOLDER", "Checked", "check"]
+__all__ = ["CSP", "DRAWING_PREFIX", "KEPT", "PREFS_SRC", "RAW_PLACEHOLDER", "Checked",
+           "check"]  # fmt: skip
 
+# The page's own CSP: the site's own scripts only, and the one a page names is
+# /assets/prefs.js (#519), the theme and width switches
 CSP = (
     "default-src 'none'; img-src 'self' data:; style-src 'self'; style-src-attr"
-    " 'unsafe-inline'; font-src 'self'"
+    " 'unsafe-inline'; font-src 'self'; script-src 'self'"
 )
+# The one script a page may have, in its head: <script src="/assets/prefs.js" defer>
+# (or async), and blocking="render" if it likes; no other attribute and no text
+PREFS_SRC = "/assets/prefs.js"
+DRAWING_PREFIX = "drawing:"  # a drawing's key in Checked.blobs, beside the shas
 STYLESHEETS = ("/assets/page.css", "/assets/katex.css")
 KEPT = frozenset(
     "a abbr article aside b blockquote br caption code dd del details div dl dt em"
     " figcaption figure h1 h2 h3 h4 h5 h6 hr i img ins kbd li mark ol p pre q s"
     " section small span strong sub summary sup table tbody td tfoot th thead time tr"
-    " u ul".split()
-)
+    " u ul input label".split()
+)  # (input and label only as a photo's tabs: _Walk.attributes)
 HAS_ID = frozenset({"h1", "h2", "h3", "h4", "h5", "h6", "a", "li"})
 SPAN_DIGITS = re.compile(r"[0-9]{1,3}")
 # A placeholder as written in the uploaded text (and swapped there): the scheme, then
 # what the publish mode writes after it (a sha, or a URL-encoded tag, which may hold
 # ' as encodeURIComponent leaves it), up to the double quote the publish mode closes
 # the attribute with. (One in single quotes takes the quote too, and is refused.)
-RAW_PLACEHOLDER = re.compile(r"scrap-(?:blob|tag):[^\"<>\s&]*")
-PLACEHOLDER = re.compile(r"scrap-(?:blob|tag):", re.IGNORECASE)
+RAW_PLACEHOLDER = re.compile(r"scrap-(?:blob|tag|drawing|excalidraw):[^\"<>\s&]*")
+PLACEHOLDER = re.compile(r"scrap-(?:blob|tag|drawing|excalidraw):", re.IGNORECASE)
+# A photo's Photo | Drawing tabs (#520), in CSS alone: two radio inputs and their
+# labels, named and labelled pair-<n>[-photo|-drawing], in a div role="radiogroup"
+PAIR = re.compile(r"pair-[0-9]{1,3}(?:-photo|-drawing)?")
+NEW_TAB = {"target": "_blank", "rel": "noopener noreferrer"}  # Open in Excalidraw
 # html5lib's parse errors for markup the contract refuses outright
 REFUSED_ERRORS = {
     "duplicate-attribute": "an attribute given twice",
@@ -71,12 +82,14 @@ PREFIXES = {  # an attribute's namespace as written, in a refusal's message
 @dataclass
 class Checked:
     """What a page that passed holds: the stored files it names, in the order first
-    named, with the element naming each (img or a), the tags, the /p/ slugs it links
-    to, and whether it has maths."""
+    named, with the element naming each (img or a; a drawing's key as
+    DRAWING_PREFIX + key, #520), the tags, the /p/ slugs it links to, and whether it
+    has maths."""
 
     blobs: list[tuple[str, str]] = field(default_factory=list)
     tags: list[str] = field(default_factory=list)
     pages: set[str] = field(default_factory=set)
+    opens: list[str] = field(default_factory=list)  # drawings' Open in Excalidraw
     placeholders: Counter[str] = field(default_factory=Counter)
     maths: bool = False
 
@@ -114,6 +127,8 @@ class _Walk:
     def __init__(self, is_public: Callable[[str], bool]) -> None:
         self.is_public = is_public
         self.out = Checked()
+        self.inputs: set[str] = set()  # the tabs' radio ids
+        self.labels: list[str] = []  # what their labels are for
 
     def href(self, value: str) -> None:
         try:
@@ -122,6 +137,11 @@ class _Walk:
             raise _refuse(str(e)) from None
         if kind == "blob":
             self.blob(found, "a", value)
+        elif kind == "drawing":
+            self.blob(DRAWING_PREFIX + found, "a", value)
+        elif kind == "excalidraw":
+            self.out.opens.append(found)
+            self.out.placeholders[value] += 1
         elif kind == "tag":
             self.out.tags.append(found)
             self.out.placeholders[value] += 1
@@ -138,7 +158,28 @@ class _Walk:
         self.out.placeholders[value] += 1
 
     def attributes(self, el: ET.Element, ns: str, local: str, katex: bool) -> None:
+        href = el.get("href") or ""
+        if ns == HTML and local == "a" and EXCALIDRAW.fullmatch(href):
+            if {k: el.get(k) for k in NEW_TAB} != NEW_TAB:
+                raise _refuse("an Open in Excalidraw link not opening a new tab")
+        if ns == HTML and local == "input":
+            if el.get("type") != "radio" or not PAIR.fullmatch(el.get("id") or ""):
+                raise _refuse("an <input> other than a photo's tabs")
+            self.inputs.add(el.get("id") or "")
+        if ns == HTML and local == "label":
+            if not PAIR.fullmatch(el.get("for") or ""):
+                raise _refuse("a <label> other than a photo's tabs")
+            self.labels.append(el.get("for") or "")
         for key, value in el.attrib.items():
+            if key == "download" and ns == HTML and local == "a":
+                # only a drawing's download link (#520), as the publish mode writes it
+                if value != "" or not DRAWING.fullmatch(href):
+                    raise _refuse("<a download> other than a drawing's")
+                continue
+            if key in NEW_TAB and ns == HTML and local == "a":
+                if not EXCALIDRAW.fullmatch(href) or value != NEW_TAB[key]:
+                    raise _refuse(f"<a {key}> other than Open in Excalidraw's")
+                continue
             self.attribute(key, value, ns, local, katex)
 
     def attribute(self, key: str, value: str, ns: str, local: str, katex: bool) -> None:
@@ -146,6 +187,8 @@ class _Walk:
         if key == "href" and ns == HTML and local == "a":
             return self.href(value)
         if key == "src" and ns == HTML and local == "img":
+            if m := DRAWING.fullmatch(value):
+                return self.blob(DRAWING_PREFIX + m[1], "img", value)
             m = re.fullmatch(r"scrap-blob:([0-9a-f]{64})", value)
             if not m:
                 raise _refuse("an image that is not a placeholder (scrap-blob:)")
@@ -174,8 +217,25 @@ class _Walk:
     def html_attribute(key: str, value: str, local: str, katex: bool) -> bool:
         if key in ("class", "dir"):
             return True
+        if key == "id" and local == "input":
+            return PAIR.fullmatch(value) is not None
         if key == "id":
             return local in HAS_ID and ID.fullmatch(value) is not None
+        # A photo's tabs (#520): radio inputs (the type was checked with the
+        # element), their labels and the group round them
+        if key == "type":
+            return local == "input" and value == "radio"
+        if key == "name":
+            return local == "input" and PAIR.fullmatch(value) is not None
+        if key == "checked":
+            return local == "input" and value == ""
+        if key == "for":
+            return local == "label" and PAIR.fullmatch(value) is not None
+        if key == "role":
+            return local == "div" and value == "radiogroup"
+        if key == "aria-label" and local in ("input", "div"):
+            _plain(value, "an aria-label")
+            return True
         if key in ("colspan", "rowspan"):
             return local in ("td", "th") and SPAN_DIGITS.fullmatch(value) is not None
         if key == "open":
@@ -228,9 +288,23 @@ class _Walk:
         self.attributes(el, ns, local, katex)
 
 
+def _prefs_script(el: ET.Element, attrs: dict[str, str]) -> bool:
+    """Whether a <script> in the head is the one a page may have (#519): exactly
+    src="/assets/prefs.js", with defer or async (not both), blocking="render" if
+    given, nothing else, and no text."""
+    rest = dict(attrs)
+    if rest.pop("src", None) != PREFS_SRC or (el.text or "") or len(el):
+        return False
+    if rest.get("blocking", "render") != "render":
+        return False
+    rest.pop("blocking", None)
+    return rest in ({"defer": ""}, {"async": ""})
+
+
 def _head(head: ET.Element) -> None:
-    """The head: only the charset, viewport and fixed CSP metas, the title and the
-    page's stylesheets; the CSP and the title must be there."""
+    """The head: only the charset, viewport and fixed CSP metas, the title, the
+    page's stylesheets and its one script (prefs.js); the CSP and the title must be
+    there."""
     seen: Counter[str] = Counter()
     if head.attrib:
         raise _refuse("attributes on <head>")
@@ -271,6 +345,8 @@ def _head(head: ET.Element) -> None:
             and attrs["href"] in STYLESHEETS
         ):
             kind = attrs["href"]
+        elif ns == HTML and local == "script" and _prefs_script(el, attrs):
+            kind = "script"
         if kind is None:
             raise _refuse(f"<{local}> is not allowed in the head")
         seen[kind] += 1
@@ -330,6 +406,8 @@ def check(text: str, is_public: Callable[[str], bool]) -> Checked:
     _head(head)
     walk = _Walk(is_public)
     walk.body(body)
+    if gone := [f for f in walk.labels if f not in walk.inputs]:
+        raise _refuse(f"a <label> for no tab ({gone[0]})")
     raw = Counter(RAW_PLACEHOLDER.findall(text))
     if raw != walk.out.placeholders:
         raise _refuse(

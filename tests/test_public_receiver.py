@@ -251,6 +251,7 @@ def test_every_kind_of_unit(server: Running, unit: str) -> None:
         ("pagefind", "fragment/en_1.pf_fragment"),
         ("pagefind", "scrap-search.js"),
         ("assets", "fonts/KaTeX_Main.ttf"),
+        ("assets", "prefs.js"),  # the public pages' one script (#519)
     ],
 )
 def test_each_kind_takes_its_own_files(server: Running, unit: str, name: str) -> None:
@@ -286,6 +287,12 @@ def test_each_kind_takes_its_own_files(server: Running, unit: str, name: str) ->
         ("pagefind", "index.html"),
         ("assets", "katex.js"),
         ("assets", "index.html"),
+        ("assets", "fonts/prefs.js"),  # prefs.js only at the top of assets
+        ("assets", "PREFS.JS"),
+        ("assets", "prefs.mjs"),
+        ("p/x", "prefs.js"),  # and only in assets
+        ("t/x", "prefs.js"),
+        ("home", "prefs.js"),
     ],
 )
 def test_each_kind_refuses_other_files(server: Running, unit: str, name: str) -> None:

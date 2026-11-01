@@ -565,7 +565,11 @@ Make public and Settings' Public pages are not shown.
 
 - **Make public…** is the last row of **Share**. It asks first, every time: who can read it, and
   what goes public with the page: its tags, Claude's write-up and summary (on a topic, its
-  synthesis, which draws on its source pages), and its attached files by name. *Links to private pages show their titles as plain text.* **Cancel** has the focus.
+  synthesis, which draws on its source pages), its attached files by name, and *its N drawings,
+  downloadable* when its photos have drawings. *Links to private pages show their titles as
+  plain text.* **Cancel** has the focus. A page with drawings takes a moment longer: the app
+  loads Excalidraw to draw each one for the site, where readers can open it in excalidraw.com or
+  download it ([](publish-pages.md)).
   **Make public** publishes the page from the view on screen: the dates line says *Publishing…*,
   then *Published* and when, and the toast *Page is public* has **Copy link**.
 - A public page has a **Public** chip first in its chip row (a globe), which opens it on the

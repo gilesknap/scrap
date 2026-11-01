@@ -29,7 +29,21 @@ vi.mock("../src/render", () => ({ origins: () => [] }));
 vi.mock("../src/publish", () => ({
   bareSlugs: () => [],
   hasMaths: () => false,
-  publishHtml: (_root: unknown, c: { title: string }) => `<!DOCTYPE html>${c.title}`,
+  // a view's drawings: those its (fake) root lists
+  drawingsOf: (root: { drawings?: unknown[] }) => root.drawings ?? [],
+  publishHtml: (_root: unknown, c: { title: string; drawn?: Set<string> }) =>
+    `<!DOCTYPE html>${c.title}${[...(c.drawn ?? [])].map((d) => ` drawn:${d}`).join("")}`,
+}));
+// Excalidraw's chunk, loaded only for a page with drawings (#520)
+const boards: string[] = [];
+vi.mock("../src/drawing", () => ({
+  loadBoard: async () => {
+    boards.push("loaded");
+    return {
+      publishSvg: async (data: { elements: unknown[] }, photo: string) =>
+        `<svg data-n="${data.elements.length}">${photo}</svg>`,
+    };
+  },
 }));
 // A page drawn off the screen: its root, and the page it shows
 const roots = new WeakMap<object, Page>();
@@ -87,6 +101,7 @@ const reply = (status: number, data: unknown) =>
   new Response(JSON.stringify(data), { status, headers: { "Content-Type": "application/json" } });
 
 beforeEach(() => {
+  boards.length = 0;
   toasts.length = 0;
   asked.length = 0;
   answer = true;
@@ -108,6 +123,12 @@ beforeEach(() => {
       calls.push({ method, url, body });
       if (url === "/healthz") return reply(200, { publish: { enabled: configured } });
       const u = new URL(url, "http://x");
+      if (/^\/api\/captures\/c1\/photos\/[0-9a-f]+\/drawing$/.test(u.pathname))
+        return reply(200, { data: { format: "scene", elements: [{}, {}] } });
+      if (u.pathname.endsWith("/preview"))
+        return new Response(new Uint8Array([1, 2, 3]), {
+          headers: { "Content-Type": "image/jpeg" },
+        });
       if (u.pathname === "/api/public") {
         const to = u.searchParams.get("links_to");
         const list = [...store.values()]
@@ -167,6 +188,29 @@ const puts = () =>
       defer: c.body?.defer,
       confirmed: !!c.body?.confirmed,
     }));
+
+describe("a page with drawings (#520)", () => {
+  it("draws each with its photo, and sends them with the page; Excalidraw only then", async () => {
+    add("a");
+    const v = view("a");
+    (v.root as unknown as { drawings: unknown[] }).drawings = [{ id: "7", cid: "c1", sha: "ab" }];
+    await pub.makePublic(v);
+    const put = calls.find((c) => c.method === "PUT");
+    expect(put?.body?.html).toBe("<!DOCTYPE html>A drawn:7");
+    expect(put?.body?.drawings).toEqual([
+      { key: "7", svg: '<svg data-n="2">data:image/jpeg;base64,AQID</svg>' },
+    ]);
+    expect(calls.map((c) => c.url)).toContain("/api/blobs/ab/preview?size=2048");
+    expect(boards).toEqual(["loaded"]);
+  });
+
+  it("loads no Excalidraw and sends no drawings for a page without any", async () => {
+    add("a");
+    await pub.makePublic(view("a"));
+    expect(calls.find((c) => c.method === "PUT")?.body?.drawings).toBeUndefined();
+    expect(boards).toEqual([]);
+  });
+});
 
 describe("Make public", () => {
   it("asks, sets the flag, publishes confirmed, and says so with Copy link", async () => {

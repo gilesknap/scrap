@@ -25,8 +25,8 @@ publishing is on and how the last check of the site went; it never fails the hea
 ## Make a page public
 
 In the app, open the page's **Share** menu and choose **Make public…**. The app says what goes
-public with the page (its tags, Claude's write-up and summary, its attached files by name;
-links to private pages show their titles as plain text), and publishes it when you choose
+public with the page (its tags, Claude's write-up and summary, its attached files by name, its
+drawings; links to private pages show their titles as plain text), and publishes it when you choose
 **Make public**. The page shows a **Public** chip linking to its address.
 
 What a public page holds:
@@ -37,8 +37,18 @@ What a public page holds:
   names;
 - links to other public pages, which work on the site. A link to a private page shows its label,
   or the page's title, as plain text;
-- maths as the app draws it. Mermaid diagrams go out as their source. Drawings on photos are not
-  published.
+- maths as the app draws it. Mermaid diagrams go out as their source;
+- a photo's drawing, beside the photo with **Photo | Drawing** tabs as in the app, and links to
+  **Open in Excalidraw** (on excalidraw.com, which fetches it from the site: nothing is uploaded
+  to Excalidraw) and **Download**. The file is an SVG with the drawing inside it, so
+  excalidraw.com, or any copy of Excalidraw, opens it for editing. The photo in it is its
+  2048-pixel preview, and scrap removes from it anything of scrap's own: its addresses, links to
+  private pages, and any image that is not one of the page's photos. Open in Excalidraw needs the
+  site on `https`; without it the page has only "Download, then open in excalidraw.com to edit".
+
+Readers choose a light or dark theme, and how wide the column is (as the app's Maximum column
+width), with the two buttons at the end of the site's header; their browser keeps the choice
+for every page. Pages are light until a reader chooses dark, and with JavaScript off.
 
 Saving a public page in the app publishes it again. A page changed some other way (over MCP,
 or a regenerated write-up) keeps its last published copy until you refresh it: **Settings →

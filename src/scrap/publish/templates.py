@@ -16,6 +16,10 @@ from .tagkey import tag_key
 
 __all__ = ["home", "not_found", "tag_page", "tags_page"]
 
+# Every page loads the reader's theme and width switches (#519) from <head>: deferred,
+# and render-blocking where the browser can, so a kept choice is on before the first
+# paint. The same tag as the publish mode writes (checker.PREFS_SCRIPT)
+PREFS = '<script src="/assets/prefs.js" defer blocking="render"></script>\n'
 # home's CSP lets it run only the site's own scripts: Pagefind's, and scrap-search.js
 SEARCH = (
     '<link rel="stylesheet" href="/assets/pagefind-ui.css">\n'
@@ -48,7 +52,7 @@ def _document(title: str, body: str, head: str = "") -> bytes:
         '<meta name="viewport" content="width=device-width,initial-scale=1">\n'
         f"<title>{escape(title)}</title>\n"
         '<link rel="stylesheet" href="/assets/page.css">\n'
-        f"{head}</head>\n"
+        f"{PREFS}{head}</head>\n"
         '<body class="site">\n<header class="site-head"><a href="/">Pages</a>'
         ' · <a href="/tags">Tags</a></header>\n'
         f"<main>\n{body}</main>\n</body>\n</html>\n"
@@ -110,7 +114,8 @@ def tag_page(tag: str, pages: list[tuple[str, dict[str, Any]]]) -> bytes:
 
 
 def not_found() -> bytes:
-    """404.html, served for every path the site does not have: it runs no script."""
+    """404.html, served for every path the site does not have: it runs only the
+    theme and width switches."""
     return _document(
         "Not found",
         "<h1>Not found</h1>\n<p>There is no public page here (it may have been made"

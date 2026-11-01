@@ -67,14 +67,24 @@ http {
     # The CSP, by path (docs/reference/public-site.md). A page's images and
     # attachments follow ADR 42's rule for stored files: sandboxed and loading
     # nothing, but a PDF keeps sandbox alone, as a browser's PDF viewer needs more.
-    # Pages and tag pages run no script and have no <style> element (their CSS is
-    # /assets/page.css; KaTeX's inline style attributes only); only home
-    # (Pagefind) runs script.
+    # Pages and tag pages have no <style> element (their CSS is /assets/page.css;
+    # KaTeX's inline style attributes only) and run only the site's own scripts
+    # ('self'): the one a page may name is /assets/prefs.js, the theme and column
+    # width (#519; scrap's check refuses any other). Home also runs Pagefind's.
     map $uri $scrap_csp {
         "~*^/p/[a-z0-9-]+/file-[^/]*\.pdf$" "sandbox";
         "~^/p/[a-z0-9-]+/(img|file)-" "sandbox; default-src 'none'; style-src 'unsafe-inline'; img-src data:; font-src data:";
-        "~^/[pt]/" "default-src 'none'; img-src 'self' data:; style-src 'self'; style-src-attr 'unsafe-inline'; font-src 'self'; script-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'";
+        "~^/[pt]/" "default-src 'none'; img-src 'self' data:; style-src 'self'; style-src-attr 'unsafe-inline'; font-src 'self'; script-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'";
         default "default-src 'none'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; font-src 'self'; script-src 'self' 'wasm-unsafe-eval'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'";
+    }
+
+    # A page's SVG images may be fetched by excalidraw.com, which opens a published
+    # drawing from its "Open in Excalidraw" link (#520: #url=<the SVG's address>, read
+    # in the reader's browser). The pages are public, so a fixed origin: no Vary. Every
+    # other answer has no Access-Control-Allow-Origin (nginx leaves out an empty one)
+    map $uri $scrap_cors {
+        "~^/p/[a-z0-9-]+/img-[^/]*\.svg$" "https://excalidraw.com";
+        default "";
     }
 
     # HTML is checked each time, so a republished page shows at once; files for 5 min
@@ -98,6 +108,7 @@ http {
         add_header Referrer-Policy no-referrer always;
         add_header X-Robots-Tag "@X_ROBOTS_TAG@" always;
         add_header Cache-Control $scrap_cache always;
+        add_header Access-Control-Allow-Origin $scrap_cors always;
 
         error_page 404 /404.html;
         location = /404.html {

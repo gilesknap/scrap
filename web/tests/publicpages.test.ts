@@ -63,6 +63,19 @@ describe("the warning", () => {
     expect(goesWith(one).at(-1)).toBe("its attached file: spec.pdf");
   });
 
+  it("lists the page's drawings, downloadable, only when its photos have any (#520)", () => {
+    const drawn = (n: number) => {
+      const blobs = page().captures[0].blobs.map((b, i) => ({
+        ...b,
+        ingest: i < n ? ({ drawing: { id: i + 1 } } as never) : null,
+      }));
+      return page({ captures: [{ ...page().captures[0], blobs }] });
+    };
+    expect(goesWith(drawn(0)).join("|")).not.toContain("drawing");
+    expect(goesWith(drawn(1)).at(-1)).toBe("its 1 drawing, downloadable");
+    expect(goesWith(drawn(2)).at(-1)).toBe("its 2 drawings, downloadable");
+  });
+
   it("is a dialog with Cancel focused, the one amber button Make public", async () => {
     const asked = ask(warning(page(), "pages.example"));
     const d = (document as unknown as { body: FakeNode }).body.childNodes[0];

@@ -27,6 +27,7 @@ class Page:
     rev: int
     tags: tuple[str, ...]
     attached: frozenset[str] = frozenset()  # its captures' files, by sha
+    drawings: frozenset[str] = frozenset()  # its photos' current drawings, by id (#520)
 
     @property
     def live(self) -> bool:
@@ -41,9 +42,15 @@ def _page(conn: sqlite3.Connection, row: sqlite3.Row) -> Page:
         "SELECT sha256 FROM capture_blob JOIN capture ON capture.id = capture_id"
         " WHERE page_id = ?", (row[0],),
     )  # fmt: skip
+    attached = frozenset(f[0] for f in files)
+    drawings = conn.execute(
+        "SELECT d.id FROM derived d JOIN capture c ON c.id = d.capture_id"
+        " WHERE c.page_id = ? AND d.kind = 'excalidraw' AND d.superseded_at IS NULL",
+        (row[0],),
+    )  # fmt: skip
     return Page(row["id"], row["slug"], row["title"], row["body"],
                 bool(row["public"]), row["deleted_at"] is not None, row["rev"] or 0,
-                tags, frozenset(f[0] for f in files))  # fmt: skip
+                tags, attached, frozenset(str(d[0]) for d in drawings))  # fmt: skip
 
 
 def state(store: Store, key: str) -> Page:
