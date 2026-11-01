@@ -237,7 +237,8 @@ carry.
   work in a follow-up issue.
 - **Unpublishing and caches.** A delete removes the page from the site, from the home and tag pages
   and from the search index. HTML is served `no-cache`, so a browser or proxy asks again before
-  showing it; other files are `public, max-age=300`, so a copy can live up to five minutes more.
+  showing it, as are the site's own CSS and script in `/assets` (#534); other files are `public,
+  max-age=300`, so a copy can live up to five minutes more.
   Nothing can reach copies people saved, or caches outside the site's control. The docs say so
   plainly.
 - **Headers.** The home page's HTML gets a strict CSP that allows only scripts from the site
