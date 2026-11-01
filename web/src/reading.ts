@@ -10,6 +10,7 @@
 //   data-m521-regen="in" | "out"       Regenerate inside the open fold, or on the fold's line
 // The build that ships keeps one of each and drops the attributes.
 import "./css/reading.css";
+import { icon } from "./icons";
 import { h } from "./ui";
 
 /** The fold's label, in the app and on public pages. */
@@ -35,6 +36,21 @@ export function readingFold(o: {
           o.regen.label,
         )
       : "";
+  // Variant out: on the fold's line there is no room for the word at 308 px and 130 % text
+  // beside "Claude's reading" (it needs about 290 px of 276), so it is the redo icon, named
+  const out = o.regen
+    ? h(
+        "button",
+        {
+          type: "button",
+          className: "regen-out",
+          title: o.regen.label,
+          "aria-label": o.regen.label,
+          onclick: o.regen.onclick,
+        },
+        icon("retry"),
+      )
+    : "";
   const fold = h(
     "details",
     { className: "reading-fold" },
@@ -47,7 +63,7 @@ export function readingFold(o: {
     ),
   );
   if (o.onOpen) fold.addEventListener("toggle", () => fold.open && o.onOpen?.());
-  return h("div", { className: "reading" }, fold, btn("out"));
+  return h("div", { className: "reading" }, fold, out);
 }
 
 /** Where the reading is up to, outside the fold: a pill, and its action (Retry, Resume). */
