@@ -265,24 +265,28 @@ test("a photo and an attached file are published with the page", async ({ page }
   expect(csp).toEqual([]);
 });
 
-test("with publishing off on the server, no Make public and no Settings section", async ({
-  page,
-}) => {
-  await phone(page);
-  await page.route("**/healthz", async (rt) => {
-    const r = await rt.fetch();
-    const j = await r.json();
-    await rt.fulfill({ json: { ...j, publish: { ...j.publish, enabled: false } } });
+test.describe("publishing off", () => {
+  // (no service worker: it would answer /healthz past page.route)
+  test.use({ serviceWorkers: "block" });
+  test("with publishing off on the server, no Make public and no Settings section", async ({
+    page,
+  }) => {
+    await phone(page);
+    await page.route("**/healthz", async (rt) => {
+      const r = await rt.fetch();
+      const j = await r.json();
+      await rt.fulfill({ json: { ...j, publish: { ...j.publish, enabled: false } } });
+    });
+    const n = await newPage(page, "Public e2e publishing off");
+    await page.goto(`/p/${n.slug}`);
+    await page.locator(".page > .tools").getByRole("button", { name: "Share" }).click();
+    const menu = page.locator(".share-menu");
+    await expect(menu.getByRole("button", { name: "Pin to Search" })).toBeVisible();
+    await expect(menu.getByRole("button", { name: /Make p/ })).toHaveCount(0);
+    await page.keyboard.press("Escape");
+    await page.getByRole("button", { name: "Settings" }).click();
+    const sheet = page.getByRole("dialog", { name: "Settings" });
+    await expect(sheet.getByRole("heading", { name: "Store" })).toBeVisible();
+    await expect(sheet.getByRole("heading", { name: "Public pages" })).toHaveCount(0);
   });
-  const n = await newPage(page, "Public e2e publishing off");
-  await page.goto(`/p/${n.slug}`);
-  await page.locator(".page > .tools").getByRole("button", { name: "Share" }).click();
-  const menu = page.locator(".share-menu");
-  await expect(menu.getByRole("button", { name: "Pin to Search" })).toBeVisible();
-  await expect(menu.getByRole("button", { name: /Make p/ })).toHaveCount(0);
-  await page.keyboard.press("Escape");
-  await page.getByRole("button", { name: "Settings" }).click();
-  const sheet = page.getByRole("dialog", { name: "Settings" });
-  await expect(sheet.getByRole("heading", { name: "Store" })).toBeVisible();
-  await expect(sheet.getByRole("heading", { name: "Public pages" })).toHaveCount(0);
 });

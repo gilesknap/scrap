@@ -84,7 +84,7 @@ export async function page(key: string, signal: AbortSignal, quiet = false): Pro
     : (history.state as { trail?: Trail; edit?: boolean; from?: 1 | -1 } | null);
   // The renderer, a chunk of its own, while the page is fetched (offline without it: as typed)
   // and Share's Pin to Search (pins.ts, a chunk of its own; none offline before it was kept)
-  const [p, pinRow, canPublish] = await Promise.all([
+  const [p, pinRow, , canPublish] = await Promise.all([
     api<Page>(`pages/${encodeURIComponent(key)}`, { signal }),
     import("./pins").then(
       (m) => ({ slug: m.SLUG, make: (p: Page) => m.pinPageButton(p.slug, p.title) }),
