@@ -4,6 +4,7 @@ The contract is docs/reference/public-site.md."""
 from .checker import check
 from .errors import (
     BadRequest,
+    Busy,
     CheckError,
     NotConfigured,
     NotPublic,
@@ -21,6 +22,7 @@ from .unit import SEGMENT, UnitError, build_unit, digest
 __all__ = [
     "SEGMENT",
     "BadRequest",
+    "Busy",
     "CheckError",
     "NotConfigured",
     "NotPublic",

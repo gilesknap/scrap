@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from ..preview import BusyError, preview, raster
 from ..store import InvalidError, NotFoundError, Store, TooLargeError
 from ..svg import is_svg, sanitise
-from .errors import CheckError, PublishError
+from .errors import Busy, CheckError
 
 __all__ = ["MAX_FILE", "MAX_FILES", "MAX_UNIT", "Files", "file_hex", "page_files"]
 
@@ -77,7 +77,7 @@ def _image(store: Store, sha: str, mime: str) -> tuple[bytes, str]:
     try:
         made = preview(store, sha, PREVIEW)
     except BusyError:
-        raise PublishError("another preview is being made: try again", "busy") from None
+        raise Busy() from None
     except InvalidError as e:
         raise CheckError(
             f"Not published: an image on the page has no preview ({e}).",

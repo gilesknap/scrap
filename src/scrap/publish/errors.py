@@ -4,6 +4,7 @@ each has the HTTP status and the ``error`` code the API answers with, and a sent
 
 __all__ = [
     "BadRequest",
+    "Busy",
     "CheckError",
     "NotConfigured",
     "NotPublic",
@@ -87,6 +88,17 @@ class NotConfigured(PublishError):  # noqa: N818
         super().__init__(
             "publishing is off: set SCRAP_PUBLISH_TO and SCRAP_PUBLISH_TOKEN_FILE"
         )
+
+
+class Busy(PublishError):  # noqa: N818
+    """A photo's preview, which the publish reads, is being made: answered 503 with
+    Retry-After (retry_after seconds)."""
+
+    status, code = 503, "busy"
+    retry_after = 5
+
+    def __init__(self) -> None:
+        super().__init__("a photo's preview is being made: try again shortly")
 
 
 class ReceiverError(Exception):

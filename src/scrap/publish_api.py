@@ -14,7 +14,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, StrictBool, StrictInt, ValidationError
 
 from .api_models import Text
-from .publish import BadRequest, Publisher, PublishError, Stale, TooLarge
+from .publish import BadRequest, Busy, Publisher, PublishError, Stale, TooLarge
 
 __all__ = ["MAX_BODY", "add_routes"]
 
@@ -32,7 +32,8 @@ def error(e: PublishError) -> JSONResponse:
     body: dict[str, Any] = {"error": e.code, "detail": e.detail}
     if isinstance(e, Stale):
         body["rev"] = e.rev
-    return JSONResponse(body, e.status)
+    headers = {"Retry-After": str(e.retry_after)} if isinstance(e, Busy) else None
+    return JSONResponse(body, e.status, headers)
 
 
 def add_routes(app: FastAPI, publisher: Publisher) -> None:

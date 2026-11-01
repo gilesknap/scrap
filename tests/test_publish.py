@@ -533,3 +533,19 @@ def test_a_tag_with_an_apostrophe_publishes(client, site):
     assert f'href="/t/{tag_key(tag)}"' in index and "scrap-tag" not in index
     assert f"t/{tag_key(tag)}" in site.units()
     assert "it&#x27;s (fun)!*" in site.file(f"t/{tag_key(tag)}", "index.html").decode()
+
+
+def test_a_busy_preview_is_503_with_retry_after(client, monkeypatch):
+    from scrap.preview import BusyError
+
+    p = made(client, files=[("a.jpg", photo(), "image/jpeg")])
+    (sha,) = shas(p)
+
+    def busy(*args, **kw):
+        raise BusyError()
+
+    monkeypatch.setattr(publish_files, "preview", busy)
+    r = put(client, p, f'<img src="scrap-blob:{sha}" alt="">')
+    assert (r.status_code, r.json()["error"]) == (503, "busy"), r.text
+    assert r.headers["Retry-After"] == "5"
+
