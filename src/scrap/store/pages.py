@@ -12,6 +12,7 @@ from .errors import InvalidError, NotFoundError
 from .helpers import body_refs, file_kind, now, todo_only
 from .indexing import enrich_on
 from .roles import is_topic, made_by
+from .titles import titles
 from .todo import cols as todo_cols
 from .topics import key_of, of_page
 from .topics import sources as topic_sources
@@ -80,7 +81,9 @@ class PagesMixin(Core):
         extra = self._enriched(conn, page["id"], page["slug"])
         return todo_only({**page, "fields": fields, "tags": tags, "captures": captures,
                           "made_by": made_by(conn, page["id"]),  # the PWA's badge
-                          "removed": removed, **extra})  # fmt: skip
+                          "removed": removed, **extra,
+                          # its links' pages' titles, which a bare link shows (#508)
+                          "titles": titles(conn, page["body"])})  # fmt: skip
 
     def _enriched(
         self, conn: sqlite3.Connection, page_id: str, slug: str

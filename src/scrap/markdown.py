@@ -6,7 +6,7 @@ is never mistaken for a link, and no part of it backtracks on hostile text."""
 
 import re
 from bisect import bisect_left, bisect_right
-from collections.abc import Callable, Iterable, Iterator
+from collections.abc import Callable, Iterable, Iterator, Mapping
 from dataclasses import dataclass
 from functools import cache
 from typing import Literal
@@ -28,6 +28,7 @@ __all__ = [
     "plain",
     "rewrite",
     "wiki_link",
+    "wiki_titled",
     "wiki_page",
     "wiki_parts",
     "wiki_targets",
@@ -316,27 +317,72 @@ def rewrite(
     return "".join(out)
 
 
-def wiki_link(link: Link, href: Callable[[str], str]) -> str | None:
-    """A [[slug]] or [[slug|label]] link (to a #heading too) as a Markdown link to
-    href(slug); None (kept as typed) for any other link, an embed, or a target the PWA
-    shows as plain text, whose part before any # is not a slug ([[Some Title]],
-    [[#heading]]). A bracket in the label becomes a parenthesis, and in a table cell
-    its pipes are escaped, since a bare one would end the cell.
+def _title(slug: str, titles: Mapping[str, str]) -> str:
+    """A page's title as the label of a link to it that has none of its own (#508,
+    as the PWA's linktext.ts: the label typed, else the title, else the link as
+    typed), its backslashes escaped (one at its end would escape the bracket that
+    closes the label); "" if titles has none."""
+    return titles.get(slug, "").replace("\\", "\\\\")
 
-    >>> wiki = Link("wiki", "a-page#intro|Intro", "", embed=False, in_table=False)
-    >>> wiki_link(wiki, lambda slug: f"/p/{slug}")
-    '[Intro](/p/a-page)'
-    """
+
+def _safe(label: str, in_table: bool) -> str:
+    """A label inside a link's brackets: a bracket becomes a parenthesis, and in a
+    table cell its pipes are escaped, since a bare one would end the cell."""
+    label = label.replace("[", "(").replace("]", ")")
+    return label.replace("|", "\\|") if in_table else label
+
+
+def _page_link(link: Link) -> tuple[str, str, str] | None:
+    """A [[slug]] or [[slug|label]] link's slug, target as typed and label; None for
+    any other link, an embed, or a target that is no slug."""
     if link.kind != "wiki" or link.embed:
         return None
     target, label = wiki_parts(link.target)
     slug = wiki_page(target)
-    if not SLUG.fullmatch(slug):
+    return (slug, target, label) if SLUG.fullmatch(slug) else None
+
+
+def wiki_link(
+    link: Link, href: Callable[[str], str], titles: Mapping[str, str] | None = None
+) -> str | None:
+    """A [[slug]] or [[slug|label]] link (to a #heading too) as a Markdown link to
+    href(slug), its words its label, else its page's title (from titles), else the
+    target as typed; None (kept as typed) for any other link, an embed, or a target
+    the PWA shows as plain text, whose part before any # is not a slug
+    ([[Some Title]], [[#heading]]). A bracket in the label becomes a parenthesis,
+    and in a table cell its pipes are escaped, since a bare one would end the cell.
+
+    >>> wiki = Link("wiki", "a-page#intro|Intro", "", embed=False, in_table=False)
+    >>> wiki_link(wiki, lambda slug: f"/p/{slug}")
+    '[Intro](/p/a-page)'
+    >>> bare = Link("wiki", "a-page", "", embed=False, in_table=False)
+    >>> wiki_link(bare, lambda slug: f"/p/{slug}", {"a-page": "A [draft] page"})
+    '[A (draft) page](/p/a-page)'
+    >>> print(wiki_link(bare, lambda slug: f"/p/{slug}", {"a-page": "C:\\\\"}))
+    [C:\\\\](/p/a-page)
+    """
+    parts = _page_link(link)
+    if parts is None:
         return None
-    label = (label or target).replace("[", "(").replace("]", ")")
-    if link.in_table:
-        label = label.replace("|", "\\|")
-    return f"[{label}]({href(slug)})"
+    slug, target, label = parts
+    words = label or _title(slug, titles or {}) or target
+    return f"[{_safe(words, link.in_table)}]({href(slug)})"
+
+
+def wiki_titled(link: Link, titles: Mapping[str, str]) -> str | None:
+    """A [[slug]] link with no label, to a page in titles, as [[target|title]], so it
+    shows the title where a reader knows wiki links; None (kept as typed) for any
+    other link, one with a label, or a dangling one.
+
+    >>> bare = Link("wiki", "a-page#x", "", embed=False, in_table=True)
+    >>> print(wiki_titled(bare, {"a-page": "A | B"}))
+    [[a-page#x\\|A \\| B]]
+    """
+    parts = _page_link(link)
+    if parts is None or parts[2] or not (title := _title(parts[0], titles)):
+        return None
+    bar = "\\|" if link.in_table else "|"
+    return f"[[{parts[1]}{bar}{_safe(title, link.in_table)}]]"
 
 
 TASK = re.compile(r"\[([ xX])\](?: |$)")

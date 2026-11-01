@@ -15,6 +15,7 @@ import { drafts } from "./db";
 import { type Embed, expand, found, tokenise } from "./embeds";
 import { type Icon, icon } from "./icons";
 import { KINDS } from "./kinds";
+import type { Titles } from "./linktext";
 import {
   bullet,
   type Change,
@@ -342,6 +343,7 @@ export interface Editor {
 export function editor(o: {
   text: HTMLTextAreaElement;
   read?: () => string; // the text as Markdown (embedded()'s value), if not the box's own
+  titles?: Titles; // the titles of the pages its text linked to, for Preview's links
   before?: Node[];
   after?: Node[];
   foot?: Node; // under the fields, above the keys: always in sight, however long the text
@@ -356,7 +358,7 @@ export function editor(o: {
 }): Editor {
   o.text.dir = "auto"; // right-to-left text lays out as such
   lists(o.text); // Enter continues a list (listedit.ts)
-  const preview = previewer(o.text, o.read);
+  const preview = previewer(o.text, o.read, o.titles);
   // Just above the keyboard (the layer is the visual viewport's height): the keys that make
   // the line (or the lines selected) a task, a bullet or a numbered item, or indent or outdent
   // it, and Undo. In a code block the list keys do nothing. A tap keeps the keyboard up.

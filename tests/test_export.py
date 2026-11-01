@@ -370,6 +370,6 @@ def test_sidecar_links_skip_what_the_pwa_shows_as_text():
     """Model text's [[Some Title]] is kept, not made a link to no file; a table
     cell's label keeps its pipe escaped (#491)."""
     text = "[[Some Title]] [[a#h|A]]\n\n| [[a\\|x\\|y]] |\n| - |"
-    assert export_module._sidecar_links(text) == (
+    assert export_module._sidecar_links(text, {}) == (
         "[[Some Title]] [A](../a.md)\n\n| [x\\|y](../a.md) |\n| - |"
     )

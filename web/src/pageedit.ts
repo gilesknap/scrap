@@ -240,6 +240,7 @@ export async function edit(
   const ed = editor({
     text,
     read: body,
+    titles: p.titles,
     before: [kind.el, title, todoLine.el, tagLine.el, laterLine.el],
     after: [...(adder ? [adder.bar] : []), conflict],
     foot: embeds.chips,

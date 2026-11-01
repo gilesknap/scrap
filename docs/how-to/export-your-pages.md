@@ -39,7 +39,9 @@ its data.
 1. Unzip the export (or use the folder `scrap export` wrote).
 2. In Obsidian, **Open folder as vault** and pick that folder.
 
-Each page is `<slug>.md`, so your `[[slug]]` and `[[slug|label]]` links work as they are. A page's
+Each page is `<slug>.md`, so your `[[slug]]` and `[[slug|label]]` links work as they are (as
+typed: Obsidian shows a bare `[[slug]]` as its slug, where scrap shows the page's title; the
+`_claude` files name each linked page by its title). A page's
 title is its alias, so Obsidian's search and link suggestions find it by title. Tags, dates, a
 todo's due date and priority and the rest show as the page's properties, and photos show in the
 text. Files a page has but does not show in its text are listed in its `attachments` property,

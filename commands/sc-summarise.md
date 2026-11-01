@@ -56,7 +56,8 @@ With `all`:
   ids that matter, and whether each is merged, pushed or only local.
 - `## Open questions`: what is unresolved or left to do, as `- [ ]` boxes.
 
-Either way, link related pages as `[[slug|label]]`. Tables, fenced code and ```` ```mermaid ````
+Either way, link related pages as `[[slug]]` (it shows the page's title; `[[slug|words]]` only
+where other words read better). Tables, fenced code and ```` ```mermaid ````
 work; `- [ ]` shows as tickable boxes. Images only display when they are scrap's own photos.
 
 Never include secrets, tokens, API keys, passwords, credentials or their file contents, private

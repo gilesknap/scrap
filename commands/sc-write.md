@@ -16,7 +16,8 @@ Use ONLY `mcp__scrap__tags`, `search`, `read` and `write`. If they are missing, 
    (skip it if there is nothing), not in the body as fact.
 2. **Look first**: `tags` (with a `prefix` if the topic is obvious) and reuse existing tags,
    nested ones too (2-5; invent one only when nothing fits). `search` with 1-2 short queries to
-   find related pages to link as `[[slug|title]]`. Never use a full `/p/` URL for a scrap page.
+   find related pages to link as `[[slug]]` (it shows the page's title; `[[slug|words]]` only
+   where other words read better). Never use a full `/p/` URL for a scrap page.
 3. **Page**: a specific title under ~80 characters; first line a one-sentence summary (do not
    repeat the title as a heading); then just the requested content, as short bullets, a table or a
    list as fits. `kind` `note` unless the user asked otherwise (`doc` for a long reference,

@@ -59,7 +59,8 @@ Be faithful, without hedging everywhere:
 - The writing read from an image may be out of order or misread: use the photo to see what goes
   with what, and correct a misreading the photo makes plain.
 
-Links: to link to a page from "Other pages", write `[[n]]` with its number, or `[[n|words]]` to
-link some words of your own, e.g. `the [[12|ingest queue]] feeds it`. Link only pages that are
-really about the same project, topic or thing, where the link helps; no other links, no web
-addresses and no images.
+Links: to link to a page from "Other pages", write `[[n]]` with its number. The app shows it as
+that page's title, so don't add the title as words (`[[12|Ingest queue]]`). Write `[[n|words]]`
+only where other words read better in your sentence, e.g. `it [[12|retries]] on failure`. Link
+only pages that are really about the same project, topic or thing, where the link helps; no
+other links, no web addresses and no images.

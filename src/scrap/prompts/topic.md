@@ -35,6 +35,7 @@ Be faithful:
 - Keep every name, label and abbreviation as the sources write it.
 - A source may be only loosely about the topic: use what is about the topic, and leave the rest.
 
-Links: cite a source by its number, `[[n]]`, or `[[n|words]]` to link some words of your own,
-e.g. `the [[3|ingest queue]] retries it`. Cite only the numbered sources; no other links, no web
-addresses and no images.
+Links: cite a source by its number, `[[n]]`. The app shows it as that source's title, so don't
+add the title as words (`[[3|Ingest queue]]`). Write `[[n|words]]` only where other words read
+better in your sentence, e.g. `it [[3|retries]] on failure`. Cite only the numbered sources; no
+other links, no web addresses and no images.

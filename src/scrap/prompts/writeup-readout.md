@@ -44,6 +44,7 @@ Be faithful:
   with what, and correct a misreading the image makes plain.
 - Leave out decoration (logos, layout, colours) unless it carries a meaning, such as a status.
 
-Links: to link to a page from "Other pages", write `[[n]]` with its number, or `[[n|words]]` to
-link some words of your own. Link only pages that are really about the same system, project or
+Links: to link to a page from "Other pages", write `[[n]]` with its number. The app shows it as
+that page's title, so don't add the title as words. Write `[[n|words]]` only where other words
+read better in your sentence. Link only pages that are really about the same system, project or
 thing, where the link helps; no other links, no web addresses and no images.

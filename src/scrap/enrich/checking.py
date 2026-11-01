@@ -122,7 +122,8 @@ def unlinked(text: str) -> str:
 
 
 def cited(text: str, slugs: Sequence[str]) -> str:
-    """A write-up's links as the model wrote them, [[n]] or [[n|words]] with n a
+    """A write-up's links as the model wrote them, [[n]] (mostly: the app shows the
+    page's title, #508) or [[n|words]] (where other words read better) with n a
     number of its index, as page links: [[slug]], [[slug|words]]; nothing else in it
     links (unlinked). The cited links are held aside (HELD) while the rest is
     stripped, so stripping can neither break one nor make one: a number not in the

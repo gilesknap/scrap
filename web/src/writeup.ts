@@ -114,7 +114,7 @@ export function writeupParts(p: Page, show: (p: Page) => void) {
         "div",
         { className: "card" },
         h("p", { className: "by", title: up.producer }, byline(up)),
-        pageLinksOnly(bodyView(up.text, false), up.links ?? []),
+        pageLinksOnly(bodyView(up.text, false, up.titles), up.links ?? []),
         guidanceFold(p, w, show),
       ),
     );

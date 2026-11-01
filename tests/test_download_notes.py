@@ -92,7 +92,7 @@ def test_claudes_notes_are_one_marked_section(client, cast):
     notes = text.split(NOTES_HEADING)[1]
     assert "**Summary**\n\n> A short Claude summary." in notes
     assert "**Tags Claude added:** epics" in notes
-    assert f"**Related pages**\n\n- [[{b['slug']}]] Beta page" in notes
+    assert f"**Related pages**\n\n- [[{b['slug']}|Beta page]]" in notes
     assert text.index("the body") < text.index(NOTES_HEADING)  # after the owner's text
     assert "the body" not in notes
 
@@ -108,7 +108,7 @@ def test_notes_off_leaves_only_claudes_part_out(client, cast):
     a, _, link, _ = cast
     text = md(client, a, "?notes=0")
     assert "Claude" not in text and "A short" not in text
-    assert f"## Linked from\n\n- [[{link['slug']}]] Linker" in text
+    assert f"## Linked from\n\n- [[{link['slug']}|Linker]]" in text
     assert 'tags: ["epics"]' in text
 
 
@@ -122,14 +122,14 @@ def test_a_page_with_nothing_to_add_has_no_empty_headings(client):
 def test_slug_links_are_full_addresses_only_when_set(client, cast, monkeypatch):
     a, _, link, _ = cast
     slug = a["slug"]
-    assert f"see [[{slug}]]" in md(client, link)
+    assert f"see [[{slug}|Alpha]]" in md(client, link)  # its title (#508)
     monkeypatch.setenv("SCRAP_PUBLIC_URL", "https://scrap.example:8446/")
     text = md(client, link)
-    assert f"see [{slug}](https://scrap.example:8446/p/{slug})" in text
+    assert f"see [Alpha](https://scrap.example:8446/p/{slug})" in text
     assert "[[" not in text
-    assert "[linker](https://scrap.example:8446/p/linker) Linker" in md(client, a)
+    assert "- [Linker](https://scrap.example:8446/p/linker)\n" in md(client, a)
     notes = client.get(f"/api/pages/{cast[3]}/download").text
-    assert f"[{slug}](https://scrap.example:8446/p/{slug})" in notes
+    assert f"[Alpha](https://scrap.example:8446/p/{slug})" in notes
     fenced = add(client, f"```\n[[{slug}]]\n```\n`[[{slug}]]` ![[{slug}]]")
     assert md(client, fenced).count(f"[[{slug}]]") == 3  # code and an embed: as typed
 
@@ -150,10 +150,10 @@ def test_labelled_slug_links_keep_the_label_out_of_the_address(
     monkeypatch.setenv("SCRAP_PUBLIC_URL", "https://scrap.example/")
     text = md(client, page)
     address = f"(https://scrap.example/p/{slug})"
-    assert f"see [the alpha page]{address} and [{slug}]{address}" in text
+    assert f"see [the alpha page]{address} and [Alpha]{address}" in text
     assert f"| [in a table]{address} | x |" in text
     assert f"| [a\\|b]{address} | y |" in text  # a bare | would end the cell
-    assert f"to [Intro]{address}, [{slug}#intro]{address};" in text
+    assert f"to [Intro]{address}, [Alpha]{address};" in text
     assert "[[Some Title]] [[#h]] [[|lbl]]" in text  # the PWA shows these as text
     assert "%7C" not in text and "%23" not in text
 
