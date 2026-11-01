@@ -536,10 +536,15 @@ test("with JavaScript off a page is light, at the default width, with no switche
   expect(cut).toEqual({ cut: true, inside: true, noScroll: true });
   // home's "Pages · Tags", the mark before Pages: the two words on one baseline
   await plain.goto(`${SITE}/`);
-  const [pages, tags] = await plain
-    .locator(".site-head > a")
-    .evaluateAll((as) => as.map((a) => a.getBoundingClientRect().bottom));
-  expect(Math.abs(pages - tags)).toBeLessThanOrEqual(2);
+  // (the words' own text boxes, not the links': off by 5 to 7 px when it clipped above the line)
+  const [pages, tags] = await plain.locator(".site-head > a").evaluateAll((as) =>
+    as.map((a) => {
+      const words = document.createRange();
+      words.selectNodeContents(a);
+      return words.getClientRects()[0].bottom;
+    }),
+  );
+  expect(Math.abs(pages - tags)).toBeLessThanOrEqual(1);
   await off.close();
 });
 
