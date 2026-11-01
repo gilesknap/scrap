@@ -15,10 +15,12 @@ from fastapi.testclient import TestClient
 from PIL import Image
 
 from publishhelp import SITE, Site, configure, page
+from scrap import svg as svg_module
 from scrap.app import create_app
 from scrap.publish import scene
 from scrap.publish.drawings import clean_drawing
 from scrap.publish.errors import CheckError
+from scrap.publish.links import scrub_text
 from scrap.store import new_ulid
 
 OWN = "https://scrap.example.org"  # scrap's own address, never published
@@ -119,7 +121,8 @@ def publish(client, p: dict, body: str, drawings: list[dict]):
 
 
 def svg_scene(svg: str) -> dict:
-    return scene.decode(scene.payload(svg))
+    root = svg_module.parse(svg.encode(), 2**25, comments=True)
+    return scene.decode(scene.payload(root))
 
 
 def test_a_drawing_is_published_clean(client, site):
@@ -232,25 +235,47 @@ def keep(text: str) -> str:
     return text
 
 
+NS = 'xmlns="http://www.w3.org/2000/svg"'
+MARKS = (
+    "<!-- payload-type:application/vnd.excalidraw+json --><!-- payload-version:2 -->"
+    "<!-- payload-start -->{}<!-- payload-end -->"
+)
+
+
+def meta(b64: str) -> str:
+    return f"<svg {NS}><metadata>{MARKS.format(b64)}</metadata></svg>"
+
+
+def b64(data: bytes) -> str:
+    return base64.b64encode(data).decode()
+
+
 @pytest.mark.parametrize(
     ("svg", "why"),
     [
-        ('<svg xmlns="http://www.w3.org/2000/svg"></svg>', "no single"),
+        (f"<svg {NS}></svg>", "no single"),
         (drawn([], {}, []).replace("version:2", "version:1"), "no single"),
-        (drawn([], {}, []) + "<!-- payload-start -->", "no single"),
-        (drawn([], {}, []).replace(
-            "<!-- payload-end -->",
-            "<!-- payload-end --><!-- payload-type:application/vnd.excalidraw+json -->",
-        ), "no single"),  # fmt: skip
-        ("<svg><!-- payload-type:application/vnd.excalidraw+json --><!-- payload-vers"
-         "ion:2 --><!-- payload-start -->@@@<!-- payload-end --></svg>", "not base64"),
-        ("<svg><!-- payload-type:application/vnd.excalidraw+json --><!-- payload-vers"
-         "ion:2 --><!-- payload-start -->" + base64.b64encode(b'{"type":"excalidraw"}')
-         .decode() + "<!-- payload-end --></svg>", "form"),
-        ("<svg><!-- payload-type:application/vnd.excalidraw+json --><!-- payload-vers"
-         "ion:2 --><!-- payload-start -->" + base64.b64encode(
-             b'{"version":"1","encoding":"bstring","compressed":true,"encoded":"xx"}'
-         ).decode() + "<!-- payload-end --></svg>", "cannot be read"),
+        # a second <metadata>, or the markers anywhere but in the root's one
+        (drawn([], {}, []).replace("<defs>", "<metadata/><defs>"), "no single"),
+        (f"<svg {NS}><desc>{MARKS.format(b64(b'x'))}</desc></svg>", "no single"),
+        (f"<svg {NS}><g><metadata>{MARKS.format(b64(b'x'))}</metadata></g></svg>",
+         "no single"),
+        # a CDATA section: its text would go out as it is
+        (drawn([], {}, []).replace("<defs>", "<desc><![CDATA[x]]></desc><defs>"),
+         "CDATA"),
+        # anything else in the <metadata>
+        (drawn([], {}, []).replace("<!-- payload-end -->",
+                                   "<!-- payload-end --><!-- payload-type:x -->"),
+         "no single"),
+        (drawn([], {}, []).replace("<!-- payload-type", "words<!-- payload-type"),
+         "no single"),
+        (meta("@@@"), "not base64"),
+        (meta(b64(b'{"type":"excalidraw"}')), "form"),
+        # uncompressed: Excalidraw always compresses
+        (meta(b64(b'{"version":"1","encoding":"bstring","compressed":false,'
+                  b'"encoded":"{}"}')), "form"),
+        (meta(b64(b'{"version":"1","encoding":"bstring","compressed":true,'
+                  b'"encoded":"xx"}')), "cannot be read"),
     ],
 )  # fmt: skip
 def test_a_malformed_scene_is_refused(svg: str, why: str) -> None:
@@ -266,6 +291,60 @@ def test_a_scene_that_is_not_one_is_refused() -> None:
         text = f'<svg xmlns="http://www.w3.org/2000/svg">{mark}</svg>'
         with pytest.raises(CheckError):
             clean_drawing(text, no_photos, keep, lambda _: None)
+
+
+def test_its_words_may_name_the_markers() -> None:
+    # a text saying payload-type: is the drawing's words, not a second scene
+    said = "payload-type: and payload-start"
+    text = drawn([{"id": "t", "type": "text", "text": said}],
+                 {}, [], "<!-- payload-start --> payload-version:2")  # fmt: skip
+    out = clean_drawing(text, no_photos, keep, lambda _: None).decode()
+    assert svg_scene(out)["elements"][0]["text"] == said
+    assert "payload-version:2</text>" in out
+
+
+def test_nothing_private_survives_in_attributes_keys_fonts_or_dropped_ids(
+    monkeypatch,
+) -> None:
+    monkeypatch.setenv("SCRAP_PUBLIC_URL", OWN)
+    sha = "f" * 64  # a stored sha as a file id, of an image that is not the page's
+    photo_bytes = photo()
+    elements = [
+        {"id": "i", "type": "image", "fileId": sha},
+        {"id": "r", "type": "rectangle", f"{OWN}/p/secret": 1,
+         "boundElements": [{"id": "x", f"{OWN}/api/blobs/x": 2}],
+         "text": "data:image/jpeg;base64," + b64(photo_bytes)},
+    ]  # fmt: skip
+    files = {
+        sha: {"id": sha, "mimeType": "image/jpeg", "dataURL": data_url(photo_bytes)}
+    }
+    text = drawn(elements, files, [photo_bytes]).replace(
+        "<text ", f'<text aria-label="{OWN}/p/secret" data-x="/api/blobs/abc" '
+    )
+    out = clean_drawing(text, no_photos, scrub_text, lambda _: None).decode()
+    assert "scrap.example.org" not in out and "/api/" not in out
+    assert sha not in out and b64(photo_bytes)[:200] not in out
+    got = svg_scene(out)
+    (rect,) = got["elements"]
+    assert set(rect) <= scene.FIELDS and rect["boundElements"] == [{"id": "x"}]
+    assert rect["text"] == "" and got["files"] == {}
+    # a font that is not one: refused
+    jpeg = f"@font-face{{src:url(data:font/woff2;base64,{b64(photo_bytes)})}}"
+    bad = drawn([], {}, []).replace(
+        'class="style-fonts">', f'class="style-fonts">{jpeg}'
+    )
+    with pytest.raises(CheckError, match="font"):
+        clean_drawing(bad, no_photos, keep, lambda _: None)
+
+
+def test_a_deep_scene_is_refused_not_a_500() -> None:
+    deep: dict = {"id": "d", "type": "rectangle", "boundElements": []}
+    at = deep["boundElements"]
+    for _ in range(100):
+        at.append({"x": []})
+        at = at[0]["x"]
+    with pytest.raises(CheckError, match="deeply"):
+        clean_drawing(drawn([deep], {}, []), no_photos, keep, lambda _: None)
 
 
 def test_a_zip_bomb_is_refused(monkeypatch) -> None:

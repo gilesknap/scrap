@@ -288,8 +288,10 @@ whiteboard page, were left out. The owner decided both on 1 Nov 2026.
   app's four widths, 720 to 960 px, 800 by default) on `<html>`, and adds two quiet buttons to the
   site's header: a sun or moon ("Dark theme", pressed while dark) and the width, cycling. Every
   page, tag page, home and the 404 load it from `<head>` as `<script src="/assets/prefs.js" defer
-  blocking="render">`: deferred, and render-blocking where the browser supports it, so a kept
-  dark theme is on before the first paint, with no flash. The buttons are made by the script, so
+  blocking="render">`: deferred, and render-blocking where the browser supports it (Chromium
+  today), so a kept dark theme is on before the first paint, with no flash; elsewhere a reader
+  who chose dark may see one light frame. The owner chose `defer` (or `async`) over a
+  parser-blocking script. The buttons are made by the script, so
   without it there are none.
 - **The CSP relaxation.** Pages and tag pages go from `script-src 'none'` to `script-src
   'self'`, in nginx's header and the page's meta CSP. That is what it costs, and why it is

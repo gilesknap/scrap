@@ -10,6 +10,7 @@ import re
 from urllib.parse import quote, unquote
 
 from .checker import DRAWING_PREFIX, RAW_PLACEHOLDER
+from .errors import CheckError
 from .links import BLOB, DRAWING, EXCALIDRAW, TAG
 from .tagkey import tag_key
 
@@ -44,7 +45,9 @@ def swap(text: str, slug: str, names: dict[str, str], site: str | None = None) -
             return f"/p/{slug}/{names[blob[1]]}"
         if drawing := DRAWING.fullmatch(value):
             return f"/p/{slug}/{names[DRAWING_PREFIX + drawing[1]]}"
-        if (opens := EXCALIDRAW.fullmatch(value)) and site:
+        if opens := EXCALIDRAW.fullmatch(value):
+            if not site:  # (publish.drawings refuses this first)
+                raise CheckError("Not published: Open in Excalidraw needs the site.")
             return excalidraw_url(site, slug, names[DRAWING_PREFIX + opens[1]])
         tag = TAG.fullmatch(value)
         assert tag is not None  # the check took only these

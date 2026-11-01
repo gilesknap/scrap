@@ -50,7 +50,7 @@ export function photoPanel(o: {
   photo: string; // its preview URL
   slug: string;
   queue: Queue | null;
-  refresh: () => void; // fetch and show the page again
+  refresh: (drawn?: boolean) => void; // fetch and show the page again (drawn: a drawing saved)
 }): HTMLElement {
   const i = o.blob.ingest;
   const panel = h("section", { className: "photo-panel" });
@@ -66,7 +66,7 @@ export function photoPanel(o: {
   if (i.drawing) {
     const d = i.drawing;
     const frame = d.width && d.height ? { width: d.width, height: d.height } : null;
-    const open = () => openDrawing(t, o.refresh);
+    const open = () => openDrawing(t, () => o.refresh(true));
     // (its id and photo say which drawing it is, for the publish mode: publicpages.ts)
     const drawing = h(
       "figure",

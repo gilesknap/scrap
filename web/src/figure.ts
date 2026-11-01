@@ -36,7 +36,7 @@ export function figures(
   body: HTMLElement,
   p: Page,
   queue: Queue | null,
-  refresh: () => void,
+  refresh: (drawn?: boolean) => void,
 ): HTMLElement[] {
   // Each file of the page once, from the capture that has Claude's results for it, if any
   const files = new Map<string, Placed>();

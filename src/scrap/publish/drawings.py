@@ -3,13 +3,15 @@
 (exportEmbedScene), and uploads the SVG beside the page's HTML. scrap never trusts
 it: for each one it
 
-1. takes the one Excalidraw scene in it (scene.payload), decodes it and cleans it
+1. takes the one Excalidraw scene in it (scene.payload: the root's one <metadata>,
+   holding Excalidraw's marker comments; no CDATA anywhere), decodes it and cleans it
    (scene.clean): the page's photo in it becomes its 2048-pixel preview, an image
    that is not one of the page's photos goes, its text and links follow the page
    text's rules;
 2. runs the SVG through scrap's sanitiser (svg.sanitise), which drops the old scene
    with the <metadata> it is in, then gives what is drawn the same treatment: each
-   <image> the preview of the photo it is (or gone), each text scrubbed;
+   <image> the preview of the photo it is (or gone), the symbols of a dropped image
+   gone, each text and attribute value scrubbed, and an inlined font only a font;
 3. puts the cleaned scene back where Excalidraw puts it, so the published SVG is
    both the picture and a drawing excalidraw.com opens.
 
@@ -20,6 +22,7 @@ preview (Photos)."""
 import base64
 import binascii
 import hashlib
+import re
 import xml.etree.ElementTree as ET
 from collections.abc import Callable
 
@@ -36,6 +39,12 @@ __all__ = ["MAX_DRAWING", "Photos", "clean_drawing", "page_drawings"]
 MAX_DRAWING = 20 * 2**20  # an uploaded drawing's SVG, its photo in it twice
 PREVIEW = 2048
 IMAGES = ("image", "feImage")
+# A font Excalidraw inlines in the SVG's <style>: url(data:font/...;base64,...), as
+# svg.KEPT keeps it, and what a font file starts with (WOFF2, WOFF, OpenType, TrueType)
+FONT_DATA = re.compile(
+    r"url\(\s*['\"]?data:[^;,)]*;base64,([A-Za-z0-9+/=]*)", re.IGNORECASE | re.ASCII
+)
+FONT_MAGIC = (b"wOF2", b"wOFF", b"OTTO", b"\x00\x01\x00\x00", b"true")
 
 
 class Photos:
@@ -85,6 +94,28 @@ def _refuse(why: str) -> CheckError:
     return CheckError(f"Not published: a drawing {why}.", "bad_drawing")
 
 
+def _image_ref(el: ET.Element) -> str | None:
+    """The file id an Excalidraw image symbol or use names (image-<id>, or
+    image-crop-<id>-<hash>), else None."""
+    for key in ("id", "href"):
+        value = (el.get(key) or "").lstrip("#")
+        if value.startswith("image-"):
+            return value.removeprefix("image-").removeprefix("crop-")
+    return None
+
+
+def _fonts(css: str) -> None:
+    """Refuses a <style> whose embedded data is anything but a font (Excalidraw
+    inlines its fonts as data:font/woff2): never the photo, nor anything else."""
+    for m in FONT_DATA.finditer(css):
+        try:
+            data = base64.b64decode(m[1], validate=True)
+        except binascii.Error:
+            raise _refuse("has a font that is not one") from None
+        if not data.startswith(FONT_MAGIC):
+            raise _refuse("has a font that is not one")
+
+
 def _drawn(
     root: ET.Element,
     images: Callable[[bytes], bytes | None],
@@ -92,21 +123,38 @@ def _drawn(
     ids: dict[str, str],
 ) -> None:
     """The SVG's drawing cleaned as its scene was: each embedded image the preview
-    of its photo (or gone), each text scrubbed, image ids renamed as the scene's."""
-    stack = [root]
-    while stack:
-        el = stack.pop()
-        local = el.tag.rpartition("}")[2]
+    of its photo (or gone), each text and attribute value scrubbed, image symbols
+    renamed as the scene's files are, and those of a file dropped from it gone."""
+    kept = set(ids.values())
+
+    def rename(el: ET.Element) -> None:
         for key in ("id", "href"):
             value = el.get(key)
             if value and value.lstrip("#").startswith("image-"):
                 for old, new in ids.items():
-                    value = value.replace(old, new)
+                    value = value.replace(f"image-{old}", f"image-{new}")
+                    value = value.replace(f"image-crop-{old}-", f"image-crop-{new}-")
                 el.set(key, value)
-        if local != "style":
-            el.text = scrub(el.text) if el.text else el.text
+
+    rename(root)
+    stack = [root]
+    while stack:
+        el = stack.pop()
+        local = el.tag.rpartition("}")[2]
+        for key, value in el.attrib.items():  # no address of scrap's in any value
+            if key != "href":
+                el.set(key, scene.words(value, scrub))
+        if local == "style":
+            _fonts(el.text or "")
+        elif el.text:
+            el.text = scene.words(el.text, scrub)
         for child in list(el):
-            child.tail = scrub(child.tail) if child.tail else child.tail
+            child.tail = scene.words(child.tail, scrub) if child.tail else child.tail
+            rename(child)
+            ref = _image_ref(child)
+            if ref is not None and not any(ref.startswith(k) for k in kept):
+                el.remove(child)  # a file the scene no longer has: its name goes too
+                continue
             if child.tag.rpartition("}")[2] in IMAGES:
                 m = scene.DATA_URL.fullmatch(child.get("href") or "")
                 made = None
@@ -137,14 +185,19 @@ def clean_drawing(
             f"Not published: a drawing is over {MAX_DRAWING // 2**20} MiB.",
             "file_too_large",
         )
-    found = scene.decode(scene.payload(text))
-    cleaned, ids = scene.clean(found, images, scrub, link)
+    if "<![CDATA[" in text:  # Excalidraw writes none; text in it would go out as is
+        raise _refuse("has a CDATA section")
     try:
+        marked = svg.parse(data, MAX_DRAWING, comments=True)
+        found = scene.decode(scene.payload(marked))
+        cleaned, ids = scene.clean(found, images, scrub, link)
         safe = svg.sanitise(data, MAX_DRAWING)
         root = svg.parse(safe, svg.GROWTH * MAX_DRAWING)
+        _drawn(root, images, scrub, ids)
     except (InvalidError, TooLargeError) as e:
         raise _refuse(f"cannot be made safe ({e})") from None
-    _drawn(root, images, scrub, ids)
+    except RecursionError:
+        raise _refuse("is nested too deeply") from None
     out = svg.serialise(root)
     start = out.index(">") + 1  # the root's start tag (its values are escaped)
     out = out[:start] + scene.metadata(scene.encode(cleaned)) + out[start:]
@@ -210,7 +263,7 @@ def page_drawings(
                 " does not show.",
                 "bad_placeholder",
             )
-        if not (site or "").startswith("https://"):
+        if not (site or "").lower().startswith("https://"):
             raise CheckError(
                 "Not published: Open in Excalidraw needs the site's https address"
                 " (SCRAP_PUBLISH_SITE).",

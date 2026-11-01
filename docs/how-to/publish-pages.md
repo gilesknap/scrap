@@ -45,6 +45,7 @@ What a public page holds:
   2048-pixel preview, and scrap removes from it anything of scrap's own: its addresses, links to
   private pages, and any image that is not one of the page's photos. Open in Excalidraw needs the
   site on `https`; without it the page has only "Download, then open in excalidraw.com to edit".
+  Saving a drawing in the app publishes the page again.
 
 Readers choose a light or dark theme, and how wide the column is (as the app's Maximum column
 width), with the two buttons at the end of the site's header; their browser keeps the choice

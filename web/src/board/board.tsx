@@ -108,12 +108,19 @@ export async function publishSvg(data: Drawing["data"], photo: string | null): P
       exportEmbedScene: true,
     },
     files,
-    exportPadding: photo && frame ? 0 : 10,
+    exportPadding: frame ? 0 : 10,
   });
+  if (frame && elements.length) {
+    // Framed as the photo, as the page view's preview is: the same box in either tab
+    const [minX, minY] = getCommonBounds(elements);
+    svg.setAttribute("viewBox", frameViewBox(frame, minX, minY));
+    svg.setAttribute("width", String(frame.width));
+    svg.setAttribute("height", String(frame.height));
+  }
   const out = new XMLSerializer().serializeToString(svg);
   // It must open as a drawing, as excalidraw.com will open it: else nothing goes out
   const back = await loadFromBlob(new Blob([out], { type: "image/svg+xml" }), null, null);
-  if (back.elements.length !== elements.length) throw new Error("the drawing did not export whole");
+  if (elements.length && !back.elements.length) throw new Error("its scene did not export");
   return out;
 }
 

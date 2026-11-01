@@ -202,7 +202,16 @@ export async function page(key: string, signal: AbortSignal, quiet = false): Pro
         (m) => m.wire(body, () => shown, changed, signal),
         () => {},
       );
-    const files = figs ? figs.figures(body, p, queue, () => void refresh()) : links(p);
+    // A drawing saved here: shown again, then, on a public page, published again (#520)
+    const again = async (drawn?: boolean) => {
+      await refresh();
+      if (drawn && shown.public && shown.published_at)
+        void publics().then(
+          (m) => m.republish(view),
+          () => {},
+        );
+    };
+    const files = figs ? figs.figures(body, p, queue, (d) => void again(d)) : links(p);
     const saved = download(`/api/pages/${p.id}/download`); // the page as a file
     const menus = "showPopover" in HTMLElement.prototype; // Share's menu can hold Download
     root.replaceChildren(

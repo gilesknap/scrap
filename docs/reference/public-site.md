@@ -713,19 +713,21 @@ without it the one link is "Download, then open in excalidraw.com to edit".
 
 1. The id must be one of the page's photos' current drawings, every drawing the HTML names
    must be sent, and nothing else may be (`422 bad_drawing`, `bad_placeholder`).
-2. **The scene.** The SVG must hold exactly one Excalidraw scene, in Excalidraw's own markers:
-   one each of `<!-- payload-type:application/vnd.excalidraw+json -->`,
-   `<!-- payload-version:2 -->`, `<!-- payload-start -->` and `<!-- payload-end -->`, with base64
-   between the last two. That is the base64 of `{"version": "1", "encoding": "bstring",
-   "compressed": true, "encoded": ...}`, written one byte a character, and `encoded` is the
-   zlib deflate of the scene's JSON (Excalidraw 0.18, `data/encode.ts`). scrap decodes it (at most
-   64 MiB inflated) and keeps only:
+2. **The scene.** The SVG must hold exactly one Excalidraw scene, as Excalidraw writes it:
+   the root's one `<metadata>`, holding nothing but the comments
+   `<!-- payload-type:application/vnd.excalidraw+json -->`, `<!-- payload-version:2 -->`,
+   `<!-- payload-start -->` and `<!-- payload-end -->` in that order, with base64 between the
+   last two; and no CDATA section anywhere. The base64 is that of `{"version": "1", "encoding":
+   "bstring", "compressed": true, "encoded": ...}`, written one byte a character, and `encoded`
+   is the zlib deflate of the scene's JSON (Excalidraw 0.18, `data/encode.ts`). scrap decodes it
+   (at most 24 MiB inflated, 32 levels deep) and keeps only:
    - `type`, `version`, `elements`, `appState` and `files`, and `source` as `scrap` (Excalidraw
      writes the address of the app it ran in, which is scrap's own);
    - of `appState`, the background colour and the grid;
-   - every element not deleted, without `customData`. Every string in an element goes through
-     the page text's rule: an address of scrap's own, or an `/api/` path, becomes "a private
-     link". An element's `link` follows the page's link rules: a web or `mailto:` link stays, a
+   - every element not deleted, with only Excalidraw's own element fields (no `customData`),
+     and inside them only keys that are plain names. Every string in an element loses any
+     embedded `data:` URL and goes through the page text's rule: an address of scrap's own, or
+     an `/api/` path, becomes "a private link". An element's `link` follows the page's link rules: a web or `mailto:` link stays, a
      public page's becomes its address on the site, and anything else (a private page, scrap's
      own, `/api/`) is removed;
    - each embedded image only if it is one of the page's photos, matched by its bytes (the photo
@@ -735,16 +737,28 @@ without it the one link is "Download, then open in excalidraw.com to edit".
      dropped, with the elements that show it.
 3. **The picture.** The SVG goes through scrap's SVG sanitiser (as any SVG; up to 20 MiB here,
    since it holds the photo twice), which drops the old scene. In what is drawn, each `<image>`
-   is likewise the preview of the page's photo it is, or removed, and every text is scrubbed by
-   the same rule.
+   is likewise the preview of the page's photo it is, or removed, with the symbols naming a
+   dropped image; every text and attribute value is scrubbed by the same rule; and a font
+   inlined in its `<style>` must be a font (WOFF2, WOFF, OpenType or TrueType), else the drawing
+   is refused.
 4. The cleaned scene goes back where Excalidraw puts it, first in the SVG
    (`<!-- svg-source:excalidraw --><metadata>...</metadata>`), so the file is both the picture
    and a drawing.
+
+The request's own limit, 25 MiB, holds the HTML and every drawing: a drawing of a photo is
+about 1 to 3 MB (the preview twice, in base64, and its fonts), so a page with more than about
+ten drawings is refused as too large (`413`) before the 20-file cap.
 
 It is published as `img-<n>-<hex>.svg`, numbered with the page's images, under the image CSP
 (`sandbox`, loading nothing). `scrap-drawing:<id>` becomes its path, and
 `scrap-excalidraw:<id>` becomes `https://excalidraw.com/#url=` and the SVG's address on the site,
 encoded as `encodeURIComponent` does.
+
+**When it changes.** Saving a drawing in the PWA publishes its page again, as saving the page
+does. A drawing changed elsewhere (by Claude, or over MCP) keeps its published copy until the
+page is next saved in the PWA, or Refresh all. A drawing replaced between the PWA drawing the
+page and scrap checking it is no longer the page's (`422 bad_placeholder`): the PWA draws the
+page again once, as for a stale tag.
 
 **Opening it.** excalidraw.com reads a `#url=` address on load, fetches that file in the
 reader's browser (hence the SVG's `Access-Control-Allow-Origin`) and opens it as it opens a file
@@ -756,8 +770,10 @@ excalidraw.com, or a copy of Excalidraw, with its own Open.
 ### Reader preferences
 
 Every page, tag page, the home page, Tags and the 404 load one script from their head,
-`/assets/prefs.js` (deferred and render-blocking, so a kept choice applies before the first
-paint). It keeps two choices in the reader's browser (`localStorage`), and puts two buttons at
+`/assets/prefs.js`, deferred and `blocking="render"`: in Chromium-based browsers that blocks
+the first paint until it has run, so a kept dark theme shows from the first frame. Browsers that
+do not know `blocking` (Firefox and Safari, today) may paint once before it runs, so a reader
+who chose dark can see a light flash there. It keeps two choices in the reader's browser (`localStorage`), and puts two buttons at
 the end of the site's header:
 
 - **The theme.** Public pages are light, whatever the device's `prefers-color-scheme`. The

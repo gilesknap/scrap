@@ -32,7 +32,7 @@ vi.mock("../src/publish", () => ({
   // a view's drawings: those its (fake) root lists
   drawingsOf: (root: { drawings?: unknown[] }) => root.drawings ?? [],
   publishHtml: (_root: unknown, c: { title: string; drawn?: Set<string> }) =>
-    `<!DOCTYPE html>${c.title}${[...(c.drawn ?? [])].map((d) => ` drawn:${d}`).join("")}`,
+    `<!DOCTYPE html>${c.title}${[...(c.drawn ?? [])].map((d) => ` "scrap-drawing:${d}"`).join("")}`,
 }));
 // Excalidraw's chunk, loaded only for a page with drawings (#520)
 const boards: string[] = [];
@@ -196,7 +196,7 @@ describe("a page with drawings (#520)", () => {
     (v.root as unknown as { drawings: unknown[] }).drawings = [{ id: "7", cid: "c1", sha: "ab" }];
     await pub.makePublic(v);
     const put = calls.find((c) => c.method === "PUT");
-    expect(put?.body?.html).toBe("<!DOCTYPE html>A drawn:7");
+    expect(put?.body?.html).toBe('<!DOCTYPE html>A "scrap-drawing:7"');
     expect(put?.body?.drawings).toEqual([
       { key: "7", svg: '<svg data-n="2">data:image/jpeg;base64,AQID</svg>' },
     ]);

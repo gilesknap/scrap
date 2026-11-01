@@ -101,13 +101,17 @@ def _refuse(*_: object) -> None:
 
 
 class _Builder(ET.TreeBuilder):
-    """A tree builder that refuses a DOCTYPE (the scan in parse comes first)."""
+    """A tree builder that refuses a DOCTYPE (the scan in parse comes first), and
+    keeps comments only when asked (a drawing's scene markers: publish.scene)."""
+
+    def __init__(self, comments: bool = False) -> None:
+        super().__init__(insert_comments=comments)
 
     def doctype(self, *_: object) -> None:
         _refuse()
 
 
-def parse(data: bytes, limit: int = MAX_SVG) -> ET.Element:
+def parse(data: bytes, limit: int = MAX_SVG, comments: bool = False) -> ET.Element:
     """The root <svg> of a file, parsed with no DOCTYPE (one naming only an
     external DTD is dropped, unread; one with an internal subset is refused) and so
     no entities; every element put in the SVG namespace if the file uses none.
@@ -124,7 +128,7 @@ def parse(data: bytes, limit: int = MAX_SVG) -> ET.Element:
     markup = PLAIN_DOCTYPE.sub("", markup, count=1)
     if DECLARATION.search(markup):  # an internal subset, or an entity: refused
         _refuse()
-    parser = ET.XMLParser(target=_Builder())  # comments and PIs are dropped
+    parser = ET.XMLParser(target=_Builder(comments))  # PIs (and comments) dropped
     try:
         parser.feed(markup)
         root = parser.close()

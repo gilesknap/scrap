@@ -9,7 +9,7 @@
 // once the owner has said yes here: Make public's warning, or Refresh all's question. A save,
 // a tick or a link coming alive passes it by; scrap refuses it too (409 unconfirmed).
 import type { Page, PublicPage } from "./api";
-import { api } from "./api";
+import { ApiError, api } from "./api";
 import type { Drawing } from "./board/frame";
 import { copyText } from "./clipboard";
 import { loadBoard } from "./drawing";
@@ -78,8 +78,13 @@ async function tex() {
 /** A photo's 2048 px preview as a data: URL, as the drawing of it embeds it (scrap matches
  * these bytes to the page's photo). */
 async function photoUrl(sha: string): Promise<string> {
-  const got = await fetch(`/api/blobs/${sha}/preview?size=2048`);
-  if (!got.ok) throw new Error(`the photo of a drawing could not be fetched (${got.status})`);
+  let got = await fetch(`/api/blobs/${sha}/preview?size=2048`);
+  for (let tries = 0; got.status === 503 && tries < 3; tries++) {
+    // its preview is being made (scrap's decoder is busy): as scrap asks, a little later
+    await new Promise((ok) => setTimeout(ok, 1000 * Number(got.headers.get("Retry-After") || 2)));
+    got = await fetch(`/api/blobs/${sha}/preview?size=2048`);
+  }
+  if (!got.ok) throw new Error(`its photo could not be fetched (HTTP ${got.status})`);
   const bytes = new Uint8Array(await got.arrayBuffer());
   let text = "";
   for (let i = 0; i < bytes.length; i += 0x8000)
@@ -92,12 +97,21 @@ async function photoUrl(sha: string): Promise<string> {
 export async function drawingsFor(root: HTMLElement): Promise<{ key: string; svg: string }[]> {
   const found = drawingsOf(root);
   if (!found.length) return [];
-  const board = await loadBoard();
+  const board = await loadBoard().catch(() => {
+    throw new TypeError("Excalidraw could not be loaded"); // as offline: not reached
+  });
   const out: { key: string; svg: string }[] = [];
   for (const d of found) {
     const path = `captures/${encodeURIComponent(d.cid)}/photos/${d.sha}/drawing`;
-    const drawing = await api<Drawing>(path);
-    out.push({ key: d.id, svg: await board.publishSvg(drawing.data, await photoUrl(d.sha)) });
+    const drawing = await api<Drawing>(path); // an ApiError, or not reached, as it is
+    try {
+      out.push({ key: d.id, svg: await board.publishSvg(drawing.data, await photoUrl(d.sha)) });
+    } catch (err) {
+      if (err instanceof ApiError) throw err;
+      // said as scrap's own refusals are (publicapi.ts whyNot), not as "offline"
+      const why = err instanceof Error ? err.message : String(err);
+      throw new ApiError(422, { error: "drawing", detail: `a drawing could not be drawn: ${why}` });
+    }
   }
   return out;
 }
@@ -111,8 +125,10 @@ export interface Rendered {
 /** The page's public HTML from its view, with its drawings: the public pages known, the
  * titles of private pages its bare links name fetched. */
 export async function renderedOf(d: Drawn, r: Run): Promise<Rendered> {
-  const drawings = await drawingsFor(d.root);
-  const html = await htmlOf(d, r, new Set(drawings.map((x) => x.key)));
+  const drawn = await drawingsFor(d.root);
+  const html = await htmlOf(d, r, new Set(drawn.map((x) => x.key)));
+  // only those the page shows (a drawing without its photo's figure is not)
+  const drawings = drawn.filter((x) => html.includes(`"scrap-drawing:${x.key}"`));
   return { html, drawings };
 }
 
