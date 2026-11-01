@@ -12,6 +12,13 @@ const note = async (page: Page, text: string) => {
   made.push(ref.page_id);
   return ref.slug;
 };
+type Multipart = NonNullable<Parameters<Page["request"]["post"]>[1]>["multipart"];
+/** Capture this multipart form (files and all): its answer, the page deleted after the test. */
+const posted = async (page: Page, multipart: Multipart) => {
+  const ref = await (await page.request.post("/api/captures", { multipart })).json();
+  made.push(ref.page_id);
+  return ref;
+};
 
 test("Save and Cancel stay on screen while editing; Ctrl+Enter saves", async ({ page }) => {
   const slug = await note(page, "Edit me\nfirst body");
@@ -88,7 +95,7 @@ test("the photo viewer fits, zooms, pans, pages and closes on Back", async ({ pa
     new Blob([new Uint8Array(png(600, 1200, 200))], { type: "image/png" }),
     "tall.png",
   );
-  const ref = await (await page.request.post("/api/captures", { multipart: form })).json();
+  const ref = await posted(page, form);
   await page.goto(`/p/${ref.slug}`);
   await page.locator("figure.orig img").first().click();
   const dialog = page.getByRole("dialog");
@@ -147,7 +154,7 @@ async function photoPage(page: Page) {
   for (const n of [1, 2]) {
     form.append("file", new Blob([new Uint8Array(png(800, 600, 50 * n))]), `p${n}.png`);
   }
-  return (await (await page.request.post("/api/captures", { multipart: form })).json()).slug;
+  return (await posted(page, form)).slug;
 }
 
 const inside = async (page: Page, el: ReturnType<Page["locator"]>) => {
@@ -365,7 +372,7 @@ test("embedded images are figures: no caption, the viewer names them, Generate a
     new Blob([new Uint8Array(png(200, 300, 160))], { type: "image/png" }),
     "b.png",
   );
-  const ref = await (await page.request.post("/api/captures", { multipart: form })).json();
+  const ref = await posted(page, form);
   unasked(ref.page_id);
   await page.goto(`/p/${ref.slug}`);
   const figs = page.locator(".md figure.orig");
@@ -401,13 +408,11 @@ test("embedded images are figures: no caption, the viewer names them, Generate a
 test("an image added by an edit is a figure at once; one in a list or a line stays", async ({
   page,
 }) => {
-  const photo = await page.request.post("/api/captures", {
-    multipart: {
-      id: ulid(),
-      file: { name: "p.png", mimeType: "image/png", buffer: png(40, 30, 99) },
-    },
+  const photo = await posted(page, {
+    id: ulid(),
+    file: { name: "p.png", mimeType: "image/png", buffer: png(40, 30, 99) },
   });
-  const other = await (await page.request.get(`/api/pages/${(await photo.json()).slug}`)).json();
+  const other = await (await page.request.get(`/api/pages/${photo.slug}`)).json();
   const sha = other.captures[0].blobs[0].sha256;
   const slug = await note(page, "Text only");
   await page.goto(`/p/${slug}`);
@@ -437,9 +442,7 @@ test("every photo of the page can be opened, saved and sent, wherever the text p
       `${n}.png`,
     );
   form.append("file", new Blob(["%PDF-1.4"], { type: "application/pdf" }), "doc.pdf");
-  const { page_id, slug } = await (
-    await page.request.post("/api/captures", { multipart: form })
-  ).json();
+  const { page_id, slug } = await posted(page, form);
   unasked(page_id); // not sent to Claude
   const url = `/api/pages/${page_id}`;
   const blobs = (await (await page.request.get(url)).json()).captures[0].blobs;
@@ -528,7 +531,7 @@ test("Share sends a page's link or text, or a photo file, to the share sheet", a
     new Blob([new Uint8Array(png(300, 200, 120))], { type: "image/png" }),
     "pic.png",
   );
-  const { slug } = await (await page.request.post("/api/captures", { multipart: form })).json();
+  const { slug } = await posted(page, form);
   await page.goto(`/p/${slug}`);
   const link = new URL(`/p/${slug}`, page.url()).href;
   await shareAs(".page > .bar", "Text");
@@ -651,7 +654,7 @@ test("without the Popover API, Share sends the content at once", async ({ page }
   const form = new FormData();
   form.append("id", ulid());
   form.append("text", "Old phone\nplain share");
-  const { slug } = await (await page.request.post("/api/captures", { multipart: form })).json();
+  const { slug } = await posted(page, form);
   await page.goto(`/p/${slug}`);
   const share = page.locator(".page > .bar").getByRole("button", { name: "Share" });
   await expect(share).not.toHaveAttribute("aria-expanded");
@@ -670,7 +673,7 @@ test("placeholders stop pulsing once photos load, or fail", async ({ page }) => 
     "t.png",
   );
   form.append("file", new Blob(["<svg/>"], { type: "image/svg+xml" }), "x.svg"); // no preview
-  const { slug } = await (await page.request.post("/api/captures", { multipart: form })).json();
+  const { slug } = await posted(page, form);
   // Only this capture's row and page: other specs' photos may still be loading on a busy box
   const settled = (scope: string) =>
     page.evaluate((scope) => {
@@ -718,7 +721,7 @@ test("every visible text meets AA contrast, in both themes", async ({ page }) =>
     new Blob([new Uint8Array(png(400, 300, 220))], { type: "image/png" }),
     "c.png",
   );
-  const { slug } = await (await page.request.post("/api/captures", { multipart: form })).json();
+  const { slug } = await posted(page, form);
   for (const colorScheme of ["light", "dark"] as const) {
     await page.emulateMedia({ colorScheme });
     const check = async (where: string) =>
@@ -935,7 +938,7 @@ test("a photo page shows its thumbnail however the list found it", async ({ page
     new Blob([new Uint8Array(png(300, 200, 120))], { type: "image/png" }),
     "t.png",
   );
-  const { slug } = await (await page.request.post("/api/captures", { multipart: form })).json();
+  const { slug } = await posted(page, form);
   const row = page.locator(".list li").filter({ has: page.locator(`a[href="/p/${slug}"]`) });
   for (const q of ["", "kind:note", tag, "after:1w", `${tag} after:1w`, "is:work"]) {
     await page.goto(q ? `/search?q=${encodeURIComponent(q)}` : "/search");
