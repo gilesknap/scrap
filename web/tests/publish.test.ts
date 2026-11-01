@@ -256,6 +256,30 @@ describe("what a public page holds", () => {
       expect(h).not.toMatch(/Public<|pubchip|morechips|Published 1 Nov, 11/);
   });
 
+  it("writes a task's box as an empty span, ticked or not, with no input or [ ] (#539)", () => {
+    expect(out.plain).toContain(
+      '<li class="task"><span class="taskbox" role="img" aria-label="To do"></span> buy milk</li>',
+    );
+    expect(out.plain).toContain(
+      '<li class="task"><span class="taskbox done" role="img" aria-label="Done"></span> call</li>',
+    );
+    for (const h of Object.values(out)) expect(h).not.toMatch(/<input type="checkbox"|\[[ x]\] /);
+    // As shown: a box ticked on the page while its save is under way (tasks.ts) is Done
+    const page = view(
+      article(
+        head("A todo", "Todo", [], true),
+        `<div class="body md">${markdown("- [ ] buy milk")}</div>`,
+      ),
+    );
+    Object.assign(first(page.root as El, "input") as El, { checked: true });
+    expect(publishHtml(page.root, ctx({ title: "A todo" }), page.swaps)).toContain(
+      '<span class="taskbox done" role="img" aria-label="Done"></span> buy milk',
+    );
+    // The contract's check takes exactly these two
+    const wrong = out.plain.replace('aria-label="To do"', 'aria-label="Done"');
+    expect(check(wrong, LIVE, ["scrap.example"]).join()).toMatch(/a task box/);
+  });
+
   it("writes Mermaid as its source, drawn or not", () => {
     expect(out.links).toContain(
       '<pre><code class="language-mermaid">graph TD; A--&gt;B\n</code></pre>',

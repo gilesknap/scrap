@@ -12,7 +12,7 @@
 // excalidraw.com opens it (#526); scrap's icons in every head (#527); a Mermaid diagram (#525)
 // drawn light and dark, one shown by the theme, its words found by search, and a code block's
 // /api/ path as written (#529). The site sends nginx's headers, so a page that breaks its CSP
-// fails here.
+// fails here. Task boxes (#539) drawn as the app's, ticked and not, light and dark.
 import { execFileSync } from "node:child_process";
 import { readdirSync, readFileSync } from "node:fs";
 import { expect, type Page, type Route, test } from "@playwright/test";
@@ -850,4 +850,50 @@ test("a Mermaid diagram is published drawn, light and dark, and search finds its
   await expect(plain.locator("figure.diagram img.light")).toBeVisible();
   await expect(plain.locator("figure.diagram img.dark")).toBeHidden();
   await off.close();
+});
+
+test("task boxes are published as the app's, ticked and not, with no [ ] or input (#539)", async ({
+  page,
+}) => {
+  const word = `quince${Date.now().toString(36)}`;
+  const n = await publicOne(page, `Public e2e tasks\n\n- [ ] buy milk\n- [x] call ${word}`);
+  // Where each box sits beside its words, and how big: the same in the app and on the site
+  const boxes = (sel: string) =>
+    page.locator(sel).evaluateAll((els) =>
+      els.map((el) => {
+        const li = el.closest("li") as HTMLElement;
+        const b = el.getBoundingClientRect();
+        const l = li.getBoundingClientRect();
+        return [b.width, b.height, Math.round(b.left - l.left), Math.round(b.top - l.top)];
+      }),
+    );
+  await expect(page.locator(".md li.task input")).toHaveCount(2);
+  const app = await boxes(".md li.task input");
+
+  const got = await onSite(page, `/p/${n.slug}`);
+  expect(got.text).not.toMatch(/<input type="checkbox"|\[[ x]\]/);
+  await page.goto(`${SITE}/p/${n.slug}`);
+  const todo = page.getByRole("img", { name: "To do" });
+  const done = page.getByRole("img", { name: "Done" });
+  await expect(todo).toHaveCount(1);
+  await expect(done).toHaveCount(1);
+  await expect(page.locator("li.task").first()).toHaveText(/^\s*buy milk$/);
+  expect(await boxes("li.task .taskbox")).toEqual(app);
+  const look = (l: typeof todo) =>
+    l.evaluate((el) => {
+      const s = getComputedStyle(el);
+      return [s.backgroundColor, s.borderTopColor, s.backgroundImage.startsWith("url(")];
+    });
+  expect(await look(todo)).toEqual(["rgb(255, 255, 255)", "rgb(118, 118, 118)", false]);
+  expect(await look(done)).toEqual(["rgb(235, 161, 58)", "rgb(235, 161, 58)", true]);
+  // Dark, as the reader chooses it
+  await page.getByRole("button", { name: "Dark theme" }).click();
+  expect(await look(todo)).toEqual(["rgb(59, 59, 59)", "rgb(133, 133, 133)", false]);
+  expect(await look(done)).toEqual(["rgb(240, 172, 75)", "rgb(240, 172, 75)", true]);
+  // The site's search finds the task by its words, and its excerpt has no box's label
+  await page.goto(`${SITE}/`);
+  await page.locator(".pagefind-ui__search-input").fill(word);
+  const hit = page.locator(".pagefind-ui__result", { has: page.locator(`[href*="/p/${n.slug}"]`) });
+  await expect(hit.locator(".pagefind-ui__result-excerpt")).toContainText(word);
+  await expect(hit.locator(".pagefind-ui__result-excerpt")).not.toContainText(/To do|Done/);
 });

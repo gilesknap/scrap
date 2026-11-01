@@ -428,6 +428,54 @@ def test_a_photos_tabs_refuse_anything_else(old, new):
     refused(page(TABS.replace(old, new, 1)))
 
 
+TASKS = (
+    '<ul><li class="task"><span class="taskbox" role="img" aria-label="To do"></span>'
+    " buy milk</li>"
+    '<li class="task"><span class="taskbox done" role="img" aria-label="Done"></span>'
+    " call</li></ul>"
+)
+
+
+def test_task_boxes_pass():
+    ok(TASKS)
+
+
+@pytest.mark.parametrize(
+    ("old", "new"),
+    [
+        ('aria-label="To do"', 'aria-label="Done"'),
+        ('aria-label="Done"', 'aria-label="To do"'),
+        ('aria-label="To do"', 'aria-label="Buy milk"'),
+        (' aria-label="To do"', ""),
+        (' role="img"', ""),
+        ('role="img"', 'role="button"'),
+        ('class="taskbox"', 'class="taskbox x"'),
+        ('class="taskbox done"', 'class="done taskbox"'),
+        ('class="taskbox"', 'class="taskbox" title="x"'),
+        ('class="taskbox"', 'class="taskbox" style="color:red"'),
+        ('class="taskbox"', 'class="taskbox" tabindex="0"'),
+        ('aria-label="To do"></span>', 'aria-label="To do">[ ]</span>'),
+        ('aria-label="To do"></span>', 'aria-label="To do"><b>x</b></span>'),
+        ('<span class="taskbox"', '<i class="taskbox"'),
+        ('<span class="taskbox" role="img" aria-label="To do"></span>',
+         '<input type="checkbox" disabled>'),
+    ],
+)  # fmt: skip
+def test_task_boxes_refuse_anything_else(old, new):
+    assert old in TASKS
+    refused(page(TASKS.replace(old, new, 1)))
+
+
+def test_a_role_or_taskbox_class_on_any_other_span_is_refused():
+    for body in (
+        '<span role="img" aria-label="Done">x</span>',
+        '<span class="taskbox">x</span>',
+        '<span class="x taskbox"></span>',
+        '<p><span role="presentation">x</span></p>',
+    ):
+        refused(page(body))
+
+
 def test_target_and_rel_only_on_open_in_excalidraw():
     refused(
         page('<a href="https://x.org/" target="_blank" rel="noopener noreferrer">x</a>')
