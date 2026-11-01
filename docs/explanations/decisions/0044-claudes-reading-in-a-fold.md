@@ -54,8 +54,8 @@ model call per diagram, describing what Claude had just drawn and labelled (#521
 
 ## Amendment: Guidance for Claude per image, and the read text folded (#538, 1.4.0)
 
-- **The text read from an image is a fold of its own** inside Claude's reading, "Text read from
-  the image", closed, in the app and on public pages. It is mostly there for search, and is
+- **The text read from an image is a fold of its own** inside Claude's reading, "Text read"
+  (short, so it fits on one line on the owner's phone), closed, in the app and on public pages. It is mostly there for search, and is
   indexed as before (search, and Pagefind on the site). A PDF's text in its fold is unchanged.
 - **Guidance for Claude, per image**, at the bottom of an image's reading (before Regenerate at
   the card's end): the same fold as a write-up's in About this page, one function for both
@@ -74,9 +74,8 @@ model call per diagram, describing what Claude had just drawn and labelled (#521
   own words say how to use it, only when there is some.
 - **Kept apart from the write-up.** An image's guidance never reaches its page's write-up, nor
   the page's guidance a reading.
-- **Never published.** The publish mode never writes it, and scrap refuses a publish whose text
-  holds the page's or an image's guidance (`422 guidance`), unless those words are also the
-  page's own (its text, title, tags, files' names, a reading, its summary, the write-up, a
-  page's title, the publish mode's labels), compared word by word whatever the markup, whole
-  in one of them or every word of the note one of theirs; notes under 12 characters are not
-  looked for, since a word or two would refuse ordinary pages.
+- **Never published.** The publish mode never writes it (the reading's fold is rebuilt from its
+  description and read text alone), and Share as HTML leaves the guidance folds out, the page's
+  and each image's. scrap does not check a publish for it on the server: a word-by-word check
+  was tried and dropped (owner, 1 Nov 2026), as it refused ordinary pages whose own words
+  matched a note.

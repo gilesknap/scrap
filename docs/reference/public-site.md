@@ -399,7 +399,7 @@ open):
 ```html
 <details class="reading"><summary>Claude's reading</summary><div class="claude">
 <p>...the photo's description...</p>
-<details class="readtext"><summary>Text read from the image</summary><pre>...the text read
+<details class="readtext"><summary>Text read</summary><pre>...the text read
 from it...</pre></details>
 </div></details>
 ```
@@ -418,11 +418,7 @@ photos and files" when the page has any.
 **Left out**: Claude's notes on a photo outside its fold (where its reading is up to, Generate
 and Regenerate), revisions, the PWA's controls, and every `/api` or other private address.
 **Never published**: the owner's **Guidance for Claude**, the page's (for its write-up) and each
-photo's (for its reading, #538). The publish mode never writes it, and scrap refuses a page
-whose text holds one (`422 guidance`), its words compared in order whatever the markup,
-unless they are also the page's own (its text, title, tags, files' names, a reading, its
-summary or write-up, a page's title, the publish mode's labels), whole in one of them or
-every word of the note one of theirs. A note shorter than 12 characters is not looked for.
+photo's (for its reading, #538): the publish mode never writes it, nor does Share as HTML.
 
 **Head**: the fixed meta CSP, `/assets/page.css`, `/assets/katex.css` for a page with maths, the
 site's icons (#527), `<link rel="icon" href="/assets/icon.svg" type="image/svg+xml">` and
@@ -527,7 +523,6 @@ page's unit is pushed (Pagefind failing or timing out, say): it is logged, never
 | `422` | `bad_diagram` | A diagram the page shows was not sent, or not shown in both themes, one was sent that it does not show, or one's SVG cannot be made safe or names scrap in its style ([](#diagrams)) |
 | `422` | `too_many_files`, `file_too_large`, `unit_too_large` | Over a cap ([](#placeholders-and-files)) |
 | `422` | `stale_tags` | A `scrap-tag:` names a tag the page no longer has (a tag edit raced the render); the PWA renders again |
-| `422` | `guidance` | The page's text holds the owner's Guidance for Claude, the page's or a photo's ([](#claudes-reading)), which is never published |
 | `502` | `publish_failed` | The receiver refused or failed; `detail` holds its `error` code |
 | `503` | `not_configured` | Publishing is off (no `SCRAP_PUBLISH_TO` or token) |
 | `503` | `busy` | A photo's preview is being made; try again (`Retry-After: 5`) |

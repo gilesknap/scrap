@@ -97,7 +97,7 @@ test("the preview is an inert image, the viewer is lazy and Back closes it", asy
   await expect(read.getByText("A whiteboard sketch of a capture pipeline")).toBeVisible();
   // the text read from it, in a closed fold of its own (#538)
   await expect(read.getByText("retry with backoff", { exact: false })).toBeHidden();
-  await read.getByText("Text read from the image").click();
+  await read.getByText("Text read", { exact: true }).click();
   await expect(read.getByText("retry with backoff", { exact: false })).toBeVisible();
   await expect(read.getByRole("button", { name: "Regenerate" })).toBeVisible();
 

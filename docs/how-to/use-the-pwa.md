@@ -599,7 +599,7 @@ itself, or of its `/api/`, in the text reads *a private link*. Under each photo 
 has one, **Claude's reading** is published folded, closed, as in the app, a photo's read text
 in a closed fold of its own inside it (the site's search finds its words). Left out: revisions,
 where a reading is up to, the app's buttons, and your **Guidance for Claude** (the page's and
-each photo's: scrap refuses a publish that holds one). An
+each photo's). An
 image's alt text is published as the page has it, file names included; an image Claude drew
 has its label.
 
@@ -743,7 +743,7 @@ Under each photo:
   *Failed* with reason and **Retry**, or *Paused* with reason and **Resume** (nothing is lost).
   The page checks every 10 seconds while a photo waits.
 - **Claude's reading**, one fold, always closed when the page opens: the description, the text
-  read from the photo (selectable) in a closed fold of its own, **Text read from the image**
+  read from the photo (selectable) in a closed fold of its own, **Text read**
   (mostly there for search), **Guidance for Claude**, and at its end **Regenerate**, which sends
   it again; if you edited its drawing it asks: **Replace mine**, or **Keep mine** (Claude's new
   drawing goes into History). A photo never sent to Claude has **Generate** in the fold instead.

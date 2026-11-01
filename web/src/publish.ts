@@ -51,7 +51,7 @@ const PREFS = '<script src="/assets/prefs.js" defer blocking="render"></script>'
 /** The reading fold's label, as the app's (reading.ts READING). */
 const READING = "Claude's reading";
 /** The label of a photo's read text, a fold inside the reading (reading.ts READ_TEXT). */
-const READ_TEXT = "Text read from the image";
+const READ_TEXT = "Text read";
 /** The site's icons, scrap's own (#527): the tab's and the home screen's (scrap's check allows
  * exactly these two links). */
 const ICONS =

@@ -14,7 +14,7 @@ import { h } from "./ui";
 export const READING = "Claude's reading";
 
 /** The label of the text read from an image, a fold inside the reading (publish.ts too). */
-export const READ_TEXT = "Text read from the image";
+export const READ_TEXT = "Text read";
 
 /** The text read from an image, in a closed fold of its own inside the reading (#538). */
 export const readText = (text: string): HTMLElement =>
