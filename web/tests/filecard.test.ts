@@ -3,14 +3,10 @@ import { pdf } from "./helpers";
 
 vi.mock("../src/app", () => ({ rerender: () => {} }));
 vi.mock("../src/icons", () => ({ icon: () => "" }));
-const { FILE, fileSays, fileStateText } = await import("../src/filecard");
+const { fileSays, fileStateText } = await import("../src/filecard");
 const { RETRY, UNREAD } = await import("../src/filerow");
 
 describe("the file card", () => {
-  it("is titled as the photo card is, for a file", () => {
-    expect(FILE).toBe("What's in the file");
-  });
-
   it("says where the reading is up to without naming Claude (scrap reads it)", () => {
     expect(fileStateText(pdf({ state: "queued" }))).toBe("Waiting to be read");
     expect(fileStateText(pdf({ state: "processing" }))).toBe("Reading the text…");

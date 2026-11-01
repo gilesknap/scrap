@@ -86,15 +86,17 @@ test("the preview is an inert image, the viewer is lazy and Back closes it", asy
   await expect(card).toHaveAttribute("style", /aspect-ratio: 1600 \/ 1200/);
   await expect(page.locator(".drawing-card.ready svg")).toBeVisible();
   expect(loads).toHaveLength(1); // fetched for this page's preview, not on the other screens
-  // Claude's card, titled by what it holds; no state pill once read
-  const claude = page.locator(".photo-panel .claude");
-  await expect(claude.getByRole("heading", { name: "What's in the photo" })).toBeVisible();
-  await expect(claude.getByRole("status")).toHaveCount(0);
-  // Its text is folded until opened
-  const read = claude.locator("details", { hasText: "Text in the photo" });
+  // Claude's reading in one closed fold (#521); no state line once read
+  const read = page.locator(".photo-panel details.reading-fold");
+  await expect(read).toHaveCount(1);
+  await expect(page.locator(".photo-panel").getByRole("status")).toHaveCount(0);
   await expect(read).not.toHaveAttribute("open", "");
+  await expect(read.locator("summary")).toHaveText("Claude's reading");
+  await expect(read.getByText("retry with backoff", { exact: false })).toBeHidden();
   await read.locator("summary").click();
   await expect(read.getByText("retry with backoff", { exact: false })).toBeVisible();
+  await expect(read.getByText("A whiteboard sketch of a capture pipeline")).toBeVisible();
+  await expect(read.getByRole("button", { name: "Regenerate" })).toBeVisible();
 
   // No live canvas on the page; a finger drag over the preview scrolls the page
   await expect(page.locator(".page canvas, .page .excalidraw")).toHaveCount(0);
@@ -368,6 +370,7 @@ test("dark mode, and a Regenerate that asks before replacing an edit", async ({ 
   await expect(dialog(page).locator(".excalidraw.theme--dark")).toBeVisible();
   await page.goBack();
 
+  await page.locator(".photo-panel .reading-fold > summary").click();
   const again = page.locator(".photo-panel").getByRole("button", { name: "Regenerate" });
   await again.click();
   await again.click(); // asked once, not twice

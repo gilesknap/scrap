@@ -179,8 +179,8 @@ ingest = {
         "description": "A garden border in full flower: red, yellow, white and purple blooms against green foliage under a pale sky."},
     "fix-the-broken-fence-panel": {"state": "queued"},
 }
-# ---- 521 mock (Claude's reading, #521): a maths page with Claude's own SVGs (add_svg: shown
-# with nothing under them) and the owner's photo of his working (its reading in one closed
+# ---- Claude's reading (#521): a maths page with Claude's own SVGs (add_svg: shown with
+# nothing under them, one read before #521 too) and the owner's photo of his working (its reading in one closed
 # fold), and a page of photos and files in each state (status and Retry outside the fold).
 # An image with "_svg" is made into an object URL by sim.js.
 def svgblob(name, svg, ingest):
@@ -208,7 +208,7 @@ WORK = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 200">
 <text x="18" y="112">AC = √169</text><text x="18" y="150">AC = 13 cm</text></g>
 <path d="M14 160 h118" stroke="#1d2f6e" stroke-width="2"/><path d="M14 165 h118" stroke="#1d2f6e" stroke-width="2"/></svg>"""
 tri = svgblob("triangle-abc.svg", TRI, None)
-pqr = svgblob("triangle-pqr.svg", PQR, None)
+pqr = svgblob("triangle-pqr.svg", PQR, read("An isosceles triangle PQR with sides 8 cm, 8 cm and 10 cm.", "P Q R 8 cm 8 cm 10 cm x°"))
 work = svgblob("my working.svg", WORK, read(
     "A photo of handwritten working on squared paper: Pythagoras' theorem applied to the triangle, giving AC = 13 cm, underlined twice.",
     "AC² = 5² + 12²\n= 25 + 144 = 169\nAC = √169\nAC = 13 cm"))

@@ -354,14 +354,34 @@ each of them is next saved in the PWA. There is no stale tracking.
 **Images and files**
 
 - An image: `<img src="scrap-blob:<sha>" alt="...">`. The `alt` is published as the app has
-  it, a file name the PWA filled in included (the owner's decision).
+  it, a file name the PWA filled in included (the owner's decision). An image Claude made
+  (`add_svg`, or Claude's `/mcp` upload) has Claude's label, the alt it gave, instead.
 - A file: `<a href="scrap-blob:<sha>">` with the link's label.
 - **A photo's drawing** (Excalidraw, #520): the photo and the drawing, with Photo | Drawing tabs
   over them, then its links ([](#drawings)). A drawing the PWA cannot draw fails the publish,
   rather than going out without it.
 
-**Left out**: Claude's notes on a photo (its description, the read text), revisions, the
-extracted text of files, the PWA's controls, and every `/api` or other private address.
+(claudes-reading)=
+**Claude's reading** (#521): under each photo or image, and each PDF, that has one, the app's
+fold, published **closed** (the one `<details>` without `open`; every other fold is published
+open):
+
+```html
+<details class="reading"><summary>Claude's reading</summary><div class="claude">
+<p>...the photo's description...</p><pre>...the text read from it, or a PDF's text...</pre>
+</div></details>
+```
+
+It follows the photo (and its drawing's links), or the file's row. Its text is scrubbed as page
+text is (no address of scrap's own, no `/api/`: "a private link"), scrap's check holds it to the
+same rules, and Pagefind indexes it, so the site's search finds what is written on a whiteboard.
+A PDF's text is what the app's fold shows: its first 20,000 characters. There is no fold for an
+image Claude made (`add_svg`: Claude doesn't read its own images), for one not read yet, or for
+a text file (its own link opens its text). Make public's warning lists "Claude's reading of its
+photos and files" when the page has any.
+
+**Left out**: Claude's notes on a photo outside its fold (where its reading is up to, Generate
+and Regenerate), revisions, the PWA's controls, and every `/api` or other private address.
 
 **Head**: the fixed meta CSP, `/assets/page.css`, `/assets/katex.css` for a page with maths, and
 `<script src="/assets/prefs.js" defer blocking="render"></script>`

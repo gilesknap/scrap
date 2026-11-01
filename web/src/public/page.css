@@ -340,6 +340,54 @@ figure.drawing img {
 .footnotes {
   font-size: var(--t-sm);
 }
+/* Claude's reading of a photo or file (#521): a fold under it, closed (publish.ts), its line
+   as the app's (css/reading.css): the chevron before the words, quiet, a 48 px target */
+details.reading > summary {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-height: var(--tap);
+  cursor: pointer;
+  color: var(--ink-2);
+  font-size: var(--t-sm);
+  font-weight: 600;
+  list-style: none;
+}
+details.reading > summary::-webkit-details-marker {
+  display: none;
+}
+details.reading > summary::before {
+  content: "";
+  flex: none;
+  width: 7px;
+  height: 7px;
+  margin-inline: 3px var(--s-1);
+  border: solid currentColor;
+  border-width: 0 2px 2px 0;
+  rotate: -45deg;
+  transition: rotate var(--d-1) var(--ease);
+}
+details.reading[open] > summary::before {
+  rotate: 45deg;
+}
+details.reading > summary:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 1px;
+}
+details.reading > .claude {
+  margin: var(--s-1) 0 var(--s-3);
+}
+details.reading .claude p,
+details.reading .claude pre {
+  margin: 0 0 var(--s-3);
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+  font: inherit;
+  font-size: var(--t-md); /* what was read reads at the page's own size */
+}
+details.reading .claude > :last-child {
+  margin-bottom: 0;
+}
 /* Claude's card: About this page, its summary, write-up and related pages */
 .claude {
   margin: var(--s-5) 0 var(--s-4);

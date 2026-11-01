@@ -31,8 +31,17 @@ vi.mock("../src/publish", () => ({
   hasMaths: () => false,
   // a view's drawings: those its (fake) root lists
   drawingsOf: (root: { drawings?: unknown[] }) => root.drawings ?? [],
-  publishHtml: (_root: unknown, c: { title: string; drawn?: Set<string> }) =>
-    `<!DOCTYPE html>${c.title}${[...(c.drawn ?? [])].map((d) => ` "scrap-drawing:${d}"`).join("")}`,
+  // and the PDFs whose text its reading folds show (#521)
+  fileTextsOf: (root: { files?: unknown[] }) => root.files ?? [],
+  publishHtml: (
+    _root: unknown,
+    c: { title: string; drawn?: Set<string>; texts?: Map<string, string> },
+  ) =>
+    `<!DOCTYPE html>${c.title}${[...(c.drawn ?? [])].map((d) => ` "scrap-drawing:${d}"`).join("")}${[
+      ...(c.texts ?? []),
+    ]
+      .map(([sha, t]) => ` [${sha}: ${t}]`)
+      .join("")}`,
 }));
 // Excalidraw's chunk, loaded only for a page with drawings (#520)
 const boards: string[] = [];
@@ -125,6 +134,8 @@ beforeEach(() => {
       const u = new URL(url, "http://x");
       if (/^\/api\/captures\/c1\/photos\/[0-9a-f]+\/drawing$/.test(u.pathname))
         return reply(200, { data: { format: "scene", elements: [{}, {}] } });
+      const text = /^\/api\/captures\/c2\/files\/([0-9a-f]+)\/text$/.exec(u.pathname);
+      if (text) return reply(200, { text: text[1] === "cd" ? "Long text" : null, truncated: true });
       if (u.pathname.endsWith("/preview"))
         return new Response(new Uint8Array([1, 2, 3]), {
           headers: { "Content-Type": "image/jpeg" },
@@ -188,6 +199,21 @@ const puts = () =>
       defer: c.body?.defer,
       confirmed: !!c.body?.confirmed,
     }));
+
+describe("a page with a PDF's reading (#521)", () => {
+  it("fetches the text its fold shows and publishes it with the page", async () => {
+    add("a");
+    const v = view("a");
+    (v.root as unknown as { files: unknown[] }).files = [
+      { cid: "c2", sha: "cd" },
+      { cid: "c2", sha: "ef" }, // no text read: no fold text
+    ];
+    await pub.makePublic(v);
+    const put = calls.find((c) => c.method === "PUT");
+    expect(put?.body?.html).toBe("<!DOCTYPE html>A [cd: Long text\n\n… (the start only)]");
+    expect(calls.filter((c) => c.url.endsWith("/text"))).toHaveLength(2);
+  });
+});
 
 describe("a page with drawings (#520)", () => {
   it("draws each with its photo, and sends them with the page; Excalidraw only then", async () => {

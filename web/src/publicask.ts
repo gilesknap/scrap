@@ -2,6 +2,7 @@
 // and Refresh all's one question before pages go public for the first time. In-app dialogs, not
 // confirm(): Cancel has focus, so Enter never publishes, and the amber button is the only one.
 import type { FileRef, Page, PublicPage } from "./api";
+import { claudeMade } from "./claudemade";
 import { h } from "./ui";
 import "./css/publicpages.css";
 
@@ -28,21 +29,23 @@ export const drawingsOn = (p: Page): number =>
     .flatMap((c) => c.blobs)
     .filter((b) => b.ingest && "drawing" in b.ingest && b.ingest.drawing).length;
 
-/** Whether any of the page's photos or files has a reading (#521): its fold goes public too.
- * Claude's own images (add_svg) have none. */
-export const readingsOn = (p: Page): boolean =>
-  p.captures
+/** Whether any of the page's photos or files has a reading that goes public in its fold
+ * (#521): a photo's description or text, or a PDF's text. Not an image Claude made (it shows
+ * nothing: claudemade.ts), nor a file whose embed was deleted. */
+export const readingsOn = (p: Page): boolean => {
+  const skip = new Set([...claudeMade(p), ...(p.removed ?? [])]);
+  return p.captures
     .flatMap((c) => c.blobs)
-    .some((b) =>
-      !b.ingest
-        ? false
-        : "kind" in b.ingest
-          ? b.ingest.state === "done"
-          : !!(b.ingest.description || b.ingest.text),
-    );
+    .some((b) => {
+      const i = b.ingest;
+      if (!i || skip.has(b.sha256)) return false;
+      if ("kind" in i) return i.kind === "pdf" && i.state === "done" && i.searchable;
+      return b.mime.startsWith("image/") && !!(i.description || i.text);
+    });
+};
 
 /** What goes public with the page, a line each: its tags, Claude's write-up and summary (on a
- * topic, its synthesis too), its attached files by name, its drawings. */
+ * topic, its synthesis too), its attached files by name, its drawings, Claude's readings. */
 export function goesWith(p: Page): string[] {
   const files = filesOf(p).map((f) => f.filename || f.mime);
   const drawings = drawingsOn(p);

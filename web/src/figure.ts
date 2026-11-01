@@ -1,8 +1,9 @@
 // A page's images as figures (a chunk of its own, with what Claude made of them): each image
 // its text embeds, where it is, and below the text the files it doesn't (a PDF, or a photo of
 // a page made before photos were embedded; not one whose embed was deleted). A figure opens the
-// photo viewer (every image of the page, in order), and its caption has the file's name,
-// Download and Ask Claude; once Claude has (or will have) seen it, its panel instead (ingest.ts).
+// photo viewer (every image of the page, in order), and under it Claude's reading in a fold
+// (reading.ts): Generate in it until Claude has (or will have) seen it, then its panel
+// (ingest.ts). An image Claude made (add_svg) has nothing under it (#521).
 // Any other file is a plain row (filerow.ts), with its card under it if scrap reads it
 // (filecard.ts: a PDF, a text or Markdown file).
 import {
@@ -17,6 +18,7 @@ import {
   shareable,
 } from "./api";
 import { plain } from "./app";
+import { claudeMade } from "./claudemade";
 import { fileCard } from "./filecard";
 import { fileRow } from "./filerow";
 import { photoPanel } from "./ingest";
@@ -24,9 +26,7 @@ import { readingFold } from "./reading";
 import { h, pageLink, settle, toast } from "./ui";
 import { type Photo, viewer } from "./viewer";
 
-// byClaude: every capture holding it is an image Claude placed over MCP (add_svg: source mcp,
-// author claude), which Claude doesn't read (#521): it shows on its own, nothing under it. One
-// the owner uploaded and Claude reused is still read.
+// byClaude: only captures Claude made over MCP hold it (claudemade.ts): it shows on its own
 type Placed = FileRef & { cid: string; byClaude: boolean };
 const isImage = (f: FileRef) => f.mime.startsWith("image/");
 // A file scrap reads for search (the server's FILE_TYPES), or one it has a reading of
@@ -44,13 +44,12 @@ export function figures(
 ): HTMLElement[] {
   // Each file of the page once, from the capture that has Claude's results for it, if any
   const files = new Map<string, Placed>();
+  const claude = claudeMade(p);
   for (const c of p.captures)
     for (const b of c.blobs) {
       const had = files.get(b.sha256);
-      const claude = c.source === "mcp" && c.author === "claude";
-      const byClaude = claude && (!had || had.byClaude);
-      if (!had || (!had.ingest && b.ingest)) files.set(b.sha256, { ...b, cid: c.id, byClaude });
-      else had.byClaude = byClaude;
+      if (!had || (!had.ingest && b.ingest))
+        files.set(b.sha256, { ...b, cid: c.id, byClaude: claude.has(b.sha256) });
     }
   // Only render.ts's own images (this server's files, by their sha), in a paragraph of images
   // alone, one or more lines of them: each becomes a figure. One in a link, a heading, a list,
@@ -91,7 +90,8 @@ export function figures(
   const rest = [...files.values()].filter((f) => !shown.has(f.sha256) && !removed.has(f.sha256));
   const photos: Photo[] = [];
 
-  const figure = (sha: string, name: string, f?: Placed) => {
+  // alt: the image's alt text, if not its name (a Claude-made image's label: add_svg's alt)
+  const figure = (sha: string, name: string, f?: Placed, alt?: string) => {
     const at = photos.push({
       src: previewUrl(sha, 2048),
       save: `${blobUrl(sha)}?download=1`,
@@ -99,7 +99,7 @@ export function figures(
       share: f ? shareable(f) : [previewUrl(sha, 2048), `${sha.slice(0, 12)}.jpg`, "image/jpeg"],
     });
     const href = blobUrl(sha);
-    const img = settle(h("img", { src: photos[at - 1].src, alt: name, loading: "lazy" }));
+    const img = settle(h("img", { src: photos[at - 1].src, alt: alt || name, loading: "lazy" }));
     const open = (e: MouseEvent) => {
       if (!plain(e)) return; // Ctrl-click, middle click: the file in a new tab
       e.preventDefault();
@@ -111,6 +111,9 @@ export function figures(
     // Another page's file (Claude's results are that page's), or not an image (a PDF's sha in an
     // image embed): no panel and no Ask Claude
     if (!f || !isImage(f)) return fig;
+    // An image Claude placed itself (add_svg): nothing under it, no fold and no note, even one
+    // read before Claude's own images were left unread (#521)
+    if (f.byClaude) return fig;
     const ingest = photoIngest(f);
     if (ingest) {
       return photoPanel({
@@ -123,8 +126,6 @@ export function figures(
         refresh,
       });
     }
-    // An image Claude placed itself (add_svg): nothing under it, no fold and no note
-    if (f.byClaude) return fig;
     // Not read by Claude: what asking would do, in the fold, with Generate
     return h(
       "section",
@@ -147,7 +148,9 @@ export function figures(
     const figs = [...para.children].filter(own).map((img) => {
       const sha = img.dataset.sha as string;
       const f = files.get(sha);
-      return figure(sha, f?.filename || img.alt || `Image ${sha.slice(0, 8)}`, f);
+      // Claude's own image is named by its label for screen readers (and on its public page)
+      const label = f?.byClaude ? img.alt.trim() : "";
+      return figure(sha, f?.filename || img.alt || `Image ${sha.slice(0, 8)}`, f, label);
     });
     para.replaceWith(...figs);
   }

@@ -1,15 +1,12 @@
 // A file's card under its row on a page (a PDF, a text or Markdown file), in the shape of a
-// photo's (ingest.ts photoPanel): its title, where the reading is up to while it isn't done,
-// what was found (pages, whether search can find it), a PDF's text in a fold, and Retry or
-// Regenerate. scrap reads a file itself, for search (#234): no model is involved, so the card
-// never says Claude. Part of the figure chunk.
+// photo's (ingest.ts photoPanel): where the reading is up to while it isn't done (Retry when it
+// failed), and once read the fold, "Claude's reading" as a photo's is (#521: one label for
+// both, though scrap reads a file itself, for search, #234), with what was found (pages,
+// whether search can find it), a PDF's text and Regenerate. Part of the figure chunk.
 import { ApiError, api, type FileIngest, type FileRef } from "./api";
 import { fileFacts } from "./filerow";
 import { readingFold, readingState } from "./reading";
 import { h, toast } from "./ui";
-
-/** The file card's title, as the photo card's is PHOTO. */
-export const FILE = "What's in the file";
 
 /** The state line's words while a file's reading isn't done. */
 export function fileStateText(i: FileIngest): string {
@@ -35,9 +32,10 @@ export function fileSays(i: FileIngest | null): string | null {
 const isPdf = (f: FileRef) => f.mime.split(";")[0].trim().toLowerCase() === "application/pdf";
 const why = (err: unknown) => (err instanceof ApiError ? err.message : "can't reach the server");
 
-/** A PDF's text as scrap read it, fetched the first time the fold opens. */
+/** A PDF's text as scrap read it, fetched the first time the fold opens. Its capture and file
+ * are on it, so publishing (publicpages.ts) can fetch the text the fold would show. */
 function readText(cid: string, sha: string) {
-  const body = h("pre", {}, "…");
+  const body = h("pre", { className: "filetext", "data-cid": cid, "data-sha": sha }, "…");
   let asked = false;
   const load = async () => {
     if (asked) return;

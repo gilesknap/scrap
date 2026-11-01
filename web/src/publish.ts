@@ -7,8 +7,11 @@
 // to public pages live, to private ones their words. A photo's drawing (#520), once
 // publicpages.ts has drawn it, beside the photo with Photo | Drawing tabs (radio inputs and
 // CSS, no script) and its links to open it on excalidraw.com and to download it, as
-// scrap-drawing:<id> and scrap-excalidraw:<id> placeholders. Claude's notes on a photo and a
-// file's text read for search are left out. Pure: publicpages.ts gathers what it needs.
+// scrap-drawing:<id> and scrap-excalidraw:<id> placeholders. Under a photo or file, Claude's
+// reading of it (#521) in a fold, as the app has it, but published closed (every other fold
+// is published open): a photo's description and text, a PDF's text (publicpages.ts fetches
+// it), scrubbed as page text is. An image Claude made (add_svg) has none. Pure: publicpages.ts
+// gathers what it needs.
 import { type Titles, titleOf } from "./linktext";
 import { control, esc, KEEP, type N, type Swaps, textOf } from "./pagehtml";
 
@@ -23,6 +26,7 @@ export interface Context {
   tex: ((tex: string, display: boolean) => string) | null; // KaTeX, for a page with maths
   date: string; // when it is published, for the footer
   drawn?: ReadonlySet<string>; // the drawings (by id) publicpages.ts drew: shown with their photos
+  texts?: ReadonlyMap<string, string>; // a PDF's text (by sha) its fold shows: publicpages.ts's
 }
 
 /** The meta CSP every public page carries (the contract's, exactly): the site's own scripts
@@ -32,6 +36,8 @@ const CSP =
 /** The page's one script, from the head: deferred, and render-blocking where the browser
  * can, so a kept theme is on before the first paint (scrap's check allows only this). */
 const PREFS = '<script src="/assets/prefs.js" defer blocking="render"></script>';
+/** The reading fold's label, as the app's (reading.ts READING). */
+const READING = "Claude's reading";
 /** A bare link to a private page whose title is not known (it is not there any more). */
 const PRIVATE = "a private page";
 
@@ -256,6 +262,22 @@ export function publishHtml(root: N, ctx: Context, swaps: Swaps = new Map()): st
     return `<div class="pair">${tabs}${photo}${drawing}</div><p class="drawing-get">${links}</p>`;
   };
 
+  // Claude's reading of a photo or file (#521): the app's fold, its words only, published
+  // closed, so the page reads as the owner's (Pagefind indexes it all the same). None where the
+  // app's has nothing read (Generate, a file's pages alone) or there is no fold (add_svg's).
+  const reading = (panel: N, sha?: string): string => {
+    const fold = find(panel, (k) => tag(k) === "details" && has(k, "reading-fold"));
+    if (!fold) return "";
+    const said = (k: N | null) => (k ? textOf(k).trim() : "");
+    const desc = said(find(fold, (k) => tag(k) === "p" && has(k, "desc")));
+    const read = said(find(fold, (k) => tag(k) === "pre" && !has(k, "filetext")));
+    const file = find(fold, (k) => tag(k) === "pre" && has(k, "filetext"));
+    const text = file && sha ? (ctx.texts?.get(sha)?.trim() ?? "") : read;
+    if (!desc && !text) return "";
+    const parts = (desc ? `<p>${words(desc)}</p>` : "") + (text ? `<pre>${words(text)}</pre>` : "");
+    return `<details class="reading"><summary>${READING}</summary><div class="claude">${parts}</div></details>`;
+  };
+
   const chips = () =>
     ctx.tags.length
       ? `<p class="tags">${ctx.tags
@@ -268,20 +290,22 @@ export function publishHtml(root: N, ctx: Context, swaps: Swaps = new Map()): st
     if (!el(n)) return "";
     const t = tag(n);
     const cls = classes(n);
-    // A photo with Claude's notes and drawing: the photo, and its drawing if drawn; a file,
-    // its row alone
+    // A photo with Claude's reading and drawing: the photo, and its drawing if drawn, then the
+    // reading, folded; a file, its row and its reading
     if (cls.has("photo-panel")) {
       const fig = find(n, (k) => tag(k) === "figure" && has(k, "orig") && !has(k, "drawing"));
       if (!fig) return "";
       const d = find(n, (k) => tag(k) === "figure" && has(k, "drawing"));
       const id = d && attr(d, "data-drawing");
-      if (!id || !DRAWING_ID.test(id) || !ctx.drawn?.has(id)) return render(fig, true);
+      if (!id || !DRAWING_ID.test(id) || !ctx.drawn?.has(id)) return render(fig, true) + reading(n);
       const alt = attr(find(fig, (k) => tag(k) === "img") ?? fig, "alt")?.trim();
-      return pair(render(fig, true), id, alt || "the photo");
+      return pair(render(fig, true), id, alt || "the photo") + reading(n);
     }
     if (cls.has("file-panel")) {
       const row = find(n, (k) => has(k, "filerow"));
-      return row ? render(row) : "";
+      if (!row) return "";
+      const a = find(row, (k) => tag(k) === "a" && BLOB.test(attr(k, "href") ?? ""));
+      return render(row) + reading(n, (a && BLOB.exec(attr(a, "href") ?? "")?.[1]) || undefined);
     }
     if (!shown && control(n)) return "";
     // The app's own: "by Claude", the topic's prompt, Public's own line, Claude's guidance
@@ -375,6 +399,22 @@ ${PREFS}
 </head>
 <body>${top}${body}${foot}</body></html>
 `;
+}
+
+/** The PDFs whose text the view's reading folds show (filecard.ts), each with its capture:
+ * publicpages.ts fetches their text. */
+export function fileTextsOf(root: N): { cid: string; sha: string }[] {
+  const out: { cid: string; sha: string }[] = [];
+  const walk = (n: N) => {
+    if (!el(n)) return;
+    const cid = tag(n) === "pre" && has(n, "filetext") ? attr(n, "data-cid") : null;
+    const sha = attr(n, "data-sha");
+    if (cid && sha && /^[0-9a-f]{64}$/.test(sha) && !out.some((f) => f.sha === sha))
+      out.push({ cid, sha });
+    kids(n).forEach(walk);
+  };
+  walk(root);
+  return out;
 }
 
 /** The drawings on the view, each with the photo it is of: publicpages.ts draws them. */

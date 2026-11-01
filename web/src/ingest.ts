@@ -23,9 +23,6 @@ function stateText(i: Ingest, q: Queue | null): string {
   }
 }
 
-/** The photo card's title: what it holds (figure.ts's card for an unread photo says it too). */
-export const PHOTO = "What's in the photo";
-
 const why = (err: unknown) => (err instanceof ApiError ? err.message : "can't reach the server");
 
 export function photoPanel(o: {

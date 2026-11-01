@@ -1,8 +1,9 @@
 /* "Claude's reading" (#521, reading.ts): one closed fold under a photo or file, and where its
-   reading is up to (a pill, Retry or Resume) on a line of its own above it, outside the fold.
+   reading is up to (its words, no pill, with Retry or Resume) on a line of its own above it,
+   outside the fold.
    A lazy chunk's CSS (the figure chunk): the shell's CSS is unchanged. */
 
-/* Where the reading is up to: the pill, its action at the line's end */
+/* Where the reading is up to: its words, its action at the line's end */
 .reading-state {
   display: flex;
   flex-wrap: wrap;
@@ -24,7 +25,6 @@
 }
 
 .reading {
-  position: relative;
   margin-top: var(--s-1);
 }
 /* The fold's line: the same summary and chevron as scrap's other folds (.donefold,
@@ -43,8 +43,7 @@
 .reading-fold > summary::-webkit-details-marker {
   display: none;
 }
-.reading-fold > summary::before,
-.reading-fold > summary::after {
+.reading-fold > summary::before {
   content: "";
   flex: none;
   width: 7px;
@@ -55,22 +54,9 @@
   rotate: -45deg;
   transition: rotate var(--d-1) var(--ease);
 }
-.reading-fold > summary::after {
-  display: none;
-}
-.reading-fold[open] > summary::before,
-.reading-fold[open] > summary::after {
+.reading-fold[open] > summary::before {
   rotate: 45deg;
 }
-/* MOCK variant: the chevron after the words, as the first mock had it */
-html[data-m521-chev="after"] .reading-fold > summary::before {
-  display: none;
-}
-html[data-m521-chev="after"] .reading-fold > summary::after {
-  display: block;
-  margin-inline: var(--s-1) 3px;
-}
-
 /* What was read, in Claude's brown card (.claude: todos.css) */
 .reading-fold > .claude {
   margin: var(--s-1) 0 0;
@@ -103,30 +89,10 @@ html[data-m521-chev="after"] .reading-fold > summary::after {
   margin: 0 calc(-1 * var(--s-3)) calc(-1 * var(--s-2)) 0;
 }
 
-/* MOCK variant: Regenerate outside the fold, at the end of its line */
-.reading > .regen-out {
-  display: none;
-}
-html[data-m521-regen="out"] .reading > .regen-out {
-  display: grid;
-  place-items: center;
-  position: absolute;
-  top: 0;
-  inset-inline-end: calc(-1 * var(--s-2));
-  width: var(--tap);
-  min-height: var(--tap);
-  margin: 0;
-  padding: 0;
-  border: none;
-  background: none;
-  color: var(--ink-2);
-}
-html[data-m521-regen="out"] .regen-row {
-  display: none;
-}
-html[data-m521-regen="out"] .reading-fold > summary {
-  width: fit-content; /* the words alone: Regenerate sits beside them, not over them */
-}
-html[data-m521-regen="out"] .reading-fold .claude > :is(p, pre):nth-last-child(2) {
-  margin-bottom: 0;
+/* On paper: the page, not Claude's reading of it (as print.css leaves Claude's cards out) */
+@media print {
+  .reading,
+  .reading-state {
+    display: none;
+  }
 }

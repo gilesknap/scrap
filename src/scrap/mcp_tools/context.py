@@ -62,7 +62,7 @@ class Ctx:
         self.store = store
         self.base = base
         self.editable = editable
-        self.wake = wake  # the ingest worker's, for what a tool queues (add_svg)
+        self.wake = wake  # the ingest worker's, for what a tool queues (none now: #521)
         # unpublishes what a tool makes private or trashes (ADR 43)
         self.publisher = publisher or Publisher(store)
 

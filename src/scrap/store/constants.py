@@ -129,9 +129,14 @@ IS_FILE = (
     + ")"
 )
 IS_IMAGE = "{b}.mime LIKE 'image/%'"
+# A capture Claude made over MCP (add_svg's, or its /mcp upload): its images are its
+# own, so Claude never reads them (#521). Keyed on the capture, not the file: the same
+# file in one of the owner's captures is that capture's, and is read.
+BY_CLAUDE = f"({{c}}.source = '{MCP}' AND {{c}}.author = '{CLAUDE}')"
 # One ingest job per distinct image of a photo capture (or the one photo asked for),
 # and per distinct readable file (FILE_TYPES) of any capture; job_one_active makes a
-# repeat add nothing. An image of a file capture is not sent to Claude unasked.
+# repeat add nothing. An image of a file capture is not sent to Claude unasked, nor
+# one of a capture Claude made (BY_CLAUDE), even asked.
 ENQUEUE = f"""
 INSERT INTO job (kind, capture_id, source_sha256, options, run_after, created_at,
                  updated_at)
@@ -140,7 +145,8 @@ FROM capture_blob cb
 JOIN capture c ON c.id = cb.capture_id
 JOIN blob b ON b.sha256 = cb.sha256
 WHERE cb.capture_id = :capture AND coalesce(:photo, cb.sha256) = cb.sha256
-  AND (({IS_IMAGE.format(b="b")} AND (c.kind = 'photo' OR :photo IS NOT NULL))
+  AND (({IS_IMAGE.format(b="b")} AND (c.kind = 'photo' OR :photo IS NOT NULL)
+        AND NOT {BY_CLAUDE.format(c="c")})
        OR {IS_FILE.format(b="b")})
 ON CONFLICT DO NOTHING
 """

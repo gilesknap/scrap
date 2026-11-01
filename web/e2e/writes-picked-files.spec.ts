@@ -118,7 +118,7 @@ test("the editor's File puts a .md and a text file in the text; Save adds them",
   await expect(page.locator(".originals .filerow")).toHaveCount(0); // in place, not below
   // A text file's card has no text fold: its own link opens it
   await expect(page.locator(".file-panel")).toHaveCount(2);
-  await expect(page.locator(".file-panel .claude-text")).toHaveCount(0);
+  await expect(page.locator(".file-panel pre")).toHaveCount(0);
   // In Edit again, each a token with a chip
   await page.getByRole("button", { name: "Edit" }).click();
   await expect(page.locator(".editor .embeds .embed")).toHaveText(["reading.md", "list.txt"]);

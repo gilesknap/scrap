@@ -137,7 +137,8 @@ carry.
   - An image's `alt` is published as the app has it, a file name the PWA filled in included
     (the owner's choice; a link's label may show a file's name too).
   - Left out: Claude's notes (a photo's description, the read text), revisions, the
-    extracted text of files, and every `/api` or other private address.
+    extracted text of files, and every `/api` or other private address. Since 1.3.3 a photo's
+    or PDF's reading is published in a closed fold ([ADR 44](0044-claudes-reading-in-a-fold.md)).
   - **Drawings (Excalidraw)** were left out in the first version (a photo with a drawing
     published as the photo alone); 1.3.1 publishes them ([](#amendment-reader-preferences-and-drawings)).
   - External links (`http:` and `https:`) stay, except those to scrap's own origins (hosts
