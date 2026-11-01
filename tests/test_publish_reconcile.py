@@ -94,15 +94,42 @@ def test_reconcile_prunes_pages_no_longer_public(client, app, site):
 
 
 def test_a_damaged_copy_is_pruned(client, app, site):
+    """A copy is read, and its damage found, only when the site needs it pushed."""
+    from publishhelp import TOKEN
+    from scrap.publish.client import Receiver
+
     a = published(client, "A\nx", "<p>alpha</p>")
     copy = kept(app).root / "p" / a["slug"] / "index.html"
     copy.write_bytes(copy.read_bytes() + b"<!-- changed on disk -->")
+    app.state.publisher.reconcile()
+    assert kept(app).slugs() == [a["slug"]]  # the site has it as pushed: not read
+    with Receiver(site.url, TOKEN) as r:
+        r.delete(f"p/{a['slug']}")  # the site lost it
     app.state.publisher.reconcile()
     assert f"p/{a['slug']}" not in site.units()
     assert kept(app).slugs() == []
     # the API says so: it comes back on the next Refresh all
     got = client.get(f"/api/pages/{a['slug']}").json()
     assert got["public"] is True and got["published_at"] is None
+
+
+def test_reconcile_reads_no_copy_the_site_holds_as_pushed(client, app, site,
+                                                          monkeypatch):  # fmt: skip
+    published(client, "A\nx", "<p>alpha</p>")
+    b = published(client, "B\ny", "<p>beta</p>")
+    read = []
+    real = Kept.files
+    monkeypatch.setattr(Kept, "files", lambda self, slug: read.append(slug)
+                        or real(self, slug))  # fmt: skip
+    app.state.publisher.reconcile()
+    assert read == [] and app.state.publisher.last["ok"] is True
+    from publishhelp import TOKEN
+    from scrap.publish.client import Receiver
+
+    with Receiver(site.url, TOKEN) as r:
+        r.delete(f"p/{b['slug']}")
+    app.state.publisher.reconcile()
+    assert read == [b["slug"]] and f"p/{b['slug']}" in site.units()
 
 
 def test_strays_are_synced_away_and_a_changed_unit_pushed_again(client, app, site):

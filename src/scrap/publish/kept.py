@@ -14,8 +14,6 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
-from .unit import digest
-
 __all__ = ["META", "Kept"]
 
 META = "meta.json"
@@ -65,16 +63,13 @@ class Kept:
         except OSError:
             return b""
 
-    def damaged(self, slug: str) -> bool:
-        """Whether a copy no longer matches the digest scrap last pushed for it (or
-        has none, or no meta.json)."""
-        files = self.files(slug)
-        stored = self.digest(f"p/{slug}")
+    def incomplete(self, slug: str) -> bool:
+        """Whether a copy lacks its meta.json, its digest or its index.html (read
+        nothing else)."""
         return (
-            not files
-            or stored is None
-            or self.meta(slug) is None
-            or digest(files) != stored
+            self.meta(slug) is None
+            or self.digest(f"p/{slug}") is None
+            or not (self._dir(slug) / "index.html").is_file()
         )
 
     def write(

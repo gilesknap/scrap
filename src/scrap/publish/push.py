@@ -44,7 +44,8 @@ def push_derived(
 def stale_copies(store: Store, kept: Kept, ids: set[str] | None = None) -> list[str]:
     """The kept copies the site must no longer hold (of the pages ids, else every
     page's): their page is gone, not public, in the trash or under another slug; with
-    ids None, damaged copies too."""
+    ids None, copies with no meta.json, digest or index.html too (a damaged one's
+    files are checked only when it is read to be pushed: reconcile)."""
     metas = {slug: kept.meta(slug) for slug in kept.slugs()}
     owners = {s: str(m.get("id")) if m else None for s, m in metas.items()}
     wanted = [o for o in owners.values() if o and (ids is None or o in ids)]
@@ -56,8 +57,8 @@ def stale_copies(store: Store, kept: Kept, ids: set[str] | None = None) -> list[
         page = pages.get(owner or "")
         if page is None or not page.live or page.slug != slug:
             stale.append(slug)
-        elif ids is None and kept.damaged(slug):
-            log.warning("publish: the kept copy of p/%s is damaged: pruned", slug)
+        elif ids is None and kept.incomplete(slug):
+            log.warning("publish: the kept copy of p/%s is incomplete: pruned", slug)
             stale.append(slug)
     return stale
 
@@ -76,13 +77,14 @@ class Summary:
 def reconcile(
     store: Store, kept: Kept, receiver: Receiver | None, static: Path
 ) -> Summary:
-    """One pass: prune the copies of pages that are not public, in the trash or
-    damaged (and their units); build every derived unit fresh from the copies left;
-    push each unit the receiver's manifest lacks or holds otherwise (a page unit from
-    its kept bytes, a derived one from the fresh build); then sync, deleting any
-    stray. Without a receiver (publishing off) only the prune runs. A unit the
-    receiver refuses is logged and left to the next pass; an unreachable receiver
-    ends the pass (ReceiverError)."""
+    """One pass: prune the copies of pages that are not public or in the trash (and
+    their units); push each page unit the receiver's manifest holds with another
+    digest than the one scrap last pushed, from its kept bytes, which are read only
+    then (a copy whose bytes no longer match that digest is damaged: pruned); build
+    every derived unit fresh from the copies left and push those the manifest holds
+    otherwise; then sync, deleting any stray. Without a receiver (publishing off)
+    only the prune runs. A unit the receiver refuses is logged and left to the next
+    pass; an unreachable receiver ends the pass (ReceiverError)."""
     out = Summary()
     kept.clean()
     for slug in stale_copies(store, kept):
@@ -90,15 +92,26 @@ def reconcile(
         out.pruned.append(f"p/{slug}")
     if receiver is None:
         return out
-    units = derived.build(kept, static)
-    out.search_failed = derived.pending(units)
     for unit in out.pruned:  # sync would too; deleting first frees the quota
         _try(receiver.delete, unit, out)
     held = receiver.manifest().get("units") or {}
-    pages = [f"p/{slug}" for slug in kept.slugs()]
-    for name in sorted([*pages, *units]):
-        # a page's bytes are read one unit at a time: the site may be large
-        files = units[name] if name in units else kept.files(name[2:])
+    for slug in kept.slugs():
+        name = f"p/{slug}"
+        stored = kept.digest(name)
+        if (held.get(name) or {}).get("digest") == stored:
+            continue  # the site has it as pushed: its bytes are not read
+        files = kept.files(slug)  # one unit at a time: the site may be large
+        if digest(files) != stored:
+            log.warning("publish: the kept copy of %s is damaged: pruned", name)
+            kept.delete(slug)
+            out.pruned.append(name)
+            _try(receiver.delete, name, out)
+        elif _try(receiver.put, name, out, files) is not None:
+            out.pushed.append(name)
+    units = derived.build(kept, static)  # after any damaged copy is pruned
+    out.search_failed = derived.pending(units)
+    for name in sorted(units):
+        files = units[name]
         dig = digest(files)
         if (held.get(name) or {}).get("digest") == dig:
             if kept.digest(name) != dig:
@@ -107,6 +120,7 @@ def reconcile(
         if _try(receiver.put, name, out, files) is not None:
             kept.set_digest(name, dig)
             out.pushed.append(name)
+    pages = [f"p/{slug}" for slug in kept.slugs()]
     keep = sorted({*pages, *units, *FIXED})  # a unit not built keeps its last
     out.deleted = receiver.sync(keep)
     for name in kept.digests():
