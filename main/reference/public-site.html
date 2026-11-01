@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Public site &#8212; scrap 1.3.5.dev1+g49fcd843f documentation</title>
+    <title>Public site &#8212; scrap 1.3.5.dev2+gfae121d36 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=707a43e9"></script>
+    <script src="../_static/documentation_options.js?v=3990debd"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -1027,6 +1027,9 @@ browser asks again on each load, with the <code class="docutils literal notransl
 nothing changed; a page republished by a new release never shows with the last release’s
 stylesheet (#534). It is <code class="docutils literal notranslate"><span class="pre">no-cache</span></code>, not <code class="docutils literal notranslate"><span class="pre">no-store</span></code>, so browsers and Cloudflare still keep a
 copy to revalidate.</p></li>
+<li><p>Behind Cloudflare, the zone’s Browser Cache TTL rewrites that <code class="docutils literal notranslate"><span class="pre">no-cache</span></code> to <code class="docutils literal notranslate"><span class="pre">max-age=14400</span></code>
+unless a Cache Rule for the site’s host sets <strong>Browser TTL: Respect origin TTL</strong>. Check with
+<code class="docutils literal notranslate"><span class="pre">curl</span> <span class="pre">-sI</span> <span class="pre">https://&lt;host&gt;/assets/page.css</span></code>: it shows <code class="docutils literal notranslate"><span class="pre">no-cache</span></code>.</p></li>
 <li><p>Every other file: <code class="docutils literal notranslate"><span class="pre">Cache-Control:</span> <span class="pre">public,</span> <span class="pre">max-age=300</span></code>, so a deleted file can be seen from a
 cache for up to five minutes more. KaTeX’s fonts and the site’s icons are among these: they
 change only with KaTeX or the icon, and a page shown with an older font still reads.</p></li>

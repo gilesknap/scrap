@@ -319,6 +319,9 @@ drawing that a reader opens there ([](#drawings)). No other answer has the heade
   nothing changed; a page republished by a new release never shows with the last release's
   stylesheet (#534). It is `no-cache`, not `no-store`, so browsers and Cloudflare still keep a
   copy to revalidate.
+- Behind Cloudflare, the zone's Browser Cache TTL rewrites that `no-cache` to `max-age=14400`
+  unless a Cache Rule for the site's host sets **Browser TTL: Respect origin TTL**. Check with
+  `curl -sI https://<host>/assets/page.css`: it shows `no-cache`.
 - Every other file: `Cache-Control: public, max-age=300`, so a deleted file can be seen from a
   cache for up to five minutes more. KaTeX's fonts and the site's icons are among these: they
   change only with KaTeX or the icon, and a page shown with an older font still reads.
