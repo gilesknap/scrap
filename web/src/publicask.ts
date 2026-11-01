@@ -28,6 +28,19 @@ export const drawingsOn = (p: Page): number =>
     .flatMap((c) => c.blobs)
     .filter((b) => b.ingest && "drawing" in b.ingest && b.ingest.drawing).length;
 
+/** Whether any of the page's photos or files has a reading (#521): its fold goes public too.
+ * Claude's own images (add_svg) have none. */
+export const readingsOn = (p: Page): boolean =>
+  p.captures
+    .flatMap((c) => c.blobs)
+    .some((b) =>
+      !b.ingest
+        ? false
+        : "kind" in b.ingest
+          ? b.ingest.state === "done"
+          : !!(b.ingest.description || b.ingest.text),
+    );
+
 /** What goes public with the page, a line each: its tags, Claude's write-up and summary (on a
  * topic, its synthesis too), its attached files by name, its drawings. */
 export function goesWith(p: Page): string[] {
@@ -44,6 +57,7 @@ export function goesWith(p: Page): string[] {
     ...(drawings
       ? [`its ${drawings} ${drawings === 1 ? "drawing" : "drawings"}, downloadable`]
       : []),
+    ...(readingsOn(p) ? ["Claude's reading of its photos and files"] : []),
   ];
 }
 

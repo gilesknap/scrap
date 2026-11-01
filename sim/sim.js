@@ -93,6 +93,14 @@
           };
       }
 
+  // 521 mock: images the fixtures carry as SVG text (Claude's add_svg diagrams, the owner's
+  // photographed working), served as object URLs under their sha
+  for (const p of pages)
+    for (const c of p.captures)
+      for (const b of c.blobs)
+        if (b._svg && !userBlobs.has(b.sha256))
+          userBlobs.set(b.sha256, URL.createObjectURL(new Blob([b._svg], { type: "image/svg+xml" })));
+
   // ---------- files in a page's text (design/edit-embeds): PDFs and a .md made here, as
   // object URLs under fake SHA-256s, so their links open and their cards show each state
   const pdfBlob = (lines) => {
@@ -1142,6 +1150,7 @@
       font: 600 12px/1 system-ui, sans-serif; padding: 12px 7px; border-radius: 8px 0 0 8px; border: 0;
       background: #2a5bd7; color: #fff; box-shadow: 0 2px 10px rgb(0 0 0 / 25%); opacity: 0.9; }
     .sim-back { top: calc(38% - 92px); background: #3a3a3a; }
+    .sim-var { top: calc(38% + 92px); background: #8a4b0f; }
     .sim-fb-pane { position: fixed; z-index: 51; inset: auto 8px 8px 8px; padding: 12px; border-radius: 14px;
       background: #fff; color: #1b1b1b; box-shadow: 0 8px 30px rgb(0 0 0 / 35%); font: 15px/1.4 system-ui, sans-serif;
       display: flex; flex-direction: column; gap: 8px; }
@@ -1186,6 +1195,61 @@
     document.body.append(pane);
     text.focus();
   };
+  // 521 mock: the design's variants, on <html> (web/src/reading.ts), kept across reloads
+  const V521 = { chev: ["before", "after"], regen: ["in", "out"] };
+  let m521 = {}; // where storage is refused (the artifact host may), for this visit only
+  const get521 = () => {
+    try {
+      return JSON.parse(localStorage.getItem("sim.m521") || "{}");
+    } catch {
+      return m521;
+    }
+  };
+  const set521 = (v) => {
+    m521 = v;
+    try {
+      localStorage.setItem("sim.m521", JSON.stringify(v));
+    } catch {}
+  };
+  const v521 = () => {
+    const v = get521();
+    for (const k of Object.keys(V521)) document.documentElement.dataset[`m521${k[0].toUpperCase()}${k.slice(1)}`] = V521[k].includes(v[k]) ? v[k] : V521[k][0];
+  };
+  v521();
+  const variants = () => {
+    if (document.querySelector(".sim-fb-pane")) return;
+    const pane = document.createElement("div");
+    pane.className = "sim-fb-pane";
+    const row = (k, label, names) => {
+      const d = document.createElement("div");
+      d.style.cssText = "justify-content:flex-start;align-items:center;flex-wrap:wrap";
+      d.append(label);
+      V521[k].forEach((v, i) => {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.textContent = names[i];
+        if (document.documentElement.dataset[`m521${k[0].toUpperCase()}${k.slice(1)}`] === v) b.className = "go";
+        b.onclick = () => {
+          set521({ ...get521(), [k]: v });
+          v521();
+          pane.remove();
+          variants();
+        };
+        d.append(b);
+      });
+      return d;
+    };
+    const close = document.createElement("button");
+    close.type = "button";
+    close.textContent = "Close";
+    close.onclick = () => pane.remove();
+    const end = document.createElement("div");
+    end.append(close);
+    const t = document.createElement("small");
+    t.textContent = "Claude's reading (#521): pick a variant, then open a fold";
+    pane.append(t, row("chev", "Chevron:", ["A: before", "B: after"]), row("regen", "Regenerate:", ["A: in fold", "B: on its line"]), end);
+    document.body.append(pane);
+  };
   addEventListener("DOMContentLoaded", () => {
     const b = document.createElement("button");
     b.type = "button";
@@ -1198,7 +1262,12 @@
     back.className = "sim-fb sim-back";
     back.textContent = "‹ Back";
     back.onclick = () => history.back();
-    document.body.append(back, b);
+    const v = document.createElement("button");
+    v.type = "button";
+    v.className = "sim-fb sim-var";
+    v.textContent = "Variants";
+    v.onclick = variants;
+    document.body.append(back, b, v);
   });
 
   // The artifact viewer blocks native dialogs: confirm() returns false at once, unseen, so

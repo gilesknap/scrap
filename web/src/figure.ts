@@ -19,11 +19,15 @@ import {
 import { plain } from "./app";
 import { fileCard } from "./filecard";
 import { fileRow } from "./filerow";
-import { PHOTO, photoPanel } from "./ingest";
+import { photoPanel } from "./ingest";
+import { readingFold } from "./reading";
 import { h, pageLink, settle, toast } from "./ui";
 import { type Photo, viewer } from "./viewer";
 
-type Placed = FileRef & { cid: string };
+// byClaude: every capture holding it is an image Claude placed over MCP (add_svg: source mcp,
+// author claude), which Claude doesn't read (#521): it shows on its own, nothing under it. One
+// the owner uploaded and Claude reused is still read.
+type Placed = FileRef & { cid: string; byClaude: boolean };
 const isImage = (f: FileRef) => f.mime.startsWith("image/");
 // A file scrap reads for search (the server's FILE_TYPES), or one it has a reading of
 const READS = ["application/pdf", "text/plain", "text/markdown"];
@@ -43,7 +47,10 @@ export function figures(
   for (const c of p.captures)
     for (const b of c.blobs) {
       const had = files.get(b.sha256);
-      if (!had || (!had.ingest && b.ingest)) files.set(b.sha256, { ...b, cid: c.id });
+      const claude = c.source === "mcp" && c.author === "claude";
+      const byClaude = claude && (!had || had.byClaude);
+      if (!had || (!had.ingest && b.ingest)) files.set(b.sha256, { ...b, cid: c.id, byClaude });
+      else had.byClaude = byClaude;
     }
   // Only render.ts's own images (this server's files, by their sha), in a paragraph of images
   // alone, one or more lines of them: each becomes a figure. One in a link, a heading, a list,
@@ -116,22 +123,23 @@ export function figures(
         refresh,
       });
     }
-    // Not read by Claude: what asking would do, in Claude's card under it
+    // An image Claude placed itself (add_svg): nothing under it, no fold and no note
+    if (f.byClaude) return fig;
+    // Not read by Claude: what asking would do, in the fold, with Generate
     return h(
       "section",
       { className: "photo-panel" },
       fig,
-      h(
-        "div",
-        { className: "claude" },
-        h(
-          "div",
-          { className: "ingest" },
-          h("h3", { className: "ctitle" }, PHOTO),
-          askClaude(f.cid, sha, refresh),
-        ),
-        h("p", { className: "did" }, "Claude can describe it and read any text in it."),
-      ),
+      readingFold({
+        body: [
+          h(
+            "p",
+            { className: "did" },
+            "Not read yet. Claude can describe it and read any text in it.",
+          ),
+        ],
+        regen: { label: "Generate", onclick: () => void askClaude(f.cid, sha, refresh) },
+      }),
     );
   };
 
@@ -155,23 +163,17 @@ export function figures(
   return rest.map((f) => (isImage(f) ? figure(f.sha256, f.filename || "", f) : row(f)));
 }
 
-/** Send one image to Claude; the page, shown again, then has its panel with the queue state. */
-function askClaude(cid: string, sha: string, refresh: () => void) {
-  const b = h("button", { type: "button" }, "Generate"); // as every Claude card's first time
-  b.onclick = async () => {
-    b.disabled = true;
-    try {
-      const r = await api<{ queued: number; already: number }>(`captures/${cid}/reprocess`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ photo: sha }),
-      });
-      if (!r.queued && !r.already) toast("Claude can't read this file");
-      refresh();
-    } catch (err) {
-      b.disabled = false;
-      toast(`Not sent: ${err instanceof ApiError ? err.message : "can't reach the server"}`);
-    }
-  };
-  return b;
+/** Send one image to Claude; the page, shown again, then has its fold with the queue state. */
+async function askClaude(cid: string, sha: string, refresh: () => void) {
+  try {
+    const r = await api<{ queued: number; already: number }>(`captures/${cid}/reprocess`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ photo: sha }),
+    });
+    if (!r.queued && !r.already) toast("Claude can't read this file");
+    refresh();
+  } catch (err) {
+    toast(`Not sent: ${err instanceof ApiError ? err.message : "can't reach the server"}`);
+  }
 }
