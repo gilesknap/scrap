@@ -229,6 +229,13 @@ check "nosniff" [ "$(header "$web/p/a-page" x-content-type-options)" = nosniff ]
 check "no referrer" [ "$(header "$web/p/a-page" referrer-policy)" = no-referrer ]
 check "noindex" [ "$(header "$web/p/a-page" x-robots-tag)" = "noindex, nofollow" ]
 check "HTML is no-cache" [ "$(header "$web/p/a-page" cache-control)" = no-cache ]
+# A 304 has no Content-Type, so nginx knows HTML by its file there
+for path in /p/a-page / /tags /t/a-tag-0123abcd; do
+    html_etag=$(header "$web$path" etag)
+    check "HTML's 304 is no-cache too: $path" \
+        [ "$(curl -sS -o /dev/null -D - -H "If-None-Match: $html_etag" "$web$path" | tr -d '\r' |
+            sed -n 's/^cache-control: //Ip')" = no-cache ]
+done
 check "files are max-age=300" \
     [ "$(header "$web/p/a-page/file-1-0123456789.pdf" cache-control)" = "public, max-age=300" ]
 # The site's own CSS and script are at fixed addresses every page names, so they are

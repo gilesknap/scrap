@@ -311,7 +311,8 @@ drawing that a reader opens there ([](#drawings)). No other answer has the heade
 ### Caching
 
 - HTML: `Cache-Control: no-cache`, so a browser or proxy checks again before each use, and an
-  unpublished page is gone on its next load.
+  unpublished page is gone on its next load. A `304` for a page says `no-cache` too (nginx
+  knows HTML there by its file, `.html`, as a `304` has no `Content-Type`).
 - The site's own CSS and script, `/assets/*.css` and `/assets/*.js` (`page.css`, `katex.css`,
   `prefs.js`): `Cache-Control: no-cache` too. Every page names them at the same addresses, so a
   browser asks again on each load, with the `ETag` nginx sends, and gets a short `304` when
