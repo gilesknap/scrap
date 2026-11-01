@@ -14,7 +14,7 @@ run_id=scrap-public-test-$$
 token=$(head -c 30 /dev/urandom | od -An -tx1 | tr -d ' \n')
 work=$(mktemp -d)
 fail=0
-# shellcheck disable=SC2329 # run by the trap
+# shellcheck disable=SC2317,SC2329 # run by the trap (SC2317 before shellcheck 0.11)
 cleanup() {
     "$rt" rm -f "$run_id-rcv" "$run_id-web" "$run_id-idx" >/dev/null 2>&1 || true
     "$rt" volume rm -f "$run_id" >/dev/null 2>&1 || true
@@ -215,7 +215,7 @@ check "DELETE p/a-page" [ "$(curl -sS -o /dev/null -w '%{http_code}' -X DELETE \
 check "a deleted page is 404" [ "$(status "$web/p/a-page")" = 404 ]
 
 # A clean stop on SIGTERM (what Kubernetes sends): exit 0, well within the grace
-# shellcheck disable=SC2329 # run through check
+# shellcheck disable=SC2317,SC2329 # run through check
 stopped() { # CONTAINER
     "$rt" stop -t 10 "$1" >/dev/null &&
         [ "$("$rt" inspect -f '{{.State.ExitCode}}' "$1")" = 0 ]
