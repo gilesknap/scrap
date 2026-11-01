@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Public site &#8212; scrap 1.3.3.dev1+g6eb088fdf documentation</title>
+    <title>Public site &#8212; scrap 1.3.3.dev2+g06c23e2c4 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=73deb62c"></script>
+    <script src="../_static/documentation_options.js?v=f5aa5efb"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -1042,7 +1042,8 @@ the PWA’s side (the toggle, the badge, the dialogs) is on the sim’s design b
 other page is public. Otherwise the whole entry is left out of those lists (a private page’s
 title can still show in the page’s own text, as a link’s words: <a class="reference internal" href="#private-titles"><span class="std std-ref">#private-titles</span></a>).</p></li>
 <li><p>Maths, as <code class="docutils literal notranslate"><span class="pre">katex.renderToString</span></code> writes it (<a class="reference internal" href="#katex-s-markup"><span class="std std-ref">KaTeX's markup</span></a>).</p></li>
-<li><p>Mermaid diagrams as their source, in <code class="docutils literal notranslate"><span class="pre">&lt;pre&gt;&lt;code</span> <span class="pre">class=&quot;language-mermaid&quot;&gt;</span></code>, not rendered.</p></li>
+<li><p>Mermaid diagrams drawn, as the app draws them, light and dark (<a class="reference internal" href="#diagrams"><span class="std std-ref">Diagrams</span></a>); one the PWA
+cannot draw as its source, in <code class="docutils literal notranslate"><span class="pre">&lt;pre&gt;&lt;code</span> <span class="pre">class=&quot;language-mermaid&quot;&gt;</span></code>.</p></li>
 <li><p>Heading and footnote <code class="docutils literal notranslate"><span class="pre">id</span></code>s, so <code class="docutils literal notranslate"><span class="pre">#...</span></code> links within the page work.</p></li>
 </ul>
 <p><strong>Links</strong></p>
@@ -1054,10 +1055,13 @@ a <code class="docutils literal notranslate"><span class="pre">&lt;span&gt;</spa
 <li><p>A bare <code class="docutils literal notranslate"><span class="pre">[[slug]]</span></code> to a public page shows the linked page’s title; one to no page (or a page in
 the trash) is the plain text “a private page”.</p></li>
 <li><p>Elsewhere: <code class="docutils literal notranslate"><span class="pre">http:</span></code> and <code class="docutils literal notranslate"><span class="pre">https:</span></code> links as written, within <a class="reference internal" href="#links-scrap-accepts">the link rules</a>.</p></li>
-<li><p><strong>No private address in text.</strong> Text (inline code and code blocks included) that holds an
-address of scrap’s own (one of its hosts, with or without a scheme, port or path), or any
-<code class="docutils literal notranslate"><span class="pre">/api/...</span></code> path, says “a private link” in its place. scrap’s check refuses text that still
-holds one (<a class="reference internal" href="#the-html-scrap-accepts"><span class="std std-ref">The HTML scrap accepts</span></a>).</p></li>
+<li><p><strong>No private address in text.</strong> Text (inline code included) that holds an address of
+scrap’s own (one of its hosts, with or without a scheme, port or path), or any <code class="docutils literal notranslate"><span class="pre">/api/...</span></code>
+path, says “a private link” in its place. In a code block, a Mermaid diagram’s source and a
+diagram’s words (#529), only scrap’s own addresses (its hosts, and <code class="docutils literal notranslate"><span class="pre">/api/blobs/...</span></code>) are
+replaced, and a closing <code class="docutils literal notranslate"><span class="pre">]</span></code> after one stays: any other <code class="docutils literal notranslate"><span class="pre">/api/...</span></code> path is the code’s own and
+stays as written. scrap’s check refuses text that still holds one
+(<a class="reference internal" href="#the-html-scrap-accepts"><span class="std std-ref">The HTML scrap accepts</span></a>).</p></li>
 </ul>
 <p id="private-titles"><strong>Private titles on public pages.</strong> A public page that links to a private page shows that
 page’s title as words. When a page is made private, or deleted, in the PWA, the PWA draws and
@@ -1140,13 +1144,16 @@ timestamp, not stale tracking.</p>
 <h3><code class="docutils literal notranslate"><span class="pre">PUT</span> <span class="pre">/api/pages/{key}/published</span></code><a class="headerlink" href="#put-api-pages-key-published" title="Link to this heading">#</a></h3>
 <p>Publish the page. The body is JSON, at most 25 MiB:</p>
 <div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span><span class="nt">"html"</span><span class="p">:</span><span class="w"> </span><span class="s2">"&lt;!DOCTYPE html&gt;..."</span><span class="p">,</span><span class="w"> </span><span class="nt">"base_rev"</span><span class="p">:</span><span class="w"> </span><span class="mi">42</span><span class="p">,</span><span class="w"> </span><span class="nt">"defer"</span><span class="p">:</span><span class="w"> </span><span class="kc">false</span><span class="p">,</span><span class="w"> </span><span class="nt">"confirmed"</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span>
-<span class="w"> </span><span class="nt">"drawings"</span><span class="p">:</span><span class="w"> </span><span class="p">[{</span><span class="nt">"key"</span><span class="p">:</span><span class="w"> </span><span class="s2">"17"</span><span class="p">,</span><span class="w"> </span><span class="nt">"svg"</span><span class="p">:</span><span class="w"> </span><span class="s2">"&lt;svg ...&gt;...&lt;/svg&gt;"</span><span class="p">}]}</span>
+<span class="w"> </span><span class="nt">"drawings"</span><span class="p">:</span><span class="w"> </span><span class="p">[{</span><span class="nt">"key"</span><span class="p">:</span><span class="w"> </span><span class="s2">"17"</span><span class="p">,</span><span class="w"> </span><span class="nt">"svg"</span><span class="p">:</span><span class="w"> </span><span class="s2">"&lt;svg ...&gt;...&lt;/svg&gt;"</span><span class="p">}],</span>
+<span class="w"> </span><span class="nt">"diagrams"</span><span class="p">:</span><span class="w"> </span><span class="p">[{</span><span class="nt">"key"</span><span class="p">:</span><span class="w"> </span><span class="s2">"1"</span><span class="p">,</span><span class="w"> </span><span class="nt">"light"</span><span class="p">:</span><span class="w"> </span><span class="s2">"&lt;svg ...&gt;...&lt;/svg&gt;"</span><span class="p">,</span><span class="w"> </span><span class="nt">"dark"</span><span class="p">:</span><span class="w"> </span><span class="s2">"&lt;svg ...&gt;...&lt;/svg&gt;"</span><span class="p">}]}</span>
 </pre></div>
 </div>
 <p><code class="docutils literal notranslate"><span class="pre">html</span></code> is the page from the publish mode, and <code class="docutils literal notranslate"><span class="pre">base_rev</span></code> the page’s revision the PWA rendered.
 <code class="docutils literal notranslate"><span class="pre">drawings</span></code> (optional, at most 20) holds the SVG of each drawing the page shows, by its id
 (<code class="docutils literal notranslate"><span class="pre">key</span></code>, <code class="docutils literal notranslate"><span class="pre">[1-9][0-9]{0,17}</span></code>, each once): exactly those its <code class="docutils literal notranslate"><span class="pre">scrap-drawing:</span></code> placeholders name
-(<a class="reference internal" href="#drawings"><span class="std std-ref">Drawings</span></a>).
+(<a class="reference internal" href="#drawings"><span class="std std-ref">Drawings</span></a>). <code class="docutils literal notranslate"><span class="pre">diagrams</span></code> (optional, at most 20) holds each Mermaid diagram’s two SVGs, by
+its key (<code class="docutils literal notranslate"><span class="pre">[1-9][0-9]{0,2}</span></code>, each once): exactly those its <code class="docutils literal notranslate"><span class="pre">scrap-diagram:</span></code> placeholders name
+(<a class="reference internal" href="#diagrams"><span class="std std-ref">Diagrams</span></a>).
 With <code class="docutils literal notranslate"><span class="pre">defer:</span> <span class="pre">true</span></code> scrap pushes the page’s own unit but not <code class="docutils literal notranslate"><span class="pre">home</span></code>, the tag units or
 <code class="docutils literal notranslate"><span class="pre">pagefind</span></code> (Refresh all, below). <code class="docutils literal notranslate"><span class="pre">confirmed</span></code> (optional, a boolean) says the owner has just
 agreed to the page going public: the PWA sends it only from Make public’s warning (and its
@@ -1185,7 +1192,7 @@ page’s unit is pushed (Pagefind failing or timing out, say): it is logged, nev
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">422</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">bad_request</span></code></p></td>
-<td><p>The body is not JSON <code class="docutils literal notranslate"><span class="pre">{&quot;html&quot;,</span> <span class="pre">&quot;base_rev&quot;,</span> <span class="pre">&quot;defer&quot;,</span> <span class="pre">&quot;confirmed&quot;,</span> <span class="pre">&quot;drawings&quot;}</span></code>, or a drawing is sent twice</p></td>
+<td><p>The body is not JSON <code class="docutils literal notranslate"><span class="pre">{&quot;html&quot;,</span> <span class="pre">&quot;base_rev&quot;,</span> <span class="pre">&quot;defer&quot;,</span> <span class="pre">&quot;confirmed&quot;,</span> <span class="pre">&quot;drawings&quot;,</span> <span class="pre">&quot;diagrams&quot;}</span></code>, or a drawing or diagram is sent twice</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">422</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">bad_html</span></code>, <code class="docutils literal notranslate"><span class="pre">bad_placeholder</span></code></p></td>
@@ -1196,22 +1203,26 @@ page’s unit is pushed (Pagefind failing or timing out, say): it is logged, nev
 <td><p>A drawing the page shows was not sent, one was sent that it does not show, or one’s SVG has no single Excalidraw scene, one that cannot be read, or cannot be made safe (<a class="reference internal" href="#drawings"><span class="std std-ref">Drawings</span></a>)</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">422</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">bad_diagram</span></code></p></td>
+<td><p>A diagram the page shows was not sent, or not shown in both themes, one was sent that it does not show, or one’s SVG cannot be made safe or names scrap in its style (<a class="reference internal" href="#diagrams"><span class="std std-ref">Diagrams</span></a>)</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">422</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">too_many_files</span></code>, <code class="docutils literal notranslate"><span class="pre">file_too_large</span></code>, <code class="docutils literal notranslate"><span class="pre">unit_too_large</span></code></p></td>
 <td><p>Over a cap (<a class="reference internal" href="#placeholders-and-files"><span class="std std-ref">Placeholders and files</span></a>)</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">422</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">422</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">stale_tags</span></code></p></td>
 <td><p>A <code class="docutils literal notranslate"><span class="pre">scrap-tag:</span></code> names a tag the page no longer has (a tag edit raced the render); the PWA renders again</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">502</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">502</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">publish_failed</span></code></p></td>
 <td><p>The receiver refused or failed; <code class="docutils literal notranslate"><span class="pre">detail</span></code> holds its <code class="docutils literal notranslate"><span class="pre">error</span></code> code</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">503</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">503</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">not_configured</span></code></p></td>
 <td><p>Publishing is off (no <code class="docutils literal notranslate"><span class="pre">SCRAP_PUBLISH_TO</span></code> or token)</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">503</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">503</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">busy</span></code></p></td>
 <td><p>A photo’s preview is being made; try again (<code class="docutils literal notranslate"><span class="pre">Retry-After:</span> <span class="pre">5</span></code>)</p></td>
 </tr>
@@ -1256,7 +1267,8 @@ refused, as is an attribute given twice on one element.</p></li>
 <li><p>“A class includes <code class="docutils literal notranslate"><span class="pre">katex</span></code>” means <code class="docutils literal notranslate"><span class="pre">katex</span></code> is one of its whitespace-separated tokens.</p></li>
 <li><p>A <code class="docutils literal notranslate"><span class="pre">style</span></code> value is parsed as declarations, <code class="docutils literal notranslate"><span class="pre">property:</span> <span class="pre">value</span></code> separated by <code class="docutils literal notranslate"><span class="pre">;</span></code>, with spaces
 after <code class="docutils literal notranslate"><span class="pre">:</span></code> and a trailing <code class="docutils literal notranslate"><span class="pre">;</span></code> allowed.</p></li>
-<li><p>A placeholder (<code class="docutils literal notranslate"><span class="pre">scrap-blob:</span></code>, <code class="docutils literal notranslate"><span class="pre">scrap-tag:</span></code>, <code class="docutils literal notranslate"><span class="pre">scrap-drawing:</span></code> or <code class="docutils literal notranslate"><span class="pre">scrap-excalidraw:</span></code>) anywhere but the places allowed below, in text
+<li><p>A placeholder (<code class="docutils literal notranslate"><span class="pre">scrap-blob:</span></code>, <code class="docutils literal notranslate"><span class="pre">scrap-tag:</span></code>, <code class="docutils literal notranslate"><span class="pre">scrap-drawing:</span></code>, <code class="docutils literal notranslate"><span class="pre">scrap-excalidraw:</span></code> or
+<code class="docutils literal notranslate"><span class="pre">scrap-diagram:</span></code>) anywhere but the places allowed below, in text
 or another attribute, is refused.</p></li>
 </ul>
 </section>
@@ -1333,7 +1345,7 @@ there: inside KaTeX, an HTML element with one of these names is checked as MathM
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">src</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">img</span></code></p></td>
-<td><p>a <code class="docutils literal notranslate"><span class="pre">scrap-blob:&lt;sha&gt;</span></code> or <code class="docutils literal notranslate"><span class="pre">scrap-drawing:&lt;id&gt;</span></code> placeholder, and nothing else</p></td>
+<td><p>a <code class="docutils literal notranslate"><span class="pre">scrap-blob:&lt;sha&gt;</span></code>, <code class="docutils literal notranslate"><span class="pre">scrap-drawing:&lt;id&gt;</span></code> or <code class="docutils literal notranslate"><span class="pre">scrap-diagram:&lt;n&gt;-&lt;theme&gt;</span></code> placeholder, and nothing else; an <code class="docutils literal notranslate"><span class="pre">img</span></code> with a <code class="docutils literal notranslate"><span class="pre">scrap-diagram:</span></code> one must have <code class="docutils literal notranslate"><span class="pre">class</span></code> exactly its theme, <code class="docutils literal notranslate"><span class="pre">light</span></code> or <code class="docutils literal notranslate"><span class="pre">dark</span></code></p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">href</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">a</span></code></p></td>
@@ -1497,6 +1509,8 @@ page’s current tags (else <code class="docutils literal notranslate"><span cla
 <li><p><code class="docutils literal notranslate"><span class="pre">scrap-drawing:&lt;id&gt;</span></code> (an <code class="docutils literal notranslate"><span class="pre">img</span></code>’s <code class="docutils literal notranslate"><span class="pre">src</span></code>, or a download <code class="docutils literal notranslate"><span class="pre">a</span></code>’s <code class="docutils literal notranslate"><span class="pre">href</span></code>) names a drawing the page
 shows, and <code class="docutils literal notranslate"><span class="pre">scrap-excalidraw:&lt;id&gt;</span></code> (an <code class="docutils literal notranslate"><span class="pre">a</span></code>’s <code class="docutils literal notranslate"><span class="pre">href</span></code>) its Open in Excalidraw link
 (<a class="reference internal" href="#drawings"><span class="std std-ref">Drawings</span></a>).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">scrap-diagram:&lt;n&gt;-light</span></code> and <code class="docutils literal notranslate"><span class="pre">-dark</span></code> (an <code class="docutils literal notranslate"><span class="pre">img</span></code>’s <code class="docutils literal notranslate"><span class="pre">src</span></code> only) name a Mermaid diagram’s two
+images (<a class="reference internal" href="#diagrams"><span class="std std-ref">Diagrams</span></a>).</p></li>
 </ul>
 <p>What a <code class="docutils literal notranslate"><span class="pre">scrap-blob</span></code> becomes depends on the stored file, not only on the element:</p>
 <ul class="simple">
@@ -1540,7 +1554,8 @@ published as stored). Neither the stored sha nor the uploaded file name is publi
 link’s label may show the name).</p></li>
 <li><p>“On the page” means referenced in its text (another page’s file the owner embedded
 included) or attached to its captures (the files the PWA lists under the text).</p></li>
-<li><p><strong>Caps:</strong> at most 20 images, drawings and files together (each drawing counts once), each at
+<li><p><strong>Caps:</strong> at most 20 images, drawings and files together (each drawing counts once, each
+Mermaid diagram twice: its light and dark images), each at
 most 20 MiB, and at most 200 MiB for the whole unit (under the receiver’s 256 MiB body). Over any of them scrap refuses the publish
 with <code class="docutils literal notranslate"><span class="pre">422</span></code> and a message saying which, before pushing anything.</p></li>
 <li><p><strong>Time:</strong> the receiver allows 30 seconds to receive a request, so a unit must also be one scrap
@@ -1634,8 +1649,47 @@ exactly <code class="docutils literal notranslate"><span class="pre">image/svg+x
 documented feature of excalidraw.com and could change; Download is the fallback: the SVG opens in
 excalidraw.com, or a copy of Excalidraw, with its own Open.</p>
 </section>
+<section id="diagrams">
+<span id="id2"></span><h3>Diagrams<a class="headerlink" href="#diagrams" title="Link to this heading">#</a></h3>
+<p>A Mermaid diagram (#525) is drawn by the PWA when it publishes the page, as the app draws it,
+and sent beside its HTML. The publish mode loads Mermaid’s chunk only for a page that has one
+(a <code class="docutils literal notranslate"><span class="pre">```mermaid</span></code> block, drawn on the screen or not yet).</p>
+<p><strong>What the PWA sends.</strong> For each diagram, two SVGs from the same Mermaid, with the app’s
+options (<code class="docutils literal notranslate"><span class="pre">securityLevel:</span> <span class="pre">&quot;strict&quot;</span></code>, theme <code class="docutils literal notranslate"><span class="pre">neutral</span></code> for light and <code class="docutils literal notranslate"><span class="pre">dark</span></code> for dark), plus
+<code class="docutils literal notranslate"><span class="pre">htmlLabels:</span> <span class="pre">false</span></code>, so its labels are SVG <code class="docutils literal notranslate"><span class="pre">&lt;text&gt;</span></code>, never a <code class="docutils literal notranslate"><span class="pre">&lt;foreignObject&gt;</span></code> (the sanitiser
+drops one, and its words with it); the font named as <code class="docutils literal notranslate"><span class="pre">tokens.css</span></code>’s <code class="docutils literal notranslate"><span class="pre">--font</span></code> stack (an <code class="docutils literal notranslate"><span class="pre">&lt;img&gt;</span></code>
+inherits none); and the root’s <code class="docutils literal notranslate"><span class="pre">width</span></code> and <code class="docutils literal notranslate"><span class="pre">height</span></code> set from its <code class="docutils literal notranslate"><span class="pre">viewBox</span></code>, its <code class="docutils literal notranslate"><span class="pre">style</span></code>
+removed, so the image has a size of its own. Diagrams are keyed <code class="docutils literal notranslate"><span class="pre">1</span></code>, <code class="docutils literal notranslate"><span class="pre">2</span></code>, … by their sources,
+in order (the same source twice is one diagram). One Mermaid cannot draw so is left out, and
+the page shows its source as a code block, as before (the reason goes to the console): a user
+journey (<code class="docutils literal notranslate"><span class="pre">journey</span></code>), whose labels Mermaid always writes as HTML, and one whose own
+configuration turns HTML labels back on. Each diagram is two of the page’s 20 files, so a page
+with more diagrams than the cap leaves room for, after its images and files, publishes the
+rest as their source. A <code class="docutils literal notranslate"><span class="pre">gitGraph</span></code> without its own commit ids gets new random ones from
+Mermaid each time it is drawn, so its two images differ in those, and it is a new file on each
+publish.</p>
+<p><strong>What the page holds:</strong></p>
+<div class="highlight-html notranslate"><div class="highlight"><pre><span></span><span class="p">&lt;</span><span class="nt">figure</span> <span class="na">class</span><span class="o">=</span><span class="s">"diagram"</span><span class="p">&gt;&lt;</span><span class="nt">img</span> <span class="na">class</span><span class="o">=</span><span class="s">"light"</span> <span class="na">src</span><span class="o">=</span><span class="s">"scrap-diagram:1-light"</span> <span class="na">alt</span><span class="o">=</span><span class="s">"Diagram: Phone,</span>
+<span class="s">share, Offline queue"</span><span class="p">&gt;&lt;</span><span class="nt">img</span> <span class="na">class</span><span class="o">=</span><span class="s">"dark"</span> <span class="na">src</span><span class="o">=</span><span class="s">"scrap-diagram:1-dark"</span> <span class="na">alt</span><span class="o">=</span><span class="s">"Diagram: Phone, share,</span>
+<span class="s">Offline queue"</span><span class="p">&gt;&lt;/</span><span class="nt">figure</span><span class="p">&gt;</span>
+</pre></div>
+</div>
+<p>The <code class="docutils literal notranslate"><span class="pre">alt</span></code> is “Diagram: “ and the words drawn in it, each label once (at most 300 characters),
+scrubbed as a code block’s text.</p>
+<p><code class="docutils literal notranslate"><span class="pre">/assets/page.css</span></code> shows one, by the page’s theme: the light one unless <code class="docutils literal notranslate"><span class="pre">data-theme=&quot;dark&quot;</span></code>
+(<a class="reference internal" href="#reader-preferences"><span class="std std-ref">Reader preferences</span></a>), so with no script, or on paper, it is light. Centred and scaled
+down to the column, as the app’s. There is no Source fold: search reads the
+diagram’s words from the SVG instead (<a class="reference internal" href="#what-scrap-builds"><span class="std std-ref">What scrap builds</span></a>).</p>
+<p><strong>What scrap does with each SVG</strong>, before anything is pushed: every diagram the HTML names must
+be shown in both themes and sent, and nothing else may be (<code class="docutils literal notranslate"><span class="pre">422</span> <span class="pre">bad_diagram</span></code>). Each SVG (at most
+2 MiB) goes through scrap’s SVG sanitiser (no script, <code class="docutils literal notranslate"><span class="pre">foreignObject</span></code>, event handler, link out
+or fetching CSS); every text and attribute value is then scrubbed as a code block’s
+(<a class="reference internal" href="#what-the-publish-mode-writes"><span class="std std-ref">What the publish mode writes</span></a>: only scrap’s own addresses), and a <code class="docutils literal notranslate"><span class="pre">&lt;style&gt;</span></code> that would
+change is refused. Each is published as an <code class="docutils literal notranslate"><span class="pre">img-&lt;n&gt;-&lt;hex&gt;.svg</span></code>, numbered with the page’s
+images, under the image CSP, and counts toward the caps as an image of its own.</p>
+</section>
 <section id="reader-preferences">
-<span id="id2"></span><h3>Reader preferences<a class="headerlink" href="#reader-preferences" title="Link to this heading">#</a></h3>
+<span id="id3"></span><h3>Reader preferences<a class="headerlink" href="#reader-preferences" title="Link to this heading">#</a></h3>
 <p>Every page, tag page, the home page, Tags and the 404 load one script from their head,
 <code class="docutils literal notranslate"><span class="pre">/assets/prefs.js</span></code>, deferred and <code class="docutils literal notranslate"><span class="pre">blocking=&quot;render&quot;</span></code>: in Chromium-based browsers that blocks
 the first paint until it has run, so a kept dark theme shows from the first frame. Browsers that
@@ -1687,7 +1741,9 @@ Pagefind’s search box), <code class="docutils literal notranslate"><span class
 Pagefind’s UI files and <code class="docutils literal notranslate"><span class="pre">scrap-search.js</span></code>, which starts the UI. Each page is indexed from an
 in-memory copy with its <code class="docutils literal notranslate"><span class="pre">.katex</span></code> elements removed and the formula’s TeX (from its
 <code class="docutils literal notranslate"><span class="pre">annotation</span> <span class="pre">encoding=&quot;application/x-tex&quot;</span></code>) put in their place, so search finds the TeX, not
-KaTeX’s glyph spans, and without the site’s lines and the page’s header (title, meta and
+KaTeX’s glyph spans, a Mermaid diagram (<code class="docutils literal notranslate"><span class="pre">figure.diagram</span></code>) as the words of its light image’s
+SVG (its <code class="docutils literal notranslate"><span class="pre">&lt;text&gt;</span></code>, <code class="docutils literal notranslate"><span class="pre">&lt;title&gt;</span></code> and <code class="docutils literal notranslate"><span class="pre">&lt;desc&gt;</span></code>, each once, a label’s wrapped lines joined with a
+space), and without the site’s lines and the page’s header (title, meta and
 dates lines, tag chips), so a result’s excerpt is the page’s text. The unit is cached, keyed
 on a digest of the pinned version, <code class="docutils literal notranslate"><span class="pre">scrap-search.js</span></code> and every record, so an unchanged index
 is not built again; a build has about 120 seconds, and if it fails or runs out the site keeps
@@ -1837,6 +1893,7 @@ next Refresh all. A <code class="docutils literal notranslate"><span class="pre"
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#katex-s-markup">KaTeX’s markup</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#placeholders-and-files">Placeholders and files</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#drawings">Drawings</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#diagrams">Diagrams</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#reader-preferences">Reader preferences</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#tag-keys">Tag keys</a></li>
 </ul>
