@@ -54,9 +54,10 @@ model call per diagram, describing what Claude had just drawn and labelled (#521
 
 ## Amendment: Guidance for Claude per image, and the read text folded (#538, 1.4.0)
 
-- **The text read from an image is a fold of its own** inside Claude's reading, "Text read"
-  (short, so it fits on one line on the owner's phone), closed, in the app and on public pages. It is mostly there for search, and is
-  indexed as before (search, and Pagefind on the site). A PDF's text in its fold is unchanged.
+- **The text read from an image is a fold of its own** inside Claude's reading, "Text
+  read" (short, so it fits on one line on the owner's phone), closed, in the app and on
+  public pages. It is mostly there for search, and is indexed as before (search, and
+  Pagefind on the site). A PDF's text in its fold is unchanged.
 - **Guidance for Claude, per image**, at the bottom of an image's reading (before Regenerate at
   the card's end): the same fold as a write-up's in About this page, one function for both
   (`web/src/guidance.ts`). Closed until opened, "(set)" once saved, a 3-row box of at most 2,000
