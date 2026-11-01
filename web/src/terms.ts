@@ -1,6 +1,7 @@
 // The search query as text the chips edit (the server parses it: scrap/query.py). No DOM
 // here, so the unit tests run it; no regular expressions over the query, so any input is
 // handled in linear time.
+import { KIND_ROW } from "./kindrow";
 
 /** A filter as typed: kind:todo, tag:tech/epics, tag:"two words". The query has no escape
  * for a quote, so a tag with one is asked for by its segments before the quote (tag:a for
@@ -77,17 +78,7 @@ export const without = (q: string, spans: [number, number, string][]) =>
     .reduceRight((rest, [a, b]) => `${rest.slice(0, a).trimEnd()} ${rest.slice(b).trimStart()}`, q)
     .trim();
 
-// ---- the search screen's kind row: All, Notes, Todos, Later, Boards, Docs
-
-/** [label, the kind: it sets, every kind: value meaning it (what the server takes), the API's
- * kind] */
-export const KIND_ROW: [string, string, string[], string][] = [
-  ["Notes", "note", ["note"], "note"],
-  ["Todos", "todo", ["todo"], "todo"],
-  ["Later", "later", ["later", "read", "consume"], "consume"],
-  ["Boards", "board", ["board", "whiteboard"], "whiteboard"],
-  ["Docs", "doc", ["doc", "document"], "document"],
-];
+// ---- the search screen's kind row (KIND_ROW, kindrow.ts)
 
 const ROW_KINDS = new Set(KIND_ROW.flatMap(([, , names]) => names.map((n) => `kind:${n}`)));
 /** A token the kind row stands for, in any case as the server takes it (kind:Todo too). */

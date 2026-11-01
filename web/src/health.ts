@@ -7,13 +7,13 @@ import { CHECKS, checkSearch } from "./checks";
 import "./health.css";
 import { h } from "./ui";
 
-export interface Check {
+interface Check {
   term: string; // as a search takes it: is:orphan, has:dangling...
   count: number;
 }
 
 /** A check's row: its name, what it finds, and its count at the end; a link to its search. */
-export function checkRow({ term, count }: Check): HTMLLIElement {
+function checkRow({ term, count }: Check): HTMLLIElement {
   const [, name, about] = CHECKS.find(([t]) => t === term) ?? [term, term, ""];
   const id = `check-${term.replace(":", "-")}`; // what it finds, read after its name
   return h(

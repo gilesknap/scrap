@@ -9,7 +9,7 @@
 import { ApiError, api, kept, type Page } from "./api";
 import { icon, kindIcon } from "./icons";
 import { sourcesFold, topicsList } from "./topic";
-import { h, toast } from "./ui";
+import { h, pageHref, toast } from "./ui";
 import type { writeupParts } from "./writeup";
 
 /** A board's write-up, as parts of this card (writeup.ts, a chunk of its own). */
@@ -174,12 +174,7 @@ export function enrichPanel(
               h(
                 "li",
                 {},
-                h(
-                  "a",
-                  { href: `/p/${encodeURIComponent(r.slug)}`, dir: "auto" },
-                  icon(kindIcon(r.kind)),
-                  r.title,
-                ),
+                h("a", { href: pageHref(r.slug), dir: "auto" }, icon(kindIcon(r.kind)), r.title),
                 r.via === "link" && h("small", {}, " · links here"),
                 r.via === "writeup" && h("small", {}, " · in a write-up"),
                 r.via === "topic" && h("small", {}, " · in a topic"),

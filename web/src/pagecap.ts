@@ -1,4 +1,4 @@
-export const MAX_PAGE = 1_000_000; // bytes of UTF-8: a page's text at most (the server's store.MAX_PAGE)
+const MAX_PAGE = 1_000_000; // bytes of UTF-8: a page's text at most (the server's store.MAX_PAGE)
 
 // What the server adds to a page's text for each photo: "\n\n![](/api/blobs/<sha256>/preview?size=2048)"
 const EMBED_BYTES = 2 + "![](/api/blobs/".length + 64 + "/preview?size=2048)".length;

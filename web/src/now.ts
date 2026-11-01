@@ -53,7 +53,7 @@ export function after(day: string, n: number) {
   return d.toISOString().slice(0, 10);
 }
 
-export const AHEAD = 7; // Upcoming: from tomorrow to this many days away
+const AHEAD = 7; // Upcoming: from tomorrow to this many days away
 
 /** Upcoming as a search: the Todos screen's view, which upcoming() reads its due: from. */
 export const UPCOMING = `kind:todo due:>today due:<=${AHEAD}d sort:due`;

@@ -1,7 +1,8 @@
 // Full-screen photo viewer: opens fitted; pinch, wheel or double-tap to zoom, drag to pan,
 // swipe or arrows between photos. The phone's Back button closes it (a history entry).
 import { type Icon, icon } from "./icons";
-import { download, h, share } from "./ui";
+import { download, share } from "./sharebuttons";
+import { h } from "./ui";
 import { clamp, type Fingers, fitView, pinch, type View, zoomTo } from "./zoom";
 
 export interface Photo {

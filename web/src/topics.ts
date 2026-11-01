@@ -10,7 +10,7 @@ import { byArea } from "./groups";
 import { icon } from "./icons";
 import { drawSections } from "./sections";
 import { changed, dots, look, seen } from "./topicseen";
-import { empty, h, problem, whenShort } from "./ui";
+import { empty, h, pageHref, problem, whenShort } from "./ui";
 import "./topics.css";
 
 /** Whether a topic matches what is typed in the filter: every word, in its title, summary or
@@ -39,7 +39,7 @@ function row(r: TopicRow, fresh: boolean) {
     { "data-id": r.id },
     h(
       "a",
-      { href: `/p/${encodeURIComponent(r.slug)}` },
+      { href: pageHref(r.slug) },
       h(
         "span",
         {},

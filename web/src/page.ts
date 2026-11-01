@@ -6,12 +6,14 @@ import { remember } from "./crumbs";
 import { drafts } from "./db";
 import type { Trail } from "./gesture";
 import { icon } from "./icons";
-import { rendered, renderer, unembedded } from "./md";
+import { rendered, renderer } from "./md";
 import { chipRow, globe, headLines } from "./pagehead";
+import { download, share } from "./sharebuttons";
+import { unembedded } from "./sharetext";
 import { statusOf, ticks } from "./status";
 import { deletePage, why } from "./swipe";
 import { seenTopic } from "./topicseen";
-import { bodyView, download, h, pageLink, share, toast } from "./ui";
+import { bodyView, h, pageHref, pageLink, toast } from "./ui";
 
 const POLL = 10_000; // while Claude has a photo of this page
 
@@ -365,7 +367,7 @@ export async function page(key: string, signal: AbortSignal, quiet = false): Pro
               () => go("/", true), // the chunk is not here (offline): Capture
             );
       },
-      () => go(`/p/${encodeURIComponent(p.slug)}`),
+      () => go(pageHref(p.slug)),
     );
 
   show(p);

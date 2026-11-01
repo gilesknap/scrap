@@ -7,7 +7,7 @@ import { go } from "./app";
 import { icon } from "./icons";
 import { why } from "./swipe";
 import "./trash.css";
-import { empty, h, toast } from "./ui";
+import { empty, h, pageHref, toast } from "./ui";
 
 export interface Trashed {
   id: string;
@@ -91,7 +91,7 @@ function row(t: Trashed, list: HTMLUListElement, gone: () => void): HTMLLIElemen
     li.remove();
     if (!list.children.length) gone();
     else (next as HTMLButtonElement | null)?.focus();
-    toast(`Restored: ${t.title}`, "Open", () => go(`/p/${encodeURIComponent(t.slug)}`), 8000);
+    toast(`Restored: ${t.title}`, "Open", () => go(pageHref(t.slug)), 8000);
   };
   return li;
 }

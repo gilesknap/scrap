@@ -5,7 +5,7 @@
 import { ApiError, api, kept, type Page, type Source } from "./api";
 import { icon } from "./icons";
 import { KINDS } from "./kinds";
-import { h, toast } from "./ui";
+import { h, pageHref, toast } from "./ui";
 import "./topic.css";
 
 const OFFLINE = "Offline: changing a topic's sources needs the server";
@@ -21,7 +21,6 @@ globalThis.addEventListener?.("online", online); // (none in the unit tests)
 globalThis.addEventListener?.("offline", online);
 
 const why = (err: unknown) => (err instanceof ApiError ? err.message : "can't reach the server");
-const href = (slug: string) => `/p/${encodeURIComponent(slug)}`;
 
 /** A source's kind in a word, as the kind chips say it: "Note", "Later", "Board". */
 export function kindWord(kind: string): string {
@@ -43,7 +42,7 @@ export function topicsList(p: Page): HTMLElement | null {
     "ul",
     {},
     ...topics.map((t) =>
-      h("li", {}, h("a", { href: href(t.slug), dir: "auto" }, icon("topic"), t.title)),
+      h("li", {}, h("a", { href: pageHref(t.slug), dir: "auto" }, icon("topic"), t.title)),
     ),
   );
 }
@@ -94,7 +93,7 @@ export function sourcesFold(p: Page, show: (p: Page) => void): HTMLElement | nul
       h(
         "span",
         {},
-        h("a", { href: href(s.slug), dir: "auto" }, s.title),
+        h("a", { href: pageHref(s.slug), dir: "auto" }, s.title),
         h("small", {}, ` · ${kindWord(s.kind)}${out ? " · taken out" : ""}`),
       ),
       b,

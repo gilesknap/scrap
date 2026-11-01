@@ -39,7 +39,7 @@ function place(el: HTMLElement) {
   el.style.bottom = tops.length ? `${innerHeight - Math.min(...tops) + 8}px` : "";
 }
 /** A computer, as css/desktop.css has it: a mouse and a wide window. */
-export const DESK = "(min-width: 900px) and (hover: hover) and (pointer: fine)";
+const DESK = "(min-width: 900px) and (hover: hover) and (pointer: fine)";
 export function placeToasts() {
   for (const el of document.querySelectorAll<HTMLElement>(".toast")) place(el);
 }
@@ -95,7 +95,7 @@ export function settle<T extends HTMLImageElement>(img: T): T {
 }
 
 /** Plain text with http(s) links made clickable; nothing is parsed as HTML. */
-export function linkify(text: string): Node[] {
+function linkify(text: string): Node[] {
   return text
     .split(/(https?:\/\/[^\s<>"]+)/)
     .map((part, i) =>
@@ -125,7 +125,7 @@ export function problem(e: unknown): Node {
 }
 
 /** A problem state (the server can't be reached): marked, so a quiet refresh can keep the old rows. */
-export const failed = (line: string, ...more: Kid[]) => {
+const failed = (line: string, ...more: Kid[]) => {
   const el = empty("offline", line, ...more);
   el.classList.add("failed");
   return el;
@@ -146,54 +146,11 @@ export function saveKey(e: KeyboardEvent) {
   }
 }
 
-// Share and Download are drawn here, in the app shell; what they do is in sharing.ts, a chunk
-// loaded on the first tap.
-const sharing = () => import("./sharing");
-const later = (job: (m: typeof import("./sharing")) => unknown) =>
-  void sharing().then(job, () => toast("Can't do that offline: reload scrap and try again"));
-
-/** A Download link that fetches the file itself (sharing.ts), so it can say it is busy and
- * when the file is saved or why not. */
-export function download(href: string, className = "button"): HTMLAnchorElement {
-  const a = h("a", { href, className, download: "" }, icon("download"), "Download");
-  a.onclick = (e) => {
-    e.preventDefault();
-    later((m) => m.download(a, href));
-  };
-  return a;
-}
+/** A page's path in the app, for a link or go(). */
+export const pageHref = (slug: string) => `/p/${encodeURIComponent(slug)}`;
 
 /** A page's own address, e.g. to share as a link. */
-export const pageLink = (slug: string, origin = location.origin) =>
-  `${origin}/p/${encodeURIComponent(slug)}`;
-
-/** A Share button to send text, or a file from the server, to another app; none where
- * the phone can't share. Given the page's link, Share first asks which: **Link** (the
- * address, nothing fetched) or the content (`content`: its icon and word), then `more` (a
- * page's Download) if given. Given `more`, a computer with no share sheet (a mouse) has the
- * menu too: it copies, prints and downloads (sharing.ts). */
-export function share(
-  what: () => { title: string; text?: string; file?: string[] },
-  link?: string,
-  content: [Icon, string] = ["note", "Text"],
-  more?: HTMLElement[],
-) {
-  if (!navigator.share && !(more && matchMedia("(pointer: fine)").matches)) return null;
-  const b = h("button", { type: "button" }, icon("share"), "Share");
-  // The first tap loads sharing.ts, which takes the button's taps from then on
-  const first = (e: MouseEvent) => {
-    b.onclick = null; // a second tap meanwhile: nothing twice
-    void sharing().then(
-      (m) => m.attach(b, { what, link, content, more })(e),
-      () => {
-        b.onclick = first;
-        toast("Can't do that offline: reload scrap and try again");
-      },
-    );
-  };
-  b.onclick = first;
-  return b;
-}
+export const pageLink = (slug: string, origin = location.origin) => `${origin}${pageHref(slug)}`;
 
 /** Page text as Markdown (safe HTML from render.ts), or as typed with links made clickable:
  * also while the renderer is not loaded (load it first: renderer()). titles: of the pages it

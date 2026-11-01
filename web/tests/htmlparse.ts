@@ -23,7 +23,7 @@ const NAMED: Record<string, string> = {
   nbsp: " ",
 };
 
-export const decode = (s: string) =>
+const decode = (s: string) =>
   s.replace(/&(#x[0-9a-f]+|#\d+|\w+);/gi, (m, e: string) => {
     if (e[0] === "#")
       return String.fromCodePoint(
@@ -126,9 +126,4 @@ export function first(n: El, name: string, cls?: string): El | null {
     if (got) return got;
   }
   return null;
-}
-
-/** Every element under n. */
-export function all(n: El): El[] {
-  return n.childNodes.flatMap((k) => (k.nodeType === 1 ? [k as El, ...all(k as El)] : []));
 }

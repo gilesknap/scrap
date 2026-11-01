@@ -15,12 +15,12 @@ flowchart LR
     subgraph shell["App shell (index.html + main.ts)"]
         router["Router"]
         capture["Capture /"]
-        search["Search /search"]
         queue["Offline queue"]
     end
     todos["Todos /todos"]
-    page["Page /p/slug"]
     subgraph offline["Lazy, precached"]
+        search["Search /search"]
+        page["Page /p/slug"]
         composer["Composer + editors"]
         render["Markdown renderer"]
         sharing["Share + download"]
@@ -53,7 +53,7 @@ flowchart LR
 | Route | Screen |
 | --- | --- |
 | `/` | Capture |
-| `/search` | Search, with the pins under the empty box ([](../decisions/0032-pins-are-a-page-of-links.md)); `/recent` and the retired `/tags` redirect here (`/recent?kind=todo` goes to `/todos`) |
+| `/search` | Search (`search` chunk), with the pins under the empty box ([](../decisions/0032-pins-are-a-page-of-links.md)); `/recent` and the retired `/tags` redirect here (`/recent?kind=todo` goes to `/todos`) |
 | `/todos` | Todos (a lazy chunk) |
 | `/p/<slug>` | A page (`page` chunk) |
 | `/topics`, `/health`, `/trash` | Topics list, store health and the trash (lazy chunks) |
@@ -63,7 +63,7 @@ flowchart LR
   Back in the top bar goes to the linking page, else the list, else a parent (`back.ts`).
 - **Precached chunks** (`OFFLINE` in `web/vite.config.ts`): `back`, `composer`, `downscale`,
   `editor`, `figure` (a photo's panel and its drawing preview; it imports `ingest`), `math`
-  (KaTeX, its CSS and WOFF2 fonts), `page`, `pageedit`, `render`, `sharing`, `refine`, `searches`.
+  (KaTeX, its CSS and WOFF2 fonts), `page`, `pageedit`, `render`, `sharing`, `refine`, `search`, `searches`.
 - **Not precached**: the Excalidraw board chunk and its fonts (served from `/excalidraw/fonts/`,
   not a CDN) and Mermaid. Offline, a drawing does not open and a Mermaid block stays as code.
 - **Filters** is an in-place panel (`refine.ts`), not a modal or sheet.

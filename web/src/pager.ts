@@ -8,7 +8,7 @@ import { go, plain } from "./app";
 import { placeIn, swipeStep, type Trail } from "./gesture";
 import { icon } from "./icons";
 import { EDGE } from "./swipe";
-import { h, toast } from "./ui";
+import { h, pageHref, toast } from "./ui";
 
 /** The pager for a page (null if it isn't in the trail), and the swipes and keys for it
  * while its view lasts (signal). A step says in the history entry which way it went, so the
@@ -30,7 +30,7 @@ export function pager(
     const to = d > 0 ? at.next : at.prev;
     if (signal.aborted) return; // gone elsewhere meanwhile: never replace that entry
     if (!to) return toast(d > 0 ? "That's the last in the list" : "That's the first in the list");
-    go(`/p/${encodeURIComponent(to)}`, true, { trail, from: d });
+    go(pageHref(to), true, { trail, from: d });
   };
   // Real links (long-press or Ctrl-click opens the next page in a new tab); a plain tap steps
   // here, in place, so Back still goes back to the list
@@ -40,9 +40,7 @@ export function pager(
       {
         className: "button ghost",
         "aria-label": label,
-        ...(to
-          ? { href: `/p/${encodeURIComponent(to)}` }
-          : { role: "link", "aria-disabled": "true" }),
+        ...(to ? { href: pageHref(to) } : { role: "link", "aria-disabled": "true" }),
         onclick: (e: MouseEvent) => {
           if (!plain(e)) return;
           e.preventDefault();
@@ -77,7 +75,7 @@ export function pager(
     step(1);
     const undo = () =>
       setStatus(p.id, was).then(
-        () => go(`/p/${encodeURIComponent(p.slug)}`, true, { trail, from: -1 }),
+        () => go(pageHref(p.slug), true, { trail, from: -1 }),
         () => toast("Undo failed: can't reach the server"),
       );
     toast(`Done: ${p.title}. Next todo, ${at.i + 2} of ${at.n}`, "Undo", undo, 6000);

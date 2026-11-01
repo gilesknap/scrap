@@ -7,7 +7,7 @@ import { drawingCard, openDrawing, type Target } from "./drawing";
 import { h, toast } from "./ui";
 
 /** The chip's words for a state. */
-export function stateText(i: Ingest, q: Queue | null): string {
+function stateText(i: Ingest, q: Queue | null): string {
   switch (i.state) {
     case "queued":
       return q && !q.enabled ? "Waiting: Claude ingest is off" : "Waiting for Claude";

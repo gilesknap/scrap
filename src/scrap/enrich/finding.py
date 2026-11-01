@@ -44,6 +44,18 @@ def page_texts(
     yield from (f["text"] or "" for f in page_files(conn, page_id))
 
 
+def candidate(r: sqlite3.Row) -> dict[str, Any]:
+    """A page as Claude sees it to pick from (a row with id, title, fields, summary
+    and tags, joined by \\x1f): its summary is the owner's, else the row's."""
+    human = json.loads(r["fields"]).get("summary")
+    return {
+        "id": r["id"],
+        "title": r["title"],
+        "tags": r["tags"].split("\x1f") if r["tags"] else [],
+        "summary": human if isinstance(human, str) else r["summary"],
+    }
+
+
 def candidates(
     conn: sqlite3.Connection, page_id: str, limit: int = MAX_CANDIDATES
 ) -> list[dict[str, Any]]:
@@ -113,17 +125,7 @@ def candidates(
             (json.dumps(order),),
         )
     }
-    out = []
-    for other in order:
-        r = rows[other]
-        human = json.loads(r["fields"]).get("summary")
-        out.append({
-            "id": r["id"],
-            "title": r["title"],
-            "tags": r["tags"].split("\x1f") if r["tags"] else [],
-            "summary": human if isinstance(human, str) else r["summary"],
-        })  # fmt: skip
-    return out
+    return [candidate(rows[other]) for other in order]
 
 
 CANDIDATES: Callable[[sqlite3.Connection, str], list[dict[str, Any]]] = candidates

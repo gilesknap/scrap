@@ -21,7 +21,7 @@ type Item = Pick<Summary, "title" | "kind" | "fields" | "due" | "priority" | "up
 };
 
 /** The section of topics whose sources have no tags. */
-export const NO_AREA = "Other";
+const NO_AREA = "Other";
 
 /** Topics by area (the top-level tag most common among a topic's sources, the server's): the
  * biggest area first, those of equal size by name, Other last. The Topics

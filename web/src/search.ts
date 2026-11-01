@@ -8,10 +8,11 @@
 import { api, type Hit, writeClock } from "./api";
 import { address, go, markNav, view } from "./app";
 import { icon, kindIcon } from "./icons";
+import { KIND_ROW } from "./kindrow";
 import { build, pageList, pageRow, pendingList } from "./lists";
 import { snippetParts } from "./snippet";
 import { swipeRows, trail, trailOf } from "./swipe";
-import { groupBy, KIND_ROW, kindsIn, listing, served, withKind } from "./terms";
+import { groupBy, kindsIn, listing, served, withKind } from "./terms";
 import { empty, h, problem } from "./ui";
 
 const PAGE = 100; // pages a list shows, then Show more adds as many (the API's most: 500)

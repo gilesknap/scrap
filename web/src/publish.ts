@@ -22,10 +22,10 @@ export interface Context {
 }
 
 /** The meta CSP every public page carries (the contract's, exactly): no script at all. */
-export const CSP =
+const CSP =
   "default-src 'none'; img-src 'self' data:; style-src 'self'; style-src-attr 'unsafe-inline'; font-src 'self'";
 /** A bare link to a private page whose title is not known (it is not there any more). */
-export const PRIVATE = "a private page";
+const PRIVATE = "a private page";
 
 const TEXT = 3;
 const ELEMENT = 1;
@@ -47,7 +47,7 @@ const has = (n: N, c: string) => classes(n).has(c);
  * a src or href: a word joiner after "scrap-" keeps it as it reads. */
 const defuse = (s: string) => s.replace(/scrap-(blob|tag):/gi, "scrap-\u2060$1:");
 /** What text says in place of an address of scrap's own, or of its API. */
-export const PRIVATE_LINK = "a private link";
+const PRIVATE_LINK = "a private link";
 const reEscape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 /** Addresses of scrap's own (its hosts, with or without a scheme) and of /api/, as text. */
 function privates(origins: readonly string[]): RegExp {
@@ -67,7 +67,7 @@ function privates(origins: readonly string[]): RegExp {
   return new RegExp(own + api, "gi");
 }
 /** A tag as a scrap-tag: placeholder, every character but letters, digits and -_.~ escaped. */
-export const tagHref = (t: string) =>
+const tagHref = (t: string) =>
   `scrap-tag:${encodeURIComponent(t).replace(/[!'()*]/g, (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`)}`;
 
 const decoded = (s: string) => {
