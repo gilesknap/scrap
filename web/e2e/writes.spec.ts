@@ -1,6 +1,10 @@
 // A page Claude wrote over MCP (#37): written through /mcp, shown with its badge, and
 // is:claude finds it. Runs after the others (alphabetical; smoke.spec.ts wants an empty store).
 import { expect, test } from "@playwright/test";
+import { deletedAfterEach, ulid } from "./helpers";
+
+/** Pages deleted after each test (by id or slug), so a repeat finds only its own. */
+const mine = deletedAfterEach();
 
 test("a page written over MCP shows a Written by Claude badge", async ({ page, request }) => {
   const r = await request.post("/mcp", {
@@ -22,6 +26,7 @@ test("a page written over MCP shows a Written by Claude badge", async ({ page, r
   });
   expect(r.ok()).toBeTruthy();
   const { slug } = (await r.json()).result.structuredContent;
+  mine.push(slug);
   await page.goto(`/p/${slug}`);
   const badge = page.locator(".meta .written");
   await expect(badge).toHaveText("by Claude"); // after the kind word: "Note · by Claude"
@@ -36,10 +41,11 @@ test("text over 1 MB is not saved: the editor and composer say so first (#62)", 
   page,
 }) => {
   const big = "x".repeat(1_020_000); // over 1 MB, under the e2e server's 1 MiB upload limit
-  const id = "01E2EB16PAGE".padEnd(26, "0");
+  const id = ulid();
   const made = await (
     await page.request.post("/api/captures", { data: { id, text: "Small" } })
   ).json();
+  mine.push(made.page_id);
   await page.goto(`/p/${made.slug}`);
   await page.locator(".page .tools").getByRole("button", { name: "Edit" }).click();
   await page.getByLabel("Body").fill(big);
@@ -72,10 +78,11 @@ test("text over 1 MB is not saved: the editor and composer say so first (#62)", 
 test("a double tap on Save in the page editor sends one PATCH, and a conflict still shows (#27)", async ({
   page,
 }) => {
-  const id = "01E2EB27DBTAP".padEnd(26, "0");
+  const id = ulid();
   const made = await (
     await page.request.post("/api/captures", { data: { id, text: "Dingo double tap" } })
   ).json();
+  mine.push(made.page_id);
   let patches = 0;
   await page.route(`**/api/pages/${made.page_id}`, async (route) => {
     if (route.request().method() === "PATCH") {
@@ -113,10 +120,11 @@ test("a double tap on Save in the page editor sends one PATCH, and a conflict st
 test("a save that only changes the tags sends no body: tags and tags_shown only", async ({
   page,
 }) => {
-  const id = "01E2EB404META".padEnd(26, "0");
+  const id = ulid();
   const made = await (
     await page.request.post("/api/captures", { data: { id, text: "Numbat metadata only" } })
   ).json();
+  mine.push(made.page_id);
   const sent: Record<string, unknown>[] = [];
   await page.route(`**/api/pages/${made.page_id}`, async (route) => {
     if (route.request().method() === "PATCH") sent.push(route.request().postDataJSON());

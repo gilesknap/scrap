@@ -2,17 +2,22 @@
 // (overdue in red until done), and a todo search's orders and typed due: searches.
 import { expect, type Page, test } from "@playwright/test";
 import { lowContrast } from "./contrast";
-import { day } from "./helpers";
+import { capture, day, deletedAfterEach, deletePages, ulid } from "./helpers";
 import { filters, openFold } from "./panel";
 
-let n = 0;
-async function todo(page: Page, text: string, extra: Record<string, string> = {}) {
-  const id = `01E2ETD${String(++n).padStart(2, "0")}`.padEnd(26, "0");
+// Pages a test makes, deleted after it; the todos made once for the file, after them all
+const mine = deletedAfterEach();
+const shared: string[] = [];
+
+/** A todo with a fresh id, deleted after the test (to: shared, after the file's tests). */
+async function todo(page: Page, text: string, extra: Record<string, string> = {}, to = mine) {
   const r = await page.request.post("/api/captures", {
-    data: { id, text, kind: "todo", ...extra },
+    data: { id: ulid(), text, kind: "todo", ...extra },
   });
   expect(r.ok()).toBeTruthy();
-  return (await r.json()) as { page_id: string; slug: string };
+  const made = (await r.json()) as { page_id: string; slug: string };
+  to.push(made.page_id);
+  return made;
 }
 const api = async (page: Page, id: string) =>
   (await (await page.request.get(`/api/pages/${id}`)).json()) as {
@@ -26,13 +31,14 @@ const rowOf = (page: Page, title: string) => page.locator(".list li").filter({ h
 const made: Record<string, { page_id: string; slug: string }> = {};
 test.beforeAll(async ({ request }) => {
   const page = { request } as Page;
-  made.late = await todo(page, "Numbat late", { due: day(-3), priority: "high" });
-  made.today = await todo(page, "Numbat today", { due: day(0), priority: "low" });
-  made.soon = await todo(page, "Numbat soon", { due: day(5) });
-  made.none = await todo(page, "Numbat none", { priority: "medium" });
-  made.done = await todo(page, "Numbat done", { due: day(-2) });
+  made.late = await todo(page, "Numbat late", { due: day(-3), priority: "high" }, shared);
+  made.today = await todo(page, "Numbat today", { due: day(0), priority: "low" }, shared);
+  made.soon = await todo(page, "Numbat soon", { due: day(5) }, shared);
+  made.none = await todo(page, "Numbat none", { priority: "medium" }, shared);
+  made.done = await todo(page, "Numbat done", { due: day(-2) }, shared);
   await request.patch(`/api/pages/${made.done.page_id}`, { data: { fields: { status: "done" } } });
 });
+test.afterAll(({ request }) => deletePages(request, shared));
 
 test("rows show priority and due date, overdue until ticked done", async ({ page }) => {
   await page.goto("/search?q=numbat+kind%3Atodo");
@@ -116,10 +122,9 @@ test("the due chip opens the editor at its Due fold, where they are set and clea
   await bar(page).getByRole("button", { name: "Cancel" }).click();
   await expect(page.locator(".editor")).toHaveCount(0);
   // Not a todo: no due chip
-  const note = await page.request.post("/api/captures", {
-    data: { id: "01E2ETDNTE".padEnd(26, "0"), text: "Numbat note" },
-  });
-  await page.goto(`/p/${(await note.json()).slug}`);
+  const note = await capture(page, "Numbat note");
+  mine.push(note.page_id);
+  await page.goto(`/p/${note.slug}`);
   await expect(page.locator(".page h1")).toHaveText("Numbat note");
   await expect(page.locator(".page .duechip")).toHaveCount(0);
 });

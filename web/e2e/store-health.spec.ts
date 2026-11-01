@@ -3,11 +3,15 @@
 import { expect, test } from "@playwright/test";
 import { ulid } from "../src/ulid";
 import { lowContrast } from "./contrast";
+import { deletedAfterEach } from "./helpers";
+
+const made = deletedAfterEach();
 
 test("Settings opens Store health, and a check lists its pages", async ({ page }) => {
   const text = `Health check page\n\nIt links to [[no-such-page-${Date.now()}]].`;
   const r = await page.request.post("/api/captures", { data: { id: ulid(), text } });
   expect(r.ok()).toBe(true);
+  made.push(((await r.json()) as { page_id: string }).page_id);
   const { checks } = await (await page.request.get("/api/health")).json();
   const dangling = checks.find((c: { term: string }) => c.term === "has:dangling").count;
   expect(dangling).toBeGreaterThanOrEqual(1);

@@ -3,9 +3,15 @@
 import { execFileSync } from "node:child_process";
 import { expect, type Page, test } from "@playwright/test";
 import { lowContrast } from "./contrast";
-import { capture, png, ulid } from "./helpers";
+import { capture, deletedAfterEach, png, ulid } from "./helpers";
 
-const note = async (page: Page, text: string) => (await capture(page, text)).slug;
+/** Pages deleted after each test: note's, and those a test captures itself and pushes. */
+const made = deletedAfterEach();
+const note = async (page: Page, text: string) => {
+  const ref = await capture(page, text);
+  made.push(ref.page_id);
+  return ref.slug;
+};
 
 test("Save and Cancel stay on screen while editing; Ctrl+Enter saves", async ({ page }) => {
   const slug = await note(page, "Edit me\nfirst body");
@@ -33,8 +39,10 @@ test("a page and its photos download", async ({ page }) => {
     page.waitForEvent("download"),
     page.getByRole("link", { name: "Download" }).click(),
   ]);
-  expect(md.suggestedFilename()).toBe("plain-note.md");
-  await expect(page.getByText(/^Downloaded plain-note\.md \(1 kB\)/)).toBeVisible();
+  // Named for the page's slug: plain-note, or plain-note-2 once an earlier one has it
+  expect(slug).toMatch(/^plain-note(-\d+)?$/);
+  expect(md.suggestedFilename()).toBe(`${slug}.md`);
+  await expect(page.getByText(new RegExp(`^Downloaded ${slug}\\.md \\(1 kB\\)`))).toBeVisible();
   await page.route("**/download", (r) => r.fulfill({ status: 404, json: { detail: "gone" } }));
   await page.getByRole("link", { name: "Download" }).click();
   await expect(page.getByText("Download failed: gone")).toBeVisible();
@@ -47,12 +55,15 @@ test("a page and its photos download", async ({ page }) => {
       file: { name: "pic.png", mimeType: "image/png", buffer: Buffer.alloc(100, 1) },
     },
   });
-  await page.goto(`/p/${(await r.json()).slug}`);
+  const photo = (await r.json()) as { page_id: string; slug: string };
+  made.push(photo.page_id);
+  expect(photo.slug).toMatch(/^with-a-photo(-\d+)?$/);
+  await page.goto(`/p/${photo.slug}`);
   const [zip] = await Promise.all([
     page.waitForEvent("download"),
     page.locator(".page > .bar").getByRole("link", { name: "Download" }).click(),
   ]);
-  expect(zip.suggestedFilename()).toBe("with-a-photo.zip");
+  expect(zip.suggestedFilename()).toBe(`${photo.slug}.zip`);
   // The photo's own file (no preview of these bytes): a file row with no Download of its own;
   // its link opens the file, and the browser's viewer saves it, as the photo viewer does
   const row = page.locator(".md .orig.filerow");
@@ -464,7 +475,8 @@ test("photos the server can't preview fall back to the file", async ({ page }) =
       file: { name: "x.png", mimeType: "image/png", buffer: Buffer.from("not an image") },
     },
   });
-  const { slug } = await r.json();
+  const { page_id, slug } = await r.json();
+  made.push(page_id);
   await page.goto("/recent");
   await expect(
     page.locator(".list li", { hasText: "Unpreviewable" }).locator(".noimg"),
