@@ -31,8 +31,8 @@ export function publishedLine(p: Page, busy = publishing.has(p.id)): string {
 }
 
 /** The Public chip (#497): first in the chip row, a tag chip's size and fill, a globe and
- * "Public", a link to the page on the public site (in a new window; plain if the site's
- * address is not known yet). */
+ * "Public", a link to the page on the public site (in a new window; plain when scrap has no
+ * SCRAP_PUBLISH_SITE, so no address for it). */
 export function publicChip(p: Page): HTMLElement {
   const url = publicUrl(p);
   const where = url?.replace(/^https?:\/\//, "") ?? "the public site";

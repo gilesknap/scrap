@@ -15,7 +15,7 @@ export interface Context {
   live: ReadonlySet<string>; // the public pages' slugs, this page's own too
   titles: ReadonlyMap<string, string>; // slug -> title, for a bare [[slug]] link
   origins: readonly string[]; // scrap's own (render.ts origins()): never linked
-  site: string | null; // the public site's address (https://pages.example), if known
+  site: string | null; // the public site's address (https://pages.example), for its name
   tex: ((tex: string, display: boolean) => string) | null; // KaTeX, for a page with maths
   date: string; // when it is published, for the footer
 }
@@ -294,11 +294,10 @@ export function publishHtml(root: N, ctx: Context, swaps: Swaps = new Map()): st
   };
 
   const body = render(root);
-  const host = ctx.site ? (hostOf(ctx.site) ?? ctx.site) : "scrap";
-  const home = (s: string) => (ctx.site ? `<a href="${esc(ctx.site)}/">${esc(s)}</a>` : esc(s));
-  const top = `<div class="site top">${home(host)}</div>`;
-  const all = ctx.site ? ` · ${home("All pages")}` : "";
-  const foot = `<div class="site foot">Published ${esc(ctx.date)} from scrap${all}</div>`;
+  // The site's home is / (its name, the site's host, or Pages as its own pages say)
+  const host = ctx.site ? (hostOf(ctx.site) ?? "Pages") : "Pages";
+  const top = `<div class="site top"><a href="/">${esc(host)}</a></div>`;
+  const foot = `<div class="site foot">Published ${esc(ctx.date)} from scrap · <a href="/">All pages</a></div>`;
   const css = [...(maths ? ["/assets/katex.css"] : []), "/assets/page.css"]
     .map((href) => `<link rel="stylesheet" href="${href}">`)
     .join("\n");

@@ -107,10 +107,11 @@ export interface Page extends Summary {
   topic?: { key: string; sources: Source[] } | null; // set on a topic page
   // Public pages (#497, docs/reference/public-site.md): on the public site; when it was last
   // published there (null: never, or not since it was made public); public_url its address
-  // there, if the server says (else publicpages.ts works it out from the last publish)
+  // there and site the site's (both null without SCRAP_PUBLISH_SITE)
   public?: boolean;
   published_at?: string | null;
   public_url?: string | null;
+  site?: string | null; // the public site's address (SCRAP_PUBLISH_SITE), or null
   unpublish?: "pending"; // a PATCH that made it private while the public site was down
 }
 /** A public page, as GET /api/public lists them (#497). */
@@ -122,9 +123,10 @@ export interface PublicPage {
 }
 /** What PUT /api/pages/{key}/published answers (#497). */
 export interface Published {
-  url: string; // the page on the public site
+  url: string | null; // the page on the public site (null: no SCRAP_PUBLISH_SITE)
   published_at: string;
   files: number;
+  derived?: "pending"; // the home page, tag pages and search are pushed later
 }
 /** A link to a page. */
 export interface PageRef {

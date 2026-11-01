@@ -49,7 +49,7 @@ function hrefOk(href: string, live: ReadonlySet<string>, own: readonly string[])
   if (/^mailto:/i.test(href) || /^#[a-z0-9_-]{1,80}$/.test(href)) return true;
   const page = /^\/p\/([a-z0-9-]{1,120})$/.exec(href);
   if (page) return live.has(page[1]);
-  if (/^\/t\/[a-z0-9-]{1,80}$/.test(href)) return true;
+  if (/^\/t\/[a-z0-9-]{1,80}$/.test(href) || href === "/" || href === "/tags") return true;
   if (!/^https?:\/\/[^/\\]/i.test(href)) return false;
   const url = new URL(href);
   const host = url.hostname.toLowerCase().replace(/\.$/, "");

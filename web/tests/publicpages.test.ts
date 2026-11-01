@@ -113,8 +113,9 @@ describe("the Public chip and the dates line", () => {
   });
 
   it("is a globe and Public, linking to the page on the public site", () => {
-    api.site("https://pages.example");
-    const chip = publicChip(page({ published_at: "2026-11-01T14:02:00Z" }));
+    const chip = publicChip(
+      page({ published_at: "2026-11-01T14:02:00Z", public_url: "https://pages.example/p/my-page" }),
+    );
     expect(chip.nodeName).toBe("A");
     expect(chip.className).toBe("pubchip");
     const c = chip as unknown as FakeNode;
@@ -127,9 +128,7 @@ describe("the Public chip and the dates line", () => {
     );
   });
 
-  it("uses the server's address for it when given, and is plain when none is known", () => {
-    const given = publicChip(page({ public_url: "https://elsewhere.example/p/my-page" }));
-    expect((given as unknown as FakeNode).href).toBe("https://elsewhere.example/p/my-page");
+  it("is plain when scrap gives no address (no SCRAP_PUBLISH_SITE)", () => {
     const plain = publicChip(page());
     expect(plain.nodeName).toBe("SPAN");
     expect(plain.getAttribute("aria-label")).toBe(
@@ -162,7 +161,7 @@ describe("the calls to scrap", () => {
     );
   });
 
-  it("publishes with the html, base_rev and defer, and learns where the site is", async () => {
+  it("publishes with the html, base_rev and defer", async () => {
     const r = await api.publishPage("P1", "<!DOCTYPE html>", 7, true);
     expect(r.files).toBe(2);
     expect(calls[0].url).toBe("/api/pages/P1/published");
@@ -172,7 +171,8 @@ describe("the calls to scrap", () => {
       base_rev: 7,
       defer: true,
     });
-    expect(api.site()).toBe("https://pages.example");
+    expect(api.siteName({ site: "https://pages.example" })).toBe("pages.example");
+    expect(api.siteName({ site: null })).toBe("the public site");
   });
 
   it("lists the public pages, or those linking to one; sets the flag; rebuilds", async () => {

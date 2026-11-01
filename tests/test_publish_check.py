@@ -211,13 +211,19 @@ def test_the_document():
     check(head().replace("<body>", '<body dir="ltr" lang="en">'), PUBLIC.__contains__)
 
 
-PWA = sorted((Path(__file__).parent / "data" / "pwa_published").glob("*.html"))
+PWA = sorted(
+    (Path(__file__).parent.parent / "web" / "tests" / "fixtures" / "published").glob("*.html")
+)
+
+
+def test_the_pwa_fixtures_are_there():
+    assert len(PWA) >= 4
 
 
 @pytest.mark.parametrize("path", PWA, ids=lambda p: p.name)
 def test_the_pwa_publish_modes_pages_pass(path):
-    """Copies of web/tests/fixtures/published/*.html (feat-497-pwa, e5c56ced): what
-    the PWA's publish mode writes. Its links to /p/ pages count as public here."""
+    """web/tests/fixtures/published/*.html: what the PWA's publish mode writes (its
+    vitest saves them). Its links to /p/ pages count as public here."""
     check(path.read_text(), lambda slug: True)
 
 

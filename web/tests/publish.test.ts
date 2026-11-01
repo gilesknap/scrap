@@ -266,15 +266,13 @@ describe("what a public page holds", () => {
     expect(h).toContain("<span>Weekly controls sync</span>"); // in the write-up's text: its words
   });
 
-  it("names the site in its header and footer, or scrap when it is not known", () => {
-    expect(out.links).toContain(
-      '<div class="site top"><a href="https://pages.example/">pages.example</a></div>',
-    );
-    expect(out.links).toContain(
-      '<div class="site foot">Published 1 Nov 2026 from scrap · <a href="https://pages.example/">All pages</a></div>',
-    );
-    expect(out.plain).toContain('<div class="site top">scrap</div>');
-    expect(out.plain).toContain('<div class="site foot">Published 1 Nov 2026 from scrap</div>');
+  it("names the site in its header (Pages when not known), both linking to its home", () => {
+    expect(out.links).toContain('<div class="site top"><a href="/">pages.example</a></div>');
+    const foot =
+      '<div class="site foot">Published 1 Nov 2026 from scrap · <a href="/">All pages</a></div>';
+    expect(out.links).toContain(foot);
+    expect(out.plain).toContain('<div class="site top"><a href="/">Pages</a></div>');
+    expect(out.plain).toContain(foot);
   });
 
   it("leaves a placeholder in the text unable to be read as one", () => {

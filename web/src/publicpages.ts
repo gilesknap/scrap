@@ -18,7 +18,7 @@ import {
   rebuild,
   redraw,
   setPublic,
-  site,
+  siteName,
   unreached,
   whyNot,
 } from "./publicapi";
@@ -30,9 +30,6 @@ import { toast } from "./ui";
 export const OFFLINE =
   "Saved. Not published while offline: Refresh all public pages in Settings later.";
 const LONG = 8000; // a toast with an action, or an error, stays this long
-
-/** The public site's name for a toast or the warning: its host, else "the public site". */
-const host = () => site()?.replace(/^https?:\/\//, "") ?? "the public site";
 
 /** What one run of publishes knows: the public pages, and the titles of pages bare links name. */
 interface Run {
@@ -99,7 +96,7 @@ export async function htmlOf(d: Drawn, r: Run): Promise<string> {
       live: r.live,
       titles: r.titles,
       origins: origins(),
-      site: site(),
+      site: d.page.site ?? null,
       tex: hasMaths(d.root) ? await tex() : null,
       date,
     },
@@ -141,7 +138,11 @@ async function publishShown(view: View, r: Run, defer: boolean) {
   try {
     const { page, done } = await publishOne(onScreen(view), r, defer);
     publishing.delete(id);
-    view.show({ ...page, published_at: done.published_at, public_url: done.url });
+    view.show({
+      ...page,
+      published_at: done.published_at,
+      public_url: done.url ?? page.public_url,
+    });
     return done;
   } finally {
     if (publishing.delete(id)) view.show(view.shown());
@@ -186,7 +187,7 @@ const linkingSaid = (n: number) => (n ? ` · ${pagesWord(n)} linking here update
  * the public pages linking to it; then the toast, with Copy link. */
 export async function makePublic(view: View, warned = false) {
   const p = view.shown();
-  if (!warned && !(await ask(warning(p, host())))) return;
+  if (!warned && !(await ask(warning(p, siteName(p))))) return;
   let on: Page;
   try {
     on = await setPublic(p.id, true);
@@ -194,7 +195,7 @@ export async function makePublic(view: View, warned = false) {
     return toast(`Not made public: ${whyNot(err)}`, "", undefined, LONG);
   }
   view.show(on);
-  let url: string;
+  let url: string | null;
   let n = 0;
   try {
     const r = await run();
@@ -218,7 +219,10 @@ export async function makePublic(view: View, warned = false) {
     );
   }
   if (warned) return; // Undo: as it was, nothing more to say
-  toast(`Page is public${linkingSaid(n)}`, "Copy link", () => void copyText(url, "Link"), LONG);
+  const said = `Page is public${linkingSaid(n)}`;
+  if (!url) return toast(said, "", undefined, LONG); // no SCRAP_PUBLISH_SITE: no address to copy
+  const link = url;
+  toast(said, "Copy link", () => void copyText(link, "Link"), LONG);
 }
 
 /** Make private: at once, no question (scrap takes it off the site); the public pages that
@@ -242,7 +246,7 @@ export async function makePrivate(view: View) {
     }
   } catch {} // the page is private all the same: the others wait for Refresh all
   toast(
-    `Private: taken off ${host()}${linkingSaid(n)}`,
+    `Private: taken off ${siteName(off)}${linkingSaid(n)}`,
     "Undo",
     () => void makePublic(view, true),
     LONG,

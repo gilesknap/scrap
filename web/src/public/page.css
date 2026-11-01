@@ -20,11 +20,12 @@ body {
   overflow-wrap: anywhere;
 }
 /* The site's own lines: its name over the page, Published … · All pages under it */
-.site {
+/* (div.site: the site's own pages have body.site, below) */
+div.site {
   color: var(--ink-2);
   font-size: var(--t-sm);
 }
-.site a {
+div.site a {
   color: var(--ink-2);
 }
 .site.top {
@@ -220,12 +221,95 @@ small {
   margin: 0 0 var(--s-3);
   padding-inline-start: 1.2em;
 }
+/* The site's own pages, which scrap builds (src/scrap/publish/templates.py): the home page,
+   Tags, a tag's page and the 404. body.site, its header (Pages · Tags), a list of pages each
+   with its date and tag chips, and Pagefind's search box */
+body.site main {
+  margin-top: var(--s-4);
+}
+.site-head {
+  padding-bottom: var(--s-2);
+  border-bottom: 1px solid var(--line);
+  color: var(--ink-2);
+  font-size: var(--t-sm);
+  font-weight: 600;
+}
+.site-head a {
+  color: var(--ink-2);
+}
+body.site h1 {
+  margin: var(--s-4) 0 var(--s-3);
+  font-size: var(--t-xl);
+  line-height: var(--lh-tight);
+}
+body.site h2 {
+  margin: var(--s-5) 0 var(--s-2);
+  font-size: var(--t-lg);
+}
+.site-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.site-list li {
+  padding: var(--s-3) 0;
+  border-bottom: 1px solid var(--line);
+}
+.site-list li > a {
+  font-weight: 600;
+}
+.when {
+  margin-inline-start: var(--s-2);
+  color: var(--ink-2);
+  font-size: var(--t-sm);
+  white-space: nowrap;
+}
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: var(--s-1);
+}
+a.chip {
+  display: inline-block;
+  padding: 2px 0.6em;
+  border-radius: var(--r-pill);
+  background: var(--sunk);
+  color: var(--ink);
+  font-size: var(--t-sm);
+  text-decoration: none;
+}
+.chip::before {
+  content: "#";
+}
+.site-search {
+  margin-bottom: var(--s-4);
+}
+/* Pagefind's search box (its own /assets/pagefind-ui.css, which sets these on the box
+   itself, .pagefind-ui: the id outranks it) in scrap's paper and ink */
+#search.site-search,
+#search .pagefind-ui {
+  --pagefind-ui-scale: 0.8;
+  --pagefind-ui-primary: var(--accent-ink);
+  --pagefind-ui-text: var(--ink);
+  --pagefind-ui-background: var(--surface);
+  --pagefind-ui-border: var(--line-strong);
+  --pagefind-ui-tag: var(--sunk);
+  --pagefind-ui-border-width: 1px;
+  --pagefind-ui-border-radius: var(--r-sm);
+  --pagefind-ui-font: var(--font);
+}
+#search.site-search mark {
+  background: var(--accent-soft);
+  color: var(--ink);
+}
 @media print {
   body {
     max-width: none;
     margin: 0;
   }
-  .site {
+  div.site,
+  .site-head {
     display: none;
   }
   img {

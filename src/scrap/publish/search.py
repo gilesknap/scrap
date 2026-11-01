@@ -33,6 +33,10 @@ BLOCKS = frozenset(
     " section article aside br".split()
 )
 TEX = "application/x-tex"
+# What a page's index text leaves out (the PWA's publish mode writes them): the site's own
+# lines (.site), and the page's header, its title (the record's own), meta and dates lines
+# and tag chips, so a result's excerpt is the page's text
+SKIP = frozenset({"site", "meta", "dates", "tags"})
 
 
 def _tex(el: ET.Element) -> str:
@@ -43,12 +47,16 @@ def _tex(el: ET.Element) -> str:
 
 
 def index_text(html: bytes | str) -> str:
-    """A kept page's text for the index: its body's text, a KaTeX formula as its TeX.
+    """A kept page's text for the index: its body's text, a KaTeX formula as its TeX,
+    without the site's lines or the page's header.
 
     >>> index_text('<p>Area <span class="katex"><math><semantics><mi>r</mi>'
     ...   '<annotation encoding="application/x-tex">\\\\pi r^2</annotation>'
     ...   '</semantics></math><span class="katex-html">πr2</span></span></p>')
     'Area \\\\pi r^2'
+    >>> index_text('<div class="site top">pages</div><h1>T</h1><p class="meta">Note</p>'
+    ...   '<p class="tags"><a>#x</a></p><p>Body</p><div class="site foot">All</div>')
+    'Body'
     """
     root = html5lib.parse(html, treebuilder="etree", namespaceHTMLElements=True)
     body = root.find(f"{{{HTML}}}body")
@@ -64,6 +72,9 @@ def index_text(html: bytes | str) -> str:
             continue
         local = item.tag.rpartition("}")[2]
         gap = " " if local in BLOCKS else ""
+        if local == "h1" or SKIP & set((item.get("class") or "").split()):
+            stack.append(f"{gap}{item.tail or ''}")
+            continue
         if local == "span" and "katex" in (item.get("class") or "").split():
             stack.append(f"{gap}{item.tail or ''}")
             out.append(f" {_tex(item)} ")
