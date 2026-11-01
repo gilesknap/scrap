@@ -37,6 +37,11 @@ describe("the Link key", () => {
     expect(press("|", "a")).toBe("[[a]]|");
   });
 
+  it("pressed again in an empty [[]], those brackets are used, not nested", () => {
+    expect(opened("a [[]] b", 4, 4)).toEqual({ change: null, spot: { at: 2 } });
+    expect(press("a [[|]] b", "x")).toBe("a [[x]]| b");
+  });
+
   it("cancelled, the brackets stay with the caret inside", () => {
     expect(press("see | now", null)).toBe("see [[|]] now");
   });
@@ -62,6 +67,10 @@ describe("the Link key", () => {
     const row = "| a | see this |";
     const c = picked(row, opened(row, 6, 14).spot, "x");
     expect(c && row.slice(0, c.from) + c.insert + row.slice(c.to)).toBe("| a | [[x\\|see this]] |");
+    // a row with no leading bar; the label's own bar escaped too
+    const bare = "a | x|y";
+    const d = picked(bare, opened(bare, 4, 7).spot, "s");
+    expect(d && bare.slice(0, d.from) + d.insert + bare.slice(d.to)).toBe("a | [[s\\|x\\|y]]");
     // not on a line that isn't a table's
     const line = "see this";
     expect(picked(line, opened(line, 0, 8).spot, "x")?.insert).toBe("[[x|see this]]");

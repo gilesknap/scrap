@@ -100,11 +100,12 @@ export function pick(): Promise<string | null> {
     clearTimeout(timer);
     timer = window.setTimeout(() => void find(), 150);
   });
-  // Enter picks the first page for what is typed: typed faster than the search answers (the
-  // rows still the last query's), it searches now and picks from that
+  // Enter picks the first page for what is typed (nothing typed: nothing picked); typed faster
+  // than the search answers (the rows still the last query's), it searches now and picks from that
   box.addEventListener("keydown", async (e) => {
     if (e.key !== "Enter" || e.isComposing) return;
     e.preventDefault();
+    if (!box.value.trim()) return;
     if (shown !== box.value.trim()) {
       clearTimeout(timer);
       await find();

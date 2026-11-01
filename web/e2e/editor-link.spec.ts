@@ -122,11 +122,11 @@ test("cancelled (Escape, a tap outside, ✕, Back), the brackets stay with the c
   await closed(page);
   await expect.poll(() => caret(page)).toBe("a[[]] b[[|]]");
 
-  // Its ✕
+  // Its ✕; and pressed again in those empty brackets, they are used, not nested
   await link.click();
   await picker.getByRole("button", { name: "Close" }).click();
   await closed(page);
-  await expect.poll(() => caret(page)).toBe("a[[]] b[[[[|]]]]");
+  await expect.poll(() => caret(page)).toBe("a[[]] b[[|]]");
 
   // The browser's Back (a computer's, which is no close request): the picker closes, and the
   // editor stays, its text as it was

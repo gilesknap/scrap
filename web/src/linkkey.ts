@@ -13,13 +13,16 @@ export type Spot = { at: number } | { from: number; to: number; raw: string; wor
 
 /** The Link key at start..end: with nothing selected, [[]] put in with the caret between the
  * brackets; with a selection, nothing changes yet (it stays selected while the picker is
- * open). A selection of white space alone is no label: [[]] in its place. */
+ * open). A selection of white space alone is no label: [[]] in its place. With the caret
+ * already in an empty [[]] (a picker closed with none, pressed again), those brackets. */
 export function opened(
   text: string,
   start: number,
   end: number,
 ): { change: Change | null; spot: Spot } {
   const words = label(text.slice(start, end));
+  if (start === end && text.slice(start - 2, start + 2) === "[[]]")
+    return { change: null, spot: { at: start - 2 } };
   if (start !== end && words)
     return { change: null, spot: { from: start, to: end, raw: text.slice(start, end), words } };
   return {
@@ -44,10 +47,14 @@ function near(text: string, needle: string, at: number): number {
   return best;
 }
 
-/** Whether position at is on a table's row (a line starting with |), where a bare | would
- * end the cell. */
-const inTable = (text: string, at: number) =>
-  /^[ \t]*\|/.test(text.slice(text.lastIndexOf("\n", at - 1) + 1));
+/** Whether the text from..to (to be the link) is on a table's row, where a bare | would end
+ * the cell: a | elsewhere on its line (a row needn't start with one). */
+function inTable(text: string, from: number, to: number) {
+  const start = from > 0 ? text.lastIndexOf("\n", from - 1) + 1 : 0;
+  const n = text.indexOf("\n", to);
+  const end = n < 0 ? text.length : n;
+  return (text.slice(start, from) + text.slice(to, end)).includes("|");
+}
 
 /** A page picked: its slug between the brackets, [[slug]], or the selection as the link's
  * words, [[slug|words]] (white space at either end of the selection kept outside it; in a
@@ -66,9 +73,13 @@ export function picked(text: string, spot: Spot, slug: string): Change | null {
   const was = spot.raw;
   const lead = /^\s*/.exec(was)?.[0] ?? "";
   const trail = /\s*$/.exec(was)?.[0] ?? "";
-  const bar = inTable(text, from) ? "\\|" : "|";
-  const link = `[[${slug}${bar}${spot.words}]]`;
-  const caret = from + lead.length + link.length;
+  const core = from + lead.length;
+  // In a cell, every bar escaped: the label's own too
+  const cell = inTable(text, core, from + was.length - trail.length);
+  const link = cell
+    ? `[[${slug}\\|${spot.words.replace(/\\?\|/g, "\\|")}]]`
+    : `[[${slug}|${spot.words}]]`;
+  const caret = core + link.length;
   return {
     from,
     to: from + was.length,
