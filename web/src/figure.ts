@@ -22,7 +22,7 @@ import { byClaude, claudeMade } from "./claudemade";
 import { fileCard } from "./filecard";
 import { fileRow } from "./filerow";
 import { photoPanel } from "./ingest";
-import { readingFold } from "./reading";
+import { photoGuidance, readingFold } from "./reading";
 import { h, pageLink, settle, toast } from "./ui";
 import { type Photo, viewer } from "./viewer";
 
@@ -141,6 +141,7 @@ export function figures(
             "Not read yet. Claude can describe it and read any text in it.",
           ),
         ],
+        guidance: photoGuidance({ cid: f.cid, sha, saved: f.guidance, read: false, refresh }),
         regen: { label: "Generate", onclick: () => askClaude(f.cid, sha, refresh) },
       }),
     );

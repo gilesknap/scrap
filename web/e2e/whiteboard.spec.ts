@@ -91,11 +91,14 @@ test("the preview is an inert image, the viewer is lazy and Back closes it", asy
   await expect(read).toHaveCount(1);
   await expect(page.locator(".photo-panel").getByRole("status")).toHaveCount(0);
   await expect(read).not.toHaveAttribute("open", "");
-  await expect(read.locator("summary")).toHaveText("Claude's reading");
+  await expect(read.locator("> summary")).toHaveText("Claude's reading");
   await expect(read.getByText("retry with backoff", { exact: false })).toBeHidden();
-  await read.locator("summary").click();
-  await expect(read.getByText("retry with backoff", { exact: false })).toBeVisible();
+  await read.locator("> summary").click();
   await expect(read.getByText("A whiteboard sketch of a capture pipeline")).toBeVisible();
+  // the text read from it, in a closed fold of its own (#538)
+  await expect(read.getByText("retry with backoff", { exact: false })).toBeHidden();
+  await read.getByText("Text read", { exact: true }).click();
+  await expect(read.getByText("retry with backoff", { exact: false })).toBeVisible();
   await expect(read.getByRole("button", { name: "Regenerate" })).toBeVisible();
 
   // No live canvas on the page; a finger drag over the preview scrolls the page

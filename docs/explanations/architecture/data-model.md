@@ -115,6 +115,7 @@ erDiagram
 | `enrich_job` | One queued job per page; reason is `capture`, `save`, `ask`, `backfill`, `related`, `writeup` or `topic` (its `CHECK` lists them) |
 | `enrichment`, `model_tag`, `related` | Summary and fetched link title; tags Claude added (`on`) or the user removed (`off`, never re-added); related pages in order |
 | `writeup`, `writeup_guidance` | A board's write-up or a topic's synthesis (one row a page, replaced by the next, [ADR 39](../decisions/0039-generated-content-keeps-only-its-current-version.md)) and the owner's guidance for the next |
+| `image_guidance` | The owner's guidance for Claude's next reading of one image, per (capture, image) (#538); never sent with a write-up, never published |
 | `topic`, `topic_source` | Which pages are topics (with a key never made again) and their sources, with the owner's exclusions |
 
 ## Originals, derived, cache

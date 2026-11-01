@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   articleHtml,
+  control,
   htmlName,
   inline,
   type N,
@@ -263,5 +264,15 @@ describe("articleHtml (Copy as rich text)", () => {
         '<em class="named">[Beach]</em></div>',
     );
     expect(html).not.toMatch(/data:|<style|<!doctype|\/api\//i);
+  });
+});
+
+describe("the owner's guidance for Claude (#538)", () => {
+  it("is a control: never in a shared file", () => {
+    const fold = (cls: string) =>
+      e("details", { class: cls }, e("summary", {}, "Guidance for Claude (set)"));
+    expect(control(fold("claude-text sub guidance"))).toBe(true); // a photo's, a write-up's
+    expect(control(fold("claude-text sub writeup guidance"))).toBe(true); // before a write-up
+    expect(control(fold("claude-text readtext"))).toBe(false); // the read text is shared
   });
 });

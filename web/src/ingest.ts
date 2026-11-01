@@ -1,10 +1,11 @@
 // What Claude made of a photo, under it on the page: its ingest state with Regenerate, Retry or
-// Resume, the description and text it read, and its drawing beside the photo (side by side
+// Resume, the description and text it read (the text in a fold of its own) with the owner's
+// guidance for the next reading (#538), and its drawing beside the photo (side by side
 // when there is room, else a Photo / Drawing switch).
 import { ApiError, api, type FileRef, type Ingest, type Queue } from "./api";
 import "./excalidraw.css";
 import { drawingCard, openDrawing, type Target } from "./drawing";
-import { readingFold, readingState } from "./reading";
+import { photoGuidance, readingFold, readingState, readText } from "./reading";
 import { h, toast } from "./ui";
 
 /** The chip's words for a state. */
@@ -135,12 +136,20 @@ export function photoPanel(o: {
       readingFold({
         body: [
           i.description && h("p", { className: "desc" }, i.description),
-          i.text && h("pre", {}, i.text),
+          i.text && readText(i.text), // closed: mostly for search (#538)
           // read, and nothing came of it: Regenerate is still a fold away
           !i.description &&
             !i.text &&
             h("p", { className: "did" }, "Claude found nothing to say about it."),
         ],
+        // the owner's guidance for the next Regenerate, at the bottom (#538)
+        guidance: photoGuidance({
+          cid: o.cid,
+          sha: o.blob.sha256,
+          saved: o.blob.guidance,
+          read: true,
+          refresh: () => o.refresh(),
+        }),
         regen: i.state === "done" ? { label: "Regenerate", onclick: ask } : null,
       }),
     );

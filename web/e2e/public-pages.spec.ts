@@ -703,8 +703,15 @@ test("Claude's reading goes public in a closed fold, and the site's search finds
   test.slow(); // the board's drawing is drawn by Excalidraw's chunk
   await phone(page);
   const b = await boardPage(page);
+  // the owner's guidance for the photo's next reading: never published (#538)
+  const note = "PRIVATE-NOTE for Claude: R1 is the pull-up";
+  const put = await page.request.put(`/api/captures/${b.capture_id}/photos/${b.sha256}/guidance`, {
+    data: { guidance: note },
+  });
+  expect(put.ok()).toBe(true);
   await page.goto(`/p/${b.slug}`);
   await expect(page.locator(".drawing-card.ready")).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByText("Guidance for Claude (set)")).toBeAttached();
   await shareRow(page, "Make public…");
   const ask = page.getByRole("dialog", { name: "Make this page public?" });
   await expect(ask).toContainText("Claude's reading of its photos and files");
@@ -716,15 +723,23 @@ test("Claude's reading goes public in a closed fold, and the site's search finds
     `<details class="reading"><summary>Claude's reading</summary><div class="claude"><p>A whiteboard sketch of a capture pipeline`,
   );
   expect(got.text).not.toMatch(/<details class="reading" open|Regenerate|reading-fold/);
+  expect(got.text).not.toMatch(/PRIVATE-NOTE|pull-up|Guidance for Claude|textarea/);
   const csp = violations(page);
   await page.goto(`${SITE}/p/${b.slug}`);
   const fold = page.locator("details.reading");
   await expect(fold).toHaveCount(1);
   await expect(fold).not.toHaveAttribute("open", "");
   await expect(fold.getByText("retry with backoff", { exact: false })).toBeHidden();
-  const line = fold.locator("summary");
+  const line = fold.locator("> summary");
   expect((await line.boundingBox())?.height).toBeGreaterThanOrEqual(48);
   await line.click();
+  await expect(fold.getByText("A whiteboard sketch", { exact: false })).toBeVisible();
+  // the text read from it in a closed fold of its own inside (#538), as the app has it
+  const text = fold.locator("details.readtext");
+  await expect(text).not.toHaveAttribute("open", "");
+  await expect(fold.getByText("retry with backoff", { exact: false })).toBeHidden();
+  expect((await text.locator("> summary").boundingBox())?.height).toBeGreaterThanOrEqual(48);
+  await text.locator("> summary").click();
   await expect(fold.getByText("retry with backoff", { exact: false })).toBeVisible();
   expect(csp).toEqual([]);
 

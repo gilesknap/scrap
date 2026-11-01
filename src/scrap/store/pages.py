@@ -9,6 +9,7 @@ from .constants import KINDS, KINDS_SHOWN, SHA256, THUMB
 from .core import Core
 from .db import _rows
 from .errors import InvalidError, NotFoundError
+from .guidance import of_page as image_guidance
 from .helpers import body_refs, file_kind, now, todo_only
 from .indexing import enrich_on
 from .roles import is_topic, made_by
@@ -57,6 +58,7 @@ class PagesMixin(Core):
             " received_at FROM capture WHERE page_id = ? ORDER BY received_at",
             page["id"],
         )
+        guided = image_guidance(conn, page["id"])  # the owner's, per image (#538)
         for c in captures:
             c["blobs"] = _rows(
                 conn,
@@ -68,6 +70,8 @@ class PagesMixin(Core):
                 blob["ingest"] = self._ingest(
                     conn, c["id"], blob["sha256"], blob["mime"]
                 )
+                if blob["mime"].startswith("image/"):  # for its next reading
+                    blob["guidance"] = guided.get((c["id"], blob["sha256"]))
         tags = [r[0] for r in conn.execute(
             "SELECT tag FROM tag WHERE page_id = ? ORDER BY"  # most used first
             " (SELECT count(*) FROM tag t WHERE t.tag = tag.tag) DESC, tag",

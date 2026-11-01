@@ -442,8 +442,10 @@ figure.diagram img.dark,
   font-size: var(--t-sm);
 }
 /* Claude's reading of a photo or file (#521): a fold under it, closed (publish.ts), its line
-   as the app's (css/reading.css): the chevron before the words, quiet, a 48 px target */
-details.reading > summary {
+   as the app's (css/reading.css): the chevron before the words, quiet, a 48 px target. A
+   photo's read text is a fold of the same kind inside it (#538) */
+details.reading > summary,
+details.readtext > summary {
   display: flex;
   align-items: center;
   gap: var(--s-2);
@@ -454,10 +456,12 @@ details.reading > summary {
   font-weight: 600;
   list-style: none;
 }
-details.reading > summary::-webkit-details-marker {
+details.reading > summary::-webkit-details-marker,
+details.readtext > summary::-webkit-details-marker {
   display: none;
 }
-details.reading > summary::before {
+details.reading > summary::before,
+details.readtext > summary::before {
   content: "";
   flex: none;
   width: 7px;
@@ -468,10 +472,12 @@ details.reading > summary::before {
   rotate: -45deg;
   transition: rotate var(--d-1) var(--ease);
 }
-details.reading[open] > summary::before {
+details.reading[open] > summary::before,
+details.readtext[open] > summary::before {
   rotate: 45deg;
 }
-details.reading > summary:focus-visible {
+details.reading > summary:focus-visible,
+details.readtext > summary:focus-visible {
   outline: 2px solid var(--ink);
   outline-offset: 1px;
 }
@@ -493,6 +499,17 @@ details.reading .claude pre {
 }
 details.reading .claude > :last-child {
   margin-bottom: 0;
+}
+/* A photo's read text (#538): a closed fold of its own inside the reading, its line the
+   reading's (above), a rule over it as the app's (.claude-text) unless it comes first */
+details.reading .readtext {
+  border-top: 1px solid var(--line);
+}
+details.reading .readtext:first-child {
+  border-top: 0;
+}
+details.reading .readtext > pre {
+  margin-bottom: var(--s-3);
 }
 /* Claude's card: About this page, its summary, write-up and related pages */
 .claude {
