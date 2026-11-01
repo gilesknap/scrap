@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Capture from your phone (the PWA) &#8212; scrap 1.2.2.dev6+g71676d5b2 documentation</title>
+    <title>Capture from your phone (the PWA) &#8212; scrap 1.2.2.dev7+g7fd1e19e5 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=be1982cb"></script>
+    <script src="../_static/documentation_options.js?v=e8a09985"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -1461,7 +1461,10 @@ tables (write <code class="docutils literal notranslate"><span class="pre">|</sp
 saved at once, no editor. If the page changed elsewhere meanwhile it is shown as it is now and
 the tap is not saved: tap again. Boxes do not tick offline or in <strong>Preview</strong>, nor in code.</p></li>
 <li><p><strong><code class="docutils literal notranslate"><span class="pre">[[slug]]</span></code>, <code class="docutils literal notranslate"><span class="pre">[[slug|label]]</span></code></strong> link to another page (in a table cell <code class="docutils literal notranslate"><span class="pre">[[slug\|label]]</span></code>).
-<code class="docutils literal notranslate"><span class="pre">[[slug#heading]]</span></code> links to that page too (it opens at the top, not at the heading).</p></li>
+<code class="docutils literal notranslate"><span class="pre">[[slug#heading]]</span></code> links to that page too (it opens at the top, not at the heading). A link with
+no label shows the page’s title (as it is now, if the page was renamed), as does a page’s full
+address written bare (not as <code class="docutils literal notranslate"><span class="pre">[words](address)</span></code>); a label you typed stays, and a link to no page
+shows what you typed. In <strong>Preview</strong> a link added since the page was opened, or on a new page, shows its slug.</p></li>
 <li><p>A <code class="docutils literal notranslate"><span class="pre">```mermaid</span></code> block is drawn as a <a class="reference external" href="https://mermaid.js.org">Mermaid</a> diagram; offline, or with
 a mistake, it shows as code.</p></li>
 <li><p><strong>Maths</strong> (LaTeX, drawn by <a class="reference external" href="https://katex.org">KaTeX</a>): <code class="docutils literal notranslate"><span class="pre">$x^2$</span></code> inline, <code class="docutils literal notranslate"><span class="pre">$$...$$</span></code> for a
@@ -1544,7 +1547,8 @@ tags, status and topics. After your text and the files comes one section headed 
 topic’s synthesis, and related pages. Then <em>Linked from</em> lists the pages that link here. The text
 read from a PDF or text file follows the file’s link, in a block cut at 20,000 characters. If
 <code class="docutils literal notranslate"><span class="pre">SCRAP_PUBLIC_URL</span></code> is set, <code class="docutils literal notranslate"><span class="pre">[[slug]]</span></code>, <code class="docutils literal notranslate"><span class="pre">[[slug|label]]</span></code> and <code class="docutils literal notranslate"><span class="pre">[[slug#heading]]</span></code> links are written
-as full addresses so they work outside scrap; a <code class="docutils literal notranslate"><span class="pre">[[...]]</span></code> whose target is not a slug, such as
+as full addresses so they work outside scrap; a link with no label is named by the page’s title
+either way; a <code class="docutils literal notranslate"><span class="pre">[[...]]</span></code> whose target is not a slug, such as
 <code class="docutils literal notranslate"><span class="pre">[[Some</span> <span class="pre">Title]]</span></code>, is kept as typed. The export of every page (<a class="reference internal" href="export-your-pages.html"><span class="std std-doc">Export your pages</span></a>) keeps Claude’s notes in a file of their
 own instead.</p>
 <p>Where a phone’s browser cannot share, there is no Share and <strong>Download</strong> is in the toolbar. While it
