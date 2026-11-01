@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Deploy on Kubernetes &#8212; scrap 1.2.2.dev4+g1000b0c46 documentation</title>
+    <title>Deploy on Kubernetes &#8212; scrap 1.2.2.dev5+gd213b5e1a documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=46286846"></script>
+    <script src="../_static/documentation_options.js?v=263c217c"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -1005,7 +1005,7 @@ the names, and <code class="docutils literal notranslate"><span class="pre">helm
 <p>Every value is described in
 <a class="reference external" href="https://github.com/gilesknap/scrap/blob/main/charts/scrap/values.yaml"><code class="docutils literal notranslate"><span class="pre">values.yaml</span></code></a>; unknown
 top-level keys, and unknown keys under <code class="docutils literal notranslate"><span class="pre">image</span></code>, <code class="docutils literal notranslate"><span class="pre">ingest</span></code>, <code class="docutils literal notranslate"><span class="pre">persistence</span></code>, <code class="docutils literal notranslate"><span class="pre">ingress</span></code>,
-<code class="docutils literal notranslate"><span class="pre">mcp</span></code>, <code class="docutils literal notranslate"><span class="pre">gc</span></code>, <code class="docutils literal notranslate"><span class="pre">enrichRelated</span></code> and <code class="docutils literal notranslate"><span class="pre">enrichTopics</span></code> (and under <code class="docutils literal notranslate"><span class="pre">backup</span></code>, including <code class="docutils literal notranslate"><span class="pre">backup.monthly</span></code>)
+<code class="docutils literal notranslate"><span class="pre">mcp</span></code>, <code class="docutils literal notranslate"><span class="pre">gc</span></code>, <code class="docutils literal notranslate"><span class="pre">enrichRelated</span></code>, <code class="docutils literal notranslate"><span class="pre">enrichTopics</span></code> and <code class="docutils literal notranslate"><span class="pre">public</span></code> (and under <code class="docutils literal notranslate"><span class="pre">backup</span></code>, including <code class="docutils literal notranslate"><span class="pre">backup.monthly</span></code>)
 are refused, so a typo there fails the install instead of being ignored. Other groups (<code class="docutils literal notranslate"><span class="pre">service</span></code>,
 <code class="docutils literal notranslate"><span class="pre">networkPolicy</span></code>, <code class="docutils literal notranslate"><span class="pre">serviceAccount</span></code>, <code class="docutils literal notranslate"><span class="pre">resources</span></code> and the security contexts) are not checked, so a typo
 inside them is silently ignored. The main ones:</p>
@@ -1093,11 +1093,15 @@ inside them is silently ignored. The main ones:</p>
 <td><p>none</p></td>
 <td><p>Anything else for the container, such as <code class="docutils literal notranslate"><span class="pre">SCRAP_PUBLIC_URL</span></code> (see <a class="reference internal" href="#k8s-mcp"><span class="std std-ref">Claude Code (MCP)</span></a>) or <code class="docutils literal notranslate"><span class="pre">SCRAP_ENRICH</span></code>.</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">nodeSelector</span></code>, <code class="docutils literal notranslate"><span class="pre">tolerations</span></code>, <code class="docutils literal notranslate"><span class="pre">affinity</span></code>, <code class="docutils literal notranslate"><span class="pre">podAnnotations</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">public.enabled</span></code>, <code class="docutils literal notranslate"><span class="pre">.site</span></code>, <code class="docutils literal notranslate"><span class="pre">.tokenSecret.*</span></code>, <code class="docutils literal notranslate"><span class="pre">.ingress.*</span></code>, <code class="docutils literal notranslate"><span class="pre">.networkPolicy.webFrom</span></code></p></td>
+<td><p>off</p></td>
+<td><p>Public pages: the public site and its upload receiver in their own namespace (<a class="reference internal" href="#k8s-public-pages"><span class="std std-ref">Public pages</span></a>).</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">nodeSelector</span></code>, <code class="docutils literal notranslate"><span class="pre">tolerations</span></code>, <code class="docutils literal notranslate"><span class="pre">affinity</span></code>, <code class="docutils literal notranslate"><span class="pre">podAnnotations</span></code></p></td>
 <td><p>none</p></td>
 <td><p>Scheduling and annotations.</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">nameOverride</span></code>, <code class="docutils literal notranslate"><span class="pre">fullnameOverride</span></code>, <code class="docutils literal notranslate"><span class="pre">serviceAccount.*</span></code>, <code class="docutils literal notranslate"><span class="pre">terminationGracePeriodSeconds</span></code>, <code class="docutils literal notranslate"><span class="pre">backup.resources</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">nameOverride</span></code>, <code class="docutils literal notranslate"><span class="pre">fullnameOverride</span></code>, <code class="docutils literal notranslate"><span class="pre">serviceAccount.*</span></code>, <code class="docutils literal notranslate"><span class="pre">terminationGracePeriodSeconds</span></code>, <code class="docutils literal notranslate"><span class="pre">backup.resources</span></code></p></td>
 <td><p>see <code class="docutils literal notranslate"><span class="pre">values.yaml</span></code></p></td>
 <td><p>Naming, the ServiceAccount, the stop timeout (<code class="docutils literal notranslate"><span class="pre">30</span></code>) and the backup job’s resources.</p></td>
 </tr>
@@ -1309,6 +1313,81 @@ probes use, answers to any name), and roll the pod after changing it.</p>
 <h3>Port-forward<a class="headerlink" href="#port-forward" title="Link to this heading">#</a></h3>
 <p>For a quick try, <code class="docutils literal notranslate"><span class="pre">kubectl</span> <span class="pre">-n</span> <span class="pre">scrap</span> <span class="pre">port-forward</span> <span class="pre">svc/scrap</span> <span class="pre">8000:80</span></code>. Nothing is exposed beyond your own machine.</p>
 </section>
+</section>
+<section id="public-pages">
+<span id="k8s-public-pages"></span><h2>Public pages<a class="headerlink" href="#public-pages" title="Link to this heading">#</a></h2>
+<p>scrap can publish the pages you mark Public (issue 497) to a static site on the internet, for
+example <code class="docutils literal notranslate"><span class="pre">https://pages.example.org</span></code>. The site is served by nginx from a separate image,
+<code class="docutils literal notranslate"><span class="pre">ghcr.io/gilesknap/scrap-public</span></code>, which also holds a small upload receiver. scrap is to push each
+public page to the receiver; nothing on the public side can reach scrap. scrap’s publisher
+arrives with the scrap side of issue 497: until then this section runs the public side only,
+and the site stays empty. The contract between the two sides (the receiver’s API, what each
+unit may hold, nginx’s paths and headers) is <a class="reference internal" href="../reference/public-site.html"><span class="std std-doc">Public site</span></a>, and why it is built
+this way is <a class="reference internal" href="../explanations/decisions/0043-public-pages-a-static-site-scrap-pushes-to.html"><span class="std std-doc">ADR 43</span></a>. The chart’s <code class="docutils literal notranslate"><span class="pre">public</span></code>
+section, off by default, runs it:</p>
+<ul class="simple">
+<li><p>it runs in a namespace of its own (<code class="docutils literal notranslate"><span class="pre">public.namespace</span></code>, default <code class="docutils literal notranslate"><span class="pre">scrap-public</span></code>), labelled Pod
+Security <code class="docutils literal notranslate"><span class="pre">restricted</span></code>, which you create first (below);</p></li>
+<li><p>one Deployment with two containers sharing the site volume: <code class="docutils literal notranslate"><span class="pre">web</span></code> (nginx, the site mounted read
+only) and <code class="docutils literal notranslate"><span class="pre">receiver</span></code> (the only one given the token, mounted as a file), both non-root with
+read-only root filesystems;</p></li>
+<li><p>two ClusterIP Services, and an Ingress for nginx alone (<code class="docutils literal notranslate"><span class="pre">public.ingress</span></code>); the receiver is never
+on an Ingress;</p></li>
+<li><p>a NetworkPolicy: the receiver’s port only from scrap’s pods (the release namespace and scrap’s
+labels), nginx’s port from <code class="docutils literal notranslate"><span class="pre">public.networkPolicy.webFrom</span></code> (empty: anyone, as nginx serves only
+public files; set it to your ingress controller’s namespace to narrow it), and no egress at all.</p></li>
+</ul>
+<p>The site lives in an <code class="docutils literal notranslate"><span class="pre">emptyDir</span></code> (<code class="docutils literal notranslate"><span class="pre">public.sizeLimit</span></code>, default <code class="docutils literal notranslate"><span class="pre">3Gi</span></code>: the receiver’s 2 GiB quota
+plus room for an upload). It starts empty when the pod moves. With the scrap side of issue 497,
+scrap fills it again: it checks the receiver’s manifest at start and every 10 minutes and pushes
+what is missing.</p>
+<p>First create the public namespace, labelled Pod Security <code class="docutils literal notranslate"><span class="pre">restricted</span></code>, and the upload token. The
+token is a Secret you create, never a value. The receiver runs in the public namespace and scrap
+in its own, and a pod reads only its own namespace’s Secrets, so create it, with the same name
+and key, in <strong>both</strong>:</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>kubectl<span class="w"> </span>create<span class="w"> </span>namespace<span class="w"> </span>scrap-public
+kubectl<span class="w"> </span>label<span class="w"> </span>namespace<span class="w"> </span>scrap-public<span class="w"> </span>pod-security.kubernetes.io/enforce<span class="o">=</span>restricted<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>pod-security.kubernetes.io/audit<span class="o">=</span>restricted<span class="w"> </span>pod-security.kubernetes.io/warn<span class="o">=</span>restricted
+<span class="nv">token</span><span class="o">=</span><span class="k">$(</span>openssl<span class="w"> </span>rand<span class="w"> </span>-hex<span class="w"> </span><span class="m">32</span><span class="k">)</span>
+<span class="k">for</span><span class="w"> </span>ns<span class="w"> </span><span class="k">in</span><span class="w"> </span>scrap<span class="w"> </span>scrap-public<span class="p">;</span><span class="w"> </span><span class="k">do</span>
+<span class="w">  </span>kubectl<span class="w"> </span>-n<span class="w"> </span><span class="s2">"</span><span class="nv">$ns</span><span class="s2">"</span><span class="w"> </span>create<span class="w"> </span>secret<span class="w"> </span>generic<span class="w"> </span>scrap-publish<span class="w"> </span>--from-literal<span class="o">=</span><span class="nv">token</span><span class="o">=</span><span class="s2">"</span><span class="nv">$token</span><span class="s2">"</span>
+<span class="k">done</span>
+</pre></div>
+</div>
+<p>Both pods read the token as a mounted file, never an environment variable: the receiver through
+<code class="docutils literal notranslate"><span class="pre">RECEIVER_TOKEN_FILE</span></code>, scrap through <code class="docutils literal notranslate"><span class="pre">SCRAP_PUBLISH_TOKEN_FILE</span></code>.</p>
+<p><code class="docutils literal notranslate"><span class="pre">public.createNamespace:</span> <span class="pre">true</span></code> makes the chart create the namespace instead, with the same
+labels. Argo CD’s <code class="docutils literal notranslate"><span class="pre">CreateNamespace=true</span></code> does not do it: that creates only the Application’s
+destination namespace (scrap’s), so <code class="docutils literal notranslate"><span class="pre">scrap-public</span></code> must exist first or come from
+<code class="docutils literal notranslate"><span class="pre">public.createNamespace</span></code>. With the chart creating it, the Secret can only be made after the first
+install, and the receiver waits for it. <strong><code class="docutils literal notranslate"><span class="pre">helm</span> <span class="pre">uninstall</span></code> (or an Argo CD prune)
+then deletes the namespace, and the Secret in it</strong>, which is why it is off by default.</p>
+<p>Then:</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">public</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<span class="w">  </span><span class="nt">site</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">https://pages.example.org</span><span class="w">     </span><span class="c1"># SCRAP_PUBLISH_SITE</span>
+<span class="w">  </span><span class="nt">tokenSecret</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">scrap-publish</span>
+<span class="w">    </span><span class="nt">key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">token</span>
+<span class="w">  </span><span class="nt">ingress</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">className</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">nginx</span><span class="w">                  </span><span class="c1"># or your controller's</span>
+<span class="w">    </span><span class="nt">hosts</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">pages.example.org</span><span class="p p-Indicator">]</span>
+<span class="w">    </span><span class="nt">tls</span><span class="p">:</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">hosts</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">pages.example.org</span><span class="p p-Indicator">]</span>
+<span class="w">        </span><span class="nt">secretName</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">pages-tls</span>
+</pre></div>
+</div>
+<p>The install fails if <code class="docutils literal notranslate"><span class="pre">public.enabled</span></code> is set without <code class="docutils literal notranslate"><span class="pre">public.tokenSecret.name</span></code> or <code class="docutils literal notranslate"><span class="pre">public.site</span></code>.
+scrap’s pod then gets <code class="docutils literal notranslate"><span class="pre">SCRAP_PUBLISH_TO</span></code> (the receiver’s Service,
+<code class="docutils literal notranslate"><span class="pre">http://&lt;fullname&gt;-receiver.&lt;public.namespace&gt;.svc:8081</span></code>, <code class="docutils literal notranslate"><span class="pre">scrap-receiver.scrap-public</span></code> for a release named <code class="docutils literal notranslate"><span class="pre">scrap</span></code>), <code class="docutils literal notranslate"><span class="pre">SCRAP_PUBLISH_SITE</span></code> and
+<code class="docutils literal notranslate"><span class="pre">SCRAP_PUBLISH_TOKEN_FILE</span></code> (see the <a class="reference internal" href="../reference/api.html"><span class="std std-doc">settings</span></a>). The site is <code class="docutils literal notranslate"><span class="pre">noindex</span></code>: every
+answer has <code class="docutils literal notranslate"><span class="pre">X-Robots-Tag:</span> <span class="pre">noindex,</span> <span class="pre">nofollow</span></code> and <code class="docutils literal notranslate"><span class="pre">robots.txt</span></code> disallows all, unless
+<code class="docutils literal notranslate"><span class="pre">public.indexing</span></code> is <code class="docutils literal notranslate"><span class="pre">true</span></code>.</p>
+<p><strong>Behind Cloudflare Access</strong>: if your domain has a wildcard Access application
+(<code class="docutils literal notranslate"><span class="pre">*.example.org</span></code>), it covers every subdomain, the public site’s too, and visitors meet a login.
+Give the site’s host (<code class="docutils literal notranslate"><span class="pre">pages.example.org</span></code>) its own Access application with a policy whose Action
+is <strong>Bypass</strong>, so anyone may reach it. A more specific application takes precedence over the
+wildcard.</p>
 </section>
 <section id="upgrades">
 <h2>Upgrades<a class="headerlink" href="#upgrades" title="Link to this heading">#</a></h2>
@@ -1842,7 +1921,8 @@ PersistentVolume by hand.</p>
 <ul class="simple">
 <li><p>Run more than one replica, or any high availability: SQLite has a single writer.</p></li>
 <li><p>Create Secrets, take the API key as a value, or log in users.</p></li>
-<li><p>Expose scrap to the internet, or add authentication.</p></li>
+<li><p>Expose scrap to the internet, or add authentication. Public pages (<a class="reference internal" href="#k8s-public-pages"><span class="std std-ref">Public pages</span></a>)
+put only the static site of the pages you mark Public on the internet, never scrap.</p></li>
 <li><p>Copy backups off the cluster.</p></li>
 <li><p>Restrict egress (ingest needs <code class="docutils literal notranslate"><span class="pre">api.anthropic.com</span></code>, and any public site a saved link points to
 while <code class="docutils literal notranslate"><span class="pre">SCRAP_ENRICH</span></code> is on; notifications need your notify URL).</p></li>
@@ -1924,6 +2004,7 @@ sessions (<a class="reference internal" href="connect-claude-code.html"><span cl
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#port-forward">Port-forward</a></li>
 </ul>
 </li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#public-pages">Public pages</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrades">Upgrades</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#backup-and-restore">Backup and restore</a><ul class="nav section-nav flex-column">
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#which-backups-restore">Which backups restore</a></li>
