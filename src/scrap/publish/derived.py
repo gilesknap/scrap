@@ -109,7 +109,7 @@ def _text(kept: Kept, slug: str, stored: str | None) -> str:
     hit = _TEXTS.get(slug)
     if stored is not None and hit is not None and hit[0] == stored:
         return hit[1]
-    text = index_text(kept.html(slug))
+    text = index_text(kept.html(slug), lambda name: kept.file(slug, name))
     if stored is not None:
         _TEXTS[slug] = (stored, text)
     return text

@@ -3,7 +3,8 @@ sends for a page"): parsed with html5lib, the tree a browser would build, and ma
 by (namespace, local name) against an allow-list. Anything not listed refuses the
 publish (CheckError, 422): scrap never cleans the HTML.
 
-Placeholders (scrap-blob:, scrap-tag:, scrap-drawing:) are allowed only as the whole
+Placeholders (scrap-blob:, scrap-tag:, scrap-drawing:, scrap-diagram:) are allowed only
+as the whole
 value of an img's src or an a's href. scrap later swaps them in the text as uploaded
 (rewrite.swap), so the check also makes sure each one is written there plainly: the
 same placeholders, as many times, as the tree holds."""
@@ -31,10 +32,10 @@ from .katex import (
     no_url,
     style_ok,
 )
-from .links import DRAWING, EXCALIDRAW, ID, classify, private_text
+from .links import DIAGRAM, DRAWING, EXCALIDRAW, ID, classify, private_text
 
-__all__ = ["CSP", "DRAWING_PREFIX", "KEPT", "PREFS_SRC", "RAW_PLACEHOLDER", "Checked",
-           "check"]  # fmt: skip
+__all__ = ["CSP", "DIAGRAM_PREFIX", "DRAWING_PREFIX", "KEPT", "PREFS_SRC",
+           "RAW_PLACEHOLDER", "Checked", "check"]  # fmt: skip
 
 # The page's own CSP: the site's own scripts only, and the one a page names is
 # /assets/prefs.js (#519), the theme and width switches
@@ -46,6 +47,7 @@ CSP = (
 # (or async), and blocking="render" if it likes; no other attribute and no text
 PREFS_SRC = "/assets/prefs.js"
 DRAWING_PREFIX = "drawing:"  # a drawing's key in Checked.blobs, beside the shas
+DIAGRAM_PREFIX = "diagram:"  # a diagram's image there (#525): diagram:<n>-<theme>
 STYLESHEETS = ("/assets/page.css", "/assets/katex.css")
 # The site's icons (#527): exactly these two links, each once
 ICON_LINKS = (
@@ -64,8 +66,12 @@ SPAN_DIGITS = re.compile(r"[0-9]{1,3}")
 # what the publish mode writes after it (a sha, or a URL-encoded tag, which may hold
 # ' as encodeURIComponent leaves it), up to the double quote the publish mode closes
 # the attribute with. (One in single quotes takes the quote too, and is refused.)
-RAW_PLACEHOLDER = re.compile(r"scrap-(?:blob|tag|drawing|excalidraw):[^\"<>\s&]*")
-PLACEHOLDER = re.compile(r"scrap-(?:blob|tag|drawing|excalidraw):", re.IGNORECASE)
+RAW_PLACEHOLDER = re.compile(
+    r"scrap-(?:blob|tag|drawing|excalidraw|diagram):[^\"<>\s&]*"
+)
+PLACEHOLDER = re.compile(
+    r"scrap-(?:blob|tag|drawing|excalidraw|diagram):", re.IGNORECASE
+)
 # A photo's Photo | Drawing tabs (#520), in CSS alone: two radio inputs and their
 # labels, named and labelled pair-<n>[-photo|-drawing], in a div role="radiogroup"
 PAIR = re.compile(r"pair-[0-9]{1,3}(?:-photo|-drawing)?")
@@ -88,7 +94,8 @@ PREFIXES = {  # an attribute's namespace as written, in a refusal's message
 class Checked:
     """What a page that passed holds: the stored files it names, in the order first
     named, with the element naming each (img or a; a drawing's key as
-    DRAWING_PREFIX + key, #520), the tags, the /p/ slugs it links to, and whether it
+    DRAWING_PREFIX + key, #520; a diagram's image as DIAGRAM_PREFIX + <n>-<theme>,
+    #525), the tags, the /p/ slugs it links to, and whether it
     has maths."""
 
     blobs: list[tuple[str, str]] = field(default_factory=list)
@@ -167,6 +174,11 @@ class _Walk:
         if ns == HTML and local == "a" and EXCALIDRAW.fullmatch(href):
             if {k: el.get(k) for k in NEW_TAB} != NEW_TAB:
                 raise _refuse("an Open in Excalidraw link not opening a new tab")
+        diagram = DIAGRAM.fullmatch(el.get("src") or "")
+        if ns == HTML and local == "img" and diagram:
+            # a diagram's image (#525): classed as its theme, which page.css shows
+            if el.get("class") != diagram[2]:
+                raise _refuse("a diagram's image not classed as its theme")
         if ns == HTML and local == "input":
             if el.get("type") != "radio" or not PAIR.fullmatch(el.get("id") or ""):
                 raise _refuse("an <input> other than a photo's tabs")
@@ -194,6 +206,8 @@ class _Walk:
         if key == "src" and ns == HTML and local == "img":
             if m := DRAWING.fullmatch(value):
                 return self.blob(DRAWING_PREFIX + m[1], "img", value)
+            if m := DIAGRAM.fullmatch(value):
+                return self.blob(f"{DIAGRAM_PREFIX}{m[1]}-{m[2]}", "img", value)
             m = re.fullmatch(r"scrap-blob:([0-9a-f]{64})", value)
             if not m:
                 raise _refuse("an image that is not a placeholder (scrap-blob:)")

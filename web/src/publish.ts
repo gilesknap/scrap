@@ -2,7 +2,10 @@
 // docs/reference/public-site.md "What the publish mode writes" has it. It reads the page's own
 // view, as the export does, by allow-list, and writes what scrap's check accepts and nothing
 // else: the fixed head (the meta CSP, /assets/page.css, /assets/katex.css for maths) and no
-// <style>; maths as KaTeX's own markup; a Mermaid diagram as its source; images and files as
+// <style>; maths as KaTeX's own markup; a Mermaid diagram (#525), once publicpages.ts has drawn
+// it, as two images, its light and its dark drawing as scrap-diagram:<n>-light and -dark
+// placeholders, one shown by the page's theme (page.css, no script), else as its source; a code
+// block's text as written, only scrap's own addresses in it hidden (#529); images and files as
 // scrap-blob:<sha> placeholders and tags as scrap-tag:<tag> chips, which scrap replaces; links
 // to public pages live, to private ones their words. A photo's drawing (#520), once
 // publicpages.ts has drawn it, beside the photo with Photo | Drawing tabs (radio inputs and
@@ -27,6 +30,13 @@ export interface Context {
   date: string; // when it is published, for the footer
   drawn?: ReadonlySet<string>; // the drawings (by id) publicpages.ts drew: shown with their photos
   texts?: ReadonlyMap<string, string>; // a PDF's text (by sha) its fold shows: publicpages.ts's
+  diagrams?: ReadonlyMap<string, DiagramKey>; // the diagrams publicpages.ts drew, by source
+}
+
+/** A diagram publicpages.ts drew (#525): its key, and the words drawn in it (its alt text). */
+export interface DiagramKey {
+  key: number;
+  words: string;
 }
 
 /** The meta CSP every public page carries (the contract's, exactly): the site's own scripts
@@ -65,14 +75,17 @@ const has = (n: N, c: string) => classes(n).has(c);
 /** Text that names a placeholder ("scrap-blob:", "scrap-tag:") would be refused anywhere but
  * a src or href: a word joiner after "scrap-" keeps it as it reads. */
 const defuse = (s: string) =>
-  s.replace(/scrap-(blob|tag|drawing|excalidraw):/gi, "scrap-\u2060$1:");
+  s.replace(/scrap-(blob|tag|drawing|excalidraw|diagram):/gi, "scrap-\u2060$1:");
 /** What text says in place of an address of scrap's own, or of its API. */
 const PRIVATE_LINK = "a private link";
 const reEscape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-/** Addresses of scrap's own (its hosts, with or without a scheme) and of /api/, as text. */
-function privates(origins: readonly string[]): RegExp {
-  // the rest of an address: up to a space, not its last full stop, comma or bracket
-  const tail = `[^\\s<>"]*[^\\s<>".,;:!?)]`;
+/** Addresses of scrap's own (its hosts, with or without a scheme) and of /api/, as text; in
+ * code (#529), only its hosts' and /api/blobs/ (a stored file's), what scrap's check refuses:
+ * an /api/ path in a code block or a diagram is the text's own, not a link. */
+function privates(origins: readonly string[], code = false): RegExp {
+  // the rest of an address: up to a space, not its last full stop, comma or bracket (in
+  // code, nor a square one: Mermaid's B[address] keeps its bracket)
+  const tail = `[^\\s<>"]*[^\\s<>".,;:!?)${code ? "\\]" : ""}]`;
   // each host as text may hide it: a zero-width character between its letters, a
   // full-width or ideographic dot for a dot (scrap's check reads past both)
   const zw = "[\\u200b-\\u200d\\u2060\\ufeff\\u00ad]*";
@@ -81,11 +94,18 @@ function privates(origins: readonly string[]): RegExp {
     .filter((h): h is string => !!h)
     .map((h) => [...h].map((c) => (c === "." ? "[.\\u3002\\uff0e\\uff61]" : reEscape(c))).join(zw));
   const own = hosts.length
-    ? `(?:[a-z][a-z0-9+.-]*://)?(?<![\\w.-])(?:${hosts.join("|")})(?![\\w-]|\\.[\\w-])\\.?(?::\\d+)?(?:[/?#]${tail})?|`
+    ? `(?:(?<![a-z0-9+.-])[a-z][a-z0-9+.-]*://)?(?<![\\w.-])(?:${hosts.join("|")})(?![\\w-]|\\.[\\w-])\\.?(?::\\d+)?(?:[/?#]${tail})?|`
     : "";
-  const api = `https?://[^\\s/<>"]*/api/(?:${tail})?|(?<![\\w.~/-])/api/(?:${tail})?|/api/blobs/(?:${tail})?`;
+  const blobs = `/api/blobs/(?:${tail})?`;
+  const api = code
+    ? blobs
+    : `https?://[^\\s/<>"]*/api/(?:${tail})?|(?<![\\w.~/-])/api/(?:${tail})?|${blobs}`;
   return new RegExp(own + api, "gi");
 }
+/** Code's text as published (#529): only scrap's own addresses hidden. A diagram is drawn
+ * from its source so (#525): Mermaid may split a long word across a label's lines. */
+export const codeText = (s: string, origins: readonly string[]) =>
+  s.replace(privates(origins, true), PRIVATE_LINK);
 /** A tag as a scrap-tag: placeholder, every character but letters, digits and -_.~ escaped. */
 const tagHref = (t: string) =>
   `scrap-tag:${encodeURIComponent(t).replace(/[!'()*]/g, (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`)}`;
@@ -182,6 +202,9 @@ export function publishHtml(root: N, ctx: Context, swaps: Swaps = new Map()): st
   // Text never names an address of scrap's own, or of its API (S3): it says "a private link"
   const hidden = privates(ctx.origins);
   const words = (s: string) => esc(defuse(s.replace(hidden, PRIVATE_LINK)));
+  const hiddenInCode = privates(ctx.origins, true);
+  const codeWords = (s: string) => esc(defuse(s.replace(hiddenInCode, PRIVATE_LINK)));
+  let fenced = false; // in a code block: its text as written (#529)
   let maths = false;
   let listed = false; // in Claude's Related, Topics or Sources: a private page's line goes
 
@@ -290,7 +313,7 @@ export function publishHtml(root: N, ctx: Context, swaps: Swaps = new Map()): st
       : "";
 
   const render = (n: N, shown = false): string => {
-    if (n.nodeType === TEXT) return words(n.data ?? "");
+    if (n.nodeType === TEXT) return (fenced ? codeWords : words)(n.data ?? "");
     if (!el(n)) return "";
     const t = tag(n);
     const cls = classes(n);
@@ -321,9 +344,18 @@ export function publishHtml(root: N, ctx: Context, swaps: Swaps = new Map()): st
     if (t === "p" && cls.has("tags")) return chips();
     const m = math(n);
     if (m !== null) return m;
+    // A diagram drawn for the page (#525): its two images, else its source as a code block
+    const source = sourceOf(n);
+    const drawn = source === null ? undefined : ctx.diagrams?.get(source);
+    if (drawn !== undefined) {
+      const alt = codeWords(drawn.words ? `Diagram: ${drawn.words}` : "Diagram");
+      const img = (theme: string) =>
+        `<img class="${theme}" src="scrap-diagram:${drawn.key}-${theme}" alt="${alt}">`;
+      return `<figure class="diagram">${img("light")}${img("dark")}</figure>`;
+    }
     if (cls.has("diagram")) {
       const src = attr(n, "data-source");
-      return src ? `<pre><code class="language-mermaid">${words(src)}</code></pre>` : "";
+      return src ? `<pre><code class="language-mermaid">${codeWords(src)}</code></pre>` : "";
     }
     const apart = t === "span" && cls.has("parts");
     const inner = () =>
@@ -379,7 +411,11 @@ export function publishHtml(root: N, ctx: Context, swaps: Swaps = new Map()): st
       .map(([k, v]) => ` ${k}="${esc(v as string)}"`)
       .join("");
     const out = t === "p" && swaps.has(n) ? "div" : t; // a paragraph holding Markdown
-    return `<${out}${idOf(n, t)}${open}${t === "details" ? " open" : ""}>${inner()}</${out}>`;
+    const was = fenced;
+    fenced ||= t === "pre";
+    const within = inner();
+    fenced = was;
+    return `<${out}${idOf(n, t)}${open}${t === "details" ? " open" : ""}>${within}</${out}>`;
   };
 
   const body = render(root);
@@ -436,6 +472,32 @@ export function drawingsOf(root: N): { id: string; cid: string; sha: string }[] 
   };
   walk(root);
   return out;
+}
+
+/** A Mermaid diagram's source, if n is one: one the app drew, or a ```mermaid block it has not
+ * drawn (yet: a view drawn off the screen, or one redrawn while it is published). */
+function sourceOf(n: N): string | null {
+  if (!el(n)) return null;
+  if (has(n, "diagram")) return attr(n, "data-source") || null;
+  const code = tag(n) === "pre" ? kids(n).filter(el) : [];
+  if (code.length === 1 && tag(code[0]) === "code" && has(code[0], "language-mermaid"))
+    return textOf(code[0]);
+  return null;
+}
+
+/** The view's Mermaid diagrams (#525), each once, in order, by their sources: publicpages.ts
+ * draws them for the page (keyed by source, as the view may be drawn again meanwhile); one it
+ * cannot draw goes out as its source. */
+export function diagramsOf(root: N): string[] {
+  const out = new Set<string>();
+  const walk = (n: N) => {
+    if (!el(n)) return;
+    const source = sourceOf(n);
+    if (source !== null) out.add(source);
+    else kids(n).forEach(walk);
+  };
+  walk(root);
+  return [...out];
 }
 
 /** Whether the view has maths to draw (KaTeX is loaded only then). */

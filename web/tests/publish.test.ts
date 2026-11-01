@@ -14,9 +14,8 @@ import { CSP, check } from "./publiccheck";
 // scrap's own address, as the app sees it: a full address of a page here is the page's
 (globalThis as { location?: { origin: string } }).location = { origin: "http://scrap.example" };
 const { markdown: marked } = await import("../src/render");
-const { bare, bareSlugs, fileTextsOf, hasMaths, idsOf, publishHtml, webLink } = await import(
-  "../src/publish"
-);
+const mod = await import("../src/publish");
+const { bare, bareSlugs, diagramsOf, fileTextsOf, hasMaths, idsOf, publishHtml, webLink } = mod;
 
 const markdown = (s: string) => marked(s).replace(/ data-at="\d+,\d+"/g, "");
 const SHA = (c: string) => c.repeat(64);
@@ -265,6 +264,75 @@ describe("what a public page holds", () => {
       '<pre><code class="language-mermaid">graph LR; X--&gt;Y</code></pre>',
     );
     expect(out.links).not.toContain("<svg");
+  });
+
+  it("writes a drawn diagram as its light and dark images, else its source (#525)", () => {
+    const drawn =
+      '<div class="diagram" role="img" data-source="graph LR; X--&gt;Y"><svg><g><text>X</text></g></svg></div>';
+    const html = article(
+      head("D", "Note", [], false),
+      `<div class="body md" dir="auto">${drawn}${markdown("```mermaid\ngraph TD; A-->B\n```\n\n```mermaid\nnot one\n```")}</div>`,
+    );
+    const { root, swaps } = view(html);
+    const found = diagramsOf(root);
+    expect(found).toEqual(["graph LR; X-->Y", "graph TD; A-->B\n", "not one\n"]);
+    // the first and second drawn (publicpages.ts), the third not: its source
+    const diagrams = new Map([
+      [found[0], { key: 1, words: "X, Y" }],
+      [found[1], { key: 2, words: "" }],
+    ]);
+    const h = publishHtml(root, ctx({ diagrams }), swaps);
+    expect(check(h, LIVE, ["scrap.example"])).toEqual([]);
+    const fig = (k: number, alt: string) =>
+      `<figure class="diagram"><img class="light" src="scrap-diagram:${k}-light" alt="${alt}"><img class="dark" src="scrap-diagram:${k}-dark" alt="${alt}"></figure>`;
+    expect(h).toContain(fig(1, "Diagram: X, Y") + fig(2, "Diagram"));
+    expect(h).toContain('<pre><code class="language-mermaid">not one\n</code></pre>');
+    expect(h).not.toMatch(/<svg|X--&gt;Y|A--&gt;B/);
+  });
+
+  it("leaves /api/ paths in code blocks and Mermaid as written, not scrap's own addresses (#529)", () => {
+    const text = [
+      "Text: /api/captures/ goes.",
+      "",
+      "```mermaid",
+      "flowchart LR",
+      "  API[/api/captures/] --> B[http://scrap.example/p/x]",
+      "```",
+      "",
+      "```sh",
+      "curl -X POST /api/captures/ https://elsewhere.example/api/x",
+      "curl http://scrap.example/api/pages/x /API/blobs/abc",
+      "```",
+    ].join("\n");
+    const drawn = `<div class="diagram" role="img" data-source="${"flowchart LR\n  API[/api/captures/]".replace(/"/g, "&quot;")}"><svg></svg></div>`;
+    const html = article(
+      head("C", "Note", [], false),
+      `<div class="body md" dir="auto">${markdown(text)}${drawn}</div>`,
+    );
+    const { root, swaps } = view(html);
+    const h = publishHtml(root, ctx({}), swaps);
+    expect(check(h, LIVE, ["scrap.example"])).toEqual([]);
+    // the Mermaid fence, not drawn, and the drawn one's source
+    expect(h).toContain(
+      '<pre><code class="language-mermaid">flowchart LR\n  API[/api/captures/] --&gt; B[a private link]\n</code></pre>',
+    );
+    expect(h).toContain(
+      '<pre><code class="language-mermaid">flowchart LR\n  API[/api/captures/]</code></pre>',
+    );
+    // a code fence: its /api/ paths as written, scrap's own addresses and files hidden
+    expect(h).toContain(
+      "curl -X POST /api/captures/ https://elsewhere.example/api/x\ncurl a private link a private link\n",
+    );
+    // outside code, as before
+    expect(h).toContain("Text: a private link goes.");
+  });
+
+  it("hides scrap's own address in a long word in linear time", () => {
+    const { codeText } = mod;
+    const start = performance.now();
+    expect(codeText("z".repeat(400_000), ORIGINS)).toHaveLength(400_000);
+    expect(performance.now() - start).toBeLessThan(2000); // was quadratic: minutes
+    expect(codeText("see http://scrap.example/p/x]", ORIGINS)).toBe("see a private link]");
   });
 
   it("writes maths as KaTeX's markup, and a formula it can't draw as its TeX", () => {

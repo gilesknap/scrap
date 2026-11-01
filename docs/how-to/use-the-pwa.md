@@ -590,8 +590,8 @@ Make public and Settings' Public pages are not shown.
   on another device), those pages keep the old link or title until **Refresh**.
 
 What a public page holds: the page as it shows here, with its maths, tables and Claude's summary
-and write-up; tags as links to the site's tag pages; Mermaid diagrams as their source; photos as
-2048 pixel previews (no location), a photo's drawing beside it (with Photo and Drawing tabs,
+and write-up; tags as links to the site's tag pages; Mermaid diagrams drawn as here, light or
+dark by the reader's theme; photos as 2048 pixel previews (no location), a photo's drawing beside it (with Photo and Drawing tabs,
 and Open in Excalidraw and Download links), and other attached files. A link to a public page is a link
 (a bare `[[slug]]` shows its title); a link to a private page is its words (a bare one, the private
 page's title). Claude's Related and Linked from keep only public pages. An address of scrap

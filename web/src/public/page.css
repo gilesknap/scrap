@@ -371,6 +371,24 @@ figure.drawing img {
   align-items: center;
   min-height: var(--tap);
 }
+/* A Mermaid diagram (#525), drawn when published in both themes, as the app's .md .diagram
+   (css/page.css): centred and scaled down to the column. The light one unless the page is
+   dark, as tokens.css's themes: no script; on paper always the light one */
+figure.diagram {
+  margin: var(--s-3) 0;
+  overflow-x: auto;
+  text-align: center;
+}
+figure.diagram img {
+  border-radius: 0;
+}
+figure.diagram img.dark,
+[data-theme="dark"] figure.diagram img.light {
+  display: none;
+}
+[data-theme="dark"] figure.diagram img.dark {
+  display: inline;
+}
 /* The page's files, a row each */
 .filerow {
   margin: var(--s-2) 0;
@@ -595,6 +613,12 @@ body.site h2.site-search-label {
   .table :is(th, td) {
     min-width: 0;
     overflow-wrap: anywhere;
+  }
+  [data-theme] figure.diagram img.light {
+    display: inline;
+  }
+  [data-theme] figure.diagram img.dark {
+    display: none;
   }
   /* on paper, both the photo and its drawing */
   .pair .tabs {
