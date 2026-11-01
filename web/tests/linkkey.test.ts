@@ -3,7 +3,7 @@ import { opened, picked, unpicked } from "../src/linkkey";
 import type { Change } from "../src/listedit";
 
 /** The text after a change, with | at the caret (or «..» around a selection). */
-function after(text: string, c: Change) {
+function shown(text: string, c: Change) {
   const t = text.slice(0, c.from) + c.insert + text.slice(c.to);
   return c.start === c.end
     ? `${t.slice(0, c.start)}|${t.slice(c.start)}`
@@ -19,17 +19,17 @@ function press(s: string, slug: string | null) {
   const { change, spot } = opened(text, start, end);
   const now = change ? text.slice(0, change.from) + change.insert + text.slice(change.to) : text;
   if (slug === null) {
-    const [from, to] = unpicked(spot);
-    return after(now, { from: 0, to: 0, insert: "", start: from, end: to });
+    const [from, to] = unpicked(now, spot);
+    return shown(now, { from: 0, to: 0, insert: "", start: from, end: to });
   }
   const c = picked(now, spot, slug);
-  return c ? after(now, c) : null;
+  return c ? shown(now, c) : null;
 }
 
 describe("the Link key", () => {
   it("puts [[]] at the caret, the caret between the brackets", () => {
     const { change } = opened("see ", 4, 4);
-    expect(change && after("see ", change)).toBe("see [[|]]");
+    expect(change && shown("see ", change)).toBe("see [[|]]");
   });
 
   it("a page picked goes between the brackets, the caret after ]]", () => {
@@ -56,6 +56,26 @@ describe("the Link key", () => {
 
   it("a selection of white space alone is no label: [[]] in its place", () => {
     expect(press("a«  »b", "x")).toBe("a[[x]]|b");
+  });
+
+  it("in a table's cell, the words after an escaped bar", () => {
+    const row = "| a | see this |";
+    const c = picked(row, opened(row, 6, 14).spot, "x");
+    expect(c && row.slice(0, c.from) + c.insert + row.slice(c.to)).toBe("| a | [[x\\|see this]] |");
+    // not on a line that isn't a table's
+    const line = "see this";
+    expect(picked(line, opened(line, 0, 8).spot, "x")?.insert).toBe("[[x|see this]]");
+  });
+
+  it("finds the spot again when the text before it shifted a little", () => {
+    const { spot } = opened("teh [[]]", 4, 4);
+    // the keyboard's autocorrect committed as focus left: two letters longer before it
+    const c = picked("thereby [[]]", { at: 4 }, "x");
+    expect(c && shown("thereby [[]]", c)).toBe("thereby [[x]]|");
+    expect(unpicked("the [[]]", spot)).toEqual([6, 6]);
+    const sel = opened("hte plan", 4, 8).spot;
+    const d = picked("the plan", sel, "x");
+    expect(d && shown("the plan", d)).toBe("the [[x|plan]]|");
   });
 
   it("puts nothing in if the text moved on from the spot", () => {

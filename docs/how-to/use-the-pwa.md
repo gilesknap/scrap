@@ -657,7 +657,7 @@ write-up) reaches it at the page's next save here, or with **Settings**, **Publi
   box over the pages changed most recently, and as you type, the pages that match. Tap one (or
   press Enter for the first) and its slug goes between the brackets, `[[slug]]`, with the caret
   after it; the link shows the page's title. With words selected, they become the link's words,
-  `[[slug|words]]`. Back, a tap outside the picker or its ✕ closes it with nothing picked: the
+  `[[slug|words]]` (in a table's cell, `[[slug\|words]]`). Back, a tap outside the picker or its ✕ closes it with nothing picked: the
   `[[]]` stays with the caret inside, to type a slug or delete (a selection stays as it was).
   **Undo** takes back the page picked, then the brackets. Not in a code block.
 - **Undo.** The last key, **Undo**, takes back the last change to the text (typing or one of the

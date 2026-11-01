@@ -9,7 +9,7 @@ import { type Change, edit, inCode } from "./listedit";
 
 /** Where a link goes once a page is picked: the brackets put in at start (no selection), or
  * the selection from..to, whose words become its label. */
-export type Spot = { at: number } | { from: number; to: number; words: string };
+export type Spot = { at: number } | { from: number; to: number; raw: string; words: string };
 
 /** The Link key at start..end: with nothing selected, [[]] put in with the caret between the
  * brackets; with a selection, nothing changes yet (it stays selected while the picker is
@@ -20,7 +20,8 @@ export function opened(
   end: number,
 ): { change: Change | null; spot: Spot } {
   const words = label(text.slice(start, end));
-  if (start !== end && words) return { change: null, spot: { from: start, to: end, words } };
+  if (start !== end && words)
+    return { change: null, spot: { from: start, to: end, raw: text.slice(start, end), words } };
   return {
     change: { from: start, to: end, insert: "[[]]", start: start + 2, end: start + 2 },
     spot: { at: start },
@@ -30,53 +31,96 @@ export function opened(
 /** A selection as a link's words, on one line, with no bracket (they would end the link). */
 const label = (s: string) => s.replace(/[[\]]/g, "").replace(/\s+/g, " ").trim();
 
+/** Where needle is in text: at at, or else the nearest place within a line's length of it
+ * (the text before it shifted a little: a phone's keyboard committing a word as focus left
+ * the box), or -1. */
+function near(text: string, needle: string, at: number): number {
+  if (text.startsWith(needle, at)) return at;
+  let best = -1;
+  for (let i = text.indexOf(needle, Math.max(0, at - 80)); i >= 0 && i <= at + 80; ) {
+    if (best < 0 || Math.abs(i - at) < Math.abs(best - at)) best = i;
+    i = text.indexOf(needle, i + 1);
+  }
+  return best;
+}
+
+/** Whether position at is on a table's row (a line starting with |), where a bare | would
+ * end the cell. */
+const inTable = (text: string, at: number) =>
+  /^[ \t]*\|/.test(text.slice(text.lastIndexOf("\n", at - 1) + 1));
+
 /** A page picked: its slug between the brackets, [[slug]], or the selection as the link's
- * words, [[slug|words]] (white space at either end of the selection kept outside it); the
- * caret after the closing ]]. null if the text has moved on from the spot (the brackets
- * gone), so nothing is put in the wrong place. */
+ * words, [[slug|words]] (white space at either end of the selection kept outside it; in a
+ * table's cell, [[slug\|words]]); the caret after the closing ]]. null if the text has moved
+ * on from the spot (the brackets or the words gone), so nothing is put in the wrong place. */
 export function picked(text: string, spot: Spot, slug: string): Change | null {
   if ("at" in spot) {
-    if (text.slice(spot.at, spot.at + 4) !== "[[]]") return null;
-    const at = spot.at + 2;
+    const found = near(text, "[[]]", spot.at);
+    if (found < 0) return null;
+    const at = found + 2;
     const caret = at + slug.length + 2;
     return { from: at, to: at, insert: slug, start: caret, end: caret };
   }
-  const was = text.slice(spot.from, spot.to);
-  if (label(was) !== spot.words) return null;
+  const from = near(text, spot.raw, spot.from);
+  if (from < 0) return null;
+  const was = spot.raw;
   const lead = /^\s*/.exec(was)?.[0] ?? "";
   const trail = /\s*$/.exec(was)?.[0] ?? "";
-  const link = `[[${slug}|${spot.words}]]`;
-  const caret = spot.from + lead.length + link.length;
+  const bar = inTable(text, from) ? "\\|" : "|";
+  const link = `[[${slug}${bar}${spot.words}]]`;
+  const caret = from + lead.length + link.length;
   return {
-    from: spot.from,
-    to: spot.to,
+    from,
+    to: from + was.length,
     insert: lead + link + trail,
     start: caret,
     end: caret,
   };
 }
 
-/** Cancelled: the caret back where the picker left it, between the brackets, or the
- * selection as it was. */
-export const unpicked = (spot: Spot): [number, number] =>
-  "at" in spot ? [spot.at + 2, spot.at + 2] : [spot.from, spot.to];
+/** Cancelled: the caret back between the brackets, or the selection as it was (where they
+ * are now, should the text before them have shifted). */
+export function unpicked(text: string, spot: Spot): [number, number] {
+  if ("at" in spot) {
+    const at = near(text, "[[]]", spot.at);
+    return at < 0 ? [spot.at + 2, spot.at + 2] : [at + 2, at + 2];
+  }
+  const from = near(text, spot.raw, spot.from);
+  return from < 0 ? [spot.from, spot.to] : [from, from + spot.raw.length];
+}
+
+let busy = false; // a press's picker loading or open: a second press (a double tap) does nothing
 
 /** The Link key's press in the text box t: [[]] in (or the selection held), then the picker;
  * focus is back in the box when it closes, the caret placed. Not in a code block, where
  * [[...]] is only text: there it does nothing, as the list keys. */
 export async function link(t: HTMLTextAreaElement) {
+  if (busy) return;
   t.focus();
   if (inCode(t.value, t.selectionStart)) return;
-  const { change, spot } = opened(t.value, t.selectionStart, t.selectionEnd);
-  if (change) edit(t, change);
-  let slug: string | null = null;
+  busy = true;
   try {
-    slug = await (await import("./linkpick")).pick();
-  } catch {
-    // The picker couldn't load (offline, before it was ever kept): the brackets stay, for a slug
+    const { change, spot } = opened(t.value, t.selectionStart, t.selectionEnd);
+    if (change) edit(t, change);
+    let slug: string | null = null;
+    try {
+      const { pick } = await import("./linkpick");
+      // The editor closed while it loaded (Back): nothing to link in
+      if (t.isConnected) slug = await pick();
+    } catch {
+      // The picker couldn't load (offline, before it was ever kept): the brackets stay
+    }
+    if (t.isConnected) placed(t, spot, slug);
+  } finally {
+    busy = false;
   }
+}
+
+/** The picker closed: the slug put in (if one was picked and its spot is still there), else
+ * the caret back between the brackets or the selection as it was. */
+function placed(t: HTMLTextAreaElement, spot: Spot, slug: string | null) {
   t.focus();
   const c = slug ? picked(t.value, spot, slug) : null;
   if (c) edit(t, c);
-  else t.setSelectionRange(...unpicked(spot));
+  else t.setSelectionRange(...unpicked(t.value, spot));
 }

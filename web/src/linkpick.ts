@@ -19,8 +19,11 @@ type Row = Pick<Summary, "slug" | "title" | "kind">;
 
 /** Pick a page: resolves its slug, or null when closed without one. */
 export function pick(): Promise<string | null> {
+  // A text box in the search role, not type=search: Escape in a search box with text only
+  // clears it, and the picker should close at the first
   const box = h("input", {
-    type: "search",
+    type: "text",
+    role: "searchbox",
     placeholder: "Find a page",
     "aria-label": "Find a page",
     autocomplete: "off",
@@ -31,7 +34,7 @@ export function pick(): Promise<string | null> {
     { type: "button", className: "ghost close", "aria-label": "Close" },
     icon("close"),
   );
-  const label = h("h2", { className: "label", id: "linkpick-h" }, "Recent");
+  const label = h("h2", { className: "label" }, "Recent");
   const list = h("ul", { className: "rows", role: "list" });
   const note = h("p", { className: "note", role: "status" });
   const d = h(
@@ -50,7 +53,10 @@ export function pick(): Promise<string | null> {
   // The page being edited is no link of its own
   const here = /^\/p\/([^/]+)/.exec(location.pathname)?.[1];
   let rows: Row[] = [];
-  const draw = (got: Row[], heading: string, empty: string) => {
+  let shown: string | null = null; // the query the rows are for
+  const draw = (got: Row[], q: string, empty: string) => {
+    shown = q;
+    const heading = q ? "Matching" : "Recent";
     rows = got.filter((p) => p.slug !== here).slice(0, SHOWN);
     label.textContent = heading;
     note.textContent = rows.length ? "" : empty;
@@ -76,8 +82,7 @@ export function pick(): Promise<string | null> {
   const find = async () => {
     ask?.abort();
     const q = box.value.trim();
-    if (!navigator.onLine)
-      return draw([], q ? "Matching" : "Recent", "Offline: pages can't be found now.");
+    if (!navigator.onLine) return draw([], q, "Offline: pages can't be found now.");
     const mine = new AbortController();
     ask = mine;
     try {
@@ -86,21 +91,25 @@ export function pick(): Promise<string | null> {
             signal: mine.signal,
           })
         : await api<Summary[]>(`pages?limit=${SHOWN + 1}`, { signal: mine.signal });
-      if (ask === mine)
-        draw(got, q ? "Matching" : "Recent", q ? "No page matches." : "No pages yet.");
+      if (ask === mine) draw(got, q, q ? "No page matches." : "No pages yet.");
     } catch {
-      if (ask === mine) draw([], q ? "Matching" : "Recent", "Pages couldn't be found now.");
+      if (ask === mine) draw([], q, "Pages couldn't be found now.");
     }
   };
   box.addEventListener("input", () => {
     clearTimeout(timer);
     timer = window.setTimeout(() => void find(), 150);
   });
-  // Enter picks the first page shown
-  box.addEventListener("keydown", (e) => {
-    if (e.key !== "Enter") return;
+  // Enter picks the first page for what is typed: typed faster than the search answers (the
+  // rows still the last query's), it searches now and picks from that
+  box.addEventListener("keydown", async (e) => {
+    if (e.key !== "Enter" || e.isComposing) return;
     e.preventDefault();
-    if (rows[0]) d.close(rows[0].slug);
+    if (shown !== box.value.trim()) {
+      clearTimeout(timer);
+      await find();
+    }
+    if (d.open && shown === box.value.trim() && rows[0]) d.close(rows[0].slug);
   });
   close.onclick = () => d.close();
   // A tap outside the sheet: its backdrop, which is the dialog itself

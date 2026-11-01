@@ -98,13 +98,15 @@ test("a selection becomes the link's words: [[slug|words]], the caret after it",
 test("cancelled (Escape, a tap outside, ✕, Back), the brackets stay with the caret inside", async ({
   page,
 }) => {
-  const { text, link, picker } = await open(page);
+  const { text, link, picker, box } = await open(page);
   await text.focus();
   await page.keyboard.insertText("a b");
   await text.evaluate((t: HTMLTextAreaElement) => t.setSelectionRange(1, 1));
   await link.click();
   await expect(picker).toBeVisible();
-  await page.keyboard.press("Escape"); // a close request, as the phone's Back is
+  await box.pressSequentially("zz");
+  // A close request, as the phone's Back is: one closes it, though its box has text
+  await page.keyboard.press("Escape");
   await closed(page);
   await expect(text).toBeFocused();
   await expect.poll(() => caret(page)).toBe("a[[|]] b");
@@ -113,9 +115,9 @@ test("cancelled (Escape, a tap outside, ✕, Back), the brackets stay with the c
   await text.evaluate((t: HTMLTextAreaElement) => t.setSelectionRange(9, 9));
   await link.click();
   await expect(picker).toBeVisible();
-  const box = await picker.boundingBox();
+  const sheet = await picker.boundingBox();
   const vp = page.viewportSize();
-  expect(box && vp && box.y + box.height < vp.height - 20).toBe(true);
+  expect(sheet && vp && sheet.y + sheet.height < vp.height - 20).toBe(true);
   await page.mouse.click(10, vp ? vp.height - 10 : 600);
   await closed(page);
   await expect.poll(() => caret(page)).toBe("a[[]] b[[|]]");
@@ -212,9 +214,11 @@ for (const scale of [1, 1.3]) {
 test("the open picker fits a 308 px phone at 130% text", async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem("scrap.text_size", "1.3"));
   await page.setViewportSize({ width: 308, height: 640 });
+  await target(page); // a page to list, at least
   const { link, picker } = await open(page);
   await link.click();
   await expect(picker).toBeVisible();
+  await expect(picker.locator(".rows button").first()).toBeVisible(); // the rows in, to measure
   const fit = await picker.evaluate((d) => {
     const r = d.getBoundingClientRect();
     const rows = [...d.querySelectorAll("button")].map((b) => b.getBoundingClientRect());
@@ -225,4 +229,34 @@ test("the open picker fits a 308 px phone at 130% text", async ({ page }) => {
     };
   });
   expect(fit).toEqual({ inside: true, sideways: false, small: 0 });
+});
+
+test("Enter typed faster than the search answers picks the match, not the last list's first", async ({
+  page,
+}) => {
+  const { word, slug } = await target(page);
+  // A newer page, the Recent list's first
+  const other = await capture(page, `Newest other ${ulid().slice(-6)}`);
+  made.push(other.page_id);
+  const { text, link, picker, box } = await open(page);
+  await page.route("**/api/search?*", async (route) => {
+    await new Promise((ok) => setTimeout(ok, 400)); // a slow phone's network
+    await route.continue();
+  });
+  await text.focus();
+  await link.click();
+  await expect(picker.locator(".rows button").first()).toBeVisible(); // Recent drawn
+  await box.fill(word);
+  await box.press("Enter");
+  await closed(page);
+  await expect.poll(() => caret(page)).toBe(`[[${slug}]]|`);
+});
+
+test("a double tap on Link opens one picker and puts in one [[]]", async ({ page }) => {
+  const { text, link, picker } = await open(page);
+  await text.focus();
+  await link.dblclick();
+  await expect(picker).toBeVisible();
+  await expect(page.locator("dialog.linkpick")).toHaveCount(1);
+  await expect(text).toHaveValue("[[]]");
 });
