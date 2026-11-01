@@ -21,6 +21,7 @@ from ..runs import failed, record, start_run
 from ..store import Store, now, queue_topic, roles, topics, transaction
 from .checking import checked_topics
 from .constants import DISCOVERY_SCHEMA, TOPIC_DUE, TOPIC_INDEX
+from .finding import candidate
 from .relating import run_pass
 from .topic_prompts import discovery_message, discovery_prompt, topic_prompt
 from .types import Call
@@ -41,16 +42,7 @@ def page_index(conn: sqlite3.Connection) -> list[dict[str, Any]]:
         " ORDER BY p.updated_at DESC, p.id LIMIT ?) ORDER BY created_at, id",
         (TOPIC_INDEX,),
     ).fetchall()
-    out = []
-    for r in rows:
-        human = json.loads(r["fields"]).get("summary")
-        out.append({
-            "id": r["id"],
-            "title": r["title"],
-            "tags": r["tags"].split("\x1f") if r["tags"] else [],
-            "summary": human if isinstance(human, str) else r["summary"],
-        })  # fmt: skip
-    return out
+    return [candidate(r) for r in rows]
 
 
 def discover(

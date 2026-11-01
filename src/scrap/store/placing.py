@@ -138,11 +138,6 @@ def _unbalanced(text: str) -> bool:
     return text.count("`") % 2 == 1 or re.sub(r"\\.", "", text).count("$") % 2 == 1
 
 
-def _indent(line: str) -> int:
-    expanded = line.expandtabs(TAB)
-    return len(expanded) - len(expanded.lstrip())
-
-
 def _relazy(lines: list[str], last: int, spot: Spot) -> None:
     """Re-indent (or re-quote) the lazy lines of the paragraph after line last, so
     they stay in its list item or quote once the paragraph is split there."""

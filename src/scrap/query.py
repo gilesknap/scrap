@@ -97,10 +97,6 @@ class Query:
     def positive(self) -> list[Term]:
         return [t for t in self.terms if not t.neg]
 
-    @property
-    def negative(self) -> list[Term]:
-        return [t for t in self.terms if t.neg]
-
     def fts(self, term: Term) -> str:
         """A term as an FTS5 string: a word as a prefix (what is typed so far, or the
         start of a longer word: vsc finds vscode), wherever it stands in the query; a
