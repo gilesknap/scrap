@@ -132,6 +132,8 @@ export async function drawingsFor(root: HTMLElement): Promise<{ key: string; svg
 
 /** At most this many images, drawings and files go with a page (scrap's cap, files.py). */
 const MAX_FILES = 20;
+/** A diagram's SVG at most this big, in either theme (scrap's, publish/diagrams.py). */
+const MAX_DIAGRAM = 2 * 2 ** 20;
 /** The view's Mermaid diagrams drawn as public pages show them (#525), light and dark, each by
  * its key, and each source's key and words: Mermaid's chunk is loaded only for a page that has
  * one. One that cannot be drawn so is left out (the page shows its source). */
@@ -152,6 +154,9 @@ export async function diagramsFor(root: HTMLElement): Promise<{
       const text = codeText(source, origins());
       const light = await mod.svgFor(text, "light");
       const dark = await mod.svgFor(text, "dark");
+      // scrap takes one of at most 2 MiB (publish/diagrams.py); a bigger one goes out as source
+      if (new Blob([light]).size > MAX_DIAGRAM || new Blob([dark]).size > MAX_DIAGRAM)
+        throw new Error("it is over 2 MiB");
       diagrams.push({ key: String(i + 1), light, dark });
       keys.set(source, { key: i + 1, words: mod.wordsOf(light) });
     } catch (err) {

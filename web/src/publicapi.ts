@@ -19,10 +19,6 @@ export const setPublic = (key: string, on: boolean) =>
     body: JSON.stringify({ public: on }),
   });
 
-/** Publish the page's HTML, rendered from revision base_rev. defer: push the page alone, not
- * the home page, tag pages or search (Refresh all, then rebuild() once). confirmed: the owner
- * has just said yes to it going public (Make public's warning, Refresh all's question), which
- * scrap needs for a page not published before (else 409 unconfirmed). */
 /** A Mermaid diagram as a public page shows it (#525): its key (scrap-diagram:<key>-light and
  * -dark in the page) and its two SVGs. */
 export interface Diagram {
@@ -30,6 +26,11 @@ export interface Diagram {
   light: string;
   dark: string;
 }
+
+/** Publish the page's HTML, rendered from revision base_rev. defer: push the page alone, not
+ * the home page, tag pages or search (Refresh all, then rebuild() once). confirmed: the owner
+ * has just said yes to it going public (Make public's warning, Refresh all's question), which
+ * scrap needs for a page not published before (else 409 unconfirmed). */
 
 export const publishPage = (
   key: string,

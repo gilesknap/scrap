@@ -63,7 +63,7 @@ class Kept:
             return b""
         try:
             return (self._dir(slug) / name).read_bytes()
-        except OSError:
+        except (OSError, ValueError):  # (a NUL in the name)
             return b""
 
     def html(self, slug: str) -> bytes:

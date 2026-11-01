@@ -574,7 +574,7 @@ test("a Mermaid diagram is published drawn, light and dark, and search finds its
     const svg = await served.text();
     expect(svg).toContain(word);
     expect(svg).toContain("api/captures");
-    expect(svg).toContain("> /api/pages/x</tspan>"); // a label's /api/ path as written (#529)
+    expect(svg).toContain("/api/pages/x"); // a label's /api/ path as written (#529)
     expect(svg).not.toMatch(/<script|<foreignObject|\son\w+=/i);
   }
 

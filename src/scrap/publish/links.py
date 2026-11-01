@@ -3,6 +3,7 @@ scrap accepts"): matched in full (re.fullmatch) after entity decoding, which the
 has done. Anything not listed is refused: a relative /api/..., //..., /\\...,
 javascript:, data: and the rest."""
 
+import functools
 import re
 from urllib.parse import unquote, urlsplit
 
@@ -109,15 +110,21 @@ _API = (
 
 
 def _privates(code: bool = False) -> re.Pattern[str]:
+    """The pattern for scrap's hosts now (see _compiled)."""
+    return _compiled(own_hosts(), code)
+
+
+@functools.lru_cache(maxsize=8)
+def _compiled(own: frozenset[str], code: bool) -> re.Pattern[str]:
     """Addresses of scrap's own (its hosts, with or without a scheme, port or path)
     and of /api/, as text: publish.ts's privates(), for text scrap writes itself (a
     drawing's, #520); in code (a diagram's, #525 and #529), only its hosts' and
     /api/blobs/ (what private_text finds): an /api/ path there is the text's own."""
     hosts = [
         _ZW.join("[.\u3002\uff0e\uff61]" if c == "." else re.escape(c) for c in host)
-        for host in sorted(own_hosts())
+        for host in sorted(own)
     ]
-    own = (
+    found = (
         rf"(?:(?<![a-z0-9+.-])[a-z][a-z0-9+.-]*://)?(?<![\w.-])(?:{'|'.join(hosts)})"
         rf"(?![\w-]|\.[\w-])\.?(?::\d+)?(?:[/?#]{_TAIL})?|"
         if hosts
@@ -125,8 +132,8 @@ def _privates(code: bool = False) -> re.Pattern[str]:
     )
     api = rf"/api/blobs/(?:{_TAIL})?" if code else _API
     if code:  # nor a square bracket: Mermaid's B[address] keeps its bracket
-        own, api = (x.replace(_TAIL, _CODE_TAIL) for x in (own, api))
-    return re.compile(own + api, re.IGNORECASE | re.ASCII)
+        found, api = (x.replace(_TAIL, _CODE_TAIL) for x in (found, api))
+    return re.compile(found + api, re.IGNORECASE | re.ASCII)
 
 
 def scrub_text(text: str) -> str:
