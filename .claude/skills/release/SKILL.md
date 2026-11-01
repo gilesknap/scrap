@@ -7,7 +7,9 @@ description: "Release scrap and deploy it to the owner's cluster: tag, wait for 
 
 You orchestrate; subagents do the work. How a tag publishes is in
 `.github/CONTRIBUTING.md` ("Making a release"); the chart is described in
-`docs/how-to/deploy-kubernetes.md`.
+`docs/how-to/deploy-kubernetes.md`. The changes being released go through the
+`scrap-pr` skill (with the user `pr-cycle` skill) first; this skill starts once they
+are merged.
 
 ## 0. Ground rules
 

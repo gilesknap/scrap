@@ -1,11 +1,16 @@
 # Work on scrap with Claude
 
 How changes to scrap are designed, built and shipped with Claude, in two sessions. The
-details Claude follows are in the repo's skills: `.claude/skills/pr-cycle/` (the cycle),
-`.claude/skills/sim/` (the design sim) and `.claude/skills/release/` (releasing). Claude
-Code loads them in any session started in this repo.
+process is the owner's general `pr-cycle` user skill (`~/.claude/skills/pr-cycle/`); the
+details for scrap are in the repo's skills: `.claude/skills/scrap-pr/` (scrap's checks,
+phone, sim and handoff, used alongside `pr-cycle`), `.claude/skills/sim/` (the design sim)
+and `.claude/skills/release/` (releasing). Claude Code loads the repo's skills in any
+session started in this repo.
 
 ## The two sessions
+
+Most changes now start and end in the workstation session; the design session and its
+handoff are for when you design away from the workstation.
 
 **The design session** is a Claude session in the cloud (few cores). It works out what to
 build with you:
@@ -24,7 +29,7 @@ build with you:
 4. It gives you one line to paste into the other session:
 
    ```text
-   Run pr-cycle (workstation) for handoff issue #N, branch design/<name>.
+   Run scrap-pr (workstation) for handoff issue #N, branch design/<name>.
    ```
 
 Changes you ask for after the handoff go on the same branch, each added to the issue as a

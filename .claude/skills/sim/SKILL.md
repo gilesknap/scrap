@@ -6,7 +6,7 @@ description: "Build, check and publish scrap's design sim (the real PWA on a fak
 # The design sim
 
 The mechanics are in `sim/README.md`: read it before building. This is when and
-how to use it in a design session (`.claude/skills/pr-cycle/`, Part A).
+how to use it in a design session (`.claude/skills/scrap-pr/`, "Two sessions").
 
 ## Show designs in the sim
 

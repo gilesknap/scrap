@@ -2,6 +2,10 @@
 
 Notes for Claude Code working in this repo. See `.github/CONTRIBUTING.md` for setup, checks, PRs and releases.
 
+## Pull requests
+
+- For any PR, use the `scrap-pr` skill (`.claude/skills/scrap-pr/`) alongside the general `pr-cycle` user skill: `pr-cycle` is the process, `scrap-pr` adds scrap's checks and specifics and wins where they differ.
+
 ## Keep modules small
 
 - Aim for modules of a few hundred lines. Past about 500, split by responsibility before adding more.

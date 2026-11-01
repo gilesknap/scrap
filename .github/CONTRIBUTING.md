@@ -115,7 +115,7 @@ folder and token, and `web/e2e/site.py` serves the site as nginx would on the po
 bases at least 1 apart and within 100 of each other (8801, 8802, ...), so no port is shared.
 The specs share one server and one data folder, so they run on one worker. CI splits them across
 six runners (`--shard=N/6`), each with its own server and data. To go faster locally, run shards
-side by side, each on its own port: `SCRAP_E2E_PORT=8801 npm run e2e -- --shard=1/4`, and so on.
+side by side, each on its own port: `SCRAP_E2E_PORT=8791 npm run e2e -- --shard=1/6`, and so on.
 
 ## Tests and coverage
 
@@ -178,6 +178,9 @@ Fill in the pull request template:
 - Start with `Fixes #ISSUE`, linking the issue.
 - Give the reviewer steps to test it.
 - Write a title that would make sense to a user in a list of release notes.
+
+Claude follows the `scrap-pr` skill (`.claude/skills/scrap-pr/`) for any pull request here,
+alongside the owner's general `pr-cycle` user skill; see `docs/how-to/work-with-claude.md`.
 
 CI must pass:
 
