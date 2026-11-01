@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Capture from your phone (the PWA) &#8212; scrap 1.2.2.dev9+gc06939760 documentation</title>
+    <title>Capture from your phone (the PWA) &#8212; scrap 1.2.2.dev10+g081165c38 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=a5a93284"></script>
+    <script src="../_static/documentation_options.js?v=96a8c3de"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -1665,11 +1665,19 @@ On a computer <strong>Add files</strong> (photos and files in one pick) takes th
 The three stay on one line; on a narrow phone at a large text size each has its icon over its
 word.</p></li>
 <li><p><strong>Lists.</strong> Enter on a bullet (<code class="docutils literal notranslate"><span class="pre">-</span> </code>), numbered (<code class="docutils literal notranslate"><span class="pre">1.</span> </code>) or task (<code class="docutils literal notranslate"><span class="pre">-</span> <span class="pre">[</span> <span class="pre">]</span> </code>) line starts the next
-item; Enter on an empty item ends the list. Above the keyboard are six keys: five act on the
+item; Enter on an empty item ends the list. Above the keyboard are seven keys: five act on the
 line or selection, <strong>Task</strong>, <strong>Bullet</strong>, <strong>Number</strong> (each a plain line again if all are already),
 <strong>Indent</strong> and <strong>Outdent</strong> (renumbering numbered items). In a code block only Indent and Outdent
-work (two spaces). The sixth is <strong>Undo</strong> (below). On a narrow phone the keys show their icons
-alone.</p></li>
+work (two spaces). The sixth is <strong>Link</strong> (below), the seventh <strong>Undo</strong> (below). On a phone the
+keys show their icons alone (their words from about 413 px wide, more at a larger text size).</p></li>
+<li><p><strong>Link.</strong> The <strong>Link</strong> key (a chain) puts <code class="docutils literal notranslate"><span class="pre">[[]]</span></code> at the caret and opens a page picker: a search
+box over the pages changed most recently, and as you type, the pages that match. Tap one (or,
+once you’ve typed, press Enter for the first) and its slug goes between the brackets,
+<code class="docutils literal notranslate"><span class="pre">[[slug]]</span></code>, with the caret after it; the link shows the page’s title. With words selected, they
+become the link’s words, <code class="docutils literal notranslate"><span class="pre">[[slug|words]]</span></code> (in a table’s cell, <code class="docutils literal notranslate"><span class="pre">[[slug\|words]]</span></code>). Back, a tap
+outside the picker or its ✕ closes it with nothing picked: the <code class="docutils literal notranslate"><span class="pre">[[]]</span></code> stays with the caret
+inside, to type a slug, delete, or press <strong>Link</strong> again (a selection stays as it was). <strong>Undo</strong>
+takes back the page picked, then the brackets. Not in a code block.</p></li>
 <li><p><strong>Undo.</strong> The last key, <strong>Undo</strong>, takes back the last change to the text (typing or one of the
 keys), and again for the one before, in order (most Android keyboards have no undo of their
 own). It is greyed out until there is something to take back. It stops when the text is back to
