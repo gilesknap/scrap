@@ -1,16 +1,24 @@
 // Deleting an image's line in the editor: Save warns, naming the image, before it goes.
 import { expect, type Page, test } from "@playwright/test";
-import { ulid } from "./helpers";
+import { deletedAfterEach, ulid } from "./helpers";
 
+const made = deletedAfterEach();
+
+/** A page of one photo, of this many bytes: fresh ones (a ulid first), so a repeat of the
+ * spec gets a blob no earlier page has shown. */
 async function photoPage(page: Page, text: string, bytes: number) {
+  const buffer = Buffer.alloc(bytes, 7);
+  buffer.write(ulid());
   const r = await page.request.post("/api/captures", {
     multipart: {
       id: ulid(),
       text,
-      file: { name: "whiteboard.png", mimeType: "image/png", buffer: Buffer.alloc(bytes, 7) },
+      file: { name: "whiteboard.png", mimeType: "image/png", buffer },
     },
   });
-  return (await r.json()) as { page_id: string; slug: string };
+  const ref = (await r.json()) as { page_id: string; slug: string };
+  made.push(ref.page_id);
+  return ref;
 }
 
 // The dialog's message, or null if Save asked nothing; answer: accept it or not

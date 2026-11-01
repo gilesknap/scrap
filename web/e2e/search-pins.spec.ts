@@ -14,7 +14,7 @@ async function pinned(page: Page): Promise<string> {
 }
 
 /** Put the Pinned page back as it was (empty), so other specs see no launcher. */
-async function reset(page: Page) {
+async function reset(page: Pick<Page, "request">) {
   const r = await page.request.get("/api/pages/pinned");
   if (!r.ok()) return;
   const p = (await r.json()) as { id: string; rev: number };
@@ -32,7 +32,9 @@ test.beforeAll(async ({ request }) => {
 
 test.afterAll(async ({ request }) => {
   await deletePages(request, mine);
-  // The Pinned page too (to the trash: other specs count the pages in the store)
+  // The Pinned page too (to the trash: other specs count the pages in the store), emptied
+  // first: the next first pin brings it back from the trash with the links it had
+  await reset({ request } as Page);
   const r = await request.get("/api/pages/pinned");
   if (r.ok()) await request.delete(`/api/pages/${((await r.json()) as { id: string }).id}`);
 });

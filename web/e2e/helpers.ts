@@ -24,7 +24,7 @@ export async function capture(page: Page, text: string, extra: Record<string, un
   return (await r.json()) as { page_id: string; slug: string };
 }
 
-/** Delete these pages (by id, to the trash), in order, and empty the list. */
+/** Delete these pages (by id or slug, to the trash), in order, and empty the list. */
 export async function deletePages(request: APIRequestContext, ids: string[]) {
   for (const id of ids.splice(0)) await request.delete(`/api/pages/${id}`);
 }

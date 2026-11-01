@@ -3,9 +3,22 @@
 import { execFileSync } from "node:child_process";
 import { expect, type Page, test } from "@playwright/test";
 import { lowContrast } from "./contrast";
-import { capture, png, ulid } from "./helpers";
+import { capture, deletedAfterEach, png, ulid } from "./helpers";
 
-const note = async (page: Page, text: string) => (await capture(page, text)).slug;
+/** Pages deleted after each test: note's, and those a test captures itself and pushes. */
+const made = deletedAfterEach();
+const note = async (page: Page, text: string) => {
+  const ref = await capture(page, text);
+  made.push(ref.page_id);
+  return ref.slug;
+};
+type Multipart = NonNullable<Parameters<Page["request"]["post"]>[1]>["multipart"];
+/** Capture this multipart form (files and all): its answer, the page deleted after the test. */
+const posted = async (page: Page, multipart: Multipart) => {
+  const ref = await (await page.request.post("/api/captures", { multipart })).json();
+  made.push(ref.page_id);
+  return ref;
+};
 
 test("Save and Cancel stay on screen while editing; Ctrl+Enter saves", async ({ page }) => {
   const slug = await note(page, "Edit me\nfirst body");
@@ -33,8 +46,10 @@ test("a page and its photos download", async ({ page }) => {
     page.waitForEvent("download"),
     page.getByRole("link", { name: "Download" }).click(),
   ]);
-  expect(md.suggestedFilename()).toBe("plain-note.md");
-  await expect(page.getByText(/^Downloaded plain-note\.md \(1 kB\)/)).toBeVisible();
+  // Named for the page's slug: plain-note, or plain-note-2 once an earlier one has it
+  expect(slug).toMatch(/^plain-note(-\d+)?$/);
+  expect(md.suggestedFilename()).toBe(`${slug}.md`);
+  await expect(page.getByText(new RegExp(`^Downloaded ${slug}\\.md \\(1 kB\\)`))).toBeVisible();
   await page.route("**/download", (r) => r.fulfill({ status: 404, json: { detail: "gone" } }));
   await page.getByRole("link", { name: "Download" }).click();
   await expect(page.getByText("Download failed: gone")).toBeVisible();
@@ -47,12 +62,15 @@ test("a page and its photos download", async ({ page }) => {
       file: { name: "pic.png", mimeType: "image/png", buffer: Buffer.alloc(100, 1) },
     },
   });
-  await page.goto(`/p/${(await r.json()).slug}`);
+  const photo = (await r.json()) as { page_id: string; slug: string };
+  made.push(photo.page_id);
+  expect(photo.slug).toMatch(/^with-a-photo(-\d+)?$/);
+  await page.goto(`/p/${photo.slug}`);
   const [zip] = await Promise.all([
     page.waitForEvent("download"),
     page.locator(".page > .bar").getByRole("link", { name: "Download" }).click(),
   ]);
-  expect(zip.suggestedFilename()).toBe("with-a-photo.zip");
+  expect(zip.suggestedFilename()).toBe(`${photo.slug}.zip`);
   // The photo's own file (no preview of these bytes): a file row with no Download of its own;
   // its link opens the file, and the browser's viewer saves it, as the photo viewer does
   const row = page.locator(".md .orig.filerow");
@@ -77,7 +95,7 @@ test("the photo viewer fits, zooms, pans, pages and closes on Back", async ({ pa
     new Blob([new Uint8Array(png(600, 1200, 200))], { type: "image/png" }),
     "tall.png",
   );
-  const ref = await (await page.request.post("/api/captures", { multipart: form })).json();
+  const ref = await posted(page, form);
   await page.goto(`/p/${ref.slug}`);
   await page.locator("figure.orig img").first().click();
   const dialog = page.getByRole("dialog");
@@ -136,7 +154,7 @@ async function photoPage(page: Page) {
   for (const n of [1, 2]) {
     form.append("file", new Blob([new Uint8Array(png(800, 600, 50 * n))]), `p${n}.png`);
   }
-  return (await (await page.request.post("/api/captures", { multipart: form })).json()).slug;
+  return (await posted(page, form)).slug;
 }
 
 const inside = async (page: Page, el: ReturnType<Page["locator"]>) => {
@@ -354,9 +372,9 @@ test("embedded images are figures: no caption, the viewer names them, Generate a
     new Blob([new Uint8Array(png(200, 300, 160))], { type: "image/png" }),
     "b.png",
   );
-  const made = await (await page.request.post("/api/captures", { multipart: form })).json();
-  unasked(made.page_id);
-  await page.goto(`/p/${made.slug}`);
+  const ref = await posted(page, form);
+  unasked(ref.page_id);
+  await page.goto(`/p/${ref.slug}`);
   const figs = page.locator(".md figure.orig");
   await expect(figs).toHaveCount(2);
   // No caption under them: the name is the image's alt and the viewer's label
@@ -390,13 +408,11 @@ test("embedded images are figures: no caption, the viewer names them, Generate a
 test("an image added by an edit is a figure at once; one in a list or a line stays", async ({
   page,
 }) => {
-  const photo = await page.request.post("/api/captures", {
-    multipart: {
-      id: ulid(),
-      file: { name: "p.png", mimeType: "image/png", buffer: png(40, 30, 99) },
-    },
+  const photo = await posted(page, {
+    id: ulid(),
+    file: { name: "p.png", mimeType: "image/png", buffer: png(40, 30, 99) },
   });
-  const other = await (await page.request.get(`/api/pages/${(await photo.json()).slug}`)).json();
+  const other = await (await page.request.get(`/api/pages/${photo.slug}`)).json();
   const sha = other.captures[0].blobs[0].sha256;
   const slug = await note(page, "Text only");
   await page.goto(`/p/${slug}`);
@@ -426,9 +442,7 @@ test("every photo of the page can be opened, saved and sent, wherever the text p
       `${n}.png`,
     );
   form.append("file", new Blob(["%PDF-1.4"], { type: "application/pdf" }), "doc.pdf");
-  const { page_id, slug } = await (
-    await page.request.post("/api/captures", { multipart: form })
-  ).json();
+  const { page_id, slug } = await posted(page, form);
   unasked(page_id); // not sent to Claude
   const url = `/api/pages/${page_id}`;
   const blobs = (await (await page.request.get(url)).json()).captures[0].blobs;
@@ -464,7 +478,8 @@ test("photos the server can't preview fall back to the file", async ({ page }) =
       file: { name: "x.png", mimeType: "image/png", buffer: Buffer.from("not an image") },
     },
   });
-  const { slug } = await r.json();
+  const { page_id, slug } = await r.json();
+  made.push(page_id);
   await page.goto("/recent");
   await expect(
     page.locator(".list li", { hasText: "Unpreviewable" }).locator(".noimg"),
@@ -516,7 +531,7 @@ test("Share sends a page's link or text, or a photo file, to the share sheet", a
     new Blob([new Uint8Array(png(300, 200, 120))], { type: "image/png" }),
     "pic.png",
   );
-  const { slug } = await (await page.request.post("/api/captures", { multipart: form })).json();
+  const { slug } = await posted(page, form);
   await page.goto(`/p/${slug}`);
   const link = new URL(`/p/${slug}`, page.url()).href;
   await shareAs(".page > .bar", "Text");
@@ -639,7 +654,7 @@ test("without the Popover API, Share sends the content at once", async ({ page }
   const form = new FormData();
   form.append("id", ulid());
   form.append("text", "Old phone\nplain share");
-  const { slug } = await (await page.request.post("/api/captures", { multipart: form })).json();
+  const { slug } = await posted(page, form);
   await page.goto(`/p/${slug}`);
   const share = page.locator(".page > .bar").getByRole("button", { name: "Share" });
   await expect(share).not.toHaveAttribute("aria-expanded");
@@ -658,7 +673,7 @@ test("placeholders stop pulsing once photos load, or fail", async ({ page }) => 
     "t.png",
   );
   form.append("file", new Blob(["<svg/>"], { type: "image/svg+xml" }), "x.svg"); // no preview
-  const { slug } = await (await page.request.post("/api/captures", { multipart: form })).json();
+  const { slug } = await posted(page, form);
   // Only this capture's row and page: other specs' photos may still be loading on a busy box
   const settled = (scope: string) =>
     page.evaluate((scope) => {
@@ -706,7 +721,7 @@ test("every visible text meets AA contrast, in both themes", async ({ page }) =>
     new Blob([new Uint8Array(png(400, 300, 220))], { type: "image/png" }),
     "c.png",
   );
-  const { slug } = await (await page.request.post("/api/captures", { multipart: form })).json();
+  const { slug } = await posted(page, form);
   for (const colorScheme of ["light", "dark"] as const) {
     await page.emulateMedia({ colorScheme });
     const check = async (where: string) =>
@@ -857,16 +872,19 @@ test("kinds: chosen in the editor, a link suggests Later, todos tick, the kind r
 test("a Note chosen for a link is kept, not made Later", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: "Note" }).click();
-  await page.getByPlaceholder("Note or link").fill("https://example.com/kept-note");
+  // Its own link each run: a repeat must not find an earlier run's page before this one lands
+  const path = `/kept-note-${ulid().slice(-8).toLowerCase()}`;
+  await page.getByPlaceholder("Note or link").fill(`https://example.com${path}`);
   await expect(page.getByRole("radio", { name: "Later" })).toBeChecked(); // suggested
   await page.locator(".kinds").getByText("Note").click();
   await page.getByRole("button", { name: "Save" }).click();
   const kept = async () => {
     const pages = await (await page.request.get("/api/pages")).json();
-    return pages.find((p: { title: string }) => p.title.endsWith("/kept-note"));
+    return pages.find((p: { title: string }) => p.title.endsWith(path));
   };
   await expect.poll(kept).toMatchObject({ kind: "note", kind_fixed: 1 });
   const saved = await kept();
+  made.push(saved.id);
   await page.goto(`/p/${saved.slug}`);
   await page.getByRole("button", { name: "Edit" }).click();
   await expect(page.getByRole("radio", { name: "Note" })).toBeChecked();
@@ -920,7 +938,7 @@ test("a photo page shows its thumbnail however the list found it", async ({ page
     new Blob([new Uint8Array(png(300, 200, 120))], { type: "image/png" }),
     "t.png",
   );
-  const { slug } = await (await page.request.post("/api/captures", { multipart: form })).json();
+  const { slug } = await posted(page, form);
   const row = page.locator(".list li").filter({ has: page.locator(`a[href="/p/${slug}"]`) });
   for (const q of ["", "kind:note", tag, "after:1w", `${tag} after:1w`, "is:work"]) {
     await page.goto(q ? `/search?q=${encodeURIComponent(q)}` : "/search");

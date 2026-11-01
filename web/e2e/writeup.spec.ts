@@ -6,13 +6,19 @@
 import { execFileSync } from "node:child_process";
 import { expect, type Page, test } from "@playwright/test";
 import { lowContrast } from "./contrast";
-import { ulid } from "./helpers";
+import { capture, deletedAfterEach } from "./helpers";
+
+/** Pages deleted after each test (by slug or id): a board and the page it links to, so the
+ * next board's write-up links that one's Retry policy, not an earlier test's. */
+const made = deletedAfterEach();
 
 function board(kind = ""): { slug: string; target: string } {
   const data = process.env.SCRAP_E2E_DATA as string;
   const args = ["run", "--locked", "python", "web/e2e/writeup.py", data, ...(kind ? [kind] : [])];
   const out = execFileSync("uv", args, { cwd: "..", encoding: "utf8" });
-  return JSON.parse(out.trim().split("\n").pop() || "null");
+  const b = JSON.parse(out.trim().split("\n").pop() || "null") as { slug: string; target: string };
+  made.push(b.slug, b.target);
+  return b;
 }
 
 /** The page's one Claude card: the write-up is its In detail fold. */
@@ -186,10 +192,9 @@ test("a write-up shows no link but a page link, whatever its text holds", async 
 });
 
 test("a page with no board has no write-up in its card", async ({ page }) => {
-  const r = await page.request.post("/api/captures", {
-    data: { id: ulid(), text: "A plain note" },
-  });
-  await page.goto(`/p/${(await r.json()).slug}`);
+  const note = await capture(page, "A plain note");
+  made.push(note.page_id);
+  await page.goto(`/p/${note.slug}`);
   await expect(page.locator("h1")).toHaveText("A plain note");
   await expect(page.locator("details.writeup")).toHaveCount(0);
 });
