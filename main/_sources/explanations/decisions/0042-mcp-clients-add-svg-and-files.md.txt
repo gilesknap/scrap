@@ -77,7 +77,9 @@ opened directly.
   20,000 characters) as a text block instead of an image, for the description, title and tags,
   with no drawing asked for. A write-up (a board's, or one asked for) sends an SVG image the
   same way: its markup as text blocks, where a photo's JPEG would go. The markup is untrusted
-  data, quoted, as page text is.
+  data, quoted, as page text is. Since 1.3.3 this is so only for an SVG the owner adds: one
+  Claude adds (`add_svg`, the `/mcp` upload) is not read at all, and its alt is what search
+  finds ([ADR 44](0044-claudes-reading-in-a-fold.md)).
 
 ## Consequences
 
