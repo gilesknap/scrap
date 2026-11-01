@@ -56,7 +56,13 @@ for values in "$chart"/ci/*-values.yaml; do
     long=$(awk '/^kind: /{kind=$2} /^  name: /{n=$2; if ((kind=="CronJob" && length(n)>52) || (kind!="PersistentVolumeClaim" && length(n)>63)) print kind, n}
         /^ +(app\.kubernetes\.io|helm\.sh)\/[a-z-]+: /{v=$2; gsub(/"/,"",v); if (length(v)>63) print "label", v}' "$m")
     if [ -n "$long" ]; then bad "$name: too long: $(echo "$long" | tr "\n" " ")"; fi
-    ok "$name: rendered, no secrets, one replica, names fit"
+    if [ "$(grep -c '^  revisionHistoryLimit: 2$' "$m")" != "$(grep -c '^kind: Deployment$' "$m")" ]; then
+        bad "$name: a Deployment without revisionHistoryLimit: 2"
+    fi
+    if [ "$(grep -c '^      ttlSecondsAfterFinished: 604800$' "$m")" != "$(grep -c '^kind: CronJob$' "$m")" ]; then
+        bad "$name: a CronJob without ttlSecondsAfterFinished: 604800"
+    fi
+    ok "$name: rendered, no secrets, one replica, history limits, names fit"
 done
 
 # Values that must be refused.

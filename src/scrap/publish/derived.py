@@ -1,8 +1,8 @@
 """The site's derived units, built only from the kept copies (docs/reference/
 public-site.md, "What scrap builds"): ``home`` (index.html, tags.html, 404.html), a
 ``t/<key>`` for each tag a public page has, ``pagefind`` and ``assets`` (page.css,
-katex.css, prefs.js (the theme and width switches, #519) and KaTeX's fonts from the
-PWA's build, and Pagefind's UI stylesheet).
+katex.css, prefs.js (the theme and width switches, #519), the site's icons (scrap's,
+#527) and KaTeX's fonts from the PWA's build, and Pagefind's UI stylesheet).
 Deterministic: the same copies (and the same build) give the same bytes.
 
 If Pagefind fails (search.SearchError), the units have no pagefind (and no assets,
@@ -23,19 +23,20 @@ __all__ = ["ASSET_TYPES", "SEARCH", "assets", "build", "pending"]
 
 ASSET_TYPES = (".css", ".woff", ".woff2", ".ttf")
 PREFS = "prefs.js"  # the one script outside pagefind (the receiver allows only it)
+ICONS = ("icon.svg", "icon-192.png")  # the site's icons, scrap's (#527; the receiver's)
 SEARCH = "search"  # the cached Pagefind build, in the kept copies' folder
 log = logging.getLogger(__name__)
 _warned = False
 
 
 def assets(static: Path, ui_css: bytes) -> dict[str, bytes]:
-    """The assets unit: page.css, katex.css, prefs.js and fonts/* from static (the PWA
-    build's public/ folder), and Pagefind's UI stylesheet. Missing (no PWA build):
-    only the
-    stylesheet, logged once, so pages show unstyled rather than not at all."""
+    """The assets unit: page.css, katex.css, prefs.js, the icons and fonts/* from
+    static (the PWA build's public/ folder), and Pagefind's UI stylesheet. Missing
+    (no PWA build): only the stylesheet, logged once, so pages show unstyled rather
+    than not at all."""
     global _warned
     files: dict[str, bytes] = {}
-    for name in ("page.css", "katex.css", PREFS):
+    for name in ("page.css", "katex.css", PREFS, *ICONS):
         if (static / name).is_file():
             files[name] = (static / name).read_bytes()
     fonts = static / "fonts"

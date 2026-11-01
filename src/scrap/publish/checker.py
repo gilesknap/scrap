@@ -49,6 +49,11 @@ PREFS_SRC = "/assets/prefs.js"
 DRAWING_PREFIX = "drawing:"  # a drawing's key in Checked.blobs, beside the shas
 DIAGRAM_PREFIX = "diagram:"  # a diagram's image there (#525): diagram:<n>-<theme>
 STYLESHEETS = ("/assets/page.css", "/assets/katex.css")
+# The site's icons (#527): exactly these two links, each once
+ICON_LINKS = (
+    {"rel": "icon", "href": "/assets/icon.svg", "type": "image/svg+xml"},
+    {"rel": "apple-touch-icon", "href": "/assets/icon-192.png"},
+)
 KEPT = frozenset(
     "a abbr article aside b blockquote br caption code dd del details div dl dt em"
     " figcaption figure h1 h2 h3 h4 h5 h6 hr i img ins kbd li mark ol p pre q s"
@@ -317,8 +322,8 @@ def _prefs_script(el: ET.Element, attrs: dict[str, str]) -> bool:
 
 def _head(head: ET.Element) -> None:
     """The head: only the charset, viewport and fixed CSP metas, the title, the
-    page's stylesheets and its one script (prefs.js); the CSP and the title must be
-    there."""
+    page's stylesheets, the site's two icon links and its one script (prefs.js);
+    the CSP and the title must be there."""
     seen: Counter[str] = Counter()
     if head.attrib:
         raise _refuse("attributes on <head>")
@@ -358,6 +363,8 @@ def _head(head: ET.Element) -> None:
             and attrs["rel"] == "stylesheet"
             and attrs["href"] in STYLESHEETS
         ):
+            kind = attrs["href"]
+        elif ns == HTML and local == "link" and not len(el) and attrs in ICON_LINKS:
             kind = attrs["href"]
         elif ns == HTML and local == "script" and _prefs_script(el, attrs):
             kind = "script"

@@ -42,9 +42,9 @@ What a public page holds:
 - a photo's drawing, beside the photo with **Photo | Drawing** tabs as in the app, and links to
   **Open in Excalidraw** (on excalidraw.com, which fetches it from the site: nothing is uploaded
   to Excalidraw) and **Download**. The file is an SVG with the drawing inside it, so
-  excalidraw.com, or any copy of Excalidraw, opens it for editing. The photo in it is its
-  2048-pixel preview, and scrap removes from it anything of scrap's own: its addresses, links to
-  private pages, and any image that is not one of the page's photos. Open in Excalidraw needs the
+  excalidraw.com, or any copy of Excalidraw, opens it for editing. As in the app, the drawing
+  replaces the photo: it has no photo in it, and scrap removes from it any image and anything of
+  scrap's own: its addresses and links to private pages. Open in Excalidraw needs the
   site on `https`; without it the page has only "Download, then open in excalidraw.com to edit".
   Saving a drawing in the app publishes the page again.
 

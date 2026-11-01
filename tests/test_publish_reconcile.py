@@ -149,6 +149,12 @@ def test_strays_are_synced_away_and_a_changed_unit_pushed_again(client, app, sit
     assert units[f"p/{a['slug']}"]["digest"] == kept(app).digest(f"p/{a['slug']}")
 
 
+ICON_LINKS = (
+    '<link rel="icon" href="/assets/icon.svg" type="image/svg+xml">\n'
+    '<link rel="apple-touch-icon" href="/assets/icon-192.png">\n'
+)
+
+
 def test_derived_units_are_deterministic_and_from_the_copies_alone(client, app):
     published(client, "A\nx", "<p>alpha</p>", tags=("work", "personal/family"))
     published(client, "B\ny", "<p>beta</p>")
@@ -171,10 +177,15 @@ def test_derived_units_are_deterministic_and_from_the_copies_alone(client, app):
     missing = one["home"]["404.html"].decode()
     assert missing.count("<script") == 1
     assert '<script src="/assets/prefs.js" defer blocking="render"></script>' in missing
+    # every page of the site names scrap's icons (#527)
+    for html in (home, tags, missing,
+                 one[f"t/{tag_key('work')}"]["index.html"].decode()):  # fmt: skip
+        assert ICON_LINKS in html
     assert sorted(one["assets"]) == [
-        "fonts/KaTeX_Main-Regular.woff2", "katex.css", "page.css", "pagefind-ui.css",
-        "prefs.js",
+        "fonts/KaTeX_Main-Regular.woff2", "icon-192.png", "icon.svg", "katex.css",
+        "page.css", "pagefind-ui.css", "prefs.js",
     ]  # fmt: skip
+    assert one["assets"]["icon.svg"] == (WEB / "public" / "icon.svg").read_bytes()
     assert not any(n.endswith(".css") for n in one["pagefind"])  # CSS only in assets
     assert "scrap-search.js" in one["pagefind"]
 

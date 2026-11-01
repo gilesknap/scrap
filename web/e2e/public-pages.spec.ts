@@ -7,14 +7,15 @@
 // home page; a photo and an attached file published with the page; and, with publishing off
 // on the server, no Make public and no Settings section. The reader's theme and column width
 // (#519), kept across reloads and pages, light by default; a photo's drawing (#520) with its
-// Photo | Drawing tabs (pure CSS, so with JavaScript off too), downloaded and opened as a
-// scene by Excalidraw's own loadFromBlob, with no original photo bytes in it; a Mermaid diagram
-// (#525) drawn light and dark, one shown by the theme, its words found by search, and a code
-// block's /api/ path as written (#529). The site sends
-// nginx's headers, so a page that breaks its CSP fails here.
+// Photo | Drawing tabs (pure CSS, so with JavaScript off too), the drawing alone with no photo
+// in it (#524), fetched from the site and opened as a scene by Excalidraw's own loadFromBlob as
+// excalidraw.com opens it (#526); scrap's icons in every head (#527); a Mermaid diagram (#525)
+// drawn light and dark, one shown by the theme, its words found by search, and a code block's
+// /api/ path as written (#529). The site sends nginx's headers, so a page that breaks its CSP
+// fails here.
 import { execFileSync } from "node:child_process";
 import { readdirSync, readFileSync } from "node:fs";
-import { expect, type Page, test } from "@playwright/test";
+import { expect, type Page, type Route, test } from "@playwright/test";
 import { capture, deletedAfterEach, png, ulid } from "./helpers";
 import { SITE as SITE_PORT } from "./ports";
 
@@ -105,14 +106,39 @@ test("Make public warns first, with Cancel focused, then the page is on the site
   expect(got.text).not.toMatch(/scrap-(blob|tag):|\/api\//);
   for (const css of ["/assets/page.css", "/assets/katex.css"])
     expect((await onSite(page, css)).status).toBe(200);
+  // scrap's icons (#527): named in the head of the page and of home, served as themselves,
+  // and /favicon.ico (asked for on its own) sent to the SVG one
+  const icons =
+    '<link rel="icon" href="/assets/icon.svg" type="image/svg+xml">\n' +
+    '<link rel="apple-touch-icon" href="/assets/icon-192.png">';
+  expect(got.text).toContain(icons);
+  expect((await onSite(page, "/")).text).toContain(icons);
+  for (const [path, type] of [
+    ["/assets/icon.svg", "image/svg+xml"],
+    ["/assets/icon-192.png", "image/png"],
+  ]) {
+    const icon = await page.request.get(`${SITE}${path}`);
+    expect(icon.status()).toBe(200);
+    expect(icon.headers()["content-type"]).toBe(type);
+  }
+  const shipped = await page.request.get(`${SITE}/assets/icon.svg`);
+  expect(await shipped.text()).toBe(readFileSync("public/icon.svg", "utf8"));
+  const ico = await page.request.get(`${SITE}/favicon.ico`, { maxRedirects: 0 });
+  expect(ico.status()).toBe(302);
+  expect(ico.headers().location).toBe("/assets/icon.svg");
   // Opened in a browser, under nginx's CSP: drawn with the site's CSS and KaTeX's fonts
   const csp = violations(page);
+  const markLoaded = page.waitForResponse(`${SITE}/assets/icon.svg`);
   await page.goto(`${site(page)}/p/${n.slug}`);
   await expect(page.locator(".katex-html").first()).toBeVisible();
   await expect(page.locator(".site.foot")).toContainText("from scrap · All pages");
+  // scrap's mark left of the site's name (#527), from the site's own icon, under its CSP
+  expect((await markLoaded).status()).toBe(200);
+  await expectMark(page, ".site.top > a:first-child");
 
-  // Pagefind, on the home page, finds the word
+  // Pagefind, on the home page, finds the word; home has the mark too
   await page.goto(`${site(page)}/`);
+  await expectMark(page, ".site-head > a:first-child");
   await expect(page.locator(".site-list")).toContainText(`Public e2e ${word}`);
   await page.locator(".pagefind-ui__search-input").fill(word);
   await expect(page.locator(".pagefind-ui__result-link").first()).toHaveAttribute(
@@ -121,6 +147,21 @@ test("Make public warns first, with Cancel focused, then the page is on the site
   );
   expect(csp).toEqual([]);
 });
+
+/** scrap's mark before a header link (#527): the site's icon, about the line's height. */
+async function expectMark(page: Page, link: string) {
+  const mark = await page.locator(link).evaluate((a) => {
+    const m = getComputedStyle(a, "::before");
+    return {
+      image: m.backgroundImage,
+      width: Number.parseFloat(m.width),
+      size: Number.parseFloat(getComputedStyle(a).fontSize),
+    };
+  });
+  expect(mark.image).toMatch(/^url\("http:\/\/127\.0\.0\.1:\d+\/assets\/icon\.svg"\)$/);
+  expect(mark.width).toBeGreaterThanOrEqual(mark.size); // about the line's height
+  expect(mark.width).toBeLessThanOrEqual(mark.size * 1.5);
+}
 
 test("making a page public publishes the public pages linking to it again", async ({ page }) => {
   await phone(page);
@@ -401,6 +442,73 @@ test.describe("the reader's theme and width (#519)", () => {
     await expect(width).toBeHidden();
     await expect(page.getByRole("button", { name: "Dark theme" })).toBeVisible();
   });
+
+  test("the header keeps one row at 308 px and 130 % text: a long name is cut (#527)", async ({
+    page,
+  }) => {
+    const n = await publicOne(page, "Public e2e long name");
+    await page.setViewportSize({ width: 308, height: 800 });
+    await page.goto(`${SITE}/p/${n.slug}`);
+    const theme = page.getByRole("button", { name: "Dark theme" });
+    await expect(theme).toBeVisible();
+    // the phone's 130 % text, and a site name far too long for the row
+    const row = await page.evaluate(() => {
+      document.documentElement.style.fontSize = "22.1px";
+      const a = document.querySelector(".site.top > a") as HTMLElement;
+      a.textContent = "a-very-long-public-site-name.pages.example.org";
+      const switches = document.querySelector(".site.top .prefs") as HTMLElement;
+      const [r, p] = [a.getBoundingClientRect(), switches.getBoundingClientRect()];
+      return {
+        cut: a.scrollWidth > a.clientWidth,
+        ellipsis: getComputedStyle(a).textOverflow,
+        sameRow: Math.abs(r.top + r.height / 2 - (p.top + p.height / 2)) < 4,
+        clear: r.right <= p.left,
+      };
+    });
+    expect(row).toEqual({ cut: true, ellipsis: "ellipsis", sameRow: true, clear: true });
+    await expectMark(page, ".site.top > a:first-child");
+  });
+});
+
+test("a table looks as the app's: sized to its words, shaded header, scrolling sideways (#530)", async ({
+  page,
+}) => {
+  const n = await publicOne(
+    page,
+    "Public e2e table\n\n| Tier | Hostnames | Who gets through |\n|---|---|---|\n" +
+      "| **Demo** | `argocd`, `grafana`, `argocd-monitor` | Cluster owner, plus viewers (including `diamond.ac.uk` addresses) |\n" +
+      "| **Admin** | everything else under `*.gkcluster.org` (headlamp, ssh, alertmanager, scrap UI, open-webui) | Cluster owner only, and only via a **GitHub login with 2FA** |",
+  );
+  const read = () =>
+    page.evaluate(() => {
+      const box = document.querySelector(".table") as HTMLElement;
+      const first = document.querySelector("tbody td") as HTMLElement;
+      const strong = first.querySelector("strong") as HTMLElement;
+      const th = getComputedStyle(document.querySelector("th") as HTMLElement);
+      const body = Number.parseFloat(getComputedStyle(document.body).fontSize);
+      const column = document.querySelector(".body") as HTMLElement;
+      return {
+        // "Demo" whole, on one line (it broke as "Dem/o" at 880 px)
+        oneLine: strong.getClientRects().length === 1,
+        shaded: th.backgroundColor !== "rgba(0, 0, 0, 0)",
+        smaller: Number.parseFloat(getComputedStyle(first).fontSize) < body,
+        fits: box.getBoundingClientRect().width < column.getBoundingClientRect().width,
+        scrolls: box.scrollWidth > box.clientWidth,
+        pageScrolls: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+      };
+    });
+  // a computer, the owner's 880 px column: sized to its content, not the column
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto(`${SITE}/p/${n.slug}`);
+  await page.evaluate(() => document.documentElement.style.setProperty("--column", "880px"));
+  expect(await read()).toMatchObject({ oneLine: true, shaded: true, smaller: true, fits: true });
+  // the owner's phone (308 px, 130 % text): the table scrolls in its box, the page does not
+  await page.setViewportSize({ width: 308, height: 800 });
+  await page.evaluate(() => {
+    document.documentElement.style.removeProperty("--column");
+    document.documentElement.style.fontSize = "22.1px";
+  });
+  expect(await read()).toMatchObject({ oneLine: true, scrolls: true, pageScrolls: false });
 });
 
 test("with JavaScript off a page is light, at the default width, with no switches", async ({
@@ -413,6 +521,32 @@ test("with JavaScript off a page is light, at the default width, with no switche
   await plain.goto(`${SITE}/p/${n.slug}`);
   expect(await bg(plain)).toBe(LIGHT_BG);
   await expect(plain.locator(".pref")).toHaveCount(0);
+  // the header is no flex row then: at 308 px and 130 % text a long name is still cut in the
+  // column (#527), not run off the screen
+  await plain.setViewportSize({ width: 308, height: 800 });
+  const cut = await plain.evaluate(() => {
+    document.documentElement.style.fontSize = "22.1px";
+    const a = document.querySelector(".site.top > a") as HTMLElement;
+    a.textContent = "a-very-long-public-site-name.pages.example.org";
+    const r = a.getBoundingClientRect();
+    return {
+      cut: a.scrollWidth > a.clientWidth,
+      inside: r.left >= 0 && r.right <= document.documentElement.clientWidth,
+      noScroll: document.documentElement.scrollWidth <= document.documentElement.clientWidth,
+    };
+  });
+  expect(cut).toEqual({ cut: true, inside: true, noScroll: true });
+  // home's "Pages · Tags", the mark before Pages: the two words on one baseline
+  await plain.goto(`${SITE}/`);
+  // (the words' own text boxes, not the links': off by 5 to 7 px when it clipped above the line)
+  const [pages, tags] = await plain.locator(".site-head > a").evaluateAll((as) =>
+    as.map((a) => {
+      const words = document.createRange();
+      words.selectNodeContents(a);
+      return words.getClientRects()[0].bottom;
+    }),
+  );
+  expect(Math.abs(pages - tags)).toBeLessThanOrEqual(1);
   await off.close();
 });
 
@@ -432,23 +566,39 @@ async function boardPage(page: Page): Promise<Board> {
   return b;
 }
 
-/** Excalidraw's own reader of a file (the board chunk's loadFromBlob, as excalidraw.com
- * opens one), run on an SVG in the app's page: what the scene holds. */
-async function openAsScene(page: Page, svg: string) {
+/** Excalidraw's own reader of a file (the board chunk's loadFromBlob), run in the app's page on
+ * a Blob as excalidraw.com makes one for #url= (#526): the browser's own fetch of the published
+ * SVG, so the Blob's type is the site's Content-Type as the browser reads it. The site lets only
+ * excalidraw.com read it across origins, so the app's page fetches it at a path of its own that
+ * the test answers with the site's response, headers and all, as it is. What the scene holds,
+ * or the error. */
+async function openAsScene(page: Page, url: string) {
   const chunk = readdirSync("../src/scrap/static/assets").find((f) =>
     /^excalidraw-[\w-]+\.js$/.test(f),
   );
-  return page.evaluate(
-    async ({ url, svg }) => {
-      const m = await import(url);
-      const s = await m.loadFromBlob(new Blob([svg], { type: "image/svg+xml" }), null, null);
-      return {
-        types: s.elements.map((e: { type: string }) => e.type) as string[],
-        files: Object.values(s.files).map((f) => (f as { dataURL: string }).dataURL),
-      };
-    },
-    { url: `/assets/${chunk}`, svg },
-  );
+  const local = `/e2e-site${new URL(url).pathname}`;
+  // (on the context: the app's service worker may make the fetch, past page.route)
+  const proxy = async (route: Route) => route.fulfill({ response: await route.fetch({ url }) });
+  await page.context().route(`**${local}`, proxy);
+  try {
+    return await page.evaluate(
+      async ({ chunk, local }) => {
+        const m = await import(chunk);
+        const blob = await (await fetch(local)).blob();
+        const s = await m.loadFromBlob(blob, null, null).catch((e: Error) => e);
+        if (s instanceof Error) return { type: blob.type, error: s.message, types: [], files: [] };
+        return {
+          type: blob.type,
+          error: null,
+          types: s.elements.map((e: { type: string }) => e.type) as string[],
+          files: Object.keys(s.files ?? {}),
+        };
+      },
+      { chunk: `/assets/${chunk}`, local },
+    );
+  } finally {
+    await page.context().unroute(`**${local}`, proxy);
+  }
 }
 
 test("a photo's drawing is published, shown with tabs, and downloads as a scene (#520)", async ({
@@ -477,6 +627,14 @@ test("a photo's drawing is published, shown with tabs, and downloads as a scene 
   const served = await page.request.get(`${SITE}${svgPath}`);
   expect(served.headers()["access-control-allow-origin"]).toBe("https://excalidraw.com");
   expect(served.headers()["content-security-policy"]).toContain("sandbox");
+  // exactly this, no charset: excalidraw.com's loadFromBlob takes an SVG only so (#526)
+  expect(served.headers()["content-type"]).toBe("image/svg+xml");
+  // the drawing replaces the photo, as in the app (#524): no image in it at all
+  const published = await served.text();
+  expect(published).not.toMatch(/<image|data:image\/|href="#image-/);
+  // white over the whole frame, as the photo was (no see-through margins in a download)
+  const [, w, h] = /<svg[^>]* width="(\d+)" height="(\d+)"/.exec(published) ?? [];
+  expect(published).toMatch(new RegExp(`<rect [^>]*width="${w}" height="${h}" fill="#ffffff"`));
 
   // On the site: the drawing shows (chosen, as in the app), Photo then Drawing switch them
   const csp = violations(page);
@@ -498,24 +656,29 @@ test("a photo's drawing is published, shown with tabs, and downloads as a scene 
   expect(label?.height).toBeGreaterThanOrEqual(42); // 48 with the track round it
   expect(csp).toEqual([]);
 
-  // Downloaded: the SVG, with the scene in it; Excalidraw opens it, the photo at preview size
+  // Downloaded: the published SVG, with the scene in it, and no photo bytes
   const [file] = await Promise.all([
     page.waitForEvent("download"),
     page.getByRole("link", { name: /^Download/ }).click(),
   ]);
   const svg = readFileSync((await file.path()) as string, "utf8");
+  expect(svg).toBe(published);
   expect(svg).toContain("<!-- payload-type:application/vnd.excalidraw+json -->");
   const original = Buffer.from(await (await page.request.get(`/api/blobs/${b.sha256}`)).body());
   const preview = Buffer.from(
     await (await page.request.get(`/api/blobs/${b.sha256}/preview?size=2048`)).body(),
   );
-  expect(svg).not.toContain(original.toString("base64").slice(100, 400));
+  for (const bytes of [original, preview])
+    expect(svg).not.toContain(bytes.toString("base64").slice(100, 400));
+  // Opened as excalidraw.com opens it (#526): fetched from the site, the Blob's type as sent,
+  // and read by Excalidraw's loadFromBlob: the drawing's elements, and no photo (#524)
   await page.goto(`/p/${b.slug}`); // the app, where Excalidraw's chunk is
-  const scene = await openAsScene(page, svg);
-  expect(scene.types[0]).toBe("image"); // the photo, under the drawing
+  const scene = await openAsScene(page, `${SITE}${svgPath}`);
+  expect(scene.error).toBeNull();
+  expect(scene.type).toBe("image/svg+xml");
   expect(scene.types).toEqual(expect.arrayContaining(["rectangle", "arrow", "text", "ellipse"]));
-  expect(scene.files).toEqual([`data:image/jpeg;base64,${preview.toString("base64")}`]);
-  expect(scene.files[0]).not.toContain(original.toString("base64").slice(100, 400));
+  expect(scene.types).not.toContain("image");
+  expect(scene.files).toEqual([]);
 
   // With JavaScript off: the same tabs, in CSS alone
   const off = await browser.newContext({ javaScriptEnabled: false });

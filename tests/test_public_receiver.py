@@ -252,6 +252,8 @@ def test_every_kind_of_unit(server: Running, unit: str) -> None:
         ("pagefind", "scrap-search.js"),
         ("assets", "fonts/KaTeX_Main.ttf"),
         ("assets", "prefs.js"),  # the public pages' one script (#519)
+        ("assets", "icon.svg"),  # the site's icons (#527)
+        ("assets", "icon-192.png"),
     ],
 )
 def test_each_kind_takes_its_own_files(server: Running, unit: str, name: str) -> None:
@@ -293,6 +295,16 @@ def test_each_kind_takes_its_own_files(server: Running, unit: str, name: str) ->
         ("p/x", "prefs.js"),  # and only in assets
         ("t/x", "prefs.js"),
         ("home", "prefs.js"),
+        # the icons: exactly these two, at the top of assets, and only there
+        ("assets", "other.svg"),
+        ("assets", "icon-512.png"),
+        ("assets", "ICON.SVG"),
+        ("assets", "fonts/icon.svg"),
+        ("assets", "icon.svg.html"),
+        ("p/x", "icon.svg"),
+        ("p/x", "icon-192.png"),
+        ("home", "icon.svg"),
+        ("pagefind", "icon.svg"),
     ],
 )
 def test_each_kind_refuses_other_files(server: Running, unit: str, name: str) -> None:
