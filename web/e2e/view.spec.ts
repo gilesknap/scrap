@@ -365,9 +365,9 @@ test("embedded images are figures: no caption, the viewer names them, Generate a
     new Blob([new Uint8Array(png(200, 300, 160))], { type: "image/png" }),
     "b.png",
   );
-  const made = await (await page.request.post("/api/captures", { multipart: form })).json();
-  unasked(made.page_id);
-  await page.goto(`/p/${made.slug}`);
+  const ref = await (await page.request.post("/api/captures", { multipart: form })).json();
+  unasked(ref.page_id);
+  await page.goto(`/p/${ref.slug}`);
   const figs = page.locator(".md figure.orig");
   await expect(figs).toHaveCount(2);
   // No caption under them: the name is the image's alt and the viewer's label
@@ -869,16 +869,19 @@ test("kinds: chosen in the editor, a link suggests Later, todos tick, the kind r
 test("a Note chosen for a link is kept, not made Later", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: "Note" }).click();
-  await page.getByPlaceholder("Note or link").fill("https://example.com/kept-note");
+  // Its own link each run: a repeat must not find an earlier run's page before this one lands
+  const path = `/kept-note-${ulid().slice(-8).toLowerCase()}`;
+  await page.getByPlaceholder("Note or link").fill(`https://example.com${path}`);
   await expect(page.getByRole("radio", { name: "Later" })).toBeChecked(); // suggested
   await page.locator(".kinds").getByText("Note").click();
   await page.getByRole("button", { name: "Save" }).click();
   const kept = async () => {
     const pages = await (await page.request.get("/api/pages")).json();
-    return pages.find((p: { title: string }) => p.title.endsWith("/kept-note"));
+    return pages.find((p: { title: string }) => p.title.endsWith(path));
   };
   await expect.poll(kept).toMatchObject({ kind: "note", kind_fixed: 1 });
   const saved = await kept();
+  made.push(saved.id);
   await page.goto(`/p/${saved.slug}`);
   await page.getByRole("button", { name: "Edit" }).click();
   await expect(page.getByRole("radio", { name: "Note" })).toBeChecked();
