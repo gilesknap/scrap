@@ -1,5 +1,5 @@
 """What publishing reads of the store: a page's state (public, in the trash, its
-revision, text and tags), the public pages, and the pages that refer to a page."""
+revision, text, tags and attached files), the public pages, and the pages that refer to a page."""
 
 import sqlite3
 from dataclasses import dataclass
@@ -25,6 +25,7 @@ class Page:
     trashed: bool
     rev: int
     tags: tuple[str, ...]
+    attached: frozenset[str] = frozenset()  # its captures' files, by sha
 
     @property
     def live(self) -> bool:
@@ -34,9 +35,14 @@ class Page:
 
 def _page(conn: sqlite3.Connection, row: sqlite3.Row) -> Page:
     tags = conn.execute("SELECT tag FROM tag WHERE page_id = ? ORDER BY tag", (row[0],))
+    tags = tuple(t[0] for t in tags)
+    files = conn.execute(
+        "SELECT sha256 FROM capture_blob JOIN capture ON capture.id = capture_id"
+        " WHERE page_id = ?", (row[0],),
+    )  # fmt: skip
     return Page(row["id"], row["slug"], row["title"], row["body"],
                 bool(row["public"]), row["deleted_at"] is not None, row["rev"] or 0,
-                tuple(t[0] for t in tags))  # fmt: skip
+                tags, frozenset(f[0] for f in files))  # fmt: skip
 
 
 def state(store: Store, key: str) -> Page:

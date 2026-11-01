@@ -2,6 +2,7 @@
 /api/public, POST /api/public/rebuild) to the real receiver, and unpublishing it
 however it stops being public (ADR 43; docs/reference/public-site.md)."""
 
+import hashlib
 import io
 import threading
 import time
@@ -17,7 +18,7 @@ from scrap import mcp_server
 from scrap.app import create_app
 from scrap.publish import files as publish_files
 from scrap.publish import tag_key
-from scrap.store import new_ulid
+from scrap.store import body_refs, new_ulid
 
 
 @pytest.fixture
@@ -99,11 +100,13 @@ def test_publish_a_page_with_its_photo_and_tags(client, site, tmp_path):
     assert "scrap-blob" not in index and "scrap-tag" not in index
     assert sha not in index  # the stored sha is never published
     names = sorted(f.name for f in (site.folder / "www" / "p" / p["slug"]).iterdir())
-    assert names[0] == "img-1-" + names[0][6:16] + ".jpg"
     image = f"/p/{p['slug']}/{names[0]}"
     assert index.count(f'"{image}"') == 2  # the img and the link to the same file
     assert f'href="/t/{tag_key("work")}"' in index
     published = site.file(f"p/{p['slug']}", names[0])
+    # keyed by the slug: a name never shows a stored sha (the sha of its bytes)
+    assert names[0] == f"img-1-{publish_files.file_hex(p['slug'], published)}.jpg"
+    assert names[0][6:16] != hashlib.sha256(published).hexdigest()[:10]
     assert published != original  # never the original: its 2048-pixel preview
     im = Image.open(io.BytesIO(published))
     assert im.format == "JPEG" and not im.getexif()  # no EXIF (Make, Model, GPS)
@@ -282,10 +285,26 @@ def test_the_page_keeps_its_files_and_links(client, site):
     assert names[0].startswith("file-1-") and names[0].endswith(".pdf")
     assert names[1].startswith("img-1-") and names[1].endswith(".jpg")
     assert (folder / names[0]).read_bytes() == pdf  # a file goes out as stored
+    assert doc[:10] not in names[0]  # so its name is keyed: never the stored sha
+    assert names[0] == f"file-1-{publish_files.file_hex(p['slug'], pdf)}.pdf"
     # links_to: the pages whose published copy refers to a page
     linking = client.get(f"/api/public?links_to={other['slug']}").json()
     assert [x["slug"] for x in linking] == [p["slug"]]
     assert client.get("/api/public?links_to=nothing").json() == []
+
+
+def test_a_file_attached_to_the_page_is_on_it(client, site):
+    """The page's own captures' files (listed below its text) count as on the page,
+    though its text does not refer to them."""
+    pdf = b"%PDF-1.4\n%attached\n"
+    p = made(client, files=[("report.pdf", pdf, "application/pdf")])
+    (doc,) = shas(p)
+    assert doc not in body_refs(p["body"])  # its text does not name it
+    r = put(client, p, f'<p><a href="scrap-blob:{doc}">report.pdf</a></p>')
+    assert r.status_code == 200, r.text
+    folder = site.folder / "www" / "p" / p["slug"]
+    (name,) = [f.name for f in folder.iterdir() if f.name.startswith("file-")]
+    assert (folder / name).read_bytes() == pdf
 
 
 def test_a_link_to_a_private_page_still_counts_for_links_to(client, note):

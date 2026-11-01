@@ -13,7 +13,7 @@ from ..store import InvalidError, NotFoundError, Store, TooLargeError
 from ..svg import is_svg, sanitise
 from .errors import CheckError, PublishError
 
-__all__ = ["MAX_FILE", "MAX_FILES", "MAX_UNIT", "Files", "page_files"]
+__all__ = ["MAX_FILE", "MAX_FILES", "MAX_UNIT", "Files", "file_hex", "page_files"]
 
 MAX_FILES = 20  # images and files together, on one page
 MAX_FILE = 20 * 2**20  # each, as published
@@ -93,11 +93,23 @@ def _stored(store: Store, sha: str) -> bytes:
     return path.read_bytes()
 
 
+def file_hex(slug: str, content: bytes) -> str:
+    """The <hex> of a published file's name: keyed by the page's slug, so a name
+    never shows the stored file's sha (the sha256 of the bytes, for a file published
+    as stored)."""
+    return hashlib.sha256(slug.encode() + b"\0" + content).hexdigest()[:10]
+
+
 def page_files(
-    store: Store, blobs: list[tuple[str, str]], on_page: set[str], html_bytes: int
+    store: Store,
+    slug: str,
+    blobs: list[tuple[str, str]],
+    on_page: set[str],
+    html_bytes: int,
 ) -> Files:
     """The files for blobs ((sha, element) in the order first named, from the check),
-    each of which must be on the page (on_page: the stored files its text refers to);
+    each of which must be on the page (on_page: the stored files its text refers to,
+    and those attached to its captures);
     refused (CheckError) for one that is not, an img naming a file that is not an
     image, and over the caps (counting html_bytes, the page's own HTML, in the
     unit's total)."""
@@ -145,6 +157,6 @@ def page_files(
                 "unit_too_large",
             )
         count[kind] += 1
-        name = f"{kind}-{count[kind]}-{hashlib.sha256(content).hexdigest()[:10]}.{ext}"
+        name = f"{kind}-{count[kind]}-{file_hex(slug, content)}.{ext}"
         names[sha], data[name] = name, content
     return Files(names, data)

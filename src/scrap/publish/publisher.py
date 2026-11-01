@@ -82,8 +82,9 @@ class Publisher:
                     f"Not published: the page no longer has the tag {gone[0]!r}.",
                     "stale_tags",
                 )
+            on_page = body_refs(page.body) | page.attached  # its text's, its own
             files = page_files(
-                self.store, checked.blobs, body_refs(page.body), len(html.encode())
+                self.store, page.slug, checked.blobs, on_page, len(html.encode())
             )
             unit = {"index.html": swap(html, page.slug, files.names).encode()}
             unit |= files.data
