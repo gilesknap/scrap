@@ -4,6 +4,8 @@ the Pagefind index and the assets."""
 
 import gzip
 import json
+import os
+import shlex
 import sys
 import time
 from pathlib import Path
@@ -303,31 +305,117 @@ def test_a_pagefind_build_that_hangs_times_out_and_leaves_nothing_running(
         time.sleep(0.05)
 
 
+def _stat(pid: int) -> list[str] | None:
+    """A process's /proc stat fields from its state on (field 3), else None."""
+    try:
+        return Path(f"/proc/{pid}/stat").read_text().rsplit(")", 1)[1].split()
+    except OSError:
+        return None
+
+
+@pytest.fixture
+def services(tmp_path, monkeypatch):
+    """The Pagefind services this test's builds start, as (pid, process group, start
+    time). Pagefind runs through a wrapper (PAGEFIND_BINARY_PATH, which the build's
+    process inherits) that logs its own stat line, then execs the pinned binary. Only
+    this test's builds use it, so a parallel test's builds (xdist) are not counted."""
+    from pagefind.service import get_executable
+
+    real = get_executable()
+    assert real is not None
+    log = tmp_path / "services"
+    wrapper = tmp_path / "pagefind-wrapper"
+    wrapper.write_text(
+        "#!/bin/sh\n"
+        "read -r stat < /proc/$$/stat\n"
+        f'echo "$stat" >> {shlex.quote(str(log))}\n'
+        f'exec {shlex.quote(str(real))} "$@"\n'
+    )
+    wrapper.chmod(0o755)
+    monkeypatch.setenv("PAGEFIND_BINARY_PATH", str(wrapper))
+
+    def started() -> list[tuple[int, int, str]]:
+        lines = log.read_text().splitlines() if log.exists() else []
+        out = []
+        for line in lines:
+            fields = line.rsplit(")", 1)[1].split()
+            out.append((int(line.split()[0]), int(fields[2]), fields[19]))
+        return out
+
+    return started
+
+
+def _ticks() -> int:
+    """Now, in the clock ticks since boot that /proc's start times use."""
+    return int(time.clock_gettime(time.CLOCK_BOOTTIME) * os.sysconf("SC_CLK_TCK")) + 1
+
+
+def _left(started: list[tuple[int, int, str]], within: float = 10) -> set[int]:
+    """The processes of started, and of their process groups, still running (not a
+    zombie) after up to within seconds: polled, so empty as soon as all have ended.
+    Call it once the build has returned: a group member started later is a reused
+    group id (another build's), not this one's."""
+    groups = {group for _, group, _ in started}
+    ended = _ticks()
+    deadline = time.monotonic() + within
+    while True:
+        alive = set()
+        for pid, _, since in started:  # the same process: not a reused pid
+            if (f := _stat(pid)) and f[0] != "Z" and f[19] == since:
+                alive.add(pid)
+        for d in Path("/proc").iterdir():
+            if d.name.isdigit() and (f := _stat(int(d.name))):
+                if f[0] != "Z" and int(f[2]) in groups and int(f[19]) <= ended:
+                    alive.add(int(d.name))
+        if not alive or time.monotonic() > deadline:
+            return alive
+        time.sleep(0.05)
+
+
 @pytest.mark.skipif(sys.platform != "linux", reason="reads /proc")
-def test_the_real_pagefind_build_leaves_nothing_running(tmp_path):
-    """A real build (the pinned binary) ends with no Pagefind service left behind."""
+def test_the_real_pagefind_build_leaves_nothing_running(tmp_path, services):
+    """A real build (the pinned binary) ends with its Pagefind service, and anything
+    else in its process group, gone."""
     from scrap.publish import search
 
-    def services() -> set[int]:
-        found = set()
-        for d in Path("/proc").iterdir():
-            if d.name.isdigit():
-                try:
-                    cmd = (d / "cmdline").read_bytes()
-                except OSError:
-                    continue
-                if (
-                    b"pagefind" in cmd
-                    and b"--service" in cmd
-                    and not _gone(int(d.name))
-                ):
-                    found.add(int(d.name))
-        return found
-
-    before = services()
     unit, css = search.build_index([("/p/a", "A", "alpha words")], tmp_path / "cache")
     assert "pagefind-entry.json" in unit and css
-    assert services() <= before
+    started = services()
+    assert len(started) == 1  # the build did run the real service
+    assert _left(started) == set()
+
+
+@pytest.mark.skipif(sys.platform != "linux", reason="reads /proc")
+def test_a_real_build_that_dies_leaves_no_pagefind_running(
+    tmp_path, services, monkeypatch
+):
+    """A build that dies with the real Pagefind service running (its stdin held open
+    by a child, so it does not see end of file and stop by itself) fails, and its
+    process group is killed: the service does not outlive it."""
+    from scrap.publish import search
+
+    die = (
+        "import asyncio, os, subprocess\n"
+        "from pagefind.index import PagefindIndex\n"
+        "async def main():\n"
+        "    async with PagefindIndex() as index:\n"
+        "        await index.add_custom_record(url='/p/a', content='alpha',"
+        " language='en')\n"
+        "        stdin = index._service._backend.stdin.get_extra_info('pipe')\n"
+        "        quiet = subprocess.DEVNULL\n"
+        "        subprocess.Popen(['sleep', '60'], pass_fds=[stdin.fileno()],\n"
+        "                         stdout=quiet, stderr=quiet)\n"
+        "        os._exit(3)  # silent: any other failure says what it was\n"
+        "asyncio.run(main())\n"
+    )
+    monkeypatch.setattr(
+        search, "_command", lambda records, out: [sys.executable, "-c", die]
+    )
+    with pytest.raises(search.SearchError, match="^Pagefind failed: no detail$"):
+        search.build_index([("/p/a", "A", "alpha words")])
+    started = services()
+    assert len(started) == 1
+    assert _left(started) == set()
 
 
 def test_started_with_the_receiver_down_it_retries_soon(tmp_path, site, monkeypatch):
