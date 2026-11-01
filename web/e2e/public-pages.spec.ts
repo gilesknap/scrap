@@ -517,6 +517,9 @@ test("a photo's drawing is published, shown with tabs, and downloads as a scene 
   // the drawing replaces the photo, as in the app (#524): no image in it at all
   const published = await served.text();
   expect(published).not.toMatch(/<image|data:image\/|href="#image-/);
+  // white over the whole frame, as the photo was (no see-through margins in a download)
+  const [, w, h] = /<svg[^>]* width="(\d+)" height="(\d+)"/.exec(published) ?? [];
+  expect(published).toMatch(new RegExp(`<rect [^>]*width="${w}" height="${h}" fill="#ffffff"`));
 
   // On the site: the drawing shows (chosen, as in the app), Photo then Drawing switch them
   const csp = violations(page);
