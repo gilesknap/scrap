@@ -20,10 +20,10 @@ const markdown = (s: string) => marked(s).replace(/ data-at="\d+,\d+"/g, "");
 const SHA = (c: string) => c.repeat(64);
 const ORIGINS = ["http://scrap.example"];
 const LIVE = new Set(["design-notes", "whiteboard", "links-page", "maths-page", "a-todo"]);
-const TITLES = new Map([
-  ["design-notes", "Design notes"],
-  ["weekly-sync", "Weekly controls sync"],
-]);
+const TITLES = {
+  "design-notes": "Design notes",
+  "weekly-sync": "Weekly controls sync",
+};
 const tex = (t: string, display: boolean) =>
   katex.renderToString(t, { ...KATEX, displayMode: display });
 

@@ -80,6 +80,9 @@ export async function htmlOf(d: Drawn, r: Run): Promise<string> {
   // A public page that links to itself is public: this one is
   r.live.add(d.page.slug);
   r.titles.set(d.page.slug, d.page.title);
+  // the titles the page came with (#508: its links' pages, private ones too)
+  for (const [slug, title] of Object.entries(d.page.titles ?? {}))
+    if (!r.titles.has(slug)) r.titles.set(slug, title);
   const named = bareSlugs(d.root, swaps).filter((s) => !r.titles.has(s));
   await Promise.all(
     named.map((s) =>
@@ -100,7 +103,7 @@ export async function htmlOf(d: Drawn, r: Run): Promise<string> {
       title: d.page.title,
       tags: d.page.tags,
       live: r.live,
-      titles: r.titles,
+      titles: Object.fromEntries(r.titles),
       origins: origins(),
       site: d.page.site ?? null,
       tex: hasMaths(d.root) ? await tex() : null,

@@ -6,6 +6,7 @@
 // scrap-blob:<sha> placeholders and tags as scrap-tag:<tag> chips, which scrap replaces; links
 // to public pages live, to private ones their words. Claude's notes on a photo, drawings and a
 // file's text read for search are left out. Pure: publicpages.ts gathers what it needs.
+import { type Titles, titleOf } from "./linktext";
 import { control, esc, KEEP, type N, type Swaps, textOf } from "./pagehtml";
 
 /** What the page is published with, besides its view. */
@@ -13,7 +14,7 @@ export interface Context {
   title: string;
   tags: readonly string[]; // the page's, in order: its chips
   live: ReadonlySet<string>; // the public pages' slugs, this page's own too
-  titles: ReadonlyMap<string, string>; // slug -> title, for a bare [[slug]] link
+  titles: Titles; // slug -> title, for a bare [[slug]] link (linktext.ts, as the app has it)
   origins: readonly string[]; // scrap's own (render.ts origins()): never linked
   site: string | null; // the public site's address (https://pages.example), for its name
   tex: ((tex: string, display: boolean) => string) | null; // KaTeX, for a page with maths
@@ -207,7 +208,7 @@ export function publishHtml(root: N, ctx: Context, swaps: Swaps = new Map()): st
     if (page) {
       const slug = decoded(page[1]);
       const said = textOf(n);
-      const named = SLUG.test(slug) && bare(said, slug) ? ctx.titles.get(slug) : undefined;
+      const named = SLUG.test(slug) && bare(said, slug) ? titleOf(slug, ctx.titles) : undefined;
       if (SLUG.test(slug) && ctx.live.has(slug))
         return `<a href="/p/${slug}">${named === undefined ? inner() : words(named)}</a>`;
       // A private page: its words only, a bare link its title, never its slug
