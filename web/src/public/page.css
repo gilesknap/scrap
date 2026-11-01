@@ -278,8 +278,22 @@ th {
 tbody tr:last-child td {
   border-bottom: none;
 }
+/* Lists as the app's (#541): css/page.css's .md lists, not the browser's 40px indent. The
+   page's text is the app's own .body.md (publish.ts), so Claude's card, the site's list of
+   pages and Pagefind's results keep theirs */
+.md :is(ul, ol) {
+  padding-inline-start: 1.4rem;
+}
+.md li + li {
+  margin-top: var(--s-1);
+}
 li.task {
   list-style: none;
+}
+/* as the app's: a task list as tight as a bulleted one */
+.md li + li.task,
+.md li.task + li {
+  margin-top: 0;
 }
 /* A task's box (#539), in the bullet's place: the app's (css/page.css), a checkbox with
    accent-color --accent, as Chrome draws it, but an empty span (publish.ts): Chrome's greys,
