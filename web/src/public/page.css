@@ -385,6 +385,11 @@ details.reading .claude pre {
   font: inherit;
   font-size: var(--t-md); /* what was read reads at the page's own size */
 }
+details.reading .claude pre {
+  padding: var(--s-2) var(--s-3);
+  border-radius: var(--r-sm);
+  background: var(--surface); /* a step up from the card, as the app's (css/todos.css) */
+}
 details.reading .claude > :last-child {
   margin-bottom: 0;
 }
