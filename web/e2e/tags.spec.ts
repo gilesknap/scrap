@@ -1,8 +1,10 @@
 // Finding things (#84): refine chips under search results, a page's tags, the retired /tags.
-// Runs after smoke.spec.ts (which wants an empty store); e2e/tagged.py adds synthetic pages.
+// e2e/tagged.py adds synthetic pages, one set at a time, deleted after the spec; each test
+// deletes the pages it makes, so the counts of those pages hold, and hold again when repeated.
 import { execFileSync } from "node:child_process";
 import { expect, test } from "@playwright/test";
 import { lowContrast } from "./contrast";
+import { capture, deletePages, madeEachTest } from "./helpers";
 import { caption, filters, filtersButton, openFold } from "./panel";
 
 let slugs: string[] = [];
@@ -12,6 +14,8 @@ test.beforeAll(() => {
   const out = execFileSync("uv", args, { cwd: "..", encoding: "utf8" });
   slugs = JSON.parse(out.trim().split("\n").pop() || "[]");
 });
+test.afterAll(({ request }) => deletePages(request, [...slugs]));
+madeEachTest();
 
 type Page = import("@playwright/test").Page;
 type Locator = import("@playwright/test").Locator;
@@ -160,9 +164,7 @@ test("a time range, from a preset or dates, by edit or creation date", async ({ 
 
 test("tags are edited in the editor, the page's chips read only", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" }); // the contrast check catches no fade midway
-  const id = "01E2ETAGED17".padEnd(26, "0");
-  const made = await page.request.post("/api/captures", { data: { id, text: "Tag me please" } });
-  const { slug } = await made.json();
+  const { slug } = await capture(page, "Tag me please");
   await page.goto(`/p/${slug}`);
   const line = page.locator(".page .tags");
   await expect(line).toHaveCount(0); // no tags, not a todo: no chip row, and nothing to tap
@@ -211,23 +213,16 @@ test("tags are edited in the editor, the page's chips read only", async ({ page 
 test("the most used tags are offered one tap each, in the page editor and the composer", async ({
   page,
 }) => {
-  const id = "01E2ETAGTP01".padEnd(26, "0");
-  const made = await page.request.post("/api/captures", { data: { id, text: "Top tags here" } });
-  const { slug, page_id } = await made.json();
+  const { slug, page_id } = await capture(page, "Top tags here");
   // [tag, pages under it, pages with that very tag]
   const tags = async () =>
     (await (await page.request.get("/api/tags")).json()) as [string, number, number][];
   // Children enough that their parent, which no page has, has more pages under it than any
   // tag has: ranked by that count, it would be offered first
   const most = Math.max(...(await tags()).map((r) => r[1]));
-  const kids: string[] = [];
   for (let i = 0; i <= most; i++) {
-    const r = await page.request.post("/api/captures", {
-      data: { id: `01E2ETAGTK${String(i).padStart(2, "0")}`.padEnd(26, "0"), text: `Kid ${i}` },
-    });
-    const kid = (await r.json()).page_id as string;
+    const kid = (await capture(page, `Kid ${i}`)).page_id; // deleted after the test
     await page.request.patch(`/api/pages/${kid}`, { data: { tags: [`zzparent/k${i}`] } });
-    kids.push(kid);
   }
   /** The most used tags not on the page, as the chips should offer them. */
   const expected = async (on: string[]) => {
@@ -258,7 +253,7 @@ test("the most used tags are offered one tap each, in the page editor and the co
   await expect(page.locator(".page .tags").getByRole("link")).toHaveText([first]); // in full
   const saved = await (await page.request.get(`/api/pages/${page_id}`)).json();
   expect(saved.tags).toEqual([first.slice(1)]);
-  // Off again: the other tests count that tag's pages
+  // Off again: the composer below offers the tags as they were
   await page.request.patch(`/api/pages/${page_id}`, { data: { tags: [] } });
   // The composer offers them too
   await page.goto("/");
@@ -274,7 +269,6 @@ test("the most used tags are offered one tap each, in the page editor and the co
   page.once("dialog", (d) => d.accept());
   await page.locator(".editor").getByRole("button", { name: "Cancel" }).click();
   await expect(page.locator(".editor")).toBeHidden();
-  for (const kid of kids) await page.request.delete(`/api/pages/${kid}`); // for the other tests
 });
 
 test("Order writes sort: into the query, and the results follow it", async ({ page }) => {
@@ -338,10 +332,7 @@ test("Order writes sort: into the query, and the results follow it", async ({ pa
 });
 
 test("the page's action row is always its own: no in-place tag editor", async ({ page }) => {
-  const made = await page.request.post("/api/captures", {
-    data: { id: "01E2ETAGRW1".padEnd(26, "0"), text: "Tag row please" },
-  });
-  const { slug, page_id } = await made.json();
+  const { slug, page_id } = await capture(page, "Tag row please");
   await page.request.patch(`/api/pages/${page_id}`, { data: { tags: ["rowtag"] } });
   await page.goto(`/p/${slug}`);
   const buttons = page.locator(".page > .tools").getByRole("button");
@@ -352,12 +343,7 @@ test("the page's action row is always its own: no in-place tag editor", async ({
 });
 
 test("a kept draft brings back only the tags changed in it", async ({ page }) => {
-  const made = async (text: string) => {
-    const r = await page.request.post("/api/captures", {
-      data: { id: `01E2EDRAFT${text.length}`.padEnd(26, "0"), text },
-    });
-    return (await r.json()) as { page_id: string; slug: string };
-  };
+  const made = (text: string) => capture(page, text);
   const tagsOf = async (id: string) =>
     (await (await page.request.get(`/api/pages/${id}`)).json()).tags as string[];
   const editor = page.locator(".editor");
@@ -498,7 +484,7 @@ test("Enter right after typing opens the first hit of what was typed", async ({ 
   const box = page.getByRole("searchbox");
   await box.fill("zephyr shed plans"); // no waiting out the debounce
   await box.press("Enter");
-  await expect(page).toHaveURL(new RegExp(`/p/${slugs[3]}`));
+  await expect(page).toHaveURL(new RegExp(`/p/${slugs[3]}$`));
 });
 
 test("taking a chip off moves focus to the next one, else the box", async ({ page }) => {

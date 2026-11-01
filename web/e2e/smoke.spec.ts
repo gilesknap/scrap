@@ -1,6 +1,11 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { expect, type Page, test } from "@playwright/test";
+import { capture, madeEachTest } from "./helpers";
 import { caption } from "./panel";
+
+// Each test deletes the pages it made and checks only its own, so the spec passes whatever
+// else is in the store, and again when repeated
+const made = madeEachTest();
 
 // The top bar's Back shows only in an iPhone's home-screen app (navigator.standalone), which
 // has no Back of its own; tests here use it, so they run as one
@@ -38,8 +43,8 @@ test("capture a note, find it, and capture offline", async ({ page, context }) =
 
   await context.setOffline(false);
   await expect(page.locator("#queue")).toBeHidden();
-  const pages = await (await page.request.get("/api/pages")).json();
-  expect(pages.map((p: { title: string; kind: string }) => [p.title, p.kind])).toEqual([
+  const mine = await made(page.request); // this test's pages: just these two, newest first
+  expect(mine.map((p) => [p.title, p.kind])).toEqual([
     ["Ring the plumber", "todo"],
     ["Buy oat milk", "note"],
   ]);
@@ -277,14 +282,8 @@ test("photos over the upload limit are saved separately, or split after a 413", 
   await expect(page.locator(".editor .embeds .embed")).toHaveCount(2); // nothing lost
   await page.getByRole("button", { name: "Save separately" }).click();
   await expect.poll(async () => (await pages()).length).toBe(1); // the text goes with the first
-  await expect
-    .poll(
-      async () =>
-        (await (await page.request.get("/api/pages")).json()).filter(
-          (p: { thumb: string | null }) => p.thumb,
-        ).length,
-    )
-    .toBeGreaterThanOrEqual(2);
+  // Two pages, a photo each
+  await expect.poll(async () => (await made(page.request)).filter((p) => p.thumb).length).toBe(2);
 
   // Queued before the limit was known (an old client): the server's 413 can be split.
   await page.evaluate(() => localStorage.removeItem("scrap.max_upload_bytes"));
@@ -357,13 +356,7 @@ test("a slow upload finishes; a stalled one is dropped and retried", async ({ pa
 });
 
 test("a slow view says Loading at once, and a newer tap wins", async ({ page }) => {
-  const made = await page.request.post("/api/captures", {
-    data: {
-      id: `01${Array.from({ length: 24 }, () => "ABCDEFGHJKMNPQRS"[Math.floor(Math.random() * 16)]).join("")}`,
-      text: "Slow view",
-    },
-  });
-  const { slug } = await made.json();
+  const { slug } = await capture(page, "Slow view");
   await page.goto("/");
   await expect(page.locator(".capture")).toBeVisible();
   let hold = true;
@@ -419,8 +412,7 @@ test("opening the app while another tab holds the upload lock: sent once it is f
   await expect(page.locator("#queue")).toBeVisible(); // not on top of the other tab's upload
   await other.close(); // its lock comes free
   await expect(page.locator("#queue")).toBeHidden({ timeout: 10_000 });
-  const pages = await (await page.request.get("/api/pages")).json();
-  expect(pages.map((p: { title: string }) => p.title)).toContain("Sent after the lock");
+  expect((await made(page.request)).map((p) => p.title)).toEqual(["Sent after the lock"]);
   await context.unroute("**/api/captures");
 });
 
@@ -451,8 +443,7 @@ test("opening the app sends what waits now, not when its backoff says", async ({
   refuse = false;
   await page.reload();
   await expect(page.locator("#queue")).toBeHidden({ timeout: 10_000 });
-  const pages = await (await page.request.get("/api/pages")).json();
-  expect(pages.map((p: { title: string }) => p.title)).toContain("Sent on open");
+  expect((await made(page.request)).map((p) => p.title)).toEqual(["Sent on open"]);
 });
 
 test("the title bar shows the server's version", async ({ page }) => {
@@ -462,10 +453,7 @@ test("the title bar shows the server's version", async ({ page }) => {
 });
 
 test("a view the server never answers ends in an error with Retry", async ({ page }) => {
-  const made = await page.request.post("/api/captures", {
-    data: { id: `01${"ABCDEFGHJKMNPQRS".repeat(2).slice(0, 24)}`, text: "Never answered" },
-  });
-  const { slug } = await made.json();
+  const { slug } = await capture(page, "Never answered");
   await page.clock.install();
   await page.goto("/");
   await expect(page.locator(".capture")).toBeVisible();
@@ -484,11 +472,8 @@ test.describe("without the service worker", () => {
 
   test("Back in the top bar still goes up when its chunk will not load", async ({ page }) => {
     // A todo: its Back goes to Todos, so landing on Capture shows the fallback ran
-    const made = await page.request.post("/api/captures", {
-      data: { id: "01E2EBACKCHNK".padEnd(26, "0"), text: "Back chunk todo", kind: "todo" },
-    });
-    expect(made.ok()).toBe(true);
-    const { slug } = await made.json();
+    const { slug } = await capture(page, "Back chunk todo", { kind: "todo" });
+    expect(slug).toBeTruthy();
     await page.route("**/assets/back-*.js", (r) => r.abort());
     await page.goto(`/p/${slug}`); // opened directly: nothing of the app's behind it
     await expect(page.locator("#backto")).toHaveText("Todos");

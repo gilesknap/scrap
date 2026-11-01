@@ -1,15 +1,17 @@
 """E2E fixture: a few synthetic pages with tags and kinds, as an import makes them.
 
 Run as `uv run python web/e2e/tagged.py DATA_DIR` while scrap serves DATA_DIR; prints
-the slugs as JSON. Run again (a new test worker), it adds nothing: the capture ids are
-fixed. Nothing in it is real or private.
+the slugs as JSON. Each run makes its own (fresh capture ids), first moving any an earlier
+run left (its capture ids start 01E2ETAGGED) to the trash, so the store holds one set of
+them and tags.spec.ts can count them; the spec deletes them when it is done. Nothing in it
+is real or private.
 """
 
 import json
 import sys
 from pathlib import Path
 
-from scrap.store import Store
+from scrap.store import Store, new_ulid
 
 sys.path.insert(0, str(Path(__file__).parents[2] / "tests"))
 from pagehelp import import_page  # noqa: E402
@@ -22,6 +24,13 @@ PAGES = [  # title, kind, tags, personal
 ]
 
 store = Store(sys.argv[1])
+with store.connect() as conn:
+    left = conn.execute(
+        "SELECT DISTINCT p.id FROM capture c JOIN page p ON p.id = c.page_id"
+        " WHERE c.id LIKE '01E2ETAGGED%' AND p.deleted_at IS NULL"
+    ).fetchall()
+for (page_id,) in left:
+    store.delete_page(page_id, author="e2e")
 slugs = []
 for n, (title, kind, tags, personal) in enumerate(PAGES):
     stamp = f"2026-01-0{n + 1}T12:00:00.000Z"
@@ -30,6 +39,6 @@ for n, (title, kind, tags, personal) in enumerate(PAGES):
         "kind": kind, "fields": {"personal": personal}, "tags": tags,
         "created_at": stamp, "updated_at": stamp,
     }  # fmt: skip
-    capture = (f"01E2ETAGGED{n:015d}", "note", title, [])
+    capture = (f"01E2ETAGGED{new_ulid()[-15:]}", "note", title, [])
     slugs.append(import_page(store, page, [capture], "e2e")[0])
 print(json.dumps(slugs))

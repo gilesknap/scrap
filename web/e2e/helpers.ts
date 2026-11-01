@@ -37,6 +37,32 @@ export function deletedAfterEach(): string[] {
   return made;
 }
 
+/** A page as the store's list (/api/pages) gives it. */
+export type Listed = { id: string; slug: string; title: string; kind: string; thumb: unknown };
+
+/** Every page each test of the file makes, however it makes it (the composer, a share, the
+ * queue, the API), deleted after the test: the pages in the store as it starts are noted
+ * (the 500 last changed: a page made since is among them), and any page not among them is
+ * the test's. The function returned lists those so far, newest change first, so a test can
+ * check its own pages whatever else the store holds. Call it once, at the top level. */
+export function madeEachTest(): (request: APIRequestContext) => Promise<Listed[]> {
+  const list = async (request: APIRequestContext) =>
+    (await (await request.get("/api/pages?limit=500")).json()) as Listed[];
+  let before = new Set<string>();
+  const made = async (request: APIRequestContext) =>
+    (await list(request)).filter((p) => !before.has(p.id));
+  test.beforeEach(async ({ request }) => {
+    before = new Set((await list(request)).map((p) => p.id));
+  });
+  test.afterEach(async ({ request }) =>
+    deletePages(
+      request,
+      (await made(request)).map((p) => p.id),
+    ),
+  );
+  return made;
+}
+
 /** A greyscale w x h PNG, every pixel of this shade. Each row starts with its filter byte, 0
  * (none), unless filterBytes is false: then that byte is the shade too, as z-csp.spec.ts has
  * always sent it. */
