@@ -561,32 +561,36 @@ A page can be made public: anyone with its address can read it on the public sit
 static: scrap pushes each public page to it, and it can reach nothing of scrap's
 ([](../explanations/decisions/0043-public-pages-a-static-site-scrap-pushes-to.md),
 [](../reference/public-site.md)). It needs publishing set up on the server; without it, Make
-public says *publishing is off on this server* and the page stays private.
+Make public and Settings' Public pages are not shown.
 
 - **Make public…** is the last row of **Share**. It asks first, every time: who can read it, and
-  what goes public with the page: its tags, Claude's write-up and summary, and its attached files
-  by name. *Links to private pages show their titles as plain text.* **Cancel** has the focus.
+  what goes public with the page: its tags, Claude's write-up and summary (on a topic, its
+  synthesis, which draws on its source pages), and its attached files by name. *Links to private pages show their titles as plain text.* **Cancel** has the focus.
   **Make public** publishes the page from the view on screen: the dates line says *Publishing…*,
   then *Published* and when, and the toast *Page is public* has **Copy link**.
 - A public page has a **Public** chip first in its chip row (a globe), which opens it on the
   public site. *Public · not published yet* on the dates line means it was made public somewhere
-  else (over MCP, or by a revert) and has not been published since: **Refresh** in Settings
-  publishes it.
+  else (over MCP, by a revert or by Restore from the trash) and has not been published since.
+  Nothing publishes it until you say yes: **Refresh** in Settings asks first. A save doesn't.
 - **Make private** acts at once: the page is taken off the site, and the toast's **Undo**
-  publishes it again (without the question).
+  publishes it again (without the question). If the site can't be reached just then, the toast
+  says it *comes off shortly*: scrap finishes it within minutes.
 - **Saving** a public page here (an edit, Mark done, a task box) publishes it again. Publishing
   needs the server: if it can't be reached the page is saved but not published, with the toast
   *Saved. Not published while offline: Refresh all public pages in Settings later.* Publishes are
   never queued.
 - **Links come alive.** When a page is made public or private, the public pages that link to it
   are drawn again and published, so a title in plain text becomes a link, or a link plain text;
-  the toast says how many (*· 2 pages linking here updated*).
+  the toast says how many (*· 2 pages linking here updated*). Deleting a page here does the
+  same, so its title goes from the public pages that showed it. Done elsewhere (over MCP, or
+  on another device), those pages keep the old link or title until **Refresh**.
 
 What a public page holds: the page as it shows here, with its maths, tables and Claude's summary
 and write-up; tags as links to the site's tag pages; Mermaid diagrams as their source; photos as
 2048 pixel previews (no location), and other attached files. A link to a public page is a link
 (a bare `[[slug]]` shows its title); a link to a private page is its words (a bare one, the private
-page's title). Claude's Related and Linked from keep only public pages. Left out: Claude's notes
+page's title). Claude's Related and Linked from keep only public pages. An address of scrap
+itself, or of its `/api/`, in the text reads *a private link*. Left out: Claude's notes
 on a photo (its description, the text it read, its drawing), drawings, revisions, a file's text
 read for search, and the app's buttons. An image's alt text is published as the page has it, file
 names included.

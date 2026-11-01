@@ -66,15 +66,23 @@ carry.
   still succeeds with `"unpublish": "pending"` and reconcile finishes the deletion. Undelete and
   revert keep the flag. `published_at` is read from the kept copy (there is no column), and is
   null when there is none: the PWA then shows "Public · not published yet" (a page made public
-  over MCP, say), and Refresh all publishes it. That is a null timestamp, not stale tracking.
+  over MCP, by a revert or an undelete), and Refresh all publishes it, after asking. That is a
+  null timestamp, not stale tracking.
+- **A first publish needs the owner's yes in the PWA.** The flag can be set without the PWA
+  (MCP, a revert, an undelete), but such a page reaches the site only once the owner has
+  confirmed it there: Make public's warning, or Refresh all's question. Those alone send
+  `"confirmed": true`, and scrap refuses a publish of a page with no kept copy without it
+  (`409 unconfirmed`). A save, a tick and links coming alive pass such a page by. Without this,
+  a page flagged over MCP would have gone public at its next save with no warning at all.
 - **A publish re-checks the flag.** Under scrap's lock a publish reads the page again and is
   refused (`409 not_public`) unless the page is public and not in the trash, so a render that
   raced an unpublish can never put the page back.
 - **When a page is published.**
   - Making a page public, after a warning shown every time (Cancel or Make public) listing
     what goes public with it: its tags, Claude's write-up and summary, its attached files by
-    name, and "Links to private pages show their titles as plain text."
-  - Saving a public page in the PWA.
+    name (on a topic, its synthesis, which draws on its source pages), and "Links to private
+    pages show their titles as plain text."
+  - Saving a public page in the PWA, once it has been published.
   - **Links coming alive.** When a page is made public or private, the PWA also renders and uploads
     again the public pages that refer to it (`GET /api/public?links_to=`, from scrap's own link
     data: pages whose text or write-up links to it, and pages related to it either way; not
@@ -113,8 +121,15 @@ carry.
     the label the owner typed, or, when there is none (a bare `[[slug]]` or address), that
     page's title as plain text. The owner chose the title over a neutral "a private page": it
     reads naturally, and the warning on making a page public says so.
-  - Linked from and Related keep an entry only if the other page is public; otherwise the whole
-    entry, title included, is dropped.
+  - Linked from and Related keep an entry only if the other page is public; otherwise the
+    entry is left out of those lists.
+  - No address of scrap's own, and no `/api/` path, in a page's text: the publish mode writes
+    "a private link" in its place, and scrap's check refuses text that still holds one.
+  - **Private titles.** A private page's title shows, as words, on the public pages that link
+    to it. When a page is made private or deleted in the PWA, the PWA publishes those pages
+    again. When it happens elsewhere (over MCP, by a revert, or trashed from another device), the
+    title stays on them until Refresh all or their next save in the PWA: accepted, since there
+    is no stale tracking. The contract says so.
   - An image's `alt` is published as the app has it, a file name the PWA filled in included
     (the owner's choice; a link's label may show a file's name too).
   - Left out: Claude's notes (a photo's description, the read text, the drawing), revisions, the
@@ -234,8 +249,12 @@ carry.
 - Publishing needs the PWA open on the owner's device; MCP can set the flag, but not render.
 - Tags, Claude's write-up and the summary are public with the page.
 - A public page that links to a page unpublished without the PWA's re-render (over MCP, by a
-  revert or by the trash) keeps a live link to a 404 until Refresh all, the PWA's re-render of
-  linking pages, or that page's next save. That is accepted: there is no stale tracking.
+  revert or by the trash) keeps a live link to a 404, and a page's title stays on the public
+  pages linking to it after it is made private or trashed that way, until Refresh all, the
+  PWA's re-render of linking pages, or that page's next save. That is accepted: there is no
+  stale tracking. Make private, and deleting a page, in the PWA re-render them at once.
+- If the receiver can't be told at once, Make private says the page comes off "shortly"
+  (`"unpublish": "pending"`), and reconcile finishes it.
 - A public page's photos are its 2048-pixel previews, and at most 20 images and files go with it.
   Drawings stay private until the follow-up that publishes them.
 - Any change to what `pagehtml.ts` writes in publish mode must keep to the allow-list scrap

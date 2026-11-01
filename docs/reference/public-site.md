@@ -313,7 +313,8 @@ Marked *default* below: a choice the owner may still change, kept in one place s
 - The tags, as chips: `<a href="scrap-tag:<tag, URL-encoded>">`, which scrap turns into
   `/t/<key>` ([](#tag-keys)).
 - **Linked from** and **Related** (the links scrap adds itself): an entry is kept only if the
-  other page is public. Otherwise the whole entry, its title included, is dropped.
+  other page is public. Otherwise the whole entry is left out of those lists (a private page's
+  title can still show in the page's own text, as a link's words: [](#private-titles)).
 - Maths, as `katex.renderToString` writes it ([](#katexs-markup)).
 - Mermaid diagrams as their source, in `<pre><code class="language-mermaid">`, not rendered.
 - Heading and footnote `id`s, so `#...` links within the page work.
@@ -327,6 +328,18 @@ Marked *default* below: a choice the owner may still change, kept in one place s
 - A bare `[[slug]]` to a public page shows the linked page's title; one to no page (or a page in
   the trash) is the plain text "a private page".
 - Elsewhere: `http:` and `https:` links as written, within [the link rules](#links-scrap-accepts).
+- **No private address in text.** Text (inline code and code blocks included) that holds an
+  address of scrap's own (one of its hosts, with or without a scheme, port or path), or any
+  `/api/...` path, says "a private link" in its place. scrap's check refuses text that still
+  holds one ([](#the-html-scrap-accepts)).
+
+(private-titles)=
+**Private titles on public pages.** A public page that links to a private page shows that
+page's title as words. When a page is made private, or deleted, in the PWA, the PWA draws and
+publishes again the published pages that refer to it, so its link becomes words, or its title
+goes. When that happens elsewhere (over MCP, by a revert, or a page trashed from another
+device), the old title or link stays on the other public pages until Refresh all, or until
+each of them is next saved in the PWA. There is no stale tracking.
 
 **Images and files**
 
@@ -349,9 +362,16 @@ private address.
   address can read the page, and listing what goes public with it: its tags, Claude's
   write-up and summary, its attached files by name, and "Links to private pages show their
   titles as plain text."
+- On a topic page, the warning also lists "Claude's synthesis, which draws on its source pages".
 - A save of a public page while offline is saved but not published, with the toast "Saved. Not
   published while offline: Refresh all public pages in Settings later." Publishes are never
   queued.
+- **Make private** acts at once, with Undo. Its toast says "Private: taken off <site>", or
+  "Private: comes off <site> shortly" when the answer carries `"unpublish": "pending"`.
+- **A first publish needs the owner's yes.** A public page never published (made public over
+  MCP, by a revert or an undelete) is published only from Make public's warning or Refresh
+  all's question below, which send `"confirmed": true`. A save, a tick or a link coming alive
+  passes it by, and scrap refuses such a publish without `confirmed` (`409 unconfirmed`).
 - **Refresh all** asks first when any public page has never been published (made public over
   MCP, say, or restored): it lists them and asks once, "These pages will go public for the
   first time: … OK / Cancel". Pages already published are refreshed without asking. *Default.*
@@ -370,8 +390,9 @@ bearer token cannot reach them: MCP never publishes HTML. Errors are scrap's usu
 private works in bulk through the same routes; `public: true` for more than one page in one
 request is refused with `422 one_at_a_time`.
 
-- **On** only sets the flag. The page is published the next time the PWA renders it: through
-  the Public toggle (which sets the flag, then publishes), a save, or Refresh all.
+- **On** only sets the flag. The page is published when the owner confirms it in the PWA: Make
+  public (which sets the flag, asks, then publishes) or Refresh all's question. Until then it
+  shows "Public · not published yet"; a save does not publish it.
 - **Off** unpublishes at once, whichever route turned it off, and so does the page going to the
   trash. The unpublish runs after the flag change (or the trash) has committed
   ([](#scraps-copies)). If the receiver cannot be reached, the change still succeeds, the answer
@@ -392,12 +413,15 @@ timestamp, not stale tracking.
 Publish the page. The body is JSON, at most 25 MiB:
 
 ```json
-{"html": "<!DOCTYPE html>...", "base_rev": 42, "defer": false}
+{"html": "<!DOCTYPE html>...", "base_rev": 42, "defer": false, "confirmed": true}
 ```
 
 `html` is the page from the publish mode, and `base_rev` the page's revision the PWA rendered.
 With `defer: true` scrap pushes the page's own unit but not `home`, the tag units or
-`pagefind` (Refresh all, below).
+`pagefind` (Refresh all, below). `confirmed` (optional, a boolean) says the owner has just
+agreed to the page going public: the PWA sends it only from Make public's warning (and its
+Undo) and Refresh all's question. A page with no kept copy (`published_at` null) is published
+only with it.
 
 Under scrap's lock, scrap reads the page again, then checks ([](#what-scrap-sends-for-a-page)),
 replaces the placeholders, builds the unit and pushes it. `200` with
@@ -409,9 +433,10 @@ units or `pagefind` could not be pushed after it, the answer is still `200`, wit
 | Status | `error` | When |
 | --- | --- | --- |
 | `409` | `not_public` | The page is not `public`, or it is in the trash |
+| `409` | `unconfirmed` | A first publish (no kept copy) without `"confirmed": true` |
 | `409` | `stale` | `base_rev` is not the page's current revision (the answer has `rev`, the current one) |
 | `413` | `too_large` | The body is over 25 MiB |
-| `422` | `bad_request` | The body is not JSON `{"html", "base_rev", "defer"}` |
+| `422` | `bad_request` | The body is not JSON `{"html", "base_rev", "defer", "confirmed"}` |
 | `422` | `bad_html`, `bad_placeholder` | The HTML fails a rule, or a placeholder names a file that is not on the page (or an `img` a file that is not an image); `detail` says which |
 | `422` | `too_many_files`, `file_too_large`, `unit_too_large` | Over a cap ([](#placeholders-and-files)) |
 | `422` | `stale_tags` | A `scrap-tag:` names a tag the page no longer has (a tag edit raced the render); the PWA renders again |
@@ -471,6 +496,13 @@ The document is `<!DOCTYPE html>` with `html`, `head`, `title` and `body`; `html
   and, for a page with maths, `<link rel="stylesheet" href="/assets/katex.css">`. No other `link`.
 
 There is **no `<style>` element** anywhere: every one is refused.
+
+Text never holds a private address. Text, tails and comments, lower-cased, are refused if they
+contain `/api/blobs/` anywhere, or one of scrap's own hosts (`public.public_origins()`, lower
+case, a trailing `.` removed) standing alone: matched by
+`(?<![a-z0-9.-])<host>(?![a-z0-9-]|\.[a-z0-9])`, so `my.<host>`, `<host>.org` and `<host>-2`
+pass, while `<host>.` ending a sentence, `<host>:8446/p/x` and `https://<host>/api/x` are
+refused. (The publish mode writes "a private link" in their place.)
 
 In `body`, only pagehtml's kept elements (`a abbr article aside b blockquote br caption code dd
 del details div dl dt em figcaption figure h1 h2 h3 h4 h5 h6 hr i img ins kbd li mark ol p pre q
