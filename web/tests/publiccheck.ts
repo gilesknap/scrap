@@ -6,6 +6,7 @@ import { type El, parse, type T } from "./htmlparse";
 export const CSP =
   "default-src 'none'; img-src 'self' data:; style-src 'self'; style-src-attr 'unsafe-inline'; font-src 'self'; script-src 'self'";
 const PAIR = /^pair-[0-9]{1,3}(-photo|-drawing)?$/;
+const TASKBOX: Record<string, string> = { taskbox: "To do", "taskbox done": "Done" };
 const DRAWING = /^scrap-drawing:[1-9][0-9]{0,17}$/;
 const DIAGRAM = /^scrap-diagram:[1-9][0-9]{0,2}-(light|dark)$/;
 const EXCALIDRAW = /^scrap-excalidraw:[1-9][0-9]{0,17}$/;
@@ -140,6 +141,15 @@ export function check(html: string, live: ReadonlySet<string>, own: readonly str
           (ns === "math" ? MATHML.has(t) : SVG.has(t) && !(t === "svg" && space !== "html"));
     if (!ok) bad.push(`element <${t}>`);
     if (t === "input" && n.getAttribute?.("type") !== "radio") bad.push("an input not a radio");
+    // A task's box (#539): exactly the publish mode's empty span, its label by its state
+    const box = t === "span" && (n.getAttribute?.("role") != null || cls.includes("taskbox"));
+    if (box) {
+      const label = TASKBOX[n.getAttribute?.("class") ?? ""];
+      const attrs = n.attrs.map(([k, v]) => `${k}=${v}`).join(" ");
+      if (!label || attrs !== `class=${n.getAttribute?.("class")} role=img aria-label=${label}`)
+        bad.push(`a task box ${attrs}`);
+      if (n.childNodes?.length) bad.push("a task box with content");
+    }
     const inKatex = katex || (t === "span" && cls.includes("katex"));
     const seen = new Set<string>();
     for (const [k, v] of n.attrs) {
@@ -173,6 +183,7 @@ export function check(html: string, live: ReadonlySet<string>, own: readonly str
             (k === "checked" && v === "") ||
             k === "aria-label"
           );
+        if (box) return true; // checked whole, above
         if (t === "label") return k === "for" && PAIR.test(v);
         if (t === "div" && k === "role") return v === "radiogroup";
         if (t === "div" && k === "aria-label") return true;

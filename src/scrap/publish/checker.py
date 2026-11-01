@@ -76,6 +76,8 @@ PLACEHOLDER = re.compile(
 # labels, named and labelled pair-<n>[-photo|-drawing], in a div role="radiogroup"
 PAIR = re.compile(r"pair-[0-9]{1,3}(?:-photo|-drawing)?")
 NEW_TAB = {"target": "_blank", "rel": "noopener noreferrer"}  # Open in Excalidraw
+# A task's box (#539): an empty span, its class and its label, by its state
+TASKBOX = {"taskbox": "To do", "taskbox done": "Done"}
 # html5lib's parse errors for markup the contract refuses outright
 REFUSED_ERRORS = {
     "duplicate-attribute": "an attribute given twice",
@@ -183,6 +185,8 @@ class _Walk:
             if el.get("type") != "radio" or not PAIR.fullmatch(el.get("id") or ""):
                 raise _refuse("an <input> other than a photo's tabs")
             self.inputs.add(el.get("id") or "")
+        if ns == HTML and local == "span" and _taskbox(el):
+            return
         if ns == HTML and local == "label":
             if not PAIR.fullmatch(el.get("for") or ""):
                 raise _refuse("a <label> other than a photo's tabs")
@@ -305,6 +309,21 @@ class _Walk:
             what = {MATHML: "MathML ", SVG: "SVG "}.get(ns, "")
             raise _refuse(f"{what}<{local}> is not allowed here")
         self.attributes(el, ns, local, katex)
+
+
+def _taskbox(el: ET.Element) -> bool:
+    """Whether a span is a task's box (#539), which must be exactly as the publish
+    mode writes it: <span class="taskbox" role="img" aria-label="To do"> or
+    <span class="taskbox done" role="img" aria-label="Done">, empty. A span with
+    a role, or classed taskbox, that is not one is refused."""
+    cls = el.get("class") or ""
+    if "role" not in el.attrib and "taskbox" not in cls.split():
+        return False
+    want = TASKBOX.get(cls)
+    attrs = {"class": cls, "role": "img", "aria-label": want}
+    if want is None or dict(el.attrib) != attrs or el.text or len(el):
+        raise _refuse("a task's box other than the publish mode's")
+    return True
 
 
 def _prefs_script(el: ET.Element, attrs: dict[str, str]) -> bool:
