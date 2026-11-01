@@ -2,7 +2,11 @@
 public-site.md, "What scrap builds"): ``home`` (index.html, tags.html, 404.html), a
 ``t/<key>`` for each tag a public page has, ``pagefind`` and ``assets`` (page.css,
 katex.css and KaTeX's fonts from the PWA's build, and Pagefind's UI stylesheet).
-Deterministic: the same copies (and the same build) give the same bytes."""
+Deterministic: the same copies (and the same build) give the same bytes.
+
+If Pagefind fails (search.SearchError), the units have no pagefind (and no assets,
+unless an earlier build's UI stylesheet is cached): the site keeps the last ones it
+was sent, and pending() says the derived units are not all built."""
 
 import logging
 from collections import defaultdict
@@ -10,13 +14,14 @@ from pathlib import Path
 from typing import Any
 
 from .kept import Kept
-from .search import UI_CSS, build_index, index_text
+from .search import UI_CSS, SearchError, build_index, cached_css, index_text
 from .tagkey import tag_key
 from .templates import home, not_found, tag_page, tags_page
 
-__all__ = ["ASSET_TYPES", "assets", "build"]
+__all__ = ["ASSET_TYPES", "SEARCH", "assets", "build", "pending"]
 
 ASSET_TYPES = (".css", ".woff", ".woff2", ".ttf")
+SEARCH = "search"  # the cached Pagefind build, in the kept copies' folder
 log = logging.getLogger(__name__)
 _warned = False
 
@@ -75,7 +80,18 @@ def build(kept: Kept, static: Path) -> dict[str, dict[str, bytes]]:
          index_text(kept.html(slug)))
         for slug, meta in pages
     )  # fmt: skip
-    index, ui_css = build_index(records)
-    units["pagefind"] = index
-    units["assets"] = assets(static, ui_css)
+    cache = kept.root / SEARCH
+    try:
+        index, ui_css = build_index(records, cache)
+        units["pagefind"] = index
+    except SearchError as e:  # the site keeps its last index
+        log.warning("publish: the search index is pending: %s", e)
+        ui_css = cached_css(cache)
+    if ui_css is not None:
+        units["assets"] = assets(static, ui_css)
     return units
+
+
+def pending(units: dict[str, dict[str, bytes]]) -> bool:
+    """Whether a build left a unit out (Pagefind failed): the site keeps its last."""
+    return "pagefind" not in units or "assets" not in units

@@ -3,9 +3,23 @@
 the kept copies, each indexed as its text with every ``.katex`` element replaced by
 the formula's TeX (its annotation), so search finds the TeX rather than KaTeX's glyph
 spans. Pagefind's UI files go with it, and scrap-search.js, which starts the UI; its
-stylesheet goes to the assets unit, as CSS lives only there."""
+stylesheet goes to the assets unit, as CSS lives only there.
+
+The build is cached (under the kept copies' folder) by a digest of its records and
+Pagefind's version, so an unchanged site is not indexed again, and it runs with a
+timeout: a build that fails or takes too long raises SearchError, and the caller
+leaves the site's last index in place (pending until a build works).
+
+Each record goes in with add_custom_record. (add_directory would index them in one
+call, but it makes a page's address /p/<slug>/, with a trailing slash, which no
+data-pagefind-meta changes.)"""
 
 import asyncio
+import hashlib
+import importlib.metadata
+import json
+import os
+import shutil
 import tempfile
 import xml.etree.ElementTree as ET
 from pathlib import Path
@@ -15,7 +29,10 @@ from pagefind.index import PagefindIndex
 
 from .katex import HTML, MATHML
 
-__all__ = ["UI_CSS", "build_index", "index_text"]
+__all__ = ["TIMEOUT", "UI_CSS", "SearchError", "build_index", "cached_css", "index_text"]
+
+TIMEOUT = 115.0  # seconds a build may take (with Pagefind's 5 s to close, about 120)
+VERSION = importlib.metadata.version("pagefind")
 
 UI_CSS = "pagefind-ui.css"  # Pagefind's UI stylesheet, for the assets unit
 UNIT_TYPES = (".js", ".mjs", ".json", ".wasm", ".pagefind") + tuple(
@@ -85,7 +102,11 @@ def index_text(html: bytes | str) -> str:
     return " ".join("".join(out).split())
 
 
-async def _build(records: list[tuple[str, str, str]], out: Path) -> None:
+class SearchError(Exception):
+    """The index could not be built (Pagefind failed, or took over TIMEOUT)."""
+
+
+async def _index(records: list[tuple[str, str, str]], out: Path) -> None:
     config = {"force_language": "en", "output_path": str(out)}
     async with PagefindIndex(config) as index:  # type: ignore[arg-type]
         for url, title, text in records:
@@ -94,19 +115,86 @@ async def _build(records: list[tuple[str, str, str]], out: Path) -> None:
             )
 
 
-def build_index(records: list[tuple[str, str, str]]) -> tuple[dict[str, bytes], bytes]:
-    """The pagefind unit's files for records ((url, title, text), sorted) and Pagefind's
-    UI stylesheet. Runs the pagefind binary; call it from a thread with no event loop
-    (a sync route's, or reconcile's)."""
+def _key(records: list[tuple[str, str, str]]) -> str:
+    """The digest a build is cached by: its records, Pagefind's version and START."""
+    raw = json.dumps([VERSION, START.decode(), records], ensure_ascii=False)
+    return hashlib.sha256(raw.encode()).hexdigest()
+
+
+def _run(records: list[tuple[str, str, str]], timeout: float) -> dict[str, bytes]:
     with tempfile.TemporaryDirectory(prefix="scrap-pagefind-") as tmp:
         out = Path(tmp) / "pagefind"
-        asyncio.run(_build(records, out))
-        files = {
+        try:
+            asyncio.run(asyncio.wait_for(_index(records, out), timeout))
+        except TimeoutError:
+            raise SearchError(f"Pagefind took over {timeout:.0f} s") from None
+        except Exception as e:  # noqa: BLE001  whatever the binary or its IPC raised
+            raise SearchError(f"Pagefind failed: {type(e).__name__}: {e}") from e
+        return {
             p.relative_to(out).as_posix(): p.read_bytes()
             for p in sorted(out.rglob("*"))
             if p.is_file()
         }
+
+
+def _load(cache: Path, key: str | None) -> tuple[dict[str, bytes], bytes] | None:
+    """The cached build (of key; None: whichever it is), else None."""
+    try:
+        if key is not None and (cache / "key").read_text() != key:
+            return None
+        css = (cache / "css").read_bytes()
+        unit = cache / "unit"
+        files = {
+            p.relative_to(unit).as_posix(): p.read_bytes()
+            for p in sorted(unit.rglob("*"))
+            if p.is_file()
+        }
+    except OSError:
+        return None
+    return (files, css) if files else None
+
+
+def _save(cache: Path, key: str, unit: dict[str, bytes], css: bytes) -> None:
+    cache.parent.mkdir(parents=True, exist_ok=True)
+    new = Path(tempfile.mkdtemp(dir=cache.parent, prefix=".search-"))
+    for name, content in unit.items():
+        (new / "unit" / name).parent.mkdir(parents=True, exist_ok=True)
+        (new / "unit" / name).write_bytes(content)
+    (new / "css").write_bytes(css)
+    (new / "key").write_text(key)
+    old = cache.parent / f".search-old-{os.getpid()}"
+    if cache.exists():
+        os.replace(cache, old)
+    os.replace(new, cache)
+    shutil.rmtree(old, ignore_errors=True)
+
+
+def cached_css(cache: Path) -> bytes | None:
+    """Pagefind's UI stylesheet from the last build cached, for the assets unit
+    while a build fails."""
+    found = _load(cache, None)
+    return found[1] if found else None
+
+
+def build_index(
+    records: list[tuple[str, str, str]], cache: Path | None = None,
+    timeout: float | None = None,
+) -> tuple[dict[str, bytes], bytes]:  # fmt: skip
+    """The pagefind unit's files for records ((url, title, text), sorted) and Pagefind's
+    UI stylesheet: from cache if it holds the build of these records, else built
+    (and cached). SearchError if the build fails or takes over timeout (TIMEOUT).
+    Runs the pagefind binary; call it from a thread with no event loop (a sync
+    route's, or reconcile's)."""
+    key = _key(records)
+    if cache is not None and (hit := _load(cache, key)):
+        return hit
+    files = _run(records, TIMEOUT if timeout is None else timeout)
     css = files.get(UI_CSS, b"")
     unit = {k: v for k, v in files.items() if k.endswith(UNIT_TYPES)}
     unit["scrap-search.js"] = START
+    if cache is not None:
+        try:
+            _save(cache, key, unit, css)
+        except OSError:  # a cache only
+            pass
     return unit, css

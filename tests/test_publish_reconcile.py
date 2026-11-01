@@ -174,3 +174,80 @@ def test_a_tag_unit_goes_when_no_public_page_has_the_tag(client, app, site):
     client.patch(f"/api/pages/{p['slug']}", json={"public": False})
     assert f"t/{tag_key('rare')}" not in site.units()
     assert "rare" not in site.file("home", "tags.html").decode()
+
+
+def test_search_is_built_once_for_the_same_records(client, app, monkeypatch):
+    from scrap.publish import search
+
+    published(client, "A\nx", "<p>alpha</p>")
+    calls = []
+    real = search._index
+
+    async def counted(records, out):
+        calls.append(len(records))
+        await real(records, out)
+
+    monkeypatch.setattr(search, "_index", counted)
+    one = derived.build(kept(app), WEB / "public")
+    assert calls == []  # the publish's own build is cached
+    published(client, "B\ny", "<p>beta</p>")
+    assert calls == [2]  # new records: built again
+    two = derived.build(kept(app), WEB / "public")
+    assert calls == [2] and two["pagefind"] != one["pagefind"]
+
+
+def test_a_pagefind_failure_keeps_the_last_index(client, app, site, monkeypatch):
+    from scrap.publish import search
+
+    a = published(client, "A\nx", "<p>alpha</p>")
+    before = site.units()
+
+    async def broken(records, out):
+        raise RuntimeError("injected")
+
+    monkeypatch.setattr(search, "_index", broken)
+    ref = client.post("/api/captures", json={"id": new_ulid(), "text": "B\ny"}).json()
+    b = client.patch(f"/api/pages/{ref['slug']}", json={"public": True}).json()
+    r = client.put(f"/api/pages/{b['slug']}/published", json={
+        "html": page("<p>beta</p>", b["title"]), "base_rev": b["rev"],
+        "confirmed": True,
+    })  # fmt: skip
+    assert r.status_code == 200 and r.json()["derived"] == "pending", r.text
+    units = site.units()
+    assert f"p/{b['slug']}" in units  # the page went out
+    assert units["pagefind"]["digest"] == before["pagefind"]["digest"]
+    assert units["assets"]["digest"] == before["assets"]["digest"]  # cached CSS
+    assert f'/p/{b["slug"]}"' in site.file("home", "index.html").decode()
+    assert client.post("/api/public/rebuild").json()["derived"] == "pending"
+    app.state.publisher.reconcile()  # keeps the old index, says so
+    assert "pagefind" in site.units()
+    last = app.state.publisher.last
+    assert last["ok"] is False and "search index" in last["error"]
+    out = client.patch(f"/api/pages/{a['slug']}", json={"public": False}).json()
+    assert out["unpublish"] == "pending"  # the page is gone; search is not rebuilt
+    assert f"p/{a['slug']}" not in site.units()
+    monkeypatch.undo()
+    configure(monkeypatch, app.state.publisher.store.dir.parent, site)
+    app.state.publisher.reconcile()
+    assert app.state.publisher.last["ok"] is True
+    assert site.units()["pagefind"]["digest"] != before["pagefind"]["digest"]
+
+
+def test_a_pagefind_build_that_hangs_times_out(client, app, monkeypatch):
+    import asyncio
+    import time
+
+    from scrap.publish import search
+
+    published(client, "A\nx", "<p>alpha</p>")
+
+    async def slow(records, out):
+        await asyncio.sleep(30)
+
+    monkeypatch.setattr(search, "_index", slow)
+    monkeypatch.setattr(search, "TIMEOUT", 0.3)
+    published(client, "B\ny", "<p>beta</p>")  # records changed: built again
+    start = time.monotonic()
+    units = derived.build(kept(app), WEB / "public")
+    assert time.monotonic() - start < 5
+    assert "pagefind" not in units and derived.pending(units)

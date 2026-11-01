@@ -70,6 +70,7 @@ class Summary:
     pushed: list[str] = field(default_factory=list)
     deleted: list[str] = field(default_factory=list)
     failed: list[str] = field(default_factory=list)
+    search_failed: bool = False  # Pagefind failed: the site keeps its last index
 
 
 def reconcile(
@@ -90,6 +91,7 @@ def reconcile(
     if receiver is None:
         return out
     units = derived.build(kept, static)
+    out.search_failed = derived.pending(units)
     for unit in out.pruned:  # sync would too; deleting first frees the quota
         _try(receiver.delete, unit, out)
     held = receiver.manifest().get("units") or {}
@@ -105,7 +107,7 @@ def reconcile(
         if _try(receiver.put, name, out, files) is not None:
             kept.set_digest(name, dig)
             out.pushed.append(name)
-    keep = sorted({*pages, *units})
+    keep = sorted({*pages, *units, *FIXED})  # a unit not built keeps its last
     out.deleted = receiver.sync(keep)
     for name in kept.digests():
         if name not in keep:

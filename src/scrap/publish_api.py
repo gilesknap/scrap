@@ -72,5 +72,6 @@ def add_routes(app: FastAPI, publisher: Publisher) -> None:
     @app.post("/api/public/rebuild")
     def rebuild() -> dict[str, Any]:
         """Build home, the tag units, search and assets once, and push those whose
-        digest changed: {units: [...]}."""
-        return {"units": publisher.rebuild()}
+        digest changed: {units: [...]}, and "derived": "pending" if the search index
+        could not be built."""
+        return publisher.rebuild()

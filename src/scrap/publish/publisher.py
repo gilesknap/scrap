@@ -124,7 +124,10 @@ class Publisher:
                     self.kept.write(page.slug, unit, meta, dig)
                     if not defer:
                         self._settle_slugs(receiver, self._others(page))
-                        push_derived(self.kept, receiver, self._units())
+                        units = self._units()
+                        push_derived(self.kept, receiver, units)
+                        if derived.pending(units):  # Pagefind failed
+                            out["derived"] = PENDING
                 except Exception:  # noqa: BLE001  reconcile does the rest
                     log.exception("publish: p/%s is out; the rest is pending", page.slug)
                     out["derived"] = PENDING
@@ -160,7 +163,10 @@ class Publisher:
                     return None
                 with self._receiver() as receiver:
                     self._settle_slugs(receiver, stale)
-                    push_derived(self.kept, receiver, self._units())
+                    units = self._units()
+                    push_derived(self.kept, receiver, units)
+                if derived.pending(units):  # the page is gone; search is not rebuilt
+                    return PENDING
             except ReceiverError as e:
                 log.warning("publish: unpublishing %s is pending: %s", stale or ids, e)
                 return PENDING
@@ -169,16 +175,24 @@ class Publisher:
                 return PENDING
             return None
 
-    def rebuild(self) -> list[str]:
+    def rebuild(self) -> dict[str, Any]:
         """Build home, the tag units, pagefind and assets once and push those whose
-        digest changed (after a Refresh all's deferred publishes): the units pushed."""
+        digest changed (after a Refresh all's deferred publishes): {units: [those
+        pushed]}, with "derived": "pending" if Pagefind failed (the site keeps its
+        last index)."""
         if not enabled():
             raise NotConfigured()
         with self.lock, self._receiver() as receiver:
+            units = self._units()
             try:
-                return push_derived(self.kept, receiver, self._units())
+                out: dict[str, Any] = {
+                    "units": push_derived(self.kept, receiver, units)
+                }
             except ReceiverError as e:
                 raise PublishFailed(e.code) from None
+            if derived.pending(units):
+                out["derived"] = PENDING
+            return out
 
     def reconcile(self) -> None:
         """One reconcile pass (push.reconcile) under the lock, its outcome kept for
@@ -194,6 +208,10 @@ class Publisher:
                 else:
                     done = reconcile(self.store, self.kept, None, Path())
                 error = f"refused: {', '.join(done.failed)}" if done.failed else None
+                if done.search_failed:
+                    error = "the search index could not be built" + (
+                        f"; {error}" if error else ""
+                    )
             except ReceiverError as e:
                 error = str(e)
             self.last = {"at": now(), "ok": error is None, "error": error}
