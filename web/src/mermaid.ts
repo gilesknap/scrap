@@ -22,6 +22,7 @@ export async function draw(blocks: HTMLElement[]) {
       const { svg } = await mermaid.render(`diagram-${++drawn}`, text);
       const box = document.createElement("div");
       box.className = "diagram";
+      box.dataset.source = text; // a public page publishes its source (publish.ts)
       box.setAttribute("role", "img");
       box.innerHTML = svg;
       code.parentElement?.replaceWith(box);

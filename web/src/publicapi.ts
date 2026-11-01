@@ -1,0 +1,73 @@
+// The public pages' calls to scrap (#497), as docs/reference/public-site.md "The PWA's API in
+// scrap" has them; the types are in api.ts. Kept apart from api.ts, which is in the app shell:
+// only the page view, Settings and publicpages.ts use these.
+import { ApiError, api, kept, type Page, type PublicPage, type Published } from "./api";
+
+const JSON_TYPE = { "Content-Type": "application/json" };
+const SITE = "scrap.public_site";
+
+/** The public pages not in the trash; with linksTo, only those whose published copy refers to
+ * that page (a link, Linked from or Related). */
+export const publicPages = (linksTo?: string) =>
+  api<PublicPage[]>(linksTo ? `public?links_to=${encodeURIComponent(linksTo)}` : "public");
+
+/** Make a page public (only sets the flag: it is published when the PWA renders it) or
+ * private (scrap takes it off the site at once). */
+export const setPublic = (key: string, on: boolean) =>
+  api<Page>(`pages/${encodeURIComponent(key)}`, {
+    method: "PATCH",
+    headers: JSON_TYPE,
+    body: JSON.stringify({ public: on }),
+  });
+
+/** Publish the page's HTML, rendered from revision base_rev. defer: push the page alone, not
+ * the home page, tag pages or search (Refresh all, then rebuild() once). */
+export async function publishPage(key: string, html: string, base_rev: number, defer = false) {
+  const r = await api<Published>(`pages/${encodeURIComponent(key)}/published`, {
+    method: "PUT",
+    headers: JSON_TYPE,
+    body: JSON.stringify({ html, base_rev, defer }),
+  });
+  site(r.url.replace(/\/p\/[^/]*$/, "")); // where the site is, for the chip and the footer
+  return r;
+}
+
+/** Build the home page, the tag pages and search once, after deferred publishes. */
+export const rebuild = () => api<{ units: string[] }>("public/rebuild", { method: "POST" });
+
+/** The public site's address (https://pages.example), as last learned from a publish; with
+ * a value, remember it. Null if no publish has said yet. */
+export function site(set?: string): string | null {
+  if (set && /^https?:\/\/[^/]+$/.test(set)) kept(SITE, set);
+  return kept(SITE);
+}
+
+/** A page's address on the public site, if known. */
+export const publicUrl = (p: Pick<Page, "slug" | "public_url">) => {
+  const at = site();
+  return p.public_url || (at ? `${at}/p/${p.slug}` : null);
+};
+
+/** The error's code from scrap ("stale", "not_public", "stale_tags", ...), if it has one. */
+export const codeOf = (err: unknown) => (err instanceof ApiError ? err.body.error : undefined);
+
+/** A publish refused because the page changed after it was drawn: draw it again, once. */
+export const redraw = (err: unknown) =>
+  err instanceof ApiError &&
+  ((err.status === 409 && codeOf(err) === "stale") ||
+    (err.status === 422 && codeOf(err) === "stale_tags"));
+
+/** Not sent at all: offline, or the server not reached. */
+export const unreached = (err: unknown) => !(err instanceof ApiError);
+
+/** Why a publish failed, in words for a toast. */
+export function whyNot(err: unknown, online = navigator.onLine): string {
+  if (!(err instanceof ApiError)) return online ? "can't reach the server" : "you're offline";
+  const code = codeOf(err);
+  if (err.status === 503) return "publishing is off on this server";
+  if (err.status === 502) return `the public site refused it (${err.message})`;
+  if (err.status === 409 && code === "not_public") return "the page isn't public any more";
+  if (redraw(err)) return "the page changed meanwhile; try again";
+  if (err.status === 413) return "the page is too big to publish";
+  return err.message; // a 422 from scrap's check: its detail says which rule
+}

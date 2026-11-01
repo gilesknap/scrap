@@ -105,6 +105,26 @@ export interface Page extends Summary {
   writeup?: Writeup | null; // a board page's, or a topic's synthesis (writeup.ts)
   topics?: PageRef[]; // the topics it is a source of (#261)
   topic?: { key: string; sources: Source[] } | null; // set on a topic page
+  // Public pages (#497, docs/reference/public-site.md): on the public site; when it was last
+  // published there (null: never, or not since it was made public); public_url its address
+  // there, if the server says (else publicpages.ts works it out from the last publish)
+  public?: boolean;
+  published_at?: string | null;
+  public_url?: string | null;
+  unpublish?: "pending"; // a PATCH that made it private while the public site was down
+}
+/** A public page, as GET /api/public lists them (#497). */
+export interface PublicPage {
+  id: string;
+  slug: string;
+  title: string;
+  published_at: string | null; // null: public, never published
+}
+/** What PUT /api/pages/{key}/published answers (#497). */
+export interface Published {
+  url: string; // the page on the public site
+  published_at: string;
+  files: number;
 }
 /** A link to a page. */
 export interface PageRef {
@@ -155,7 +175,8 @@ export const say = (d: unknown): string | undefined => {
 export class ApiError extends Error {
   constructor(
     public status: number,
-    public body: { detail?: unknown; rev?: number; version?: number | null },
+    // error: the server's code for it, where it gives one (409 stale, 422 stale_tags, ...)
+    public body: { detail?: unknown; error?: string; rev?: number; version?: number | null },
   ) {
     super(say(body.detail) ?? `HTTP ${status}`);
   }

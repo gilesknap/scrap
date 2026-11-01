@@ -216,6 +216,17 @@ The full-size original stays in the phone's own gallery, not in scrap. Colours a
 sRGB, so a wide-gamut colour profile may be lost. **Settings**, **Photos**, **Full size** turns
 this off for every photo (**Smaller** is the default); there is no choice per shot.
 
+(settings-public-pages)=
+### Public pages in Settings
+
+**Settings**, **Public pages**, **Refresh N pages** draws every public page again and publishes
+it, then rebuilds the site's home page, tag pages and search once: for changes the app did not
+see, such as an edit over MCP, a new write-up or a new version of scrap. It says *Refreshing 3 of
+12…* as it goes, then *Refreshed 12 pages at 14:05* (and any it could not, with why). If some
+public pages have never been published, it lists them first and asks once: *These pages will go
+public for the first time*; **Cancel** refreshes nothing. With no public pages it says so: *No
+pages are public. Make one public from its Share menu.*
+
 ## What scrap stores on the phone
 
 All of it stays in the browser, for scrap's own address, and is never sent anywhere.
@@ -505,13 +516,13 @@ Page text is Markdown as GitHub writes it:
 
 ### Sharing a page
 
-**Share** asks **Link**, **Text**, **Print / Save as PDF**, **HTML** and **Zip** (both saved like Download where the browser cannot share them: Chrome on Android cannot share a zip) or **Download**. Where the browser cannot share an HTML file, HTML is **Download HTML**. Tap **Share** again or elsewhere to close.
+**Share** asks **Link**, **Text**, **Print / Save as PDF**, **HTML** and **Zip** (both saved like Download where the browser cannot share them: Chrome on Android cannot share a zip) or **Download**, and last **Make public…** or **Make private** ([](#public-pages)). Where the browser cannot share an HTML file, HTML is **Download HTML**. Tap **Share** again or elsewhere to close.
 
 On a computer with no share sheet (Firefox, Chrome on Linux) **Share** copies instead: **Copy
 link**, **Copy as Markdown** (the Text below), **Copy as rich text** (the title and text as
 formatted text, with the Markdown as its plain text, to paste into an email or a document; no
 meta line, tags, Claude's card or files, and photos are named, not included), then **Print /
-Save as PDF**, **Download HTML**, **Download** and **Pin to Search**. Each copy says so, for
+Save as PDF**, **Download HTML**, **Download**, **Pin to Search** and **Make public…**. Each copy says so, for
 example *Link copied*; where the browser can't put formatted text on the clipboard, Copy as rich
 text copies the plain text and says *Text copied*.
 
@@ -541,6 +552,48 @@ failure says *Download failed* or *Share failed* and why, for about 8 seconds. C
 sheet is no failure. If the browser cannot share a file, **Photo** says *Sharing files is not
 supported here*: use **Download**. If the sharing code cannot load: *Can't do that offline: reload
 scrap and try again*.
+
+(public-pages)=
+### Public pages
+
+A page can be made public: anyone with its address can read it on the public site (such as
+`https://pages.gkcluster.org/p/<slug>`), read only, while scrap itself stays private. The site is
+static: scrap pushes each public page to it, and it can reach nothing of scrap's
+([](../explanations/decisions/0043-public-pages-a-static-site-scrap-pushes-to.md),
+[](../reference/public-site.md)). It needs publishing set up on the server; without it, Make
+public says *publishing is off on this server* and the page stays private.
+
+- **Make public…** is the last row of **Share**. It asks first, every time: who can read it, and
+  what goes public with the page: its tags, Claude's write-up and summary, and its attached files
+  by name. *Links to private pages show their titles as plain text.* **Cancel** has the focus.
+  **Make public** publishes the page from the view on screen: the dates line says *Publishing…*,
+  then *Published* and when, and the toast *Page is public* has **Copy link**.
+- A public page has a **Public** chip first in its chip row (a globe), which opens it on the
+  public site. *Public · not published yet* on the dates line means it was made public somewhere
+  else (over MCP, or by a revert) and has not been published since: **Refresh** in Settings
+  publishes it.
+- **Make private** acts at once: the page is taken off the site, and the toast's **Undo**
+  publishes it again (without the question).
+- **Saving** a public page here (an edit, Mark done, a task box) publishes it again. Publishing
+  needs the server: if it can't be reached the page is saved but not published, with the toast
+  *Saved. Not published while offline: Refresh all public pages in Settings later.* Publishes are
+  never queued.
+- **Links come alive.** When a page is made public or private, the public pages that link to it
+  are drawn again and published, so a title in plain text becomes a link, or a link plain text;
+  the toast says how many (*· 2 pages linking here updated*).
+
+What a public page holds: the page as it shows here, with its maths, tables and Claude's summary
+and write-up; tags as links to the site's tag pages; Mermaid diagrams as their source; photos as
+2048 pixel previews (no location), and other attached files. A link to a public page is a link
+(a bare `[[slug]]` shows its title); a link to a private page is its words (a bare one, the private
+page's title). Claude's Related and Linked from keep only public pages. Left out: Claude's notes
+on a photo (its description, the text it read, its drawing), drawings, revisions, a file's text
+read for search, and the app's buttons. An image's alt text is published as the page has it, file
+names included.
+
+The site is only as current as the last publish: a change made elsewhere (over MCP, a new
+write-up) reaches it at the page's next save here, or with **Settings**, **Public pages**,
+**Refresh** ([](#settings-public-pages)).
 
 ### Photos and files
 

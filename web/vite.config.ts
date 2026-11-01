@@ -126,8 +126,34 @@ const katexWoff2: Plugin = {
   },
 };
 
+// The public site's shared assets (#497, docs/reference/public-site.md): written beside the app
+// as public/page.css (tokens.css, then src/public/page.css: scrap's look), public/katex.css
+// and public/fonts/ (KaTeX's, as WOFF2 only, as the app has them), which scrap pushes as
+// /assets/. Not part of the app: nothing of the app loads them.
+const KATEX = "node_modules/katex/dist";
+const publicAssets: Plugin = {
+  name: "scrap-public-assets",
+  apply: "build",
+  generateBundle() {
+    const css = (f: string) => readFileSync(f, "utf8");
+    const page = `${css("src/tokens.css")}\n${css("src/public/page.css")}`;
+    this.emitFile({ type: "asset", fileName: "public/page.css", source: page });
+    const katex = css(`${KATEX}/katex.min.css`).replace(
+      /,url\([^)]+\.(woff|ttf)\) format\("(woff|truetype)"\)/g,
+      "",
+    );
+    if (/url\((?!fonts\/KaTeX_[\w-]+\.woff2\))/.test(katex))
+      this.error("KaTeX's CSS names a file other than its fonts/*.woff2: update publicAssets");
+    this.emitFile({ type: "asset", fileName: "public/katex.css", source: katex });
+    for (const f of readdirSync(`${KATEX}/fonts`).filter((f) => f.endsWith(".woff2"))) {
+      const source = readFileSync(`${KATEX}/fonts/${f}`);
+      this.emitFile({ type: "asset", fileName: `public/fonts/${f}`, source });
+    }
+  },
+};
+
 export default defineConfig({
-  plugins: [shell, fonts, katexWoff2],
+  plugins: [shell, fonts, katexWoff2, publicAssets],
   // Excalidraw's build reads it; React, not Preact
   define: { "process.env.IS_PREACT": JSON.stringify("false") },
   build: {

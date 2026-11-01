@@ -66,6 +66,7 @@ export async function edit(
   show: (p: Page) => void,
   row = false, // from a list's row: no view read
   due = false, // from the page's due chip: its Due fold open and focused
+  onSaved: (p: Page) => void = show, // drawn once saved (page.ts: and a public page published)
 ) {
   // An unsaved edit comes back, on the revision it was made on: if the page has changed
   // since, saving it shows the conflict rather than overwriting.
@@ -172,7 +173,7 @@ export async function edit(
       closed = true;
       await ed.done();
       await load(saved); // its first image: the figures
-      show(saved);
+      onSaved(saved);
     } catch (err) {
       if (!(err instanceof ApiError && err.status === 409)) {
         // Still editing, the text kept: say so plainly (no raw "TypeError: Failed to fetch")

@@ -1,12 +1,14 @@
 {
   "$schema": "https://biomejs.dev/schemas/2.5.15/schema.json",
   "vcs": { "enabled": true, "clientKind": "git", "useIgnoreFile": true },
-  "files": { "includes": ["**", "!test-results", "!playwright-report"] },
+  "files": {
+    "includes": ["**", "!test-results", "!playwright-report", "!tests/fixtures/published"]
+  },
   "formatter": { "indentStyle": "space", "lineWidth": 100 },
   "linter": { "rules": { "preset": "recommended" } },
   "overrides": [
     {
-      "includes": ["src/css/*.css"],
+      "includes": ["src/css/*.css", "src/public/*.css"],
       "linter": { "rules": { "style": { "noDescendingSpecificity": "off" } } }
     }
   ]
