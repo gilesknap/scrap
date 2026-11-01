@@ -387,8 +387,11 @@ bearer token cannot reach them: MCP never publishes HTML. Errors are scrap's usu
 
 `PATCH /api/pages/{key}` with `{"public": true}` or `{"public": false}`, or MCP
 `edit_meta(public=...)`, sets `page.public`, as a revision that `revert` can undo. Making pages
-private works in bulk through the same routes; `public: true` for more than one page in one
-request is refused with `422 one_at_a_time`.
+private works in bulk through the same routes; `public: true` that matches more than one page
+(by list or by query) is refused with `422 one_at_a_time`; a query that matches exactly one page
+is allowed. (A revert of a bulk "make private" batch puts every page's flag back; each still
+waits for a confirmed first publish.) Nothing after the flag change has committed answers
+`500`: an error then is logged, and the answer is `200` with `"unpublish": "pending"`.
 
 - **On** only sets the flag. The page is published when the owner confirms it in the PWA: Make
   public (which sets the flag, asks, then publishes) or Refresh all's question. Until then it
@@ -428,7 +431,8 @@ replaces the placeholders, builds the unit and pushes it. `200` with
 `{"url": "<SCRAP_PUBLISH_SITE>/p/<slug>", "published_at": "<UTC ISO 8601>", "files": <n>}`
 (`url` null without `SCRAP_PUBLISH_SITE`). If the page's unit went out but `home`, the tag
 units or `pagefind` could not be pushed after it, the answer is still `200`, with
-`"derived": "pending"`: the next reconcile pushes them.
+`"derived": "pending"`: the next reconcile pushes them. The same goes for any error once the
+page's unit is pushed (Pagefind failing or timing out, say): it is logged, never a `500`.
 
 | Status | `error` | When |
 | --- | --- | --- |
@@ -442,8 +446,10 @@ units or `pagefind` could not be pushed after it, the answer is still `200`, wit
 | `422` | `stale_tags` | A `scrap-tag:` names a tag the page no longer has (a tag edit raced the render); the PWA renders again |
 | `502` | `publish_failed` | The receiver refused or failed; `detail` holds its `error` code |
 | `503` | `not_configured` | Publishing is off (no `SCRAP_PUBLISH_TO` or token) |
+| `503` | `busy` | A photo's preview is being made; try again (`Retry-After: 5`) |
 
-A receiver `503 busy` is retried for up to 10 seconds before `502`.
+A receiver `503 busy` is retried for up to 10 seconds before `502`. A publish that meets a
+photo's preview still being made answers `503 {"error": "busy"}` with `Retry-After: 5`.
 
 ### `GET /api/public`
 
@@ -458,7 +464,8 @@ the pages to render again when a page is made public or private, and for Refresh
 ### `POST /api/public/rebuild`
 
 Build `home`, every tag unit, `pagefind` and `assets` once, and push those whose digest
-changed: `200` with `{"units": [<each unit pushed>]}`, or `502` and `503` as for a publish. Refresh all sends
+changed: `200` with `{"units": [<each unit pushed>]}` (and `"derived": "pending"` when the
+search index could not be built), or `502` and `503` as for a publish. Refresh all sends
 each public page with `defer: true`, then calls this once.
 
 ## What scrap sends for a page
@@ -615,8 +622,12 @@ Each becomes an absolute path, `/p/<slug>/<name>` (absolute, because a relative 
 
 - `<n>` counts `img-*` and `file-*` separately, from 1, in the order they first appear in the
   HTML; a stored file used more than once is published once.
-- `<hex>` is the first 10 hex digits of the SHA-256 of the bytes published. Neither the stored
-  sha nor the uploaded file name is published (a link's label may show the name).
+- `<hex>` is the first 10 hex digits of SHA-256 of the page's slug, a NUL byte and the bytes
+  published: a keyed hash, so a name never reveals the stored file's sha (the SHA-256 of a file
+  published as stored). Neither the stored sha nor the uploaded file name is published (a
+  link's label may show the name).
+- "On the page" means referenced in its text (another page's file the owner embedded
+  included) or attached to its captures (the files the PWA lists under the text).
 - **Caps:** at most 20 images and files together, each at most 20 MiB, and at most 200 MiB for
   the whole unit (under the receiver's 256 MiB body). Over any of them scrap refuses the publish
   with `422` and a message saying which, before pushing anything.
@@ -656,7 +667,11 @@ The derived units are built only from the kept copies and their `meta.json`
   Pagefind's UI files and `scrap-search.js`, which starts the UI. Each page is indexed from an
   in-memory copy with its `.katex` elements removed and the formula's TeX (from its
   `annotation encoding="application/x-tex"`) put in their place, so search finds the TeX, not
-  KaTeX's glyph spans;
+  KaTeX's glyph spans, and without the site's lines and the page's header (title, meta and
+  dates lines, tag chips), so a result's excerpt is the page's text. The unit is cached, keyed
+  on a digest of the pinned version, `scrap-search.js` and every record, so an unchanged index
+  is not built again; a build has about 120 seconds, and if it fails or runs out the site keeps
+  its last index (`"derived": "pending"`);
 - `assets`: `page.css` (pagehtml's page CSS), `katex.css` and KaTeX's fonts, from scrap's own
   static build of the PWA, and Pagefind's UI stylesheet, as CSS lives only in `assets`.
 
@@ -692,7 +707,9 @@ interleave.
 
 ## Reconciling
 
-At startup and every 10 minutes, under the lock, scrap:
+At startup and every 10 minutes, under the lock, scrap does the following. After a failure it
+tries again sooner, backing off: 30 seconds, doubling up to 10 minutes, and back to every 10
+minutes after a success (so a receiver still starting is caught quickly).
 
 1. **prunes**: deletes the kept copy, and its unit, of every page that is not public or is in
    the trash, and the kept copy and unit of every damaged copy ([](#scraps-copies));
@@ -700,7 +717,8 @@ At startup and every 10 minutes, under the lock, scrap:
    copies that remain. This also picks up a new KaTeX, new templates or a new Pagefind after an
    upgrade, and a prune always leads to it;
 3. reads `GET /v1/manifest` and **pushes** every unit that is missing or whose digest differs:
-   a page unit from its kept bytes (compared with the digest scrap last pushed and stored), a
+   a page unit from its kept bytes (the manifest's digest is compared with the digest scrap
+   last pushed and stored first, and the copy's files are read only when they differ), a
    derived unit from the fresh build. A page's copy is re-read under the lock before its `PUT`;
 4. ends with `POST /v1/sync` listing the units to keep, which deletes any stray.
 

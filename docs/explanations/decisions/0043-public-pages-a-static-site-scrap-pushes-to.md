@@ -60,7 +60,7 @@ carry.
 - **The flag.** `page.public`, 0 or 1 (migration `0020_public_pages.sql`), set by
   `PATCH /api/pages/{key}` or MCP `edit_meta(public=...)` like the other fields, so each change is
   a revision (`page_meta_rev.public_before` and `public_after`) that `revert` can undo. A page is
-  made public one at a time (more than one in a request is `422 one_at_a_time`); pages can be
+  made public one at a time (a request matching more than one is `422 one_at_a_time`); pages can be
   made private in bulk. Turning it on by either route only sets the flag; turning it off
   unpublishes at once, after the change has committed. If the receiver is down then, the change
   still succeeds with `"unpublish": "pending"` and reconcile finishes the deletion. Undelete and
@@ -149,7 +149,7 @@ carry.
   images go out as stored. Each one becomes an absolute path, `/p/<slug>/<name>`, under a new
   name: `img-<n>-<hex>.jpg`, `.png` or `.svg` for an image and `file-<n>-<hex>.<ext>` for another
   file, where `<hex>` is 10 hex digits of the SHA-256 of the
-  bytes published. Neither the stored sha nor the uploaded file name is published (a link's label
+  bytes published, keyed with the page's slug (SHA-256 of slug, NUL, bytes) so a name never reveals the stored sha. Neither the stored sha nor the uploaded file name is published (a link's label
   may still show the name). scrap copies the bytes itself: a photo's 2048-pixel preview (EXIF and
   GPS already stripped by `preview._make`), other files as stored, and every SVG run through the
   sanitiser of [](0042-mcp-clients-add-svg-and-files.md) again at publish, since SVGs stored
