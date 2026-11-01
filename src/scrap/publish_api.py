@@ -25,6 +25,7 @@ class Publish(BaseModel):
     html: Text
     base_rev: StrictInt = Field(ge=0)
     defer: StrictBool = False
+    confirmed: StrictBool = False  # needed for a first publish (no kept copy)
 
 
 def error(e: PublishError) -> JSONResponse:
@@ -40,7 +41,9 @@ def add_routes(app: FastAPI, publisher: Publisher) -> None:
     @app.put("/api/pages/{key}/published")
     async def published(key: str, request: Request) -> dict[str, Any]:
         """Publish a page: {html, base_rev, defer} from the PWA's publish mode, checked
-        and pushed under scrap's lock. 200 {url, published_at, files}."""
+        and pushed under scrap's lock. 200 {url, published_at, files}. A page with
+        no kept copy (never published, or unpublished since) needs "confirmed": true,
+        else 409 unconfirmed."""
         length = request.headers.get("content-length")
         if length is not None and length.isdigit() and int(length) > MAX_BODY:
             raise TooLarge(f"a publish is at most {MAX_BODY // 2**20} MiB")
@@ -53,10 +56,10 @@ def add_routes(app: FastAPI, publisher: Publisher) -> None:
             ask = Publish.model_validate(json.loads(raw))
         except (ValueError, ValidationError) as e:
             raise BadRequest(
-                f"expected JSON {{html, base_rev, defer}}: {str(e)[:200]}"
+                f"expected JSON {{html, base_rev, defer, confirmed}}: {str(e)[:200]}"
             ) from None
         return await run_in_threadpool(
-            publisher.publish, key, ask.html, ask.base_rev, ask.defer
+            publisher.publish, key, ask.html, ask.base_rev, ask.defer, ask.confirmed
         )
 
     @app.get("/api/public")

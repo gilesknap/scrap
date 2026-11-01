@@ -4,7 +4,7 @@ the reconcile loop (at start and every RECONCILE_EVERY seconds) while publishing
 on.
 
 - publish: read the page again under the lock and refuse unless it is public, not in
-  the trash and at base_rev; check the HTML, swap its placeholders, push its unit,
+  the trash, already published or confirmed, and at base_rev; check the HTML, swap its placeholders, push its unit,
   keep the copy; then, unless deferred, push the derived units that changed.
 - settle (an unpublish): after a flag change or a trash has committed, delete the
   kept copy of each such page that may no longer be public, then its unit, then
@@ -28,6 +28,7 @@ from .errors import (
     PublishFailed,
     ReceiverError,
     Stale,
+    Unconfirmed,
 )
 from .files import MAX_UNIT, page_files
 from .kept import Kept
@@ -61,9 +62,13 @@ class Publisher:
     def _units(self) -> dict[str, dict[str, bytes]]:
         return derived.build(self.kept, self.static or static_dir())
 
-    def publish(self, key: str, html: str, base_rev: int, defer: bool) -> dict:
+    def publish(
+        self, key: str, html: str, base_rev: int, defer: bool,
+        confirmed: bool = False,
+    ) -> dict:  # fmt: skip
         """Publish a page from the PWA's publish mode (see the module docstring):
-        {url, published_at, files}; NotPublic, Stale, CheckError, PublishFailed or
+        {url, published_at, files}; NotPublic, Unconfirmed (a first publish, with no
+        kept copy, needs confirmed), Stale, CheckError, PublishFailed or
         NotConfigured otherwise."""
         if not enabled():
             raise NotConfigured()
@@ -74,6 +79,8 @@ class Publisher:
                     "the page is in the trash" if page.trashed
                     else "the page is not public"
                 )  # fmt: skip
+            if not confirmed and self.published_at(page.id, page.slug) is None:
+                raise Unconfirmed()
             if base_rev != page.rev:
                 raise Stale(page.rev)
             checked = check(html, pages.public_slugs(self.store).__contains__)

@@ -72,13 +72,14 @@ def chip(tag: str) -> str:
     return f'<a class="chip" href="scrap-tag:{quote(tag, safe="")}">{tag}</a>'
 
 
-def put(client, p: dict, body: str, base_rev=None, defer=False, **kw):
+def put(client, p: dict, body: str, base_rev=None, defer=False, confirmed=True,
+        **kw):  # fmt: skip
     html = page(body, title=p["title"], **kw)
     rev = p["rev"] if base_rev is None else base_rev
-    return client.put(
-        f"/api/pages/{p['slug']}/published",
-        json={"html": html, "base_rev": rev, "defer": defer},
-    )
+    ask = {"html": html, "base_rev": rev, "defer": defer}
+    if confirmed is not None:
+        ask["confirmed"] = confirmed
+    return client.put(f"/api/pages/{p['slug']}/published", json=ask)
 
 
 def test_publish_a_page_with_its_photo_and_tags(client, site, tmp_path):
@@ -142,6 +143,30 @@ def test_not_public_stale_and_trashed_are_409(client, note):
     assert "trash" in r.json()["detail"]
     assert client.put("/api/pages/nope/published", json={
         "html": "x", "base_rev": 1}).status_code == 404  # fmt: skip
+
+
+def test_a_first_publish_needs_confirmed(client, site):
+    p = made(client)
+    for confirmed in (None, False):
+        r = put(client, p, "<p>notes</p>", confirmed=confirmed)
+        assert (r.status_code, r.json()["error"]) == (409, "unconfirmed"), r.text
+        assert "confirm" in r.json()["detail"]
+    assert not any(u.startswith("p/") for u in site.units())  # nothing went out
+    assert put(client, p, "<p>notes</p>").status_code == 200
+    # a republish of a page with a kept copy needs no confirmation
+    assert put(client, p, "<p>notes again</p>", confirmed=None).status_code == 200
+    # unpublished (made private): the next publish is a first one again
+    client.patch(f"/api/pages/{p['slug']}", json={"public": False})
+    p = client.patch(f"/api/pages/{p['slug']}", json={"public": True}).json()
+    r = put(client, p, "<p>notes</p>", confirmed=None)
+    assert (r.status_code, r.json()["error"]) == (409, "unconfirmed")
+    # not_public is checked first, under the same lock
+    client.patch(f"/api/pages/{p['slug']}", json={"public": False})
+    r = put(client, p, "<p>notes</p>", confirmed=None)
+    assert (r.status_code, r.json()["error"]) == (409, "not_public")
+    r = client.put(f"/api/pages/{p['slug']}/published",
+                   json={"html": "x", "base_rev": 1, "confirmed": "yes"})  # fmt: skip
+    assert (r.status_code, r.json()["error"]) == (422, "bad_request")
 
 
 def test_a_render_that_raced_an_unpublish_is_refused_under_the_lock(client, app):

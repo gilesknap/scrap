@@ -12,6 +12,7 @@ __all__ = [
     "ReceiverError",
     "Stale",
     "TooLarge",
+    "Unconfirmed",
 ]
 
 
@@ -32,6 +33,19 @@ class NotPublic(PublishError):  # noqa: N818
     """The page is not public, or it is in the trash."""
 
     status, code = 409, "not_public"
+
+
+class Unconfirmed(PublishError):  # noqa: N818
+    """A first publish (the page has no kept copy: never published, or not since it
+    was unpublished) without "confirmed": true."""
+
+    status, code = 409, "unconfirmed"
+
+    def __init__(self) -> None:
+        super().__init__(
+            "the page is not on the public site yet: confirm the first publish"
+            " (confirmed: true)"
+        )
 
 
 class Stale(PublishError):  # noqa: N818

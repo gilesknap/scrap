@@ -42,6 +42,7 @@ def published(client, text: str, body: str, tags=("work",), maths=False) -> dict
                      json={"tags": list(tags), "public": True}).json()  # fmt: skip
     r = client.put(f"/api/pages/{p['slug']}/published", json={
         "html": page(body, p["title"], maths), "base_rev": p["rev"],
+        "confirmed": True,
     })  # fmt: skip
     assert r.status_code == 200, r.text
     return p

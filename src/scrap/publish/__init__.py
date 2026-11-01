@@ -11,6 +11,7 @@ from .errors import (
     PublishFailed,
     Stale,
     TooLarge,
+    Unconfirmed,
 )
 from .publisher import Publisher
 from .settings import enabled, page_url
@@ -28,6 +29,7 @@ __all__ = [
     "Publisher",
     "Stale",
     "TooLarge",
+    "Unconfirmed",
     "UnitError",
     "build_unit",
     "check",
