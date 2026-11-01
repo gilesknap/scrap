@@ -93,6 +93,14 @@
           };
       }
 
+  // Images the fixtures carry as SVG text (Claude's add_svg diagrams, the owner's
+  // photographed working), served as object URLs under their sha
+  for (const p of pages)
+    for (const c of p.captures)
+      for (const b of c.blobs)
+        if (b._svg && !userBlobs.has(b.sha256))
+          userBlobs.set(b.sha256, URL.createObjectURL(new Blob([b._svg], { type: "image/svg+xml" })));
+
   // ---------- files in a page's text (design/edit-embeds): PDFs and a .md made here, as
   // object URLs under fake SHA-256s, so their links open and their cards show each state
   const pdfBlob = (lines) => {

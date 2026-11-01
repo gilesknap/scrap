@@ -90,7 +90,7 @@ export interface Page extends Summary {
   body: string;
   rev: number;
   tags: string[];
-  captures: { id: string; url: string | null; source: string; blobs: FileRef[] }[];
+  captures: { id: string; url: string | null; source: string; author?: string; blobs: FileRef[] }[];
   removed?: string[]; // files an earlier revision's text embedded and this one doesn't
   titles?: Record<string, string>; // the titles of the pages its text links to, by slug (#508)
   model_tags?: string[]; // its tags Claude added (enrich.ts)

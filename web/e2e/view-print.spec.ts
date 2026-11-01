@@ -126,5 +126,5 @@ test("print: a board prints its photo, not its drawing, and no Photo/Drawing tab
   await expect(panel.locator(".tabs")).toBeHidden();
   await expect(panel.locator(".pair > .drawing")).toBeHidden();
   await expect(panel.locator(".pair > .orig:not(.drawing)")).toBeVisible();
-  await expect(panel.locator(".claude")).toBeHidden();
+  await expect(panel.locator(".reading")).toBeHidden(); // Claude's reading, fold and all
 });

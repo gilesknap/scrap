@@ -8,7 +8,7 @@ import pytest
 from fastapi.testclient import TestClient
 from mcp.client.client import Client
 
-from scrap import mcp_server, svg
+from scrap import ingest, mcp_server, svg
 from scrap.app import create_app
 from scrap.store import Store, connect, new_ulid
 from test_mcp import LOCAL, SECRET, bearer, human, ok, refused
@@ -130,7 +130,16 @@ def test_content_edit_off_does_not_limit_add_svg(store, monkeypatch):
     assert ok(store, "add_svg", page=mine["slug"], svg=DOT, alt="d")["changed"]
 
 
-def test_add_svg_wakes_the_worker(store):
+def jobs(store, cid):
+    with store.connect() as conn:
+        return conn.execute(
+            "SELECT source_sha256 FROM job WHERE capture_id = ?", (cid,)
+        ).fetchall()
+
+
+def test_add_svg_queues_no_reading_and_search_finds_its_label(store):
+    """Claude's own image is not read by Claude (#521): no job, nothing woken, no
+    reading; its label (alt) is what search finds."""
     woken = []
 
     async def main(**args):
@@ -138,13 +147,44 @@ def test_add_svg_wakes_the_worker(store):
             return await c.call_tool("add_svg", args)
 
     ref = human(store, PAPER)
-    args = {"page": ref["slug"], "svg": DOT, "alt": "d"}
-    anyio.run(lambda: main(**args, dry_run=True))
-    assert woken == []  # a dry run queues nothing
+    args = {"page": ref["slug"], "svg": DOT, "alt": "Isosceles triangle PQR"}
     anyio.run(lambda: main(**args, key="k"))
-    assert woken == [1]
-    anyio.run(lambda: main(**args, key="k"))
-    assert woken == [1]  # a retry queues nothing either
+    assert woken == []
+    cap = store.page(ref["slug"])["captures"][1]
+    assert (cap["source"], cap["author"]) == ("mcp", "claude")
+    assert cap["blobs"][0]["ingest"] is None  # no reading, none to come
+    assert jobs(store, cap["id"]) == []
+    assert ref["slug"] in found(store, "isosceles PQR")
+    # Asked for (a Reprocess, a Retry), it is still not read
+    assert ingest.reprocess(store, cap["id"], cap["blobs"][0]["sha256"], False) == {
+        "queued": 0, "already": 0,
+    }  # fmt: skip
+    assert jobs(store, cap["id"]) == []
+
+
+def test_an_owner_uploaded_svg_is_still_read_and_so_is_claudes_file_reused(store):
+    ref = human(store, PAPER)
+    out = ok(store, "add_svg", page=ref["slug"], svg=DOT, alt="Dot")
+    sha, size = out["sha256"], len(svg.sanitise(DOT.encode()))
+    mine = new_ulid()  # the owner's Add photo, of the very same file
+    store.add_photos(ref["slug"], mine, [(sha, svg.SVG, size, "dot.svg")], "giles")
+    assert [r[0] for r in jobs(store, mine)] == [sha]
+    p = store.page(ref["slug"])
+    by = {c["id"]: c["blobs"][0]["ingest"] for c in p["captures"] if c["blobs"]}
+    assert by[mine] is not None and by[mine]["state"] == "queued"
+
+
+def test_the_mcp_upload_reads_claudes_files_but_not_its_images(tmp_path, monkeypatch):
+    monkeypatch.setenv("SCRAP_MCP_TOKEN", SECRET)
+    client = TestClient(create_app(tmp_path / "data"))
+    ref = page_of(client)
+    png = ("chart.png", b"\x89PNG not really", "image/png")
+    txt = ("notes.txt", b"Some notes to read", "text/plain")
+    r = upload(client, ref["page_id"], png, txt)
+    assert r.status_code == 201
+    cap = r.json()["captures"][1]
+    state = {b["filename"]: b["ingest"] and b["ingest"]["state"] for b in cap["blobs"]}
+    assert state == {"chart.png": None, "notes.txt": "queued"}
 
 
 def test_the_switch_hides_add_svg_and_a_bad_value_stops_the_start(

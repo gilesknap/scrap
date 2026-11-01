@@ -4,7 +4,8 @@
 // (links coming alive), and Settings' Refresh all. Each page is published from its own view,
 // on the screen or drawn off it (page.ts, quiet), by publish.ts. A chunk of its own, loaded
 // on the first use. docs/reference/public-site.md has the routes and the rules. A page's
-// photos' drawings (Excalidraw) and its Mermaid diagrams are drawn here, as SVGs sent with it.
+// photos' drawings (Excalidraw) and its Mermaid diagrams are drawn here, as SVGs sent with it,
+// and its PDFs' text read for its reading folds (#521) fetched.
 //
 // A page never published (made public over MCP, by a revert or an undelete) goes out only
 // once the owner has said yes here: Make public's warning, or Refresh all's question. A save,
@@ -38,6 +39,7 @@ import {
   type DiagramKey,
   diagramsOf,
   drawingsOf,
+  fileTextsOf,
   hasMaths,
   publishHtml,
 } from "./publish";
@@ -106,6 +108,24 @@ export async function drawingsFor(root: HTMLElement): Promise<{ key: string; svg
     }
   }
   return out;
+}
+
+/** The text of each PDF whose reading fold the view shows (#521), by sha, as the fold shows
+ * it when opened (filecard.ts): fetched, as the view has only "…" until then, all at once. One
+ * that can't be fetched (gone meanwhile) has no fold, rather than holding the page back. */
+export async function fileTextsFor(root: HTMLElement): Promise<Map<string, string>> {
+  const got = await Promise.all(
+    fileTextsOf(root).map(async (f): Promise<[string, string] | null> => {
+      const path = `captures/${encodeURIComponent(f.cid)}/files/${f.sha}/text`;
+      try {
+        const r = await api<{ text: string | null; truncated: boolean }>(path);
+        return r.text ? [f.sha, r.text + (r.truncated ? "\n\n… (the start only)" : "")] : null;
+      } catch {
+        return null;
+      }
+    }),
+  );
+  return new Map(got.filter((x): x is [string, string] => !!x));
 }
 
 /** At most this many images, drawings and files go with a page (scrap's cap, files.py). */
@@ -193,6 +213,7 @@ export async function htmlOf(
   // the titles the page came with (#508: its links' pages, private ones too)
   for (const [slug, title] of Object.entries(d.page.titles ?? {}))
     if (!r.titles.has(slug)) r.titles.set(slug, title);
+  const texts = await fileTextsFor(d.root);
   const named = bareSlugs(d.root, swaps).filter((s) => !r.titles.has(s));
   await Promise.all(
     named.map((s) =>
@@ -220,6 +241,7 @@ export async function htmlOf(
       tex: hasMaths(d.root) ? await tex() : null,
       date,
       drawn,
+      texts,
       diagrams,
     },
     swaps,

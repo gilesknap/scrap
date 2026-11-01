@@ -179,6 +179,77 @@ ingest = {
         "description": "A garden border in full flower: red, yellow, white and purple blooms against green foliage under a pale sky."},
     "fix-the-broken-fence-panel": {"state": "queued"},
 }
+# ---- Claude's reading (#521): a maths page with Claude's own SVGs (add_svg: shown with
+# nothing under them, one read before #521 too) and the owner's photo of his working (its reading in one closed
+# fold), and a page of photos and files in each state (status and Retry outside the fold).
+# An image with "_svg" is made into an object URL by sim.js.
+def svgblob(name, svg, ingest):
+    return {"sha256": hashlib.sha256(svg.encode()).hexdigest(), "mime": "image/svg+xml",
+            "size": len(svg), "filename": name, "ingest": ingest, "_svg": svg}
+def read(desc, text=None, state="done", **o):
+    return {"state": state, "failures": 1 if state == "failed" else 0, "error": None, "text": text,
+            "description": desc, "image_kind": "diagram", "drawing": None, **o}
+TRI = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 150" font-family="serif" font-size="15">
+<rect width="320" height="150" fill="#fff"/><g fill="none" stroke="#222" stroke-width="2.5">
+<path d="M110 25 V125 H250 Z"/><path d="M110 112 h13 v13"/></g>
+<text x="104" y="20">A</text><text x="104" y="144">B</text><text x="254" y="144">C</text>
+<text x="56" y="80">5 cm</text><text x="158" y="146">12 cm</text></svg>"""
+PQR = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 150" font-family="serif" font-size="15">
+<rect width="320" height="150" fill="#fff"/><g fill="none" stroke="#222" stroke-width="2.5">
+<path d="M160 22 L80 125 H240 Z"/><path d="M98 125 a18 18 0 0 0 -7 -14"/></g>
+<text x="155" y="16">P</text><text x="66" y="140">Q</text><text x="244" y="140">R</text>
+<text x="80" y="68">8 cm</text><text x="210" y="68">8 cm</text><text x="142" y="145">10 cm</text>
+<text x="100" y="116" font-size="13">x°</text></svg>"""
+WORK = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 200">
+<defs><pattern id="g" width="16" height="16" patternUnits="userSpaceOnUse"><path d="M16 0H0V16" fill="none" stroke="#b9cbe0" stroke-width="1"/></pattern></defs>
+<rect width="320" height="200" fill="#f7f4ea"/><rect width="320" height="200" fill="url(#g)"/>
+<g font-family="'Comic Sans MS','Segoe Print','Bradley Hand',cursive" font-size="19" fill="#1d2f6e">
+<text x="18" y="40">AC² = 5² + 12²</text><text x="18" y="76">     = 25 + 144 = 169</text>
+<text x="18" y="112">AC = √169</text><text x="18" y="150">AC = 13 cm</text></g>
+<path d="M14 160 h118" stroke="#1d2f6e" stroke-width="2"/><path d="M14 165 h118" stroke="#1d2f6e" stroke-width="2"/></svg>"""
+tri = svgblob("triangle-abc.svg", TRI, None)
+pqr = svgblob("triangle-pqr.svg", PQR, read("An isosceles triangle PQR with sides 8 cm, 8 cm and 10 cm.", "P Q R 8 cm 8 cm 10 cm x°"))
+work = svgblob("my working.svg", WORK, read(
+    "A photo of handwritten working on squared paper: Pythagoras' theorem applied to the triangle, giving AC = 13 cm, underlined twice.",
+    "AC² = 5² + 12²\n= 25 + 144 = 169\nAC = √169\nAC = 13 cm"))
+emb = lambda b: f"![](/api/blobs/{b['sha256']}/preview?size=2048)"
+m = page("GCSE maths paper 2: triangles",
+    "\n\n".join(["**3.** Work out the length of AC. Give your answer in centimetres.", emb(tri),
+                 "My working, photographed:", emb(work),
+                 "**4.** Work out the size of angle x. Give your answer to 1 decimal place.", emb(pqr)]),
+    "note", {}, ["maths", "revision"], 2)
+cap = m["captures"][0]
+at = cap["created_at"]
+m["captures"] = [
+    {**cap, "id": ulid("c521-owner"), "kind": "photo", "text": None, "author": "you", "blobs": [work]},
+    {"id": ulid("c521-claude-1"), "kind": "photo", "text": None, "url": None, "source": "mcp",
+     "author": "claude", "created_at": at, "received_at": at, "blobs": [tri]},
+    {"id": ulid("c521-claude-2"), "kind": "photo", "text": None, "url": None, "source": "mcp",
+     "author": "claude", "created_at": at, "received_at": at, "blobs": [pqr]},
+]
+d["pages"].append(m)
+# Each state: read (fold, Regenerate inside), failed (Retry outside), waiting, paused (Resume),
+# never read (Generate, in the fold), a PDF that failed (Retry outside), a PDF read (its text)
+FENCE, GARDEN, BOARD, RECEIPT = ("5bbacd0b5eac519aff0037a7d1de06d808e33a26f99567f18f0dc8e26e896f9d",
+    "0b603180d1b9ef921a637e6ca28ab6c19fc52bf123e1db6162ccae4fc15342f5",
+    "81fdcce0010c5ab1c03ac3ed241595b321d55aa1db5caa10d6b9f5da34d79a15",
+    "6bc896a6148e0f14420edd7dcbb42705b0d9f7bd28f64a18f77a39a7747c6f7b")
+def jpg(sha, name, ingest):
+    return {"sha256": sha, "mime": "image/jpeg", "size": 60000, "filename": name, "ingest": ingest}
+ph = lambda **o: {**read(None), "image_kind": "photo", **o}
+st = page("Fence repair: photos and quotes (reading states)",
+    "\n\n".join(["The broken panel, read by Claude:", emb({"sha256": FENCE}),
+                 "The receipt: Claude couldn't read it this time.", emb({"sha256": RECEIPT}),
+                 "The border, waiting for Claude:", emb({"sha256": GARDEN}),
+                 "The whiteboard, never sent to Claude:", emb({"sha256": BOARD})]),
+    "note", {}, ["house"], 3)
+st["captures"][0].update(kind="photo", text=None, author="you", blobs=[
+    jpg(FENCE, "IMG_2041.jpg", ph(description="A wooden garden fence with one panel split down the middle and leaning out; the concrete post beside it is intact.", text="CLOSEBOARD 6x5")),
+    jpg(RECEIPT, "receipt.jpg", ph(state="failed", error="overloaded: try again later")),
+    jpg(GARDEN, "IMG_2050.jpg", ph(state="queued")),
+    jpg(BOARD, "whiteboard.jpg", None),
+])
+d["pages"].append(st)
 open(f"{out}/sim-seed.js", "w").write(
     "window.__SIM_SEED=" + json.dumps({"pages": d["pages"], "drawings": d["drawings"]}) + ";\n"
     "window.__SIM_INGEST=" + json.dumps(ingest) + ";\n"

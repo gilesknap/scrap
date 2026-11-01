@@ -595,10 +595,11 @@ dark by the reader's theme; photos as 2048 pixel previews (no location), a photo
 and Open in Excalidraw and Download links), and other attached files. A link to a public page is a link
 (a bare `[[slug]]` shows its title); a link to a private page is its words (a bare one, the private
 page's title). Claude's Related and Linked from keep only public pages. An address of scrap
-itself, or of its `/api/`, in the text reads *a private link*. Left out: Claude's notes
-on a photo (its description and the text it read), revisions, a file's text read for search,
-and the app's buttons. An image's alt text is published as the page has it, file
-names included.
+itself, or of its `/api/`, in the text reads *a private link*. Under each photo or PDF that
+has one, **Claude's reading** is published folded, closed, as in the app (the site's search
+finds its words). Left out: revisions, where a reading is up to, and the app's buttons. An
+image's alt text is published as the page has it, file names included; an image Claude drew
+has its label.
 
 The site is only as current as the last publish: a change made elsewhere (over MCP, a new
 write-up) reaches it at the page's next save here, or with **Settings**, **Public pages**,
@@ -616,10 +617,10 @@ write-up) reaches it at the page's next save here, or with **Settings**, **Publi
   caption. Tap for the viewer. A file the text links to on a line of its own is a row where
   its line is (one linked mid-sentence is a link there, and a row below the text too); a file
   the text does not show is a row below the text: the name: tap to open the file, and save it
-  from there, as a photo is saved from its viewer. Under a PDF's or text file's row is its card, *What's in the file*, as a photo
-  has one: while it waits or is being read, where that is up to; once read, its page count and
-  whether search finds it, and for a PDF the **Text read from it**, folded; **Retry** if reading
-  failed, **Regenerate** to read it again. scrap reads the text itself (no model), so search
+  from there, as a photo is saved from its viewer. Under a PDF's or text file's row, as under a
+  photo: while it waits or is being read, where that is up to (**Retry** if reading failed);
+  once read, one closed fold, **Claude's reading**, with its page count and whether search finds
+  it, for a PDF the text read from it, and **Regenerate** to read it again. scrap reads the text itself (no model), so search
   finds it. A page made from a PDF or text file then gets a title, tags and a summary from
   Claude, which is sent the start of that text (not with `SCRAP_FILE_ENRICH=ask`: then press
   **Ask Claude**). A scan, a password-protected or unreadable PDF, or one over 30 MB is kept
@@ -728,19 +729,23 @@ scrap an `ANTHROPIC_API_KEY` (the Helm chart's `ingest.enabled` with an existing
 the key), as in [](../explanations/ingest.md) and the deploy guides. Without ingest, photos are
 stored and queued, and each shows *Waiting: Claude ingest is off*.
 
-Everything Claude makes is in a brown card of its own, so it never reads as your text: **What's in
-the photo** under each photo, and one **About this page** after the page's text (summary, a
-board's write-up, related pages). A card's action is at the end of its title line: **Generate**
-first, **Regenerate** after (**Retry** if it failed). Its parts are folds; the phone remembers
-which are open.
+Everything Claude makes is in a brown card of its own, so it never reads as your text: **Claude's
+reading** under each photo, and one **About this page** after the page's text (summary, a
+board's write-up, related pages). About this page's action is at the end of its title line:
+**Generate** first, **Regenerate** after (**Retry** if it failed). Its parts are folds; the phone
+remembers which are open.
 
-Under each photo, **What's in the photo** has:
+Under each photo:
 
-- **State**, only while Claude has it: *Waiting for Claude*, *Claude is reading it…*, *Failed*
-  with reason and **Retry**, or *Paused* with reason and **Resume** (nothing is lost). The page
-  checks every 10 seconds while a photo waits. **Regenerate** sends it again; if you edited its
-  drawing it asks: **Replace mine**, or **Keep mine** (Claude's new drawing goes into History).
-- **Description** and **Text in the photo**, folded until opened; the text can be selected.
+- **State**, only while Claude has it, as words: *Waiting for Claude*, *Claude is reading it…*,
+  *Failed* with reason and **Retry**, or *Paused* with reason and **Resume** (nothing is lost).
+  The page checks every 10 seconds while a photo waits.
+- **Claude's reading**, one fold, always closed when the page opens: the description and the
+  text in the photo (selectable), and at its end **Regenerate**, which sends it again; if you
+  edited its drawing it asks: **Replace mine**, or **Keep mine** (Claude's new drawing goes into
+  History). A photo never sent to Claude has **Generate** in the fold instead.
+- An image Claude drew and added (`add_svg`) has nothing under it: Claude doesn't read its own
+  images. Its label is its alt text, and what search finds.
 - **The drawing** of a whiteboard or diagram, beside the photo on a wide screen or under a
   **Photo** / **Drawing** switch. It is a picture (scrolls with the page, no gestures) lined up
   with the photo.

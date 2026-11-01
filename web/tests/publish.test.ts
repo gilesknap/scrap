@@ -15,7 +15,7 @@ import { CSP, check } from "./publiccheck";
 (globalThis as { location?: { origin: string } }).location = { origin: "http://scrap.example" };
 const { markdown: marked } = await import("../src/render");
 const mod = await import("../src/publish");
-const { bare, bareSlugs, diagramsOf, hasMaths, idsOf, publishHtml, webLink } = mod;
+const { bare, bareSlugs, diagramsOf, fileTextsOf, hasMaths, idsOf, publishHtml, webLink } = mod;
 
 const markdown = (s: string) => marked(s).replace(/ data-at="\d+,\d+"/g, "");
 const SHA = (c: string) => c.repeat(64);
@@ -144,15 +144,22 @@ Broken: $\\frac{1}{$ stays TeX.`);
     );
     const html = article(
       head("Architecture whiteboard", "Board", ["work"]),
-      `<div class="body md" dir="auto"><section class="photo-panel"><div class="tabs" role="tablist"><button role="tab">Photo</button><button role="tab">Drawing</button></div><div class="pair show-drawing"><figure class="orig"><a href="/api/blobs/${SHA("a")}"><img src="/api/blobs/${SHA("a")}/preview?size=2048" alt="IMG_2041.jpg" loading="lazy"></a></figure><figure class="orig drawing" data-drawing="7" data-cid="cap1" data-sha="${SHA("a")}"><button class="drawing-card"><svg><path d="M0 0"/></svg></button></figure></div><div class="claude"><div class="ingest"><h3 class="ctitle">What's in the photo</h3><button class="link">Regenerate</button></div><details class="claude-text"><summary>Description</summary><p>SECRET description</p></details><details class="claude-text"><summary>Text in the photo</summary><pre>SECRET read text</pre></details></div></section>
+      `<div class="body md" dir="auto"><section class="photo-panel"><div class="tabs" role="tablist"><button role="tab">Photo</button><button role="tab">Drawing</button></div><div class="pair show-drawing"><figure class="orig"><a href="/api/blobs/${SHA("a")}"><img src="/api/blobs/${SHA("a")}/preview?size=2048" alt="IMG_2041.jpg" loading="lazy"></a></figure><figure class="orig drawing" data-drawing="7" data-cid="cap1" data-sha="${SHA("a")}"><button class="drawing-card"><svg><path d="M0 0"/></svg></button></figure></div><div class="reading"><details class="reading-fold"><summary><span>Claude's reading</span></summary><div class="claude"><p class="desc">A board of the flow; see http://scrap.example/p/private-x and /api/blobs/${SHA("e")}.</p><pre>Phone\nQueue &lt;b&gt;scrap-blob:x</pre><div class="regen-row"><button type="button" class="link">Regenerate</button></div></div></details></div></section>
+<section class="photo-panel"><div class="reading-state"><span class="state queued" role="status">Waiting for Claude</span></div><figure class="orig"><a href="/api/blobs/${SHA("f")}"><img src="/api/blobs/${SHA("f")}/preview?size=2048" alt="unread.jpg" loading="lazy"></a></figure><div class="reading"><details class="reading-fold"><summary><span>Claude's reading</span></summary><div class="claude"><p class="did">SECRET Not read yet. Claude can describe it and read any text in it.</p><div class="regen-row"><button type="button">Generate</button></div></div></details></div></section>
+<figure class="orig"><a href="/api/blobs/${SHA("9")}"><img src="/api/blobs/${SHA("9")}/preview?size=2048" alt="Right triangle ABC, AB 5 cm, BC 12 cm" loading="lazy"></a></figure>
 <p>Drawn after the <a href="/p/weekly-sync">weekly-sync</a>; see <a href="/p/design-notes">design-notes</a>. A sketch: <img src="/api/blobs/${SHA("b")}/preview?size=2048" alt="sketch.png" data-sha="${SHA("b")}" loading="lazy">, the <a href="/api/blobs/${SHA("c")}" target="_blank" rel="noopener" data-sha="${SHA("c")}">spec</a>, and an image from elsewhere: <img src="https://example.com/x.png" alt="theirs"></p></div>`,
-      `<div class="originals"><section class="file-panel"><div class="orig filerow"><a href="/api/blobs/${SHA("c")}" target="_blank" class="file"><svg class="i"></svg><span class="words"><span>spec.pdf</span><small>12 pages</small></span></a></div><div class="claude"><div class="ingest"><h3 class="ctitle">What's in the file</h3></div><p class="did">SECRET reading</p><details class="claude-text"><summary>Text</summary><p>SECRET file text</p></details></div></section><div class="orig filerow"><a href="/api/blobs/${SHA("d")}" target="_blank" class="file"><svg class="i"></svg><span class="words"><span>notes.md</span></span></a><p class="hint">Text couldn't be read; not searchable</p></div></div>`,
+      `<div class="originals"><section class="file-panel"><div class="orig filerow"><a href="/api/blobs/${SHA("c")}" target="_blank" class="file"><svg class="i"></svg><span class="words"><span>spec.pdf</span><small>12 pages</small></span></a></div><div class="reading"><details class="reading-fold"><summary><span>Claude's reading</span></summary><div class="claude"><p class="did">SECRET 12 pages · Searchable</p><pre class="filetext" data-cid="cap2" data-sha="${SHA("c")}">…</pre><div class="regen-row"><button type="button" class="link">Regenerate</button></div></div></details></div></section><div class="orig filerow"><a href="/api/blobs/${SHA("d")}" target="_blank" class="file"><svg class="i"></svg><span class="words"><span>notes.md</span></span></a><p class="hint">Text couldn't be read; not searchable</p></div></div>`,
       `<section class="enrich claude" aria-label="About this page"><div class="ingest"><h3 class="ctitle">About this page</h3><span class="state done" role="status">x</span><button class="link">Regenerate</button></div><details class="claude-text"><summary>Summary</summary><p class="summary" dir="auto">A **whiteboard** of the [[design-notes]] flow, from the [[weekly-sync]].</p></details><details class="claude-text writeup"><summary>In detail</summary><div class="card"><p class="by" title="claude-opus-5-5">Claude · 1 Nov, 10:04</p><div class="body md" dir="auto">${writeup}</div><details class="claude-text sub"><summary>Guidance for Claude</summary><p class="by">Used by the next write-up.</p><textarea>SECRET guidance</textarea><div class="row"><button class="primary">Save</button></div></details></div></details><details class="claude-text related topics"><summary>Topics</summary><ul><li><a href="/p/private-topic" dir="auto"><svg class="i"></svg>A private topic</a></li></ul></details><details class="claude-text related"><summary>Related</summary><ul><li><a href="/p/design-notes" dir="auto"><svg class="i"></svg>Design notes</a><small> · links here</small></li><li><a href="/p/weekly-sync" dir="auto"><svg class="i"></svg>Weekly controls sync</a><small> · in a write-up</small></li></ul></details></section>`,
       tools,
     );
     return {
       html,
-      c: ctx({ title: "Architecture whiteboard", tags: ["work"], drawn: new Set(["7"]) }),
+      c: ctx({
+        title: "Architecture whiteboard",
+        tags: ["work"],
+        drawn: new Set(["7"]),
+        texts: new Map([[SHA("c"), "Spec text, from http://scrap.example/p/secret-y"]]),
+      }),
     };
   },
   plain: () => {
@@ -350,6 +357,36 @@ describe("what a public page holds", () => {
     expect(h).not.toMatch(/SECRET|Regenerate|drawing-card/);
   });
 
+  it("publishes Claude's reading of a photo or PDF in a closed fold, scrubbed (#521)", () => {
+    const h = out["photo-board"];
+    const fold = (inner: string) =>
+      `<details class="reading"><summary>Claude's reading</summary><div class="claude">${inner}</div></details>`;
+    // after the photo and its drawing's links
+    expect(h).toContain(
+      `Download</a></p>${fold("<p>A board of the flow; see a private link and a private link.</p><pre>Phone\nQueue &lt;b&gt;scrap-\u2060blob:x</pre>")}`,
+    );
+    // the PDF's text, as fetched (publicpages.ts), after its row; not its pages line
+    expect(h).toContain(`</div>${fold("<pre>Spec text, from a private link</pre>")}`);
+    expect(h).not.toMatch(
+      /<details class="reading" open|reading-fold|regen-row|Generate|Not read yet/,
+    );
+    expect(h.match(/<details class="reading">/g)).toHaveLength(2); // none for one not read yet
+    expect(h).not.toContain("scrap.example");
+  });
+
+  it("publishes an image Claude made with its label as alt, and nothing under it", () => {
+    const h = out["photo-board"];
+    expect(h).toContain(
+      `<figure class="orig"><a href="scrap-blob:${SHA("9")}"><img src="scrap-blob:${SHA("9")}" alt="Right triangle ABC, AB 5 cm, BC 12 cm"></a></figure>\n<p>`,
+    );
+  });
+
+  it("publishes a PDF's fold only with its text fetched", () => {
+    const { html, c } = FIXTURES["photo-board"]();
+    const none = publishHtml(view(html).root, { ...c, texts: new Map() }, view(html).swaps);
+    expect(none.match(/<details class="reading">/g)).toHaveLength(1);
+  });
+
   it("publishes the photo alone when its drawing was not drawn, and no Open link without https", () => {
     const { html, c } = FIXTURES["photo-board"]();
     const alone = publishHtml(view(html).root, { ...c, drawn: new Set() }, view(html).swaps);
@@ -464,6 +501,11 @@ describe("its parts", () => {
     );
     const ids = idsOf(root, new Map());
     expect([...ids.values()]).toEqual(["h-ok", "h-uni", "h-ok-1", "fnref1-1", "h"]);
+  });
+
+  it("finds the PDFs whose text a reading fold shows", () => {
+    const { html } = FIXTURES["photo-board"]();
+    expect(fileTextsOf(view(html).root)).toEqual([{ cid: "cap2", sha: SHA("c") }]);
   });
 
   it("finds maths, and the bare links whose titles it needs", () => {

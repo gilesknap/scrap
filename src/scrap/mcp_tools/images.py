@@ -33,13 +33,14 @@ viewBox, at most {kib} KiB, UTF-8. It is sanitised before it is stored:
 @-rules but @font-face, @media and @keyframes, and any link or url() that is
 not to a #fragment of the file itself (an <image> may also use a PNG, JPEG,
 GIF or WebP data: URL, a @font-face a data: font) are removed or refused, so
-draw with shapes, paths and <text>; give it a <title>. Its <title>, <desc> and
-<text> are what search finds, and alt is what screen readers and search get:
-say what it shows. The embed goes right after the line on which `after` ends
-(text copied exactly from the body, occurring exactly once, as edit_page's
-old: say, the end of the question the diagram is for), in the same list item
-or quote: a paragraph is split there; in a tight list the line ends with a
-hard break (\\) and the image follows on the next line, so the list stays
+draw with shapes, paths and <text>; give it a <title>. scrap's Claude does not
+read an image you add, so alt is what screen readers, search and a public page
+get: say what it shows (e.g. "Right triangle ABC, AB 5 cm, BC 12 cm"). The
+embed goes right after the line on which `after` ends (text copied exactly
+from the body, occurring exactly once, as edit_page's old: say, the end of
+the question the diagram is for), in the same list item or quote: a
+paragraph is split there; in a tight list the line ends with a hard break
+(\\) and the image follows on the next line, so the list stays
 tight; elsewhere it is a paragraph of its own; after a block that cannot be
 split (a code block, a table, display maths, a heading). If no place there
 keeps the page as it was, it goes at the end of the text, and the result's
@@ -134,8 +135,8 @@ def register_images(mcp: MCPServer, ctx: Ctx) -> None:
                 AUTHOR, MCP, after=anchor, alt=label,
             )  # fmt: skip
             body, rev, placed = added["body"], added["rev"], added["placed"]
-            if created:
-                ctx.wake()  # its words and reading now, not at the next poll
+            # Nothing to wake: Claude's own image is never read (#521, ENQUEUE); its
+            # alt, in the page's text, is what search finds
         changed = body != before
         return ctx.edited(
             {

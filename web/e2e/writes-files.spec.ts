@@ -114,22 +114,29 @@ test("the editor's File puts PDFs in the text, each a row with its card", async 
   const args = ["run", "--locked", "python", "web/e2e/readfiles.py", data, ref.page_id];
   expect(execFileSync("uv", args, { cwd: "..", encoding: "utf8" }).trim()).toBe("3");
   await page.reload();
-  // Only the failed read keeps its state pill, with the Retry beside it
+  // Only the failed read keeps its state, outside the fold (it has none), with Retry beside it
   await expect(page.locator(".file-panel .state")).toHaveCount(1);
   await expect(card(page, "broken.pdf").locator(".state")).toContainText("Couldn't read it");
   await expect(card(page, "broken.pdf").getByRole("button", { name: "Retry" })).toBeVisible();
+  await expect(card(page, "broken.pdf").locator("details")).toHaveCount(0);
+  // The others: Claude's reading, one closed fold each (#521)
+  await expect(page.locator(".file-panel details.reading-fold:not([open])")).toHaveCount(2);
   await expect(card(page, "minutes.pdf").locator(".did")).toHaveText("2 pages · Searchable");
+  await expect(card(page, "minutes.pdf").locator(".did")).toBeHidden();
   const unread = "Text couldn't be read; not searchable";
   await expect(card(page, "blank.pdf").locator(".did")).toHaveText(`1 page · ${unread}`);
-  await expect(card(page, "broken.pdf").locator(".did")).toHaveText(unread);
-  // A PDF's text, folded until opened
-  await card(page, "minutes.pdf").getByText("Text read from it").click();
+  // A PDF's text, fetched when the fold is opened
+  await card(page, "minutes.pdf").getByText("Claude's reading").click();
   await expect(card(page, "minutes.pdf").locator("pre")).toContainText(WORD);
+  await expect(card(page, "minutes.pdf").getByRole("button", { name: "Regenerate" })).toBeVisible();
   await page.emulateMedia({ reducedMotion: "reduce" });
   for (const colorScheme of ["light", "dark"] as const) {
     await page.emulateMedia({ colorScheme });
     await page.reload();
-    await expect(card(page, "broken.pdf").locator(".did")).toBeVisible();
+    await expect(card(page, "broken.pdf").locator(".state")).toBeVisible();
+    for (const f of await page.locator(".file-panel .reading-fold > summary").all())
+      await f.click();
+    await expect(card(page, "minutes.pdf").locator("pre")).toContainText(WORD);
     expect(await page.evaluate(lowContrast, ""), `${colorScheme} file rows`).toEqual([]);
   }
   // and the PDF's text finds the page

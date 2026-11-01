@@ -34,15 +34,22 @@ vi.mock("../src/publish", () => ({
   drawingsOf: (root: { drawings?: unknown[] }) => root.drawings ?? [],
   // its diagrams (#525): those its root lists
   diagramsOf: (root: { diagrams?: unknown[] }) => root.diagrams ?? [],
+  // and the PDFs whose text its reading folds show (#521)
+  fileTextsOf: (root: { files?: unknown[] }) => root.files ?? [],
   publishHtml: (
     _root: unknown,
-    c: { title: string; drawn?: Set<string>; diagrams?: Map<string, { key: number }> },
+    c: {
+      title: string;
+      drawn?: Set<string>;
+      diagrams?: Map<string, { key: number }>;
+      texts?: Map<string, string>;
+    },
   ) =>
     `<!DOCTYPE html>${c.title}${[...(c.drawn ?? [])].map((d) => ` "scrap-drawing:${d}"`).join("")}${[
       ...(c.diagrams?.values() ?? []),
     ]
       .map((k) => ` "scrap-diagram:${k.key}-light"`)
-      .join("")}`,
+      .join("")}${[...(c.texts ?? [])].map(([sha, t]) => ` [${sha}: ${t}]`).join("")}`,
 }));
 // Mermaid's chunk, loaded only for a page with diagrams (#525): a source "bad" is not drawn
 const mermaids: string[] = [];
@@ -146,6 +153,9 @@ beforeEach(() => {
       const u = new URL(url, "http://x");
       if (/^\/api\/captures\/c1\/photos\/[0-9a-f]+\/drawing$/.test(u.pathname))
         return reply(200, { data: { format: "scene", elements: [{}, {}] } });
+      const text = /^\/api\/captures\/c2\/files\/([0-9a-f]+)\/text$/.exec(u.pathname);
+      if (text && text[1] === "dd") return reply(404, { detail: "gone" });
+      if (text) return reply(200, { text: text[1] === "cd" ? "Long text" : null, truncated: true });
       if (u.pathname === "/api/public") {
         const to = u.searchParams.get("links_to");
         const list = [...store.values()]
@@ -205,6 +215,22 @@ const puts = () =>
       defer: c.body?.defer,
       confirmed: !!c.body?.confirmed,
     }));
+
+describe("a page with a PDF's reading (#521)", () => {
+  it("fetches the text its fold shows and publishes it with the page", async () => {
+    add("a");
+    const v = view("a");
+    (v.root as unknown as { files: unknown[] }).files = [
+      { cid: "c2", sha: "cd" },
+      { cid: "c2", sha: "ef" }, // no text read: no fold text
+      { cid: "c2", sha: "dd" }, // gone meanwhile: no fold, and the page is still published
+    ];
+    await pub.makePublic(v);
+    const put = calls.find((c) => c.method === "PUT");
+    expect(put?.body?.html).toBe("<!DOCTYPE html>A [cd: Long text\n\n… (the start only)]");
+    expect(calls.filter((c) => c.url.endsWith("/text"))).toHaveLength(3);
+  });
+});
 
 describe("a page with drawings (#520)", () => {
   it("draws each without its photo (#524), and sends them with the page; Excalidraw only then", async () => {

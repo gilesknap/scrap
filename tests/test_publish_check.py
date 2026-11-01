@@ -64,6 +64,9 @@ ALLOWED = [
     '<table><thead><tr><th colspan="2">h</th></tr></thead>'
     '<tbody><tr><td rowspan="12">x</td></tr></tbody></table>',
     "<details open><summary>s</summary><p>d</p></details>",
+    # Claude's reading of a photo or file (#521): a closed fold, its text and all
+    '<details class="reading"><summary>Claude\'s reading</summary><div class="claude">'
+    "<p>A whiteboard sketch.</p><pre>Phone\nQueue</pre></div></details>",
     '<ol><li id="fn1">note <a href="#fnref1" id="fnref1">back</a></li></ol>',
     '<pre><code class="language-mermaid">graph TD; A--&gt;B</code></pre>',
     '<p dir="rtl">שלום</p><!-- a comment -->',
@@ -430,3 +433,31 @@ def test_target_and_rel_only_on_open_in_excalidraw():
         page('<a href="https://x.org/" target="_blank" rel="noopener noreferrer">x</a>')
     )
     refused(page('<a href="/p/open-page" download>x</a>'))
+
+
+def test_a_closed_folds_text_is_checked_as_any_text(monkeypatch):
+    """A reading published closed (#521) is still text: a private address in it, or a
+    placeholder, refuses the publish, as anywhere on the page."""
+    monkeypatch.setenv("SCRAP_PUBLIC_URL", "https://scrap.example.ts.net:8446")
+    fold = (
+        '<details class="reading"><summary>Claude\'s reading</summary>'
+        "<pre>{}</pre></details>"
+    )
+    for text in ("see https://scrap.example.ts.net/p/x", f"/api/blobs/{SHA}"):
+        assert "private address" in refused(page(fold.format(text))), text
+    refused(page(fold.format(f"scrap-blob:{SHA}")))
+    ok(fold.format("words alone"))
+    refused(page('<details open="x"><summary>s</summary></details>'))
+    refused(page('<details class="reading" onclick="x"><summary>s</summary></details>'))
+
+
+def test_the_index_has_a_closed_folds_text():
+    """Pagefind indexes a reading's text (#521), though it is published closed."""
+    from scrap.publish.search import index_text
+
+    html = page(
+        '<p>The page.</p><details class="reading"><summary>Claude\'s reading'
+        "</summary><pre>retry with backoff</pre></details>"
+    )
+    text = index_text(html)
+    assert "retry with backoff" in text and "Claude's reading" in text

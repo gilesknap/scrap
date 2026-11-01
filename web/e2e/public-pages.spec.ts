@@ -692,6 +692,64 @@ test("a photo's drawing is published, shown with tabs, and downloads as a scene 
   await off.close();
 });
 
+test("Claude's reading goes public in a closed fold, and the site's search finds it (#521)", async ({
+  page,
+}) => {
+  test.slow(); // the board's drawing is drawn by Excalidraw's chunk
+  await phone(page);
+  const b = await boardPage(page);
+  await page.goto(`/p/${b.slug}`);
+  await expect(page.locator(".drawing-card.ready")).toBeVisible({ timeout: 20_000 });
+  await shareRow(page, "Make public…");
+  const ask = page.getByRole("dialog", { name: "Make this page public?" });
+  await expect(ask).toContainText("Claude's reading of its photos and files");
+  await ask.getByRole("button", { name: "Make public" }).click();
+  await expect(page.locator(".toast")).toContainText("Page is public", { timeout: 20_000 });
+
+  const got = await onSite(page, `/p/${b.slug}`);
+  expect(got.text).toContain(
+    `<details class="reading"><summary>Claude's reading</summary><div class="claude"><p>A whiteboard sketch of a capture pipeline`,
+  );
+  expect(got.text).not.toMatch(/<details class="reading" open|Regenerate|reading-fold/);
+  const csp = violations(page);
+  await page.goto(`${SITE}/p/${b.slug}`);
+  const fold = page.locator("details.reading");
+  await expect(fold).toHaveCount(1);
+  await expect(fold).not.toHaveAttribute("open", "");
+  await expect(fold.getByText("retry with backoff", { exact: false })).toBeHidden();
+  const line = fold.locator("summary");
+  expect((await line.boundingBox())?.height).toBeGreaterThanOrEqual(48);
+  await line.click();
+  await expect(fold.getByText("retry with backoff", { exact: false })).toBeVisible();
+  expect(csp).toEqual([]);
+
+  // Pagefind, on the home page, finds the words read from the board
+  await page.goto(`${SITE}/`);
+  await page.locator(".pagefind-ui__search-input").fill("backoff");
+  await expect(page.locator(`.pagefind-ui__result-link[href*="/p/${b.slug}"]`)).toHaveCount(1);
+});
+
+test("an image Claude drew goes public with its label as alt and nothing under it (#521)", async ({
+  page,
+}) => {
+  await phone(page);
+  const data = process.env.SCRAP_E2E_DATA as string;
+  const args = ["run", "--locked", "python", "web/e2e/claudesvg.py", data];
+  const out = execFileSync("uv", args, { cwd: "..", encoding: "utf8" });
+  const m = JSON.parse(out.trim().split("\n").pop() || "null") as { slug: string };
+  made.push((await (await page.request.get(`/api/pages/${m.slug}`)).json()).id);
+  await page.goto(`/p/${m.slug}`);
+  await shareRow(page, "Make public…");
+  const ask = page.getByRole("dialog", { name: "Make this page public?" });
+  await expect(ask).not.toContainText("Claude's reading");
+  await ask.getByRole("button", { name: "Make public" }).click();
+  await expect(page.locator(".toast")).toContainText("Page is public");
+  const got = await onSite(page, `/p/${m.slug}`);
+  expect(got.text).toMatch(/<img src="[^"]+\.svg" alt="Right triangle ABC, AB 5 cm, BC 12 cm">/);
+  expect(got.text).toContain('alt="Isosceles triangle PQR"');
+  expect(got.text).not.toMatch(/<details class="reading"|OLD READING/);
+});
+
 test("a Mermaid diagram is published drawn, light and dark, and search finds its words (#525)", async ({
   page,
   browser,

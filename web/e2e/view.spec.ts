@@ -393,16 +393,21 @@ test("embedded images are figures: no caption, the viewer names them, Generate a
   await expect(dialog).toBeHidden();
 
   const ask = page.waitForRequest((r) => r.url().endsWith("/reprocess"));
-  // Not read by Claude: a Claude card under each, saying what it would do
-  const cards = page.locator(".md .photo-panel .claude");
-  await expect(cards).toHaveCount(2);
-  await expect(cards.first()).toContainText("Claude can describe it");
-  await cards.first().getByRole("button", { name: "Generate" }).click();
+  // Not read by Claude: a closed fold under each (#521), saying what it would do, with Generate
+  const folds = page.locator(".md .photo-panel details.reading-fold");
+  await expect(folds).toHaveCount(2);
+  await expect(folds.first()).not.toHaveAttribute("open", "");
+  await folds.first().locator("summary").click();
+  await expect(folds.first()).toContainText("Claude can describe it");
+  await folds.first().getByRole("button", { name: "Generate" }).click();
   expect((await ask).postDataJSON()).toEqual({ photo: expect.stringMatching(/^[0-9a-f]{64}$/) });
   const panel = page.locator(".md .photo-panel");
+  // where it is up to, outside the fold; no fold until there is something read
   await expect(panel.first().getByRole("status")).toHaveText(/^Waiting/);
+  await expect(panel.first().locator("details")).toHaveCount(0);
   await expect(panel.first().locator("img")).toHaveAttribute("alt", "a.png");
-  await expect(page.getByRole("button", { name: "Generate" })).toHaveCount(1); // b.png's
+  const generate = page.getByRole("button", { name: "Generate", includeHidden: true });
+  await expect(generate).toHaveCount(1); // b.png's (the PDF waits to be read)
 });
 
 test("an image added by an edit is a figure at once; one in a list or a line stays", async ({
@@ -424,7 +429,7 @@ test("an image added by an edit is a figure at once; one in a list or a line sta
   const fig = page.locator(".md > figure.orig");
   await expect(fig).toHaveCount(1);
   await expect(fig.locator("img")).toHaveAttribute("alt", `Image ${sha.slice(0, 8)}`);
-  await expect(page.getByRole("button", { name: "Generate" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Generate", includeHidden: true })).toHaveCount(0);
   await expect(page.locator(".md li img, .md p img")).toHaveCount(2); // left as they are
   await expect(page.locator(".md figure figure, .md p figure, .md li figure")).toHaveCount(0);
 });
@@ -461,7 +466,7 @@ test("every photo of the page can be opened, saved and sent, wherever the text p
   const below = page.locator(".originals figure.orig");
   await expect(below.locator("img")).toHaveCount(3);
   expect(await alts(below.locator("img"))).toEqual(["list.png", "beside.png", "quote.png"]);
-  await expect(page.getByRole("button", { name: "Generate" })).toHaveCount(5);
+  await expect(page.getByRole("button", { name: "Generate", includeHidden: true })).toHaveCount(5);
   // Saved from the viewer, not a caption
   await expect(page.locator("figure.orig").getByRole("link", { name: "Download" })).toHaveCount(0);
   await below.nth(2).locator("img").click();

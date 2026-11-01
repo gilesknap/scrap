@@ -13,6 +13,12 @@
 //   --full                 the whole page, not just the first screen
 //   --wait MS              settle time after load (default 1500)
 //   --base URL             the sim (default http://127.0.0.1:9100/art/x1/index.html)
+//   --click TEXT           click a button, link or fold (summary) with that name after
+//                          loading, in order (repeatable; the first match)
+//   --store KEY=VALUE      set localStorage before loading (repeatable), e.g. a mock's variant
+//   --scroll TEXT          scroll the first element containing TEXT to the top first
+//   --eval JS              run JS in the page after the clicks (e.g. open one fold)
+//   --suffix S             add -S to each PNG's name
 // The sim's Feedback tab is hidden; page errors are printed (not the service worker's).
 import { mkdirSync } from "node:fs";
 import { createRequire } from "node:module";
@@ -32,10 +38,14 @@ const opt = {
 };
 const routes = [];
 let full = false;
+const clicks = [];
+const stores = [];
 const argv = process.argv.slice(2);
 for (let i = 0; i < argv.length; i++) {
   const a = argv[i];
   if (a === "--full") full = true;
+  else if (a === "--click") clicks.push(argv[++i]);
+  else if (a === "--store") stores.push(argv[++i].split(/=(.*)/s).slice(0, 2));
   else if (a.startsWith("--")) opt[a.slice(2)] = argv[++i];
   else routes.push(a.replace(/^#/, ""));
 }
@@ -53,6 +63,12 @@ for (const scheme of list(opt.scheme)) {
       hasTouch: true,
       colorScheme: scheme,
     });
+    if (stores.length)
+      await ctx.addInitScript((kv) => {
+        try {
+          for (const [k, v] of kv) localStorage.setItem(k, v);
+        } catch {} // about:blank has none
+      }, stores);
     const page = await ctx.newPage();
     page.on("pageerror", (e) => {
       // sim/build.sh drops sw.js: the app's registration fails, as in the artifact
@@ -68,7 +84,30 @@ for (const scheme of list(opt.scheme)) {
           content: `.sim-fb{display:none!important}${big}*{animation:none!important;transition:none!important;caret-color:transparent!important}`,
         });
         await page.waitForTimeout(300);
-        const path = join(opt.out, `${name(r)}-${w}-${text}-${scheme}.png`);
+        for (const c of clicks) {
+          await page
+            .getByRole("button", { name: c, exact: true })
+            .or(page.getByRole("link", { name: c, exact: true }))
+            .or(page.locator("summary", { hasText: c }))
+            .first()
+            .click();
+          await page.waitForTimeout(600);
+        }
+        if (opt.eval) {
+          await page.evaluate(opt.eval);
+          await page.waitForTimeout(600);
+        }
+        if (opt.scroll)
+          await page.evaluate((t) => {
+            const el = [...document.querySelectorAll("main p, main summary, main h2, main .reading-state")].find((e) => e.textContent.includes(t));
+            if (el) {
+              el.scrollIntoView({ block: "start" });
+              scrollBy(0, -70); // below the top bar
+            }
+          }, opt.scroll);
+        await page.waitForTimeout(200);
+        const suffix = opt.suffix ? `-${opt.suffix}` : "";
+        const path = join(opt.out, `${name(r)}-${w}-${text}-${scheme}${suffix}.png`);
         await page.screenshot({ path, fullPage: full });
         console.log(path);
       }
