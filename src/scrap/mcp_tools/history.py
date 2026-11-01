@@ -132,9 +132,12 @@ def register_history(mcp: MCPServer, ctx: Ctx) -> None:
                 )
             found = checked(store.revert_batch, batch, AUTHOR, MCP, dry_run)
             pages = [{**c, "url": link(c["slug"])} for c in found["pages"]]
-            return {**found, "pages": pages, "dry_run": dry_run}
+            out = {**found, "pages": pages, "dry_run": dry_run}
+            ids = [] if dry_run else [c["id"] for c in found["pages"]]
+            return ctx.settled(out, ids)  # a revert that made a page private
         found = checked(store.revert_meta, revision, AUTHOR, MCP, dry_run)
-        return {**found, "url": link(found["slug"]), "dry_run": dry_run}
+        out = {**found, "url": link(found["slug"]), "dry_run": dry_run}
+        return ctx.settled(out, [] if dry_run else [found["id"]])
 
     def revert_text(
         page: str | None,

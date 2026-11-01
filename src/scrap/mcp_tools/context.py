@@ -7,6 +7,7 @@ from typing import Any
 
 from mcp.server.mcpserver.exceptions import ToolError
 
+from ..publish import Publisher
 from ..store import (
     CROCKFORD,
     ConflictError,
@@ -56,11 +57,22 @@ class Ctx:
     def __init__(
         self, store: Store, base: str, editable: bool,
         wake: Callable[[], None] = lambda: None,
+        publisher: Publisher | None = None,
     ) -> None:  # fmt: skip
         self.store = store
         self.base = base
         self.editable = editable
         self.wake = wake  # the ingest worker's, for what a tool queues (add_svg)
+        # unpublishes what a tool makes private or trashes (ADR 43)
+        self.publisher = publisher or Publisher(store)
+
+    def settled(self, out: dict[str, Any], ids: list[str]) -> dict[str, Any]:
+        """out, after unpublishing those of these pages (the change committed) that
+        may no longer be public: with "unpublish": "pending" if the public site
+        could not be told (the next reconcile finishes it)."""
+        if ids and self.publisher.settle(ids):
+            return {**out, "unpublish": "pending"}
+        return out
 
     def link(self, slug: str) -> str:
         return f"{self.base}/p/{slug}"

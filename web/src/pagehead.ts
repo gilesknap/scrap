@@ -1,6 +1,6 @@
 // A page's header under its title: what it is and when (one line, or two when there is more
 // to say than its kind), and one row of chips, read only (a todo's due chip, which opens the
-// editor at its Due fold; its tags, each a search).
+// editor at its Due fold; its tags, each a search), led by the Public chip on a public page.
 import type { Page } from "./api";
 import { foldChips } from "./chipfold";
 import { icon, kindIcon } from "./icons";
@@ -10,6 +10,44 @@ import { closed, dueChip } from "./status";
 import { tagLabel } from "./taglabel";
 import { token } from "./terms";
 import { h, whenShort } from "./ui";
+
+/** The pages being published now (publicpages.ts): their dates line says so meanwhile. */
+export const publishing = new Set<string>();
+
+/** A globe: Public's icon, for its chip and the Share menu's row (drawn as icons.ts draws
+ * them; kept here, out of the app shell). */
+export function globe(): SVGSVGElement {
+  const t = document.createElement("template");
+  t.innerHTML =
+    '<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c2.4 2.3 3.6 5.1 3.6 8.5s-1.2 6.2-3.6 8.5c-2.4-2.3-3.6-5.1-3.6-8.5S9.6 5.8 12 3.5z"/></svg>';
+  return t.content.firstChild as SVGSVGElement;
+}
+
+/** A public page's last publishing, for its dates line and its chip's tooltip. */
+export function publishedLine(p: Page, busy = publishing.has(p.id)): string {
+  if (busy) return "Publishing…";
+  return p.published_at ? `Published ${whenShort(p.published_at)}` : "Public · not published yet";
+}
+
+/** The Public chip (#497): first in the chip row, a tag chip's size and fill, a globe and
+ * "Public", a link to the page on the public site (in a new window; plain when scrap has no
+ * SCRAP_PUBLISH_SITE, so no address for it). */
+export function publicChip(p: Page): HTMLElement {
+  const url = p.public_url || null;
+  const where = url?.replace(/^https?:\/\//, "") ?? "the public site";
+  const said = `${publishedLine(p)}: ${where}`;
+  return h(
+    url ? "a" : "span",
+    {
+      className: "pubchip",
+      ...(url && { href: url, target: "_blank", rel: "noopener" }),
+      title: said,
+      "aria-label": `Public. ${said}`,
+    },
+    globe(),
+    "Public",
+  );
+}
 
 /** Parts in a row that wraps between them, each never breaking inside. Each part after the
  * first draws its own leading "·" (CSS); the row is shifted left so a part that starts a line
@@ -53,10 +91,12 @@ export function headLines(p: Page): HTMLElement[] {
         String(p.fields.origin ?? "Written by Claude over MCP"),
       ),
     );
-  // Created, and Edited only if it was
+  // Created, and Edited only if it was; a public page's last publishing (not on the public
+  // page itself: publish.ts leaves .pubdate out)
   const dates = [
     h("span", {}, `Created ${whenShort(p.created_at)}`),
     ...(edited(p) ? [h("span", {}, `Edited ${whenShort(p.updated_at)}`)] : []),
+    ...(p.public ? [h("span", { className: "pubdate" }, publishedLine(p))] : []),
   ];
   return said.length > (label ? 1 : 0)
     ? [
@@ -93,10 +133,12 @@ export function chipRow(p: Page, due: () => void): HTMLElement | null {
     );
   };
   const tags = p.tags.map(tag);
-  if (!said && !offer && !tags.length) return null;
+  if (!said && !offer && !tags.length && !p.public) return null;
   const row = h(
     "p",
     { className: "tags" },
+    // Public first: where the page is
+    p.public ? publicChip(p) : "",
     // A todo's due chip first: what it is for
     said || offer
       ? h(

@@ -22,7 +22,11 @@ def test_healthz(client):
         "version": __version__,
         "max_upload_bytes": 50 * 2**20,
         "paused": None,
-    }
+        "publish": {
+            "enabled": False, "site": None, "pages": 0, "last_reconcile": None,
+            "ok": None, "error": None,
+        },
+    }  # fmt: skip
 
 
 def test_unknown_route_is_404(client):

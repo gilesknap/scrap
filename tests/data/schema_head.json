@@ -406,6 +406,24 @@
     0
    ]
   ],
+  "page_public": [
+   [
+    0,
+    0,
+    "id",
+    0,
+    "BINARY",
+    1
+   ],
+   [
+    1,
+    -1,
+    null,
+    0,
+    "BINARY",
+    0
+   ]
+  ],
   "page_todo_by_due": [
    [
     0,
@@ -751,7 +769,7 @@
   "page": [
    "table",
    "page",
-   "CREATE TABLE page ( id TEXT PRIMARY KEY, -- ULID slug TEXT NOT NULL UNIQUE, title TEXT NOT NULL, body TEXT NOT NULL DEFAULT '', -- Markdown kind TEXT NOT NULL DEFAULT 'note' CHECK (kind IN ('note', 'todo', 'consume', 'whiteboard', 'document')), kind_fixed INTEGER NOT NULL DEFAULT 0 CHECK (kind_fixed IN (0, 1)), -- 1: the user chose it fields TEXT NOT NULL DEFAULT '{}' CHECK (json_type(fields) = 'object'), -- flat created_at TEXT NOT NULL, updated_at TEXT NOT NULL, deleted_at TEXT -- set: in the trash , task_done INTEGER NOT NULL DEFAULT 0, task_total INTEGER NOT NULL DEFAULT 0, made_by TEXT NOT NULL DEFAULT 'human' CHECK (made_by IN ('human', 'claude', 'topic', 'gc')))"
+   "CREATE TABLE page ( id TEXT PRIMARY KEY, -- ULID slug TEXT NOT NULL UNIQUE, title TEXT NOT NULL, body TEXT NOT NULL DEFAULT '', -- Markdown kind TEXT NOT NULL DEFAULT 'note' CHECK (kind IN ('note', 'todo', 'consume', 'whiteboard', 'document')), kind_fixed INTEGER NOT NULL DEFAULT 0 CHECK (kind_fixed IN (0, 1)), -- 1: the user chose it fields TEXT NOT NULL DEFAULT '{}' CHECK (json_type(fields) = 'object'), -- flat created_at TEXT NOT NULL, updated_at TEXT NOT NULL, deleted_at TEXT -- set: in the trash , task_done INTEGER NOT NULL DEFAULT 0, task_total INTEGER NOT NULL DEFAULT 0, made_by TEXT NOT NULL DEFAULT 'human' CHECK (made_by IN ('human', 'claude', 'topic', 'gc')), public INTEGER NOT NULL DEFAULT 0 CHECK (public IN (0, 1)))"
   ],
   "page_by_kind": [
    "index",
@@ -771,7 +789,7 @@
   "page_meta_rev": [
    "table",
    "page_meta_rev",
-   "CREATE TABLE page_meta_rev ( id INTEGER PRIMARY KEY AUTOINCREMENT, page_id TEXT NOT NULL REFERENCES page(id) ON DELETE CASCADE, author TEXT NOT NULL, source TEXT NOT NULL CHECK (source IN ('web', 'mcp')), kind_before TEXT NOT NULL, kind_after TEXT NOT NULL, fixed_before INTEGER NOT NULL CHECK (fixed_before IN (0, 1)), fixed_after INTEGER NOT NULL CHECK (fixed_after IN (0, 1)), tags_before TEXT NOT NULL CHECK (json_type(tags_before) = 'array'), tags_after TEXT NOT NULL CHECK (json_type(tags_after) = 'array'), fields_added TEXT NOT NULL DEFAULT '{}' CHECK (json_type(fields_added) = 'object'), reverts INTEGER REFERENCES page_meta_rev(id), batch_id TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL, fields_was TEXT NOT NULL DEFAULT '{}' CHECK (json_type(fields_was) = 'object'))"
+   "CREATE TABLE page_meta_rev ( id INTEGER PRIMARY KEY AUTOINCREMENT, page_id TEXT NOT NULL REFERENCES page(id) ON DELETE CASCADE, author TEXT NOT NULL, source TEXT NOT NULL CHECK (source IN ('web', 'mcp')), kind_before TEXT NOT NULL, kind_after TEXT NOT NULL, fixed_before INTEGER NOT NULL CHECK (fixed_before IN (0, 1)), fixed_after INTEGER NOT NULL CHECK (fixed_after IN (0, 1)), tags_before TEXT NOT NULL CHECK (json_type(tags_before) = 'array'), tags_after TEXT NOT NULL CHECK (json_type(tags_after) = 'array'), fields_added TEXT NOT NULL DEFAULT '{}' CHECK (json_type(fields_added) = 'object'), reverts INTEGER REFERENCES page_meta_rev(id), batch_id TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL, fields_was TEXT NOT NULL DEFAULT '{}' CHECK (json_type(fields_was) = 'object'), public_before INTEGER NOT NULL DEFAULT 0 CHECK (public_before IN (0, 1)), public_after INTEGER NOT NULL DEFAULT 0 CHECK (public_after IN (0, 1)))"
   ],
   "page_meta_rev_by_batch": [
    "index",
@@ -787,6 +805,11 @@
    "index",
    "page_meta_rev",
    "CREATE INDEX page_meta_rev_by_reverts ON page_meta_rev(reverts)"
+  ],
+  "page_public": [
+   "index",
+   "page",
+   "CREATE INDEX page_public ON page(id) WHERE public = 1"
   ],
   "page_rev": [
    "table",
@@ -2310,6 +2333,15 @@
      "'human'",
      0,
      0
+    ],
+    [
+     13,
+     "public",
+     "INTEGER",
+     1,
+     "0",
+     0,
+     0
     ]
    ],
    "foreign_keys": []
@@ -2457,6 +2489,24 @@
      "TEXT",
      1,
      "'{}'",
+     0,
+     0
+    ],
+    [
+     16,
+     "public_before",
+     "INTEGER",
+     1,
+     "0",
+     0,
+     0
+    ],
+    [
+     17,
+     "public_after",
+     "INTEGER",
+     1,
+     "0",
      0,
      0
     ]
@@ -3245,5 +3295,5 @@
    ]
   }
  },
- "user_version": 19
+ "user_version": 20
 }

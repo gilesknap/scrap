@@ -57,13 +57,24 @@ def register_meta(mcp: MCPServer, ctx: Ctx) -> None:
                 ),
             ),
         ] = None,
+        public: Annotated[
+            bool | None,
+            Field(
+                description=(
+                    "Make the page public (true: one page only; it is published the"
+                    " next time the user's app renders it) or private (false: any"
+                    " number; taken off the public site at once)"
+                )
+            ),
+        ] = None,
         dry_run: DryRun = False,
         limit: BulkLimit = 50,
     ) -> dict[str, Any]:
-        """Change the kind, tags and/or fields of pages, any page, the user's own too:
-        the pages named, or every page a search query finds (refused if it finds more
-        than limit). A kind given is fixed (ingest and task boxes no longer change it),
-        as when the user picks one, and adds that kind's default fields it lacks. Tags:
+        """Change the kind, tags, fields and/or public flag of pages, any page, the
+        user's own too: the pages named, or every page a search query finds (refused
+        if it finds more than limit). A kind given is fixed (ingest and task boxes no
+        longer change it), as when the user picks one, and adds that kind's default
+        fields it lacks. Tags:
         add_tags and remove_tags (exact: removing a leaves a/b), or set_tags to
         replace them all. fields: only these, any other name refused: a Later's
         media_type (book, article, film, tv, video, podcast, music or game; its subtype,
@@ -71,7 +82,12 @@ def register_meta(mcp: MCPServer, ctx: Ctx) -> None:
         status (open, in_progress, done, cancelled: {"status": "done"} ticks a todo
         off, {"status": "open"} reopens it; refused on other kinds), or a todo's due
         (YYYY-MM-DD) or priority (high, medium, low), null clearing one (refused on
-        other kinds); the response gives the values they had (fields_was). Nothing
+        other kinds); the response gives the values they had (fields_was). public:
+        only when the user asks; true makes one page public (refused for several:
+        one_at_a_time), so anyone with its address can read it, with its tags and
+        Claude's write-up and summary, once the user's app publishes it; false makes
+        pages private and takes them off the public site at once ("unpublish":
+        "pending" if the site could not be reached: scrap finishes it). Nothing
         else changes: not the title, the text or when it was last updated. Each page
         changed is a revision that revert undoes; quick changes to one named page fold
         into one if they change the same things (its kind and tags, or one field).
@@ -86,8 +102,9 @@ def register_meta(mcp: MCPServer, ctx: Ctx) -> None:
             kind is None
             and not (add_tags or remove_tags or fields)
             and set_tags is None
+            and public is None
         ):
-            raise ToolError("nothing to change: give a kind, tags or fields")
+            raise ToolError("nothing to change: give a kind, tags, fields or public")
         if kind is not None and kind not in WRITE_KINDS and kind not in KINDS:
             raise ToolError(f"kind must be one of {WRITE_KINDS} (board is whiteboard)")
         if query is not None:
@@ -105,9 +122,12 @@ def register_meta(mcp: MCPServer, ctx: Ctx) -> None:
             tag_list(add_tags, "a tag"), tag_list(remove_tags, "a tag"),
             None if set_tags is None else tag_list(set_tags, "a tag"), dry_run,
             batch=query is not None,  # else several distinct pages: Store decides
-            fields=fields,
+            fields=fields, public=public,
         )  # fmt: skip
-        return changes(found, dry_run)
+        out = changes(found, dry_run)
+        if public is False and not dry_run:  # committed: unpublish now
+            return ctx.settled(out, [c["id"] for c in found["pages"]])
+        return out
 
     @mcp.tool()
     def rename_tag(

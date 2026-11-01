@@ -1,0 +1,342 @@
+/* A public page's look (#497): scrap's paper and ink, light or dark as the reader's device is.
+   Not the app's CSS: the build (vite.config.ts publicAssets) writes tokens.css, then this, to
+   src/scrap/static/public/page.css, which scrap pushes as /assets/page.css. A public page has
+   no script and no <style>: everything here styles what publish.ts writes. */
+* {
+  box-sizing: border-box;
+}
+html {
+  font-size: 17px;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+body {
+  max-width: 46rem;
+  margin: 0 auto;
+  padding: var(--s-3) var(--s-4) var(--s-6);
+  background: var(--bg);
+  color: var(--ink);
+  font: var(--t-md) / var(--lh) var(--font);
+  overflow-wrap: anywhere;
+}
+/* The site's own lines: its name over the page, Published … · All pages under it */
+/* (div.site: the site's own pages have body.site, below) */
+div.site {
+  color: var(--ink-2);
+  font-size: var(--t-sm);
+}
+div.site a {
+  color: var(--ink-2);
+}
+.site.top {
+  padding-bottom: var(--s-2);
+  border-bottom: 1px solid var(--line);
+  font-weight: 600;
+}
+.site.foot {
+  margin-top: var(--s-6);
+  padding-top: var(--s-3);
+  border-top: 1px solid var(--line);
+}
+/* Links: every one underlined; the owner's own text's amber, the rest ink */
+a {
+  color: var(--ink);
+  text-decoration-color: var(--line-strong);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.2em;
+}
+.body a {
+  color: var(--accent-ink);
+  text-decoration-color: currentColor;
+}
+/* The header: title, what it is and when, its tags */
+.page h1 {
+  margin: var(--s-4) 0 var(--s-1);
+  font-size: var(--t-xl);
+  line-height: var(--lh-tight);
+  letter-spacing: -0.01em;
+}
+.meta,
+.dates {
+  margin: 0;
+  color: var(--ink-2);
+  font-size: var(--t-sm);
+}
+.meta .kind {
+  color: var(--ink);
+  font-weight: 600;
+}
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: var(--s-2) 0 0;
+  padding: 0;
+}
+.tags a {
+  display: inline-block;
+  padding: 4px 0.6em;
+  border-radius: var(--r-pill);
+  background: var(--sunk);
+  color: var(--ink);
+  font-size: var(--t-sm);
+  line-height: var(--lh-tight);
+  text-decoration: none;
+}
+/* The text */
+.body {
+  margin-top: var(--s-4);
+  line-height: 1.6;
+}
+.body.raw {
+  white-space: pre-wrap;
+}
+.body > :first-child {
+  margin-top: 0;
+}
+.body :is(h1, h2, h3) {
+  margin: var(--s-5) 0 var(--s-2);
+  font-size: var(--t-lg);
+  line-height: var(--lh-tight);
+}
+.body h1 {
+  font-size: 1.3125rem;
+}
+.body :is(h4, h5, h6) {
+  margin: var(--s-4) 0 var(--s-2);
+  font-size: var(--t-md);
+}
+hr {
+  border: 0;
+  border-top: 1px solid var(--line);
+  margin: var(--s-4) 0;
+}
+img {
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--r-sm);
+}
+figure {
+  margin: var(--s-4) 0;
+}
+figure a {
+  display: block;
+}
+blockquote {
+  margin: var(--s-3) 0;
+  padding-inline-start: var(--s-4);
+  border-inline-start: 3px solid var(--line-strong);
+  color: var(--ink-2);
+}
+code,
+pre {
+  font-family: var(--mono);
+  font-size: 0.9em;
+}
+code {
+  padding: 0 0.2em;
+  border-radius: 4px;
+  background: var(--sunk);
+}
+pre {
+  padding: var(--s-3);
+  border-radius: var(--r-sm);
+  background: var(--sunk);
+  overflow-x: auto;
+  white-space: pre-wrap;
+}
+pre code {
+  padding: 0;
+  background: none;
+}
+.table {
+  overflow-x: auto;
+}
+table {
+  border-collapse: collapse;
+}
+td,
+th {
+  padding: var(--s-1) var(--s-2);
+  border: 1px solid var(--line);
+  text-align: start;
+}
+li.task {
+  list-style: none;
+}
+.named {
+  color: var(--ink-2);
+}
+small {
+  color: var(--ink-2);
+}
+/* Maths (KaTeX's own markup, /assets/katex.css): a wide formula scrolls, not the page */
+.math.display {
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+/* The page's files, a row each */
+.filerow {
+  margin: var(--s-2) 0;
+}
+.filerow .words {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0 var(--s-2);
+}
+.footnotes {
+  font-size: var(--t-sm);
+}
+/* Claude's card: About this page, its summary, write-up and related pages */
+.claude {
+  margin: var(--s-5) 0 var(--s-4);
+  padding: var(--s-3) var(--s-4);
+  border-radius: var(--r-md);
+  background: var(--sunk);
+  font-size: var(--t-sm);
+}
+.claude a {
+  text-decoration-color: var(--ink-2); /* --line-strong is under 3:1 on --sunk */
+}
+.claude .ctitle {
+  margin: 0 0 var(--s-2);
+  font-size: var(--t-md);
+}
+.claude-text {
+  border-top: 1px solid var(--line);
+}
+.claude-text > summary {
+  padding: var(--s-2) 0;
+  color: var(--ink-2);
+  font-weight: 600;
+  cursor: pointer;
+}
+.claude-text p {
+  margin: 0 0 var(--s-3);
+}
+.claude .by {
+  color: var(--ink-2);
+}
+.related ul {
+  margin: 0 0 var(--s-3);
+  padding-inline-start: 1.2em;
+}
+/* The site's own pages, which scrap builds (src/scrap/publish/templates.py): the home page,
+   Tags, a tag's page and the 404. body.site, its header (Pages · Tags), a list of pages each
+   with its date and tag chips, and Pagefind's search box */
+body.site main {
+  margin-top: var(--s-4);
+}
+.site-head {
+  padding-bottom: var(--s-2);
+  border-bottom: 1px solid var(--line);
+  color: var(--ink-2);
+  font-size: var(--t-sm);
+  font-weight: 600;
+}
+.site-head a {
+  color: var(--ink-2);
+}
+body.site h1 {
+  margin: var(--s-4) 0 var(--s-3);
+  font-size: var(--t-xl);
+  line-height: var(--lh-tight);
+}
+body.site h2 {
+  margin: var(--s-5) 0 var(--s-2);
+  font-size: var(--t-lg);
+}
+.site-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.site-list li {
+  padding: var(--s-3) 0;
+  border-bottom: 1px solid var(--line);
+}
+.site-list li > a {
+  font-weight: 600;
+}
+.when {
+  margin-inline-start: var(--s-2);
+  color: var(--ink-2);
+  font-size: var(--t-sm);
+  white-space: nowrap;
+}
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: var(--s-1);
+}
+a.chip {
+  display: inline-block;
+  padding: 2px 0.6em;
+  border-radius: var(--r-pill);
+  background: var(--sunk);
+  color: var(--ink);
+  font-size: var(--t-sm);
+  text-decoration: none;
+}
+.chip::before {
+  content: "#";
+}
+/* The search box's visible label (templates.py: h2.site-search-label, over #search) */
+body.site h2.site-search-label {
+  margin: 0 0 var(--s-1);
+  color: var(--ink-2);
+  font-size: var(--t-sm);
+  font-weight: 600;
+}
+.site-search {
+  margin-bottom: var(--s-4);
+}
+/* Pagefind's search box (its own /assets/pagefind-ui.css, which sets these on the box
+   itself, .pagefind-ui: the id outranks it) in scrap's paper and ink */
+#search.site-search,
+#search .pagefind-ui {
+  --pagefind-ui-scale: 0.8;
+  --pagefind-ui-primary: var(--accent-ink);
+  --pagefind-ui-text: var(--ink);
+  --pagefind-ui-background: var(--surface);
+  --pagefind-ui-border: var(--line-strong);
+  --pagefind-ui-tag: var(--sunk);
+  --pagefind-ui-border-width: 1px;
+  --pagefind-ui-border-radius: var(--r-sm);
+  --pagefind-ui-font: var(--font);
+}
+/* Its box: the site's face, a readable placeholder, scrap's field edge (not Pagefind's 2px ink) */
+#search .pagefind-ui__search-input {
+  border: 1px solid var(--line-strong);
+  background-color: var(--surface);
+  color: var(--ink);
+  font-family: var(--font);
+  font-weight: 400;
+}
+#search .pagefind-ui__search-input::placeholder {
+  color: var(--ink-3);
+  opacity: 1;
+}
+#search .pagefind-ui__search-clear {
+  background-color: var(--surface);
+  color: var(--ink-2);
+  font-family: var(--font);
+}
+#search.site-search mark {
+  background: var(--accent-soft);
+  color: var(--ink);
+}
+@media print {
+  body {
+    max-width: none;
+    margin: 0;
+  }
+  div.site,
+  .site-head {
+    display: none;
+  }
+  img {
+    break-inside: avoid;
+  }
+}

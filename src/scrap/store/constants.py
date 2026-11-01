@@ -115,7 +115,7 @@ REV_INSERT = (
 META_REV = (
     "SELECT id, page_id, author, source, kind_before, kind_after, fixed_before,"
     " fixed_after, tags_before, tags_after, fields_added, fields_was, reverts,"
-    " batch_id, created_at, updated_at FROM page_meta_rev"
+    " batch_id, created_at, updated_at, public_before, public_after FROM page_meta_rev"
 )
 # The files ingest reads locally for search (#234): a PDF's text layer, a text file's
 # text. No model reads them. A blob's type as stored, without parameters (charset=).

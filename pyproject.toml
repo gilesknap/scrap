@@ -26,6 +26,10 @@ dependencies = [
     "mcp>=2.3,<3",
     "pypdf>=6.21",
     "google-re2>=1.1.20251105",
+    "html5lib>=1.1",
+    "pagefind[bin]==1.5.2",
+    "pagefind-bin==1.5.2",
+    "httpx2>=2.14.0",
 ]
 dynamic = ["version"]
 license.file = "LICENSE"

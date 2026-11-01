@@ -23,6 +23,8 @@ from starlette.datastructures import UploadFile
 from . import enrich
 from .api_models import EnrichOffError, Text
 from .photos_api import NotImageError
+from .publish import Publisher, page_url
+from .publish.settings import publish_site
 from .store import (
     MAX_FIELDS,
     MAX_TAGS,
@@ -71,6 +73,8 @@ class PageEdit(BaseModel):
     tags: Annotated[list[Text], Field(max_length=MAX_TAGS)] | None = None  # all of them
     # The tags the editor started from: Claude's added since are kept, not retired
     tags_shown: Annotated[list[Text], Field(max_length=MAX_TAGS)] | None = None
+    # Public pages (ADR 43): true only sets the flag; false unpublishes at once
+    public: StrictBool | None = None
     # A todo's (null clears one): sent or not tells apart, see todo()
     due: Annotated[Text, Field(max_length=10)] | None = None  # YYYY-MM-DD
     priority: Annotated[Text, Field(max_length=10)] | None = None  # high, medium, low
@@ -128,7 +132,18 @@ EDIT_BODY: dict[str, Any] = {
 }
 
 
-def add_routes(app: FastAPI, store: Store, limit: int) -> None:
+def add_routes(app: FastAPI, store: Store, limit: int, publisher: Publisher) -> None:
+    def shown(page: dict[str, Any]) -> dict[str, Any]:
+        """A page as the API gives it, with when it was last published (its kept
+        copy's; null if it has none) and its public address while it is public."""
+        public = bool(page.get("public"))
+        return {
+            **page,
+            "published_at": publisher.published_at(page["id"], page["slug"]),
+            "public_url": page_url(page["slug"]) if public else None,
+            "site": publish_site(),  # the public site's base URL, or null
+        }
+
     def save(data: dict[str, Any], uploads: list[UploadFile], who: str):
         types = mimes(uploads)
         capture = store.prepare(data, types)  # before writing any file
@@ -194,8 +209,9 @@ def add_routes(app: FastAPI, store: Store, limit: int) -> None:
 
     @app.get("/api/pages/{key}")
     def page(key: str) -> dict[str, Any]:
-        """A page by id or slug, with its captures and their files."""
-        return store.page(key)
+        """A page by id or slug, with its captures and their files, and whether it
+        is public and when it was published (published_at)."""
+        return shown(store.page(key))
 
     @app.get("/api/pinned")
     def pins() -> dict[str, Any] | None:
@@ -235,15 +251,22 @@ def add_routes(app: FastAPI, store: Store, limit: int) -> None:
         page = store.update_page(
             key, edit.base_rev, edit.title, edit.body, who, edit.kind, edit.fields,
             edit.tags, edit.todo(), tags_shown=edit.tags_shown, uploads=blobs,
+            public=edit.public,
         )  # fmt: skip
         if blobs and app.state.worker:
             app.state.worker.wake()
+        pending = edit.public is False and publisher.settle([page["id"]])  # committed
+        page = shown(page)
+        if pending:
+            page["unpublish"] = "pending"  # the receiver is down: reconcile does it
         return page
 
     @app.patch("/api/pages/{key}", openapi_extra=EDIT_BODY)
     async def edit(key: str, request: Request) -> dict[str, Any]:
         """Change title and/or body (409 if base_rev is not the current revision),
-        and/or the kind, fields, tags, and a todo's due date and priority. JSON, or
+        and/or the kind, fields, tags, a todo's due date and priority, and public
+        (false unpublishes the page at once: "unpublish": "pending" if the public
+        site could not be reached, and the next reconcile finishes it). JSON, or
         multipart/form-data with the edit as JSON in an edit part and file parts
         (images, PDFs, text and Markdown files): each ⟦image N⟧ or ⟦file N⟧ token in
         body is the Nth file's embed or link, saved as one revision."""
@@ -265,14 +288,16 @@ def add_routes(app: FastAPI, store: Store, limit: int) -> None:
 
     @app.delete("/api/pages/{key}", status_code=204)
     def delete(key: str, request: Request) -> None:
-        """Move a page to the trash."""
+        """Move a page to the trash (unpublishing it, if it was published)."""
+        page_id = store.page(key)["id"]
         store.delete_page(key, author=author(request))
+        publisher.settle([page_id])
 
     @app.post("/api/pages/{key}/undelete")
     def undelete(key: str, request: Request) -> dict[str, Any]:
         """Bring a page back from the trash."""
         store.delete_page(key, undo=True, author=author(request))
-        return store.page(key)
+        return shown(store.page(key))  # public as it was: published again on render
 
     @app.post("/api/pages/{key}/enrich")
     def enrich_page(key: str) -> dict[str, Any]:

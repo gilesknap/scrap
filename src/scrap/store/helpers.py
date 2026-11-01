@@ -316,7 +316,10 @@ def fields_for(kind: str | None, url: str | None) -> dict[str, Value]:
 def meta_of(row: sqlite3.Row, when: str) -> Meta:
     """A page_meta_rev row's state before or after (when) its change."""
     return Meta(
-        row[f"kind_{when}"], row[f"fixed_{when}"], json.loads(row[f"tags_{when}"])
+        row[f"kind_{when}"],
+        row[f"fixed_{when}"],
+        json.loads(row[f"tags_{when}"]),
+        row[f"public_{when}"],
     )
 
 
@@ -327,6 +330,8 @@ def meta_row(row: sqlite3.Row) -> dict[str, Any]:
         **dict(row), "tags_before": before, "tags_after": after,
         "fixed_before": bool(row["fixed_before"]),
         "fixed_after": bool(row["fixed_after"]),
+        "public_before": bool(row["public_before"]),
+        "public_after": bool(row["public_after"]),
         "fields_added": json.loads(row["fields_added"]),
         "fields_was": json.loads(row["fields_was"]),
         "tags_added": [t for t in after if t not in before],

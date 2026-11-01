@@ -25,7 +25,17 @@ from .helpers import (
 from .indexing import debounce, enrich_on, queue_enrich
 from .roles import may_rekind, should_enrich
 from .trash_revs import trash_revs
-from .types import FieldEdit
+from .types import FieldEdit, Meta
+
+
+def _flagged(row: sqlite3.Row, when: str, now: Meta) -> Meta:
+    """A revision's state before or after (when) its change, with the public flag as
+    the page has it now unless that revision changed the flag (ADR 43): reverting a
+    tag change leaves a page public or private as it is."""
+    meta = meta_of(row, when)
+    if row["public_before"] == row["public_after"]:
+        return meta._replace(public=now.public)
+    return meta
 
 
 class RevisionsMixin(Core):
@@ -33,7 +43,8 @@ class RevisionsMixin(Core):
         self, revision: int, author: str, source: str, dry_run: bool = False
     ) -> dict[str, Any]:
         """Undo a metadata revision: give its page back the kind (fixed or not) and
-        tags it had just before it, so undoing later ones too, and take off the
+        tags it had just before it, so undoing later ones too (and its public flag,
+        if that revision changed it; else the flag stays as it is), and take off the
         default fields its kind change added (those not changed since). The revert is
         a revision of its own, never folded into another, so it can be undone in
         turn: nothing is lost. No revision (None) if the page has them already.
@@ -56,7 +67,8 @@ class RevisionsMixin(Core):
         dry_run: bool,
         batch: str | None,
     ) -> dict[str, Any]:
-        before, after = self._meta(conn, page["id"]), meta_of(row, "before")
+        before = self._meta(conn, page["id"])
+        after = _flagged(row, "before", before)
         undo = FieldEdit(
             drop=json.loads(row["fields_added"]), was=json.loads(row["fields_was"])
         )
@@ -89,7 +101,8 @@ class RevisionsMixin(Core):
                 except NotFoundError:
                     skipped.append({"id": row["page_id"], "revision": row["id"]})
                     continue
-                if self._meta(conn, page["id"]) != meta_of(row, "after"):
+                now_ = self._meta(conn, page["id"])
+                if now_ != _flagged(row, "after", now_):
                     conflicts.append({
                         "id": page["id"], "slug": page["slug"], "revision": row["id"],
                     })  # fmt: skip

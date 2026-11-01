@@ -164,6 +164,10 @@ async function remove(li: HTMLLIElement, slug: string, key: string) {
       const t = trails.get(li.parentElement as Element);
       if (t) t.slugs = t.slugs.filter((s) => s !== slug); // no swiping on to it from its list
       li.remove();
+      import("./publicpages").then(
+        (m) => m.deleted({ slug }),
+        () => {},
+      );
     },
     rerender, // the list again, with it back
   );

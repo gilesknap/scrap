@@ -3,6 +3,7 @@
 // No \href, \url or \htmlClass (trust: false). A formula it can't draw stays as its TeX.
 import katex from "katex";
 import "katex/dist/katex.min.css";
+import { KATEX } from "./katexopts";
 
 /** Draw each maths element (render.ts math(): a .math span or div, or a ```math block's
  * <code>), keeping its TeX in data-tex for Share's file (pagehtml.ts). */
@@ -15,12 +16,7 @@ export function draw(found: HTMLElement[]) {
     try {
       // Drawn apart first, so a mistake leaves the TeX as it was
       const out = document.createElement(box.tagName);
-      katex.render(tex.trim(), out, {
-        displayMode: display,
-        throwOnError: true,
-        trust: false,
-        strict: "ignore",
-      });
+      katex.render(tex.trim(), out, { ...KATEX, displayMode: display });
       box.replaceChildren(...out.childNodes);
     } catch (e) {
       el.classList.add("math-error");

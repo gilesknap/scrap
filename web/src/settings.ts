@@ -1,7 +1,7 @@
 // Settings: a sheet from the top bar's cog, over the app like the editor. What it holds is
 // kept on this device and applied at once (theme.ts); Store health and Trash, screens of
-// their own (health.ts, trash.ts), which the sheet closes to open; Export everything, and
-// Import Markdown (importzip.ts).
+// their own (health.ts, trash.ts), which the sheet closes to open; Refresh all public pages
+// (publicsettings.ts); Export everything, and Import Markdown (importzip.ts).
 import { kept } from "./api";
 import { go } from "./app";
 import { COLUMNS, columnWidth, setColumnWidth } from "./column";
@@ -76,6 +76,17 @@ function choice(
 
 let open = false;
 
+/** Where Public pages goes: its section, a chunk of its own, put in once loaded (and only
+ * where publishing is on). */
+function publicSpot(): Comment {
+  const spot = document.createComment("public pages");
+  import("./publicsettings").then(
+    (m) => m.publicSection().then((parts) => spot.replaceWith(...parts)),
+    () => {},
+  );
+  return spot;
+}
+
 export function settings() {
   if (open) return;
   open = true;
@@ -95,6 +106,7 @@ export function settings() {
     };
     return link;
   };
+  const publics = publicSpot();
   const form = h(
     "div",
     {
@@ -167,6 +179,8 @@ export function settings() {
         { className: "hint" },
         "Smaller makes a photo at most 2560 px on its long edge before it is saved: faster to upload. Full size sends it as the camera took it. The camera roll keeps the full-size original.",
       ),
+      // Public pages: Refresh all
+      publics,
       h("h3", { className: "label" }, "Store"),
       screen("/health", "Store health"),
       h(

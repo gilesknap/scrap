@@ -107,8 +107,12 @@ npm --prefix web run e2e     # Playwright against a real scrap serve
 ```
 
 Playwright needs a browser first: `npx playwright install chromium` (from `web/`).
-The e2e tests serve on port 8791 with a throwaway data folder; set
-`SCRAP_E2E_PORT` or `SCRAP_E2E_DATA` to change either.
+The e2e tests serve on port 8781 with a throwaway data folder; set
+`SCRAP_E2E_PORT` or `SCRAP_E2E_DATA` to change either. Publishing is on in them: the public
+site's receiver (`scrap-public/receiver.py`) runs on that port + 100 with a throwaway site
+folder and token, and `web/e2e/site.py` serves the site as nginx would on the port + 200
+(`web/e2e/ports.ts`); the folder and token are removed after the run. Runs side by side need
+bases at least 1 apart and within 100 of each other (8801, 8802, ...), so no port is shared.
 The specs share one server and one data folder, so they run on one worker. CI splits them across
 six runners (`--shard=N/6`), each with its own server and data. To go faster locally, run shards
 side by side, each on its own port: `SCRAP_E2E_PORT=8801 npm run e2e -- --shard=1/4`, and so on.

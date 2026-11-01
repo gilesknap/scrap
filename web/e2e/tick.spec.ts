@@ -173,6 +173,7 @@ test("Mark done leads a todo's toolbar, filled and wider; Download is in Share's
     "Download HTML", // this phone can't share the file: saved
     "Download",
     "Pin to Search",
+    "Make public…", // last (#497)
   ]);
   const saved = page.waitForEvent("download");
   await menu.getByRole("link", { name: "Download" }).click();

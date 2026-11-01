@@ -20,7 +20,7 @@ export const PREVIEW = 480; // pixels, longest side
 export const CAP = 4 * 2 ** 20; // bytes of photos in one file, as base64
 
 // Markup that keeps its look: the page's own text, headings, lists, tables, its Claude card
-const KEEP = new Set(
+export const KEEP = new Set(
   "a abbr article aside b blockquote br caption code dd del details div dl dt em figcaption figure h1 h2 h3 h4 h5 h6 hr i img ins kbd li mark ol p pre q s section small span strong sub summary sup table tbody td tfoot th thead time tr u ul".split(
     " ",
   ),
@@ -34,7 +34,7 @@ const DROP = new Set(
 const SAFE_HREF = /^(https?:|mailto:|#)/i;
 const SHA = /\/api\/blobs\/([0-9a-f]{64})/;
 
-const esc = (s: string) =>
+export const esc = (s: string) =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
 const el = (n: N) => n.nodeType === ELEMENT;
@@ -43,7 +43,7 @@ const attr = (n: N, k: string) => n.getAttribute?.(k) ?? null;
 const kids = (n: N) => Array.from(n.childNodes);
 
 /** Whether a node is one of the page's controls (a Download, an Ask), not its content. */
-function control(n: N): boolean {
+export function control(n: N): boolean {
   // A prompt or where Claude is up to ("Waiting for Claude", "Claude can describe it..."),
   // which means nothing in a file
   const cls = ` ${attr(n, "class") ?? ""} `;
@@ -143,7 +143,7 @@ function mathOf(n: N): string | null {
 }
 
 /** A section that was text, as the elements its Markdown makes (by node, from prose()). */
-type Swaps = Map<N, N>;
+export type Swaps = Map<N, N>;
 
 function render(n: N, shown: Map<N, string | null>, swaps: Swaps = new Map()): string {
   if (n.nodeType === TEXT) return esc(n.data ?? "");
@@ -232,7 +232,7 @@ export const htmlName = (title: string) =>
 
 /** The page's text sections that hold Markdown (Claude's summary), rendered by the app's own
  * renderer, whatever state the screen's DOM is in: raw text would be a file of **marks**. */
-async function swapsOf(root: N): Promise<Swaps> {
+export async function swapsOf(root: N): Promise<Swaps> {
   const swaps: Swaps = new Map();
   const texts = prose(root);
   if (texts.length) {

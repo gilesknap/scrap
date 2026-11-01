@@ -48,6 +48,7 @@ from .mcp_tools.textdiff import (  # noqa: F401 (re-exported)
     unified,
 )
 from .public import public_urls
+from .publish import Publisher
 from .store import Store
 from .store.trash import trash_days
 
@@ -67,10 +68,12 @@ pages written over MCP. {text}{svg}{purge} The trash tool lists it (with when ea
 is purged), read and revisions show a trashed page read only
 (trashed: true), and {restore}every other tool treats it as absent. edit_meta and
 rename_tag change only kinds and tags (edit_meta's fields are only media_type, status
-and a todo's due and priority), of any page: each change is a revision
+and a todo's due and priority; and its public flag, only when the user asks: a public
+page can be read by anyone with its address, with its tags and Claude's write-up and
+summary), of any page: each change is a revision
 (the revisions tool; with no page or batch it lists what changed recently, across
 pages) that revert undoes. Revisions cover only the user's and your changes to text,
-kinds, tags and fields (media_type, status; a todo's due and priority),
+kinds, tags, fields (media_type, status; a todo's due and priority), the public flag,
 and moves into and out of the trash: what scrap's Claude enrichment adds (summary,
 model tags, related pages, a board's write-up; read's by_model) is not in them, and
 revert cannot undo it. Try a bulk change with dry_run first.
@@ -208,9 +211,15 @@ def upload() -> bool:
     return value in ON
 
 
-def server(store: Store, wake: Callable[[], None] = lambda: None) -> MCPServer:
+def server(
+    store: Store,
+    wake: Callable[[], None] = lambda: None,
+    publisher: Publisher | None = None,
+) -> MCPServer:
     """The MCP server on a store: its tools, ready to serve. wake: the ingest
-    worker's, called when a tool queues a file (add_svg)."""
+    worker's, called when a tool queues a file (add_svg). publisher: the app's (its
+    lock), which unpublishes a page a tool makes private or trashes; MCP never
+    publishes HTML."""
     urls = public_urls()
     base = urls[0] if urls else ""
     editable = content_edit()
@@ -228,7 +237,7 @@ def server(store: Store, wake: Callable[[], None] = lambda: None) -> MCPServer:
         "scrap", title="scrap", version=__version__, instructions=instructions,
         log_level="WARNING",
     )  # fmt: skip
-    ctx = Ctx(store, base, editable, wake)
+    ctx = Ctx(store, base, editable, wake, publisher or Publisher(store))
     register_reading(mcp, ctx)
     register_drawing(mcp, ctx)
     register_browsing(mcp, ctx)

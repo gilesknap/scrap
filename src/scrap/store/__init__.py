@@ -38,6 +38,7 @@ from .errors import (
     NoSuchPage,
     NoSuchRevision,
     NotFoundError,
+    OneAtATimeError,
     TooLargeError,
 )
 from .helpers import (
@@ -77,6 +78,7 @@ __all__ = [
     "ConflictError",
     "TooLargeError",
     "InvalidError",
+    "OneAtATimeError",
     "BlobRef",
     "SURROGATE",
     "WIKI_LINK",

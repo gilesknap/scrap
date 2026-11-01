@@ -26,6 +26,8 @@ from . import (
     mcp_server,
     pages_api,
     photos_api,
+    publish,
+    publish_api,
     pwa,
     search_api,
     topic_api,
@@ -66,6 +68,8 @@ def create_app(data_dir: Path | str | None = None) -> FastAPI:
     store = Store(data_dir or os.environ.get("SCRAP_DATA_DIR", "data"))
     store.migrate()
     store.prompts = enrich.prompt_versions()  # what is:outdated compares with
+    publish.settings.check()  # bad publish settings stop the start, not a request
+    publisher = publish.Publisher(store)
     limit = upload_limit()
     worker = ingest.Worker(store) if ingest.enabled() else None
 
@@ -75,7 +79,7 @@ def create_app(data_dir: Path | str | None = None) -> FastAPI:
         if app.state.worker:
             app.state.worker.wake()
 
-    tools = mcp_server.server(store, wake)
+    tools = mcp_server.server(store, wake, publisher)
     mcp_routes = tools.streamable_http_app(
         streamable_http_path="/mcp",
         stateless_http=True,
@@ -88,15 +92,19 @@ def create_app(data_dir: Path | str | None = None) -> FastAPI:
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         if worker:
             worker.start()
+        if publish.enabled():  # reconcile now, and every 10 minutes
+            publisher.start()
         try:
             async with tools.session_manager.run():
                 yield
         finally:
+            publisher.stop()
             if worker:
                 worker.stop()
 
     app = FastAPI(title="scrap", version=__version__, lifespan=lifespan)
     app.state.worker = worker
+    app.state.publisher = publisher
     app.add_middleware(BodyLimit, limit=limit)
     app.add_middleware(TextGzip)
     # Host and Origin on every route but /mcp (it has the same check in its transport)
@@ -110,6 +118,8 @@ def create_app(data_dir: Path | str | None = None) -> FastAPI:
 
         def handler(request: Request, error: Exception, status: int = status):
             detail: dict[str, Any] = {"detail": str(error) or type(error).__doc__}
+            if code := getattr(error, "code", None):  # e.g. one_at_a_time
+                detail["error"] = code
             if isinstance(error, drawing.StaleError):
                 detail = {"detail": type(error).__doc__, "version": error.args[0]}
             elif isinstance(error, ConflictError):
@@ -138,7 +148,8 @@ def create_app(data_dir: Path | str | None = None) -> FastAPI:
     def healthz() -> JSONResponse:
         """Liveness check, plus the upload limit so the PWA can check before sending.
         503 if the ingest worker has stopped. `paused` is why the Claude queue is
-        paused (credit, auth, budget, outage), else null."""
+        paused (credit, auth, budget, outage), else null. `publish` is the public
+        pages' state (never a failure here)."""
         status, code = "ok", 200
         if app.state.worker and not app.state.worker.alive():
             status, code = "ingest worker stopped", 503
@@ -153,17 +164,25 @@ def create_app(data_dir: Path | str | None = None) -> FastAPI:
         except Exception:
             logging.getLogger(__name__).exception("healthz: queue state unreadable")
         body = {"status": status, "version": __version__, "max_upload_bytes": limit,
-                "paused": paused}  # fmt: skip
+                "paused": paused, "publish": publish_health()}  # fmt: skip
         return JSONResponse(body, code)
 
-    pages_api.add_routes(app, store, limit)
+    def publish_health() -> dict[str, Any] | None:
+        try:  # a probe must not fail on publishing
+            return publisher.health()
+        except Exception:
+            logging.getLogger(__name__).exception("healthz: publish state unreadable")
+            return None
+
+    pages_api.add_routes(app, store, limit, publisher)
+    publish_api.add_routes(app, publisher)
 
     viewed_api.add_routes(app, store)
     writeup_api.add_routes(app, store, wake)
     topic_api.add_routes(app, store, wake)
     photos_api.add_routes(app, store, wake, limit)
     import_api.add_routes(app, store, wake, limit)
-    health_api.add_routes(app, store)
+    health_api.add_routes(app, store, publish_health)
     captures_api.add_routes(app, store)
     ingest_api.add_routes(app, store)
     search_api.add_routes(app, store)

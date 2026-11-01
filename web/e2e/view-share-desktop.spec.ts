@@ -58,6 +58,7 @@ test("Share on a computer copies, prints and downloads", async ({ page }) => {
     "Download HTML",
     "Download",
     "Pin to Search",
+    "Make public…", // last (#497)
   ]);
   // Under Share (a computer's tools are at the top), inside the window
   const below = async () => {
@@ -141,6 +142,7 @@ test("a computer with a share sheet has the phone's menu: no Copy rows, nothing 
     "Zip",
     "Download",
     "Pin to Search",
+    "Make public…", // last (#497)
   ]);
   expect(new Set(rows).size).toBe(rows.length);
   expect((await page.request.delete(`/api/pages/${page_id}`)).ok()).toBe(true);

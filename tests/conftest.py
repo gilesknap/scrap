@@ -22,6 +22,16 @@ def no_mcp_token(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def no_publishing(monkeypatch):
+    """Publishing settings in the developer's shell must not reach a real site."""
+    for name in (
+        "SCRAP_PUBLISH_TO", "SCRAP_PUBLISH_SITE", "SCRAP_PUBLISH_TOKEN_FILE",
+        "SCRAP_WEB_DIR",
+    ):  # fmt: skip
+        monkeypatch.delenv(name, raising=False)
+
+
+@pytest.fixture(autouse=True)
 def loopback_client(monkeypatch):
     """TestClient's default Host is `testserver`, which the Host check (hostguard)
     refuses like any name not in SCRAP_PUBLIC_URL; default to loopback, as a real

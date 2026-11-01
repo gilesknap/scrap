@@ -7,7 +7,7 @@ import { drafts } from "./db";
 import type { Trail } from "./gesture";
 import { icon } from "./icons";
 import { rendered, renderer, unembedded } from "./md";
-import { chipRow, headLines } from "./pagehead";
+import { chipRow, globe, headLines } from "./pagehead";
 import { statusOf, ticks } from "./status";
 import { deletePage, why } from "./swipe";
 import { seenTopic } from "./topicseen";
@@ -55,23 +55,52 @@ export function untitled(body: string, title: string): string {
   return said && said === title.trim() ? body.slice(first.length) : body;
 }
 
-export async function page(key: string, signal: AbortSignal): Promise<Node> {
+/** The page each view was last drawn with, by its article: what a public page is published
+ * from (publicpages.ts), on the screen or off it. */
+export const pages = new WeakMap<Element, Page>();
+
+/** A page's view and what it shows, for publicpages.ts: show() draws it again. */
+export interface View {
+  root: HTMLElement;
+  shown: () => Page;
+  show: (p: Page) => void;
+}
+/** What publicpages.ts does, a chunk of its own, loaded when it is first needed. */
+const publics = () => import("./publicpages");
+/** Whether publishing is on on the server (/healthz), asked once: off, no Make public. */
+let publishOn: Promise<boolean> | null = null;
+const publishing = () =>
+  (publishOn ??= fetch("/healthz")
+    .then((r) => r.json())
+    .then((j) => j?.publish?.enabled !== false)
+    .catch(() => {
+      publishOn = null; // asked again by the next view
+      return true; // offline or unreadable: as if on (publishing says why not when tried)
+    }));
+
+/** A page's view. quiet: drawn off the screen, to publish it (publicpages.ts): not opened,
+ * no history, no polling, nothing told to the server or kept as seen. */
+export async function page(key: string, signal: AbortSignal, quiet = false): Promise<Node> {
   // signal: this view's, taken before any wait (even the chunk's): Back may come meanwhile
-  const state = history.state as { trail?: Trail; edit?: boolean; from?: 1 | -1 } | null;
+  const state = quiet
+    ? null
+    : (history.state as { trail?: Trail; edit?: boolean; from?: 1 | -1 } | null);
   // The renderer, a chunk of its own, while the page is fetched (offline without it: as typed)
   // and Share's Pin to Search (pins.ts, a chunk of its own; none offline before it was kept)
-  const [p, pinRow] = await Promise.all([
+  const [p, pinRow, , canPublish] = await Promise.all([
     api<Page>(`pages/${encodeURIComponent(key)}`, { signal }),
     import("./pins").then(
       (m) => ({ slug: m.SLUG, make: (p: Page) => m.pinPageButton(p.slug, p.title) }),
       () => null,
     ),
     renderer(),
+    publishing(),
   ]);
   signal.throwIfAborted(); // gone meanwhile (Back, or timed out): no poll or listeners
   // Tell the server this page is the one open (MCP current_page, #452); no reply awaited,
   // and offline or refused is no matter
-  fetch(`/api/pages/${encodeURIComponent(p.id)}/viewed`, { method: "POST" }).catch(() => {});
+  if (!quiet)
+    fetch(`/api/pages/${encodeURIComponent(p.id)}/viewed`, { method: "POST" }).catch(() => {});
   const root = h("article", { className: "page" });
   // A file opens in a new window, but in Android's home-screen app that window has no Back to
   // this page: the back gesture closed the app (#443). There it opens in this window, one step
@@ -127,6 +156,7 @@ export async function page(key: string, signal: AbortSignal): Promise<Node> {
   addEventListener(ADDED, (e) => added(e) && void refresh(), { signal });
   const schedule = (p: Page) => {
     clearTimeout(poll);
+    if (quiet) return;
     const photos = busy(p) && queue?.enabled && !queue.paused;
     if ((photos || enr?.reading(p) || wr?.writing(p)) && !signal.aborted) {
       poll = window.setTimeout(() => {
@@ -154,19 +184,20 @@ export async function page(key: string, signal: AbortSignal): Promise<Node> {
   const show = (p: Page) => {
     shown = p;
     drawn++;
+    pages.set(root, p);
     // For the top bar's Back: a todo's parent is the Todos screen, a topic's the Topics screen
     root.dataset.kind = p.topic ? "topic" : p.kind;
     // Its name as shown, for Back on the pages its links open (crumbs.ts): renamed in place too
-    if (!signal.aborted) remember(p.title);
+    if (!signal.aborted && !quiet) remember(p.title);
     // A topic shown, however it was reached: its dot on the Topics screen has done its job
-    if (p.topic) seenTopic(p.id, p.writeup?.current?.created_at ?? p.updated_at);
+    if (p.topic && !quiet) seenTopic(p.id, p.writeup?.current?.created_at ?? p.updated_at);
     schedule(p);
     const body = bodyView(untitled(p.body, p.title), false, p.titles);
     if (p.kind === "consume") rendered()?.cards(body); // a link on its own line: a card
     // Its task boxes: ticked in place (tasks.ts, a chunk of its own)
-    if (body.querySelector("[data-line]"))
+    if (body.querySelector("[data-line]") && !quiet)
       import("./tasks").then(
-        (m) => m.wire(body, () => shown, show, signal),
+        (m) => m.wire(body, () => shown, changed, signal),
         () => {},
       );
     const files = figs ? figs.figures(body, p, queue, () => void refresh()) : links(p);
@@ -229,11 +260,44 @@ export async function page(key: string, signal: AbortSignal): Promise<Node> {
       pageLink(p.slug),
       undefined,
       // (and Pin to Search, from the pins chunk: not on the Pinned page itself)
-      menus ? [saved, ...(pinRow && p.slug !== pinRow.slug ? [pinRow.make(p)] : [])] : undefined,
+      // and, last, Make public… or Make private (publicpages.ts)
+      menus
+        ? [
+            saved,
+            ...(pinRow && p.slug !== pinRow.slug ? [pinRow.make(p)] : []),
+            ...(canPublish ? [publicRow(p)] : []),
+          ]
+        : undefined,
     ) ?? saved,
     !menus && "share" in navigator && saved,
     h("button", { className: "danger", onclick: () => remove(p) }, icon("trash"), "Delete"),
   ];
+
+  // Share's last row: Make public… (it asks first) or Make private (at once, with Undo)
+  const view: View = { root, shown: () => shown, show };
+  const publicRow = (p: Page) =>
+    h(
+      "button",
+      {
+        type: "button",
+        onclick: () =>
+          void publics().then(
+            (m) => (p.public ? m.makePrivate(view) : m.makePublic(view)),
+            () => toast("Can't do that offline: reload scrap and try again"),
+          ),
+      },
+      globe(),
+      p.public ? "Make private" : "Make public…",
+    );
+  // Saved here (an edit, a tick, a task box): a public page is published again
+  const changed = (p: Page) => {
+    show(p);
+    if (p.public)
+      void publics().then(
+        (m) => m.republish(view),
+        () => {},
+      );
+  };
 
   // The editor, with its draft if one was kept: a chunk of its own (pageedit.ts, with editor.ts)
   // row: from a list's row (not where the view is read); due: from the due chip, its Due fold
@@ -241,7 +305,7 @@ export async function page(key: string, signal: AbortSignal): Promise<Node> {
   async function edit(p: Page, row = false, due = false) {
     const mod = await import("./pageedit").catch(() => null);
     if (!mod) return toast("Can't open the editor: reload scrap and try again");
-    await mod.edit(p, load, show, row, due);
+    await mod.edit(p, load, show, row, due, changed);
   }
 
   // Ticked off (or not): its status only, no new revision
@@ -249,7 +313,15 @@ export async function page(key: string, signal: AbortSignal): Promise<Node> {
     b.disabled = true;
     // Mark done on a todo from the Todos screen: on to the next one (pager.ts), else shown here
     setStatus(p.id, to).then(
-      (q) => (to === "done" && pager?.done(q, statusOf(p.kind, p.fields) ?? "open")) || show(q),
+      (q) => {
+        if (!(to === "done" && pager?.done(q, statusOf(p.kind, p.fields) ?? "open"))) changed(q);
+        // on to the next one: this one is published off the screen
+        else if (q.public)
+          void publics().then(
+            (m) => m.republishOff(q.slug),
+            () => {},
+          );
+      },
       (err) => {
         b.disabled = false;
         toast(`Not changed: ${why(err)}`);
@@ -276,8 +348,14 @@ export async function page(key: string, signal: AbortSignal): Promise<Node> {
   const remove = (p: Page) =>
     deletePage(
       p.id,
-      () =>
-        (history.state?.at ?? 0) > 0 // an entry the app pushed: one of the app's is behind it
+      () => {
+        // Gone from the public pages that showed its title too (S5: as Make private does)
+        if (canPublish)
+          void publics().then(
+            (m) => m.deleted(p),
+            () => {},
+          );
+        return (history.state?.at ?? 0) > 0 // an entry the app pushed: one of the app's is behind it
           ? new Promise<void>((done) => {
               addEventListener("popstate", () => done(), { once: true }); // after main.ts's
               history.back();
@@ -285,12 +363,13 @@ export async function page(key: string, signal: AbortSignal): Promise<Node> {
           : import("./back").then(
               (m) => m.up(go),
               () => go("/", true), // the chunk is not here (offline): Capture
-            ),
+            );
+      },
       () => go(`/p/${encodeURIComponent(p.slug)}`),
     );
 
   show(p);
-  if (state?.edit) {
+  if (state?.edit && !quiet) {
     // Edit from a list's row: straight into the editor (once: not again on Back or reload)
     history.replaceState({ ...state, edit: false }, "");
     void edit(p, true);
