@@ -92,10 +92,22 @@ http {
         default "";
     }
 
-    # HTML is checked each time, so a republished page shows at once; files for 5 min
+    # HTML is checked each time, so a republished page shows at once; files for 5 min.
+    # The site's own CSS and script (/assets/page.css, katex.css, prefs.js) are at fixed
+    # addresses that every page names, so they are checked each time too (#534): a
+    # browser revalidates with the ETag (a 304 when nothing changed) and never pairs a
+    # new release's HTML with the last one's stylesheet. no-cache, not no-store, so
+    # Cloudflare and browsers still keep a copy. KaTeX's fonts and the icons stay 5 min.
+    # A 304 has no Content-Type (nginx clears it), so HTML is also known by its file:
+    # try_files sets $uri to it (/p/<slug>/index.html, /home/index.html, /404.html)
+    map $uri $scrap_file_cache {
+        "~^/assets/[^/]*\.(css|js)$" "no-cache";
+        "~\.html$" "no-cache";
+        default "public, max-age=300";
+    }
     map $sent_http_content_type $scrap_cache {
         ~^text/html "no-cache";
-        default "public, max-age=300";
+        default $scrap_file_cache;
     }
 
     server {
@@ -107,7 +119,7 @@ http {
         }
 
         # One set of headers for every answer (no location adds its own, so all
-        # inherit these)
+        # inherit these: a location's add_header would replace them all)
         add_header Content-Security-Policy $scrap_csp always;
         add_header X-Content-Type-Options nosniff always;
         add_header Referrer-Policy no-referrer always;

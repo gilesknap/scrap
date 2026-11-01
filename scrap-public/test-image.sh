@@ -229,8 +229,45 @@ check "nosniff" [ "$(header "$web/p/a-page" x-content-type-options)" = nosniff ]
 check "no referrer" [ "$(header "$web/p/a-page" referrer-policy)" = no-referrer ]
 check "noindex" [ "$(header "$web/p/a-page" x-robots-tag)" = "noindex, nofollow" ]
 check "HTML is no-cache" [ "$(header "$web/p/a-page" cache-control)" = no-cache ]
+# A 304 has no Content-Type, so nginx knows HTML by its file there
+for path in /p/a-page / /tags /t/a-tag-0123abcd; do
+    html_etag=$(header "$web$path" etag)
+    check "HTML's 304 is no-cache too: $path" \
+        [ "$(curl -sS -o /dev/null -D - -H "If-None-Match: $html_etag" "$web$path" | tr -d '\r' |
+            sed -n 's/^cache-control: //Ip')" = no-cache ]
+done
 check "files are max-age=300" \
     [ "$(header "$web/p/a-page/file-1-0123456789.pdf" cache-control)" = "public, max-age=300" ]
+# The site's own CSS and script are at fixed addresses every page names, so they are
+# checked each time (#534): a browser revalidates with the ETag, never pairing a new
+# release's HTML with an old stylesheet. Fonts and the icons keep max-age=300
+for path in /assets/page.css /assets/katex.css /assets/prefs.js; do
+    check "$path is no-cache" [ "$(header "$web$path" cache-control)" = no-cache ]
+    check "$path keeps home's CSP" [ "$(header "$web$path" content-security-policy)" = "$csp_home" ]
+    check "$path keeps nosniff" [ "$(header "$web$path" x-content-type-options)" = nosniff ]
+    check "$path keeps no referrer" [ "$(header "$web$path" referrer-policy)" = no-referrer ]
+    check "$path keeps noindex" [ "$(header "$web$path" x-robots-tag)" = "noindex, nofollow" ]
+    etag=$(header "$web$path" etag)
+    check "$path has an ETag" [ -n "$etag" ]
+    check "$path with its ETag is 304" [ "$(status -H "If-None-Match: $etag" "$web$path")" = 304 ]
+    curl -sS -o /dev/null -D - -H "If-None-Match: $etag" "$web$path" | tr -d '\r' >"$work/304"
+    check "$path's 304 is no-cache too" grep -qix 'cache-control: no-cache' "$work/304"
+    check "$path's 304 keeps the CSP" grep -qiFx "content-security-policy: $csp_home" "$work/304"
+    check "$path's 304 keeps nosniff" grep -qix 'x-content-type-options: nosniff' "$work/304"
+done
+for path in /assets/fonts/KaTeX_Main.ttf /assets/icon.svg /assets/icon-192.png /pagefind/pagefind.js; do
+    check "$path is max-age=300" [ "$(header "$web$path" cache-control)" = "public, max-age=300" ]
+done
+check "a missing asset is a no-cache 404 (it is home/404.html, HTML)" \
+    [ "$(header "$web/assets/nope.css" cache-control)" = no-cache ]
+# After an assets push, a normal reload (the old ETag) gets the new stylesheet
+old_etag=$(header "$web/assets/page.css" etag)
+mkdir -p "$work/assets5"
+cp -R "$work/assets/." "$work/assets5/"
+echo 'body{color:red}' >"$work/assets5/page.css"
+check "PUT assets again, page.css changed" [ "$(put assets "$work/assets5")" = 200 ]
+check "the old ETag now gets the new page.css" sh -c \
+    "[ \"\$(curl -fsS -H 'If-None-Match: $old_etag' '$web/assets/page.css')\" = 'body{color:red}' ]"
 check "a PDF is application/pdf" \
     [ "$(header "$web/p/a-page/file-1-0123456789.pdf" content-type)" = application/pdf ]
 check "no server version" [ "$(header "$web/" server)" = nginx ]

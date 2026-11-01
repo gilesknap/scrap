@@ -104,8 +104,13 @@ test("Make public warns first, with Cancel focused, then the page is on the site
   expect(got.text).toContain('<link rel="stylesheet" href="/assets/katex.css">');
   expect(got.text).toMatch(/<a href="\/t\/e2e-public-[0-9a-f]{8}">#e2e\/public<\/a>/);
   expect(got.text).not.toMatch(/scrap-(blob|tag):|\/api\//);
-  for (const css of ["/assets/page.css", "/assets/katex.css"])
-    expect((await onSite(page, css)).status).toBe(200);
+  // The site's own CSS and script, at fixed addresses, are checked on each load (#534);
+  // test-image.sh checks the real nginx: its ETag, the 304 and the other files
+  for (const path of ["/assets/page.css", "/assets/katex.css", "/assets/prefs.js"]) {
+    const asset = await page.request.get(`${SITE}${path}`);
+    expect(asset.status()).toBe(200);
+    expect(asset.headers()["cache-control"]).toBe("no-cache");
+  }
   // scrap's icons (#527): named in the head of the page and of home, served as themselves,
   // and /favicon.ico (asked for on its own) sent to the SVG one
   const icons =

@@ -46,6 +46,9 @@ CHARSET = ("text/html", "text/css", "text/javascript", "text/plain", "text/markd
            "text/csv", "application/json")  # fmt: skip
 # nginx's Access-Control-Allow-Origin: a page's SVG images, for Open in Excalidraw
 CORS = re.compile(r"^/p/[a-z0-9-]+/img-[^/]*\.svg$")
+# nginx's Cache-Control: HTML and the site's own CSS and script (/assets/*.css, *.js,
+# at fixed addresses, #534) are checked each time; every other file is kept 5 min
+NO_CACHE = re.compile(r"^/assets/[^/]*\.(css|js)$")
 TYPES = {".wasm": "application/wasm", ".md": "text/markdown", ".mjs": "text/javascript"}
 
 
@@ -98,8 +101,9 @@ class Site(BaseHTTPRequestHandler):
             self.send_header("Access-Control-Allow-Origin", "https://excalidraw.com")
         self.send_header("Referrer-Policy", "no-referrer")
         self.send_header("X-Robots-Tag", "noindex, nofollow")
-        html = kind.startswith("text/html")
-        self.send_header("Cache-Control", "no-cache" if html else "public, max-age=300")
+        fresh = kind.startswith("text/html") or NO_CACHE.search(path)
+        cache = "no-cache" if fresh else "public, max-age=300"
+        self.send_header("Cache-Control", cache)
         self.end_headers()
         if self.command != "HEAD":
             self.wfile.write(body)
