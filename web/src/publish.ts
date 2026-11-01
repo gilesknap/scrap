@@ -14,7 +14,8 @@
 // reading of it (#521) in a fold, as the app has it, but published closed (every other fold
 // is published open): a photo's description and text, a PDF's text (publicpages.ts fetches
 // it), scrubbed as page text is. An image Claude made (add_svg) has none. Pure: publicpages.ts
-// gathers what it needs.
+// gathers what it needs. A task's box (#539) as an empty span, ticked or not, that page.css
+// draws.
 import { type Titles, titleOf } from "./linktext";
 import { control, esc, KEEP, type N, type Swaps, textOf } from "./pagehtml";
 
@@ -363,9 +364,13 @@ export function publishHtml(root: N, ctx: Context, swaps: Swaps = new Map()): st
         .map((k) => render(k))
         .filter((s) => !apart || s)
         .join(apart ? " · " : "");
+    // A task's box (render.ts, #539): no <input>, an empty span page.css draws as the app's
+    // box, its state in its label
     if (t === "input") {
       if (attr(n, "type") !== "checkbox") return "";
-      return n.hasAttribute?.("checked") ? "[x] " : "[ ] ";
+      return n.hasAttribute?.("checked")
+        ? '<span class="taskbox done" role="img" aria-label="Done"></span>'
+        : '<span class="taskbox" role="img" aria-label="To do"></span>';
     }
     if (t === "img") {
       const sha = BLOB.exec(attr(n, "src") ?? "")?.[1];

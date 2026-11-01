@@ -346,6 +346,12 @@ Marked *default* below: a choice the owner may still change, kept in one place s
 - Mermaid diagrams drawn, as the app draws them, light and dark ([](#diagrams)); one the PWA
   cannot draw as its source, in `<pre><code class="language-mermaid">`.
 - Heading and footnote `id`s, so `#...` links within the page work.
+- A task's box (#539), as an empty `<span>` in place of the app's `<input>`: in the
+  `<li class="task">`, `<span class="taskbox" role="img" aria-label="To do"></span>`, or
+  `<span class="taskbox done" role="img" aria-label="Done"></span>` when ticked. `page.css` draws
+  it as the app's box (Chrome's checkbox with the amber accent: its size, edge, corners and
+  tick, light and dark); a screen reader says "To do" or "Done" before the task, and the site's
+  search does not index the label. The Markdown's `[ ]` and `[x]` do not appear.
 
 **Links**
 
@@ -585,7 +591,8 @@ refused. (The publish mode writes "a private link" in their place.)
 In `body`, only pagehtml's kept elements (`a abbr article aside b blockquote br caption code dd
 del details div dl dt em figcaption figure h1 h2 h3 h4 h5 h6 hr i img ins kbd li mark ol p pre q
 s section small span strong sub summary sup table tbody td tfoot th thead time tr u ul`, and
-`input` and `label` only as a photo's tabs, below), and,
+`input` and `label` only as a photo's tabs, below; a `span` with a `role`, or with the class
+`taskbox`, only as a task's box, exactly as above, empty), and,
 inside a `span` whose class includes `katex` ("inside KaTeX" below), KaTeX's markup:
 
 - MathML: `math semantics annotation mrow mi mn mo mtext mspace msup msub msubsup mfrac msqrt
@@ -615,7 +622,9 @@ Attributes:
 | `checked` | `input` | empty |
 | `for` | `label` | the same pattern, and the `id` of an `input` on the page |
 | `role` | `div` | `radiogroup` |
+| `role` | `span`, a task's box | `img` |
 | `aria-label` | `input`, `div` | any text (as body text: no private address) |
+| `aria-label` | `span`, a task's box | `To do` with `class="taskbox"`, `Done` with `class="taskbox done"`, and no other attribute |
 | `aria-hidden` | `span` inside KaTeX | `true` |
 | `style` | `span`, `mstyle`, `mpadded`, `svg` inside KaTeX | the declarations below |
 | `xmlns` | `math`, `svg` | the MathML or SVG namespace |
