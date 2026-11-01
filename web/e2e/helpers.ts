@@ -44,7 +44,10 @@ export type Listed = { id: string; slug: string; title: string; kind: string; th
  * queue, the API), deleted after the test: the pages in the store as it starts are noted
  * (the 500 last changed: a page made since is among them), and any page not among them is
  * the test's. The function returned lists those so far, newest change first, so a test can
- * check its own pages whatever else the store holds. Call it once, at the top level. */
+ * check its own pages whatever else the store holds. For pages made as they are now: an
+ * import's (an old date) may fall outside the list, and so may the store's own pages past the
+ * 500th, which a change in the test would bring back in. Wait for a test's uploads to land
+ * before it ends, or a late one is left. Call it once, at the top level. */
 export function madeEachTest(): (request: APIRequestContext) => Promise<Listed[]> {
   const list = async (request: APIRequestContext) =>
     (await (await request.get("/api/pages?limit=500")).json()) as Listed[];

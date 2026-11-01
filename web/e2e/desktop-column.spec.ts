@@ -3,7 +3,7 @@
 // width (column.ts, settings.ts), which a narrower window still shrinks to fit, with the usual
 // gutter, never scrolling sideways. (The photo/drawing pair always using tabs, not the old
 // side-by-side split, is e2e/whiteboard.spec.ts's, which already makes a board; this file never
-// writes a page, so it can run anywhere in the suite, unlike smoke.spec.ts's empty-store start.)
+// writes a page, so it can run anywhere in the suite.)
 import { expect, type Page, test } from "@playwright/test";
 
 const COLUMN = "scrap.column";

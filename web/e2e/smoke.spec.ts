@@ -6,6 +6,13 @@ import { caption } from "./panel";
 // Each test deletes the pages it made and checks only its own, so the spec passes whatever
 // else is in the store, and again when repeated
 const made = madeEachTest();
+/** The hits of a search for q that are this test's own pages. */
+async function ownHits(page: Page, q: string) {
+  const own = new Set((await made(page.request)).map((p) => p.slug));
+  const hits = (await (await page.request.get(`/api/search?q=${q}`)).json()) as Hit[];
+  return hits.filter((h) => own.has(h.slug));
+}
+type Hit = { slug: string; title: string };
 
 // The top bar's Back shows only in an iPhone's home-screen app (navigator.standalone), which
 // has no Back of its own; tests here use it, so they run as one
@@ -76,7 +83,7 @@ test("the share target queues a share in the service worker", async ({ page, con
   await expect(page.locator("#queue")).toHaveText("1 waiting");
   await context.setOffline(false);
   await expect(page.locator("#queue")).toBeHidden();
-  const [hit] = await (await page.request.get("/api/search?q=story")).json();
+  const [hit] = await ownHits(page, "story");
   const shared = await (await page.request.get(`/api/pages/${hit.slug}`)).json();
   expect(shared.captures[0]).toMatchObject({
     source: "share",
@@ -186,7 +193,7 @@ test("a share the phone cannot store goes to the server, or says so", async ({
     }, text);
   await share("quota fallback note");
   await expect(page).toHaveURL(/\/$/);
-  const [hit] = await (await page.request.get("/api/search?q=quota+fallback")).json();
+  const [hit] = await ownHits(page, "quota+fallback");
   expect(hit.title).toBe("quota fallback note");
   await context.setOffline(true);
   await share("nowhere to go");
@@ -244,7 +251,7 @@ test("several photos make one capture", async ({ page }) => {
   await expect(page.locator(".editor .embeds .embed")).toHaveCount(4);
   await caption(page, "three photos");
   await page.getByRole("button", { name: "Save" }).click();
-  const search = async () => (await page.request.get("/api/search?q=three+photos")).json();
+  const search = () => ownHits(page, "three+photos");
   await expect.poll(search).toHaveLength(1); // uploaded
   const [hit] = await search();
   const saved = await (await page.request.get(`/api/pages/${hit.slug}`)).json();
@@ -266,7 +273,7 @@ test("photos over the upload limit are saved separately, or split after a 413", 
     mimeType: "image/png",
     buffer: Buffer.alloc(700 * 1024, 7),
   });
-  const pages = async () => (await page.request.get("/api/search?q=limit+test")).json();
+  const pages = () => ownHits(page, "limit+test");
   await page.goto("/");
   await expect
     .poll(() => page.evaluate(() => localStorage.getItem("scrap.max_upload_bytes")))
@@ -298,7 +305,7 @@ test("photos over the upload limit are saved separately, or split after a 413", 
   await expect(page.locator("#queue")).toHaveText("1 failed");
   await page.getByRole("button", { name: "Split and retry" }).click();
   await expect(page.locator("#queue")).toBeHidden();
-  const [hit] = await (await page.request.get("/api/search?q=split+after")).json();
+  const [hit] = await ownHits(page, "split+after");
   const first = await (await page.request.get(`/api/pages/${hit.slug}`)).json();
   expect(first.captures[0].blobs.map((b: { filename: string }) => b.filename)).toEqual([
     "three.png",
@@ -340,8 +347,7 @@ test("a slow upload finishes; a stalled one is dropped and retried", async ({ pa
     await caption(page, text);
     await page.getByRole("button", { name: "Save", exact: true }).click();
   };
-  const found = async (q: string) =>
-    (await (await page.request.get(`/api/search?q=${q}`)).json()).length;
+  const found = async (q: string) => (await ownHits(page, q)).length;
 
   await upload(64 * 1024); // about 10 s for 600 KB: far past the 3 s stall limit, but moving
   await save("slowpoke");

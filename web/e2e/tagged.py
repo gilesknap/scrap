@@ -1,10 +1,10 @@
 """E2E fixture: a few synthetic pages with tags and kinds, as an import makes them.
 
 Run as `uv run python web/e2e/tagged.py DATA_DIR` while scrap serves DATA_DIR; prints
-the slugs as JSON. Each run makes its own (fresh capture ids), first moving any an earlier
-run left (its capture ids start 01E2ETAGGED) to the trash, so the store holds one set of
-them and tags.spec.ts can count them; the spec deletes them when it is done. Nothing in it
-is real or private.
+the slugs as JSON. Each run makes its own (fresh capture ids), first moving any that an
+earlier run left (capture ids starting 01E2ETAGGED) to the trash, so the store holds one
+set and tags.spec.ts can count them; the spec deletes them when it is done. Nothing in
+it is real or private.
 """
 
 import json

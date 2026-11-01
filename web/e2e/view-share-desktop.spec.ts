@@ -1,7 +1,6 @@
 // Share's menu on a computer with no share sheet (Firefox, Chrome on Linux): it copies the
 // link, the Markdown or the page as rich text, prints, and downloads the page as HTML or as
-// its file (clipboard.ts, sharing.ts). Named to run after smoke.spec.ts, which wants an empty
-// store.
+// its file (clipboard.ts, sharing.ts).
 import { readFileSync } from "node:fs";
 import { expect, type Page, test } from "@playwright/test";
 import { ulid } from "../src/ulid";

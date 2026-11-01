@@ -1,8 +1,7 @@
 // Claude's cards on a page: each a brown card titled by what it holds, its action at the
 // line's end (Generate the first time, Regenerate after), its parts as folds. About this page:
 // Summary and Related, open until closed. The e2e server runs with Claude off, so the page's
-// answer is given what Claude would have made of it. Named to run after smoke.spec.ts, which
-// wants an empty store.
+// answer is given what Claude would have made of it.
 import { expect, type Page, test } from "@playwright/test";
 import { ulid } from "./helpers";
 
