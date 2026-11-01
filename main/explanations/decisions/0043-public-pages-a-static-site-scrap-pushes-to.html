@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>43. Public pages: a static site scrap pushes to &#8212; scrap 1.2.2.dev7+g7fd1e19e5 documentation</title>
+    <title>43. Public pages: a static site scrap pushes to &#8212; scrap 1.2.2.dev8+gbcc3d705a documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../../_static/documentation_options.js?v=e8a09985"></script>
+    <script src="../../_static/documentation_options.js?v=94fc3ebb"></script>
     <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -606,25 +606,35 @@ all (below) covers what only a server renderer would have caught.</p></li>
 <li><p><strong>The flag.</strong> <code class="docutils literal notranslate"><span class="pre">page.public</span></code>, 0 or 1 (migration <code class="docutils literal notranslate"><span class="pre">0020_public_pages.sql</span></code>), set by
 <code class="docutils literal notranslate"><span class="pre">PATCH</span> <span class="pre">/api/pages/{key}</span></code> or MCP <code class="docutils literal notranslate"><span class="pre">edit_meta(public=...)</span></code> like the other fields, so each change is
 a revision (<code class="docutils literal notranslate"><span class="pre">page_meta_rev.public_before</span></code> and <code class="docutils literal notranslate"><span class="pre">public_after</span></code>) that <code class="docutils literal notranslate"><span class="pre">revert</span></code> can undo. A page is
-made public one at a time (more than one in a request is <code class="docutils literal notranslate"><span class="pre">422</span> <span class="pre">one_at_a_time</span></code>); pages can be
+made public one at a time (a request matching more than one is <code class="docutils literal notranslate"><span class="pre">422</span> <span class="pre">one_at_a_time</span></code>); pages can be
 made private in bulk. Turning it on by either route only sets the flag; turning it off
 unpublishes at once, after the change has committed. If the receiver is down then, the change
 still succeeds with <code class="docutils literal notranslate"><span class="pre">&quot;unpublish&quot;:</span> <span class="pre">&quot;pending&quot;</span></code> and reconcile finishes the deletion. Undelete and
 revert keep the flag. <code class="docutils literal notranslate"><span class="pre">published_at</span></code> is read from the kept copy (there is no column), and is
 null when there is none: the PWA then shows “Public · not published yet” (a page made public
-over MCP, say), and Refresh all publishes it. That is a null timestamp, not stale tracking.</p></li>
+over MCP, by a revert or an undelete), and Refresh all publishes it, after asking. That is a
+null timestamp, not stale tracking.</p></li>
+<li><p><strong>A first publish needs the owner’s yes in the PWA.</strong> The flag can be set without the PWA
+(MCP, a revert, an undelete), but such a page reaches the site only once the owner has
+confirmed it there: Make public’s warning, or Refresh all’s question. Those alone send
+<code class="docutils literal notranslate"><span class="pre">&quot;confirmed&quot;:</span> <span class="pre">true</span></code>, and scrap refuses a publish of a page with no kept copy without it
+(<code class="docutils literal notranslate"><span class="pre">409</span> <span class="pre">unconfirmed</span></code>). A save, a tick and links coming alive pass such a page by. Without this,
+a page flagged over MCP would have gone public at its next save with no warning at all.</p></li>
 <li><p><strong>A publish re-checks the flag.</strong> Under scrap’s lock a publish reads the page again and is
 refused (<code class="docutils literal notranslate"><span class="pre">409</span> <span class="pre">not_public</span></code>) unless the page is public and not in the trash, so a render that
 raced an unpublish can never put the page back.</p></li>
 <li><p><strong>When a page is published.</strong></p>
 <ul class="simple">
-<li><p>Turning Public on, after one OK or Cancel warning that the page’s tags and Claude’s write-up
-and summary go public too.</p></li>
-<li><p>Saving a public page in the PWA.</p></li>
+<li><p>Making a page public, after a warning shown every time (Cancel or Make public) listing
+what goes public with it: its tags, Claude’s write-up and summary, its attached files by
+name (on a topic, its synthesis, which draws on its source pages), and “Links to private
+pages show their titles as plain text.”</p></li>
+<li><p>Saving a public page in the PWA, once it has been published.</p></li>
 <li><p><strong>Links coming alive.</strong> When a page is made public or private, the PWA also renders and uploads
-again the public pages that refer to it (<code class="docutils literal notranslate"><span class="pre">GET</span> <span class="pre">/api/public?links_to=</span></code>, from the <code class="docutils literal notranslate"><span class="pre">refs</span></code> each
-kept copy records: links, Linked from and Related), so a label becomes a link, or a link a
-label, without anyone editing those pages.</p></li>
+again the public pages that refer to it (<code class="docutils literal notranslate"><span class="pre">GET</span> <span class="pre">/api/public?links_to=</span></code>, from scrap’s own link
+data: pages whose text or write-up links to it, and pages related to it either way; not
+the published HTML, where a link to a private page is only a label), so a label becomes a
+link, or a link a label, without anyone editing those pages.</p></li>
 <li><p><strong>Settings, “Refresh all public pages”.</strong> One action renders and uploads every public page
 again. It covers what the PWA did not see: edits over MCP, a regenerated write-up, a change in
 scrap’s look. There is no stale tracking, no outbox, no trigger and no render on the server:
@@ -658,13 +668,20 @@ and a <code class="docutils literal notranslate"><span class="pre">robots.txt</s
 <li><p>The body as shown, Claude’s write-up and summary, and the tags (as chips linking to their
 tag pages). Mermaid diagrams go out as their source, not rendered.</p></li>
 <li><p>Links to public pages stay links. A link to a private page becomes a plain <code class="docutils literal notranslate"><span class="pre">&lt;span&gt;</span></code> holding
-the label the owner typed, or “a private page” when there is none (a bare <code class="docutils literal notranslate"><span class="pre">[[slug]]</span></code> or
-address): never the slug, which comes from a title and can say more than the label (a
-default the owner may change).</p></li>
-<li><p>Linked from and Related keep an entry only if the other page is public; otherwise the whole
-entry, title included, is dropped.</p></li>
-<li><p>An image’s <code class="docutils literal notranslate"><span class="pre">alt</span></code> is the text the owner typed; an alt the PWA filled in from the file name is
-published empty, so file names never go out as alt text (a default the owner may change).</p></li>
+the label the owner typed, or, when there is none (a bare <code class="docutils literal notranslate"><span class="pre">[[slug]]</span></code> or address), that
+page’s title as plain text. The owner chose the title over a neutral “a private page”: it
+reads naturally, and the warning on making a page public says so.</p></li>
+<li><p>Linked from and Related keep an entry only if the other page is public; otherwise the
+entry is left out of those lists.</p></li>
+<li><p>No address of scrap’s own, and no <code class="docutils literal notranslate"><span class="pre">/api/</span></code> path, in a page’s text: the publish mode writes
+“a private link” in its place, and scrap’s check refuses text that still holds one.</p></li>
+<li><p><strong>Private titles.</strong> A private page’s title shows, as words, on the public pages that link
+to it. When a page is made private or deleted in the PWA, the PWA publishes those pages
+again. When it happens elsewhere (over MCP, by a revert, or trashed from another device), the
+title stays on them until Refresh all or their next save in the PWA: accepted, since there
+is no stale tracking. The contract says so.</p></li>
+<li><p>An image’s <code class="docutils literal notranslate"><span class="pre">alt</span></code> is published as the app has it, a file name the PWA filled in included
+(the owner’s choice; a link’s label may show a file’s name too).</p></li>
 <li><p>Left out: Claude’s notes (a photo’s description, the read text, the drawing), revisions, the
 extracted text of files, and every <code class="docutils literal notranslate"><span class="pre">/api</span></code> or other private address.</p></li>
 <li><p><strong>Drawings (Excalidraw) are not published in this version.</strong> The publish mode leaves them
@@ -684,7 +701,7 @@ preview or sanitised SVG, and an <code class="docutils literal notranslate"><spa
 images go out as stored. Each one becomes an absolute path, <code class="docutils literal notranslate"><span class="pre">/p/&lt;slug&gt;/&lt;name&gt;</span></code>, under a new
 name: <code class="docutils literal notranslate"><span class="pre">img-&lt;n&gt;-&lt;hex&gt;.jpg</span></code>, <code class="docutils literal notranslate"><span class="pre">.png</span></code> or <code class="docutils literal notranslate"><span class="pre">.svg</span></code> for an image and <code class="docutils literal notranslate"><span class="pre">file-&lt;n&gt;-&lt;hex&gt;.&lt;ext&gt;</span></code> for another
 file, where <code class="docutils literal notranslate"><span class="pre">&lt;hex&gt;</span></code> is 10 hex digits of the SHA-256 of the
-bytes published. Neither the stored sha nor the uploaded file name is published (a link’s label
+bytes published, keyed with the page’s slug (SHA-256 of slug, NUL, bytes) so a name never reveals the stored sha. Neither the stored sha nor the uploaded file name is published (a link’s label
 may still show the name). scrap copies the bytes itself: a photo’s 2048-pixel preview (EXIF and
 GPS already stripped by <code class="docutils literal notranslate"><span class="pre">preview._make</span></code>), other files as stored, and every SVG run through the
 sanitiser of <a class="reference internal" href="0042-mcp-clients-add-svg-and-files.html"><span class="std std-doc">42. MCP clients add SVG diagrams and files to pages</span></a> again at publish, since SVGs stored
@@ -710,7 +727,7 @@ page may run a script, Pagefind’s. The receiver limits what each unit may hold
 <code class="docutils literal notranslate"><span class="pre">assets</span></code>; a tag unit only its <code class="docutils literal notranslate"><span class="pre">index.html</span></code>, and <code class="docutils literal notranslate"><span class="pre">home</span></code> only one-segment HTML files.</p></li>
 <li><p><strong>scrap keeps what it pushed.</strong> For each public page scrap keeps the unit as last pushed under
 <code class="docutils literal notranslate"><span class="pre">&lt;data&gt;/cache/publish/p/&lt;slug&gt;/</span></code>: <code class="docutils literal notranslate"><span class="pre">index.html</span></code>, its <code class="docutils literal notranslate"><span class="pre">img-*</span></code> and <code class="docutils literal notranslate"><span class="pre">file-*</span></code>, and <code class="docutils literal notranslate"><span class="pre">meta.json</span></code> (the
-page’s id, title, tags at publish time, <code class="docutils literal notranslate"><span class="pre">published_at</span></code>, and <code class="docutils literal notranslate"><span class="pre">refs</span></code>, the slugs it refers to). It
+page’s id, title, tags at publish time and <code class="docutils literal notranslate"><span class="pre">published_at</span></code>). It
 is derived data, not backed up; a copy is damaged when its files’ digest no longer matches the
 digest scrap last pushed. From these copies, and nothing else, scrap builds the
 home page (newest <code class="docutils literal notranslate"><span class="pre">published_at</span></code> first), the tag pages and the Pagefind index (the
@@ -787,15 +804,19 @@ Unpublishing never waits.</p></li>
 <li><p>Publishing needs the PWA open on the owner’s device; MCP can set the flag, but not render.</p></li>
 <li><p>Tags, Claude’s write-up and the summary are public with the page.</p></li>
 <li><p>A public page that links to a page unpublished without the PWA’s re-render (over MCP, by a
-revert or by the trash) keeps a live link to a 404 until Refresh all, the PWA’s re-render of
-linking pages, or that page’s next save. That is accepted: there is no stale tracking.</p></li>
+revert or by the trash) keeps a live link to a 404, and a page’s title stays on the public
+pages linking to it after it is made private or trashed that way, until Refresh all, the
+PWA’s re-render of linking pages, or that page’s next save. That is accepted: there is no
+stale tracking. Make private, and deleting a page, in the PWA re-render them at once.</p></li>
+<li><p>If the receiver can’t be told at once, Make private says the page comes off “shortly”
+(<code class="docutils literal notranslate"><span class="pre">&quot;unpublish&quot;:</span> <span class="pre">&quot;pending&quot;</span></code>), and reconcile finishes it.</p></li>
 <li><p>A public page’s photos are its 2048-pixel previews, and at most 20 images and files go with it.
 Drawings stay private until the follow-up that publishes them.</p></li>
 <li><p>Any change to what <code class="docutils literal notranslate"><span class="pre">pagehtml.ts</span></code> writes in publish mode must keep to the allow-list scrap
 checks, or publishing fails with <code class="docutils literal notranslate"><span class="pre">422</span></code>: the two change together.</p></li>
 <li><p>The site can be lost and rebuilt at any time; scrap’s data folder holds the copy that matters.</p></li>
 <li><p>scrap gains settings for the push (<code class="docutils literal notranslate"><span class="pre">SCRAP_PUBLISH_TO</span></code>, <code class="docutils literal notranslate"><span class="pre">SCRAP_PUBLISH_SITE</span></code>,
-<code class="docutils literal notranslate"><span class="pre">SCRAP_PUBLISH_TOKEN</span></code> or <code class="docutils literal notranslate"><span class="pre">SCRAP_PUBLISH_TOKEN_FILE</span></code>); without them the feature is off.</p></li>
+<code class="docutils literal notranslate"><span class="pre">SCRAP_PUBLISH_TOKEN_FILE</span></code>: the token only from a file); without them the feature is off.</p></li>
 <li><p>CI builds and publishes a second image, <code class="docutils literal notranslate"><span class="pre">scrap-public</span></code>, beside scrap’s, and scrap gains the
 <code class="docutils literal notranslate"><span class="pre">pagefind[bin]</span></code> dependency.</p></li>
 <li><p>The gist workflow goes: no <code class="docutils literal notranslate"><span class="pre">gh</span></code> token with the <code class="docutils literal notranslate"><span class="pre">gist</span></code> scope, no headless Chrome, no second

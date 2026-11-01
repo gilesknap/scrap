@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Capture from your phone (the PWA) &#8212; scrap 1.2.2.dev7+g7fd1e19e5 documentation</title>
+    <title>Capture from your phone (the PWA) &#8212; scrap 1.2.2.dev8+gbcc3d705a documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=e8a09985"></script>
+    <script src="../_static/documentation_options.js?v=94fc3ebb"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -790,6 +790,7 @@ window.runMermaid = runMermaid;</script>
 <li class="toctree-l1"><a class="reference internal" href="import-your-pages.html">Import your pages</a></li>
 <li class="toctree-l1"><a class="reference internal" href="keep-an-index.html">Keep an index of your pages</a></li>
 <li class="toctree-l1"><a class="reference internal" href="make-your-own-lists.html">Make your own lists: a contacts directory</a></li>
+<li class="toctree-l1"><a class="reference internal" href="publish-pages.html">Publish pages</a></li>
 <li class="toctree-l1"><a class="reference internal" href="use-scrap-on-your-phone.html">Use scrap on your phone over Tailscale</a></li>
 <li class="toctree-l1 current active"><a aria-current="page" class="current reference internal" href="#">Capture from your phone (the PWA)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="work-with-claude.html">Work on scrap with Claude</a></li>
@@ -1089,6 +1090,16 @@ runs in the service worker, which does not make photos smaller.</p></li>
 <p>The full-size original stays in the phone’s own gallery, not in scrap. Colours are redrawn in
 sRGB, so a wide-gamut colour profile may be lost. <strong>Settings</strong>, <strong>Photos</strong>, <strong>Full size</strong> turns
 this off for every photo (<strong>Smaller</strong> is the default); there is no choice per shot.</p>
+</section>
+<section id="public-pages-in-settings">
+<span id="settings-public-pages"></span><h3>Public pages in Settings<a class="headerlink" href="#public-pages-in-settings" title="Link to this heading">#</a></h3>
+<p><strong>Settings</strong>, <strong>Public pages</strong>, <strong>Refresh N pages</strong> draws every public page again and publishes
+it, then rebuilds the site’s home page, tag pages and search once: for changes the app did not
+see, such as an edit over MCP, a new write-up or a new version of scrap. It says <em>Refreshing 3 of
+12…</em> as it goes, then <em>Refreshed 12 pages at 14:05</em> (and any it could not, with why). If some
+public pages have never been published, it lists them first and asks once: <em>These pages will go
+public for the first time</em>; <strong>Cancel</strong> refreshes nothing. With no public pages it says so: <em>No
+pages are public. Make one public from its Share menu.</em></p>
 </section>
 </section>
 <section id="what-scrap-stores-on-the-phone">
@@ -1505,12 +1516,12 @@ here and is not counted.</p></li>
 </section>
 <section id="sharing-a-page">
 <h3>Sharing a page<a class="headerlink" href="#sharing-a-page" title="Link to this heading">#</a></h3>
-<p><strong>Share</strong> asks <strong>Link</strong>, <strong>Text</strong>, <strong>Print / Save as PDF</strong>, <strong>HTML</strong> and <strong>Zip</strong> (both saved like Download where the browser cannot share them: Chrome on Android cannot share a zip) or <strong>Download</strong>. Where the browser cannot share an HTML file, HTML is <strong>Download HTML</strong>. Tap <strong>Share</strong> again or elsewhere to close.</p>
+<p><strong>Share</strong> asks <strong>Link</strong>, <strong>Text</strong>, <strong>Print / Save as PDF</strong>, <strong>HTML</strong> and <strong>Zip</strong> (both saved like Download where the browser cannot share them: Chrome on Android cannot share a zip) or <strong>Download</strong>, and last <strong>Make public…</strong> or <strong>Make private</strong> (<a class="reference internal" href="#public-pages"><span class="std std-ref">Public pages</span></a>). Where the browser cannot share an HTML file, HTML is <strong>Download HTML</strong>. Tap <strong>Share</strong> again or elsewhere to close.</p>
 <p>On a computer with no share sheet (Firefox, Chrome on Linux) <strong>Share</strong> copies instead: <strong>Copy
 link</strong>, <strong>Copy as Markdown</strong> (the Text below), <strong>Copy as rich text</strong> (the title and text as
 formatted text, with the Markdown as its plain text, to paste into an email or a document; no
 meta line, tags, Claude’s card or files, and photos are named, not included), then <strong>Print /
-Save as PDF</strong>, <strong>Download HTML</strong>, <strong>Download</strong> and <strong>Pin to Search</strong>. Each copy says so, for
+Save as PDF</strong>, <strong>Download HTML</strong>, <strong>Download</strong>, <strong>Pin to Search</strong> and <strong>Make public…</strong>. Each copy says so, for
 example <em>Link copied</em>; where the browser can’t put formatted text on the clipboard, Copy as rich
 text copies the plain text and says <em>Text copied</em>.</p>
 <div class="pst-scrollable-table-container"><table class="table">
@@ -1557,6 +1568,50 @@ failure says <em>Download failed</em> or <em>Share failed</em> and why, for abou
 sheet is no failure. If the browser cannot share a file, <strong>Photo</strong> says <em>Sharing files is not
 supported here</em>: use <strong>Download</strong>. If the sharing code cannot load: <em>Can’t do that offline: reload
 scrap and try again</em>.</p>
+</section>
+<section id="public-pages">
+<span id="id4"></span><h3>Public pages<a class="headerlink" href="#public-pages" title="Link to this heading">#</a></h3>
+<p>A page can be made public: anyone with its address can read it on the public site (such as
+<code class="docutils literal notranslate"><span class="pre">https://pages.gkcluster.org/p/&lt;slug&gt;</span></code>), read only, while scrap itself stays private. The site is
+static: scrap pushes each public page to it, and it can reach nothing of scrap’s
+(<a class="reference internal" href="../explanations/decisions/0043-public-pages-a-static-site-scrap-pushes-to.html"><span class="std std-doc">43. Public pages: a static site scrap pushes to</span></a>,
+<a class="reference internal" href="../reference/public-site.html"><span class="std std-doc">Public site</span></a>). It needs publishing set up on the server; without it,
+Make public and Settings’ Public pages are not shown.</p>
+<ul class="simple">
+<li><p><strong>Make public…</strong> is the last row of <strong>Share</strong>. It asks first, every time: who can read it, and
+what goes public with the page: its tags, Claude’s write-up and summary (on a topic, its
+synthesis, which draws on its source pages), and its attached files by name. <em>Links to private pages show their titles as plain text.</em> <strong>Cancel</strong> has the focus.
+<strong>Make public</strong> publishes the page from the view on screen: the dates line says <em>Publishing…</em>,
+then <em>Published</em> and when, and the toast <em>Page is public</em> has <strong>Copy link</strong>.</p></li>
+<li><p>A public page has a <strong>Public</strong> chip first in its chip row (a globe), which opens it on the
+public site. <em>Public · not published yet</em> on the dates line means it was made public somewhere
+else (over MCP, by a revert or by Restore from the trash) and has not been published since.
+Nothing publishes it until you say yes: <strong>Refresh</strong> in Settings asks first. A save doesn’t.</p></li>
+<li><p><strong>Make private</strong> acts at once: the page is taken off the site, and the toast’s <strong>Undo</strong>
+publishes it again (without the question). If the site can’t be reached just then, the toast
+says it <em>comes off shortly</em>: scrap finishes it within minutes.</p></li>
+<li><p><strong>Saving</strong> a public page here (an edit, Mark done, a task box) publishes it again. Publishing
+needs the server: if it can’t be reached the page is saved but not published, with the toast
+<em>Saved. Not published while offline: Refresh all public pages in Settings later.</em> Publishes are
+never queued.</p></li>
+<li><p><strong>Links come alive.</strong> When a page is made public or private, the public pages that link to it
+are drawn again and published, so a title in plain text becomes a link, or a link plain text;
+the toast says how many (<em>· 2 pages linking here updated</em>). Deleting a page here does the
+same, so its title goes from the public pages that showed it. Done elsewhere (over MCP, or
+on another device), those pages keep the old link or title until <strong>Refresh</strong>.</p></li>
+</ul>
+<p>What a public page holds: the page as it shows here, with its maths, tables and Claude’s summary
+and write-up; tags as links to the site’s tag pages; Mermaid diagrams as their source; photos as
+2048 pixel previews (no location), and other attached files. A link to a public page is a link
+(a bare <code class="docutils literal notranslate"><span class="pre">[[slug]]</span></code> shows its title); a link to a private page is its words (a bare one, the private
+page’s title). Claude’s Related and Linked from keep only public pages. An address of scrap
+itself, or of its <code class="docutils literal notranslate"><span class="pre">/api/</span></code>, in the text reads <em>a private link</em>. Left out: Claude’s notes
+on a photo (its description, the text it read, its drawing), drawings, revisions, a file’s text
+read for search, and the app’s buttons. An image’s alt text is published as the page has it, file
+names included.</p>
+<p>The site is only as current as the last publish: a change made elsewhere (over MCP, a new
+write-up) reaches it at the page’s next save here, or with <strong>Settings</strong>, <strong>Public pages</strong>,
+<strong>Refresh</strong> (<a class="reference internal" href="#settings-public-pages"><span class="std std-ref">Public pages in Settings</span></a>).</p>
 </section>
 <section id="photos-and-files">
 <h3>Photos and files<a class="headerlink" href="#photos-and-files" title="Link to this heading">#</a></h3>
@@ -1647,7 +1702,7 @@ After Undo is gone, the page waits in the <strong>Trash</strong> (below) for 30 
 good.</p></li>
 </ul>
 <section id="the-trash">
-<span id="id4"></span><h3>The trash<a class="headerlink" href="#the-trash" title="Link to this heading">#</a></h3>
+<span id="id5"></span><h3>The trash<a class="headerlink" href="#the-trash" title="Link to this heading">#</a></h3>
 <p>A deleted page goes to the trash, and nothing deletes it until it has been there for 30 days
 (the server’s <code class="docutils literal notranslate"><span class="pre">SCRAP_TRASH_DAYS</span></code>, set as the nightly <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">gc</span></code> is: see
 <a class="reference internal" href="../reference/scheduled-jobs.html"><span class="std std-doc">Scheduled jobs</span></a>). Then the nightly <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">gc</span></code> purges it for good, with its
@@ -1931,6 +1986,7 @@ own projects (OFL: <a class="reference external" href="https://openfontlicense.o
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#text-size">Text size</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#maximum-column-width">Maximum column width</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#smaller-photos">Smaller photos</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#public-pages-in-settings">Public pages in Settings</a></li>
 </ul>
 </li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#what-scrap-stores-on-the-phone">What scrap stores on the phone</a><ul class="nav section-nav flex-column">
@@ -1949,6 +2005,7 @@ own projects (OFL: <a class="reference external" href="https://openfontlicense.o
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#text">Text</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#linking-pages">Linking pages</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#sharing-a-page">Sharing a page</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#public-pages">Public pages</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#photos-and-files">Photos and files</a></li>
 </ul>
 </li>

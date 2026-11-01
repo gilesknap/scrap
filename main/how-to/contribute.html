@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Contribute to the project &#8212; scrap 1.2.2.dev7+g7fd1e19e5 documentation</title>
+    <title>Contribute to the project &#8212; scrap 1.2.2.dev8+gbcc3d705a documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=e8a09985"></script>
+    <script src="../_static/documentation_options.js?v=94fc3ebb"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -432,6 +432,7 @@
 <li class="toctree-l1"><a class="reference internal" href="import-your-pages.html">Import your pages</a></li>
 <li class="toctree-l1"><a class="reference internal" href="keep-an-index.html">Keep an index of your pages</a></li>
 <li class="toctree-l1"><a class="reference internal" href="make-your-own-lists.html">Make your own lists: a contacts directory</a></li>
+<li class="toctree-l1"><a class="reference internal" href="publish-pages.html">Publish pages</a></li>
 <li class="toctree-l1"><a class="reference internal" href="use-scrap-on-your-phone.html">Use scrap on your phone over Tailscale</a></li>
 <li class="toctree-l1"><a class="reference internal" href="use-the-pwa.html">Capture from your phone (the PWA)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="work-with-claude.html">Work on scrap with Claude</a></li>
@@ -595,8 +596,12 @@ npm<span class="w"> </span>--prefix<span class="w"> </span>web<span class="w"> <
 </pre></div>
 </div>
 <p>Playwright needs a browser first: <code class="docutils literal notranslate"><span class="pre">npx</span> <span class="pre">playwright</span> <span class="pre">install</span> <span class="pre">chromium</span></code> (from <code class="docutils literal notranslate"><span class="pre">web/</span></code>).
-The e2e tests serve on port 8791 with a throwaway data folder; set
-<code class="docutils literal notranslate"><span class="pre">SCRAP_E2E_PORT</span></code> or <code class="docutils literal notranslate"><span class="pre">SCRAP_E2E_DATA</span></code> to change either.
+The e2e tests serve on port 8781 with a throwaway data folder; set
+<code class="docutils literal notranslate"><span class="pre">SCRAP_E2E_PORT</span></code> or <code class="docutils literal notranslate"><span class="pre">SCRAP_E2E_DATA</span></code> to change either. Publishing is on in them: the public
+site’s receiver (<code class="docutils literal notranslate"><span class="pre">scrap-public/receiver.py</span></code>) runs on that port + 100 with a throwaway site
+folder and token, and <code class="docutils literal notranslate"><span class="pre">web/e2e/site.py</span></code> serves the site as nginx would on the port + 200
+(<code class="docutils literal notranslate"><span class="pre">web/e2e/ports.ts</span></code>); the folder and token are removed after the run. Runs side by side need
+bases at least 1 apart and within 100 of each other (8801, 8802, …), so no port is shared.
 The specs share one server and one data folder, so they run on one worker. CI splits them across
 six runners (<code class="docutils literal notranslate"><span class="pre">--shard=N/6</span></code>), each with its own server and data. To go faster locally, run shards
 side by side, each on its own port: <code class="docutils literal notranslate"><span class="pre">SCRAP_E2E_PORT=8801</span> <span class="pre">npm</span> <span class="pre">run</span> <span class="pre">e2e</span> <span class="pre">--</span> <span class="pre">--shard=1/4</span></code>, and so on.</p>

@@ -60,24 +60,34 @@ carry.
 - **The flag.** `page.public`, 0 or 1 (migration `0020_public_pages.sql`), set by
   `PATCH /api/pages/{key}` or MCP `edit_meta(public=...)` like the other fields, so each change is
   a revision (`page_meta_rev.public_before` and `public_after`) that `revert` can undo. A page is
-  made public one at a time (more than one in a request is `422 one_at_a_time`); pages can be
+  made public one at a time (a request matching more than one is `422 one_at_a_time`); pages can be
   made private in bulk. Turning it on by either route only sets the flag; turning it off
   unpublishes at once, after the change has committed. If the receiver is down then, the change
   still succeeds with `"unpublish": "pending"` and reconcile finishes the deletion. Undelete and
   revert keep the flag. `published_at` is read from the kept copy (there is no column), and is
   null when there is none: the PWA then shows "Public · not published yet" (a page made public
-  over MCP, say), and Refresh all publishes it. That is a null timestamp, not stale tracking.
+  over MCP, by a revert or an undelete), and Refresh all publishes it, after asking. That is a
+  null timestamp, not stale tracking.
+- **A first publish needs the owner's yes in the PWA.** The flag can be set without the PWA
+  (MCP, a revert, an undelete), but such a page reaches the site only once the owner has
+  confirmed it there: Make public's warning, or Refresh all's question. Those alone send
+  `"confirmed": true`, and scrap refuses a publish of a page with no kept copy without it
+  (`409 unconfirmed`). A save, a tick and links coming alive pass such a page by. Without this,
+  a page flagged over MCP would have gone public at its next save with no warning at all.
 - **A publish re-checks the flag.** Under scrap's lock a publish reads the page again and is
   refused (`409 not_public`) unless the page is public and not in the trash, so a render that
   raced an unpublish can never put the page back.
 - **When a page is published.**
-  - Turning Public on, after one OK or Cancel warning that the page's tags and Claude's write-up
-    and summary go public too.
-  - Saving a public page in the PWA.
+  - Making a page public, after a warning shown every time (Cancel or Make public) listing
+    what goes public with it: its tags, Claude's write-up and summary, its attached files by
+    name (on a topic, its synthesis, which draws on its source pages), and "Links to private
+    pages show their titles as plain text."
+  - Saving a public page in the PWA, once it has been published.
   - **Links coming alive.** When a page is made public or private, the PWA also renders and uploads
-    again the public pages that refer to it (`GET /api/public?links_to=`, from the `refs` each
-    kept copy records: links, Linked from and Related), so a label becomes a link, or a link a
-    label, without anyone editing those pages.
+    again the public pages that refer to it (`GET /api/public?links_to=`, from scrap's own link
+    data: pages whose text or write-up links to it, and pages related to it either way; not
+    the published HTML, where a link to a private page is only a label), so a label becomes a
+    link, or a link a label, without anyone editing those pages.
   - **Settings, "Refresh all public pages".** One action renders and uploads every public page
     again. It covers what the PWA did not see: edits over MCP, a regenerated write-up, a change in
     scrap's look. There is no stale tracking, no outbox, no trigger and no render on the server:
@@ -108,13 +118,20 @@ carry.
   - The body as shown, Claude's write-up and summary, and the tags (as chips linking to their
     tag pages). Mermaid diagrams go out as their source, not rendered.
   - Links to public pages stay links. A link to a private page becomes a plain `<span>` holding
-    the label the owner typed, or "a private page" when there is none (a bare `[[slug]]` or
-    address): never the slug, which comes from a title and can say more than the label (a
-    default the owner may change).
-  - Linked from and Related keep an entry only if the other page is public; otherwise the whole
-    entry, title included, is dropped.
-  - An image's `alt` is the text the owner typed; an alt the PWA filled in from the file name is
-    published empty, so file names never go out as alt text (a default the owner may change).
+    the label the owner typed, or, when there is none (a bare `[[slug]]` or address), that
+    page's title as plain text. The owner chose the title over a neutral "a private page": it
+    reads naturally, and the warning on making a page public says so.
+  - Linked from and Related keep an entry only if the other page is public; otherwise the
+    entry is left out of those lists.
+  - No address of scrap's own, and no `/api/` path, in a page's text: the publish mode writes
+    "a private link" in its place, and scrap's check refuses text that still holds one.
+  - **Private titles.** A private page's title shows, as words, on the public pages that link
+    to it. When a page is made private or deleted in the PWA, the PWA publishes those pages
+    again. When it happens elsewhere (over MCP, by a revert, or trashed from another device), the
+    title stays on them until Refresh all or their next save in the PWA: accepted, since there
+    is no stale tracking. The contract says so.
+  - An image's `alt` is published as the app has it, a file name the PWA filled in included
+    (the owner's choice; a link's label may show a file's name too).
   - Left out: Claude's notes (a photo's description, the read text, the drawing), revisions, the
     extracted text of files, and every `/api` or other private address.
   - **Drawings (Excalidraw) are not published in this version.** The publish mode leaves them
@@ -132,7 +149,7 @@ carry.
   images go out as stored. Each one becomes an absolute path, `/p/<slug>/<name>`, under a new
   name: `img-<n>-<hex>.jpg`, `.png` or `.svg` for an image and `file-<n>-<hex>.<ext>` for another
   file, where `<hex>` is 10 hex digits of the SHA-256 of the
-  bytes published. Neither the stored sha nor the uploaded file name is published (a link's label
+  bytes published, keyed with the page's slug (SHA-256 of slug, NUL, bytes) so a name never reveals the stored sha. Neither the stored sha nor the uploaded file name is published (a link's label
   may still show the name). scrap copies the bytes itself: a photo's 2048-pixel preview (EXIF and
   GPS already stripped by `preview._make`), other files as stored, and every SVG run through the
   sanitiser of [](0042-mcp-clients-add-svg-and-files.md) again at publish, since SVGs stored
@@ -159,7 +176,7 @@ carry.
   `assets`; a tag unit only its `index.html`, and `home` only one-segment HTML files.
 - **scrap keeps what it pushed.** For each public page scrap keeps the unit as last pushed under
   `<data>/cache/publish/p/<slug>/`: `index.html`, its `img-*` and `file-*`, and `meta.json` (the
-  page's id, title, tags at publish time, `published_at`, and `refs`, the slugs it refers to). It
+  page's id, title, tags at publish time and `published_at`). It
   is derived data, not backed up; a copy is damaged when its files' digest no longer matches the
   digest scrap last pushed. From these copies, and nothing else, scrap builds the
   home page (newest `published_at` first), the tag pages and the Pagefind index (the
@@ -232,15 +249,19 @@ carry.
 - Publishing needs the PWA open on the owner's device; MCP can set the flag, but not render.
 - Tags, Claude's write-up and the summary are public with the page.
 - A public page that links to a page unpublished without the PWA's re-render (over MCP, by a
-  revert or by the trash) keeps a live link to a 404 until Refresh all, the PWA's re-render of
-  linking pages, or that page's next save. That is accepted: there is no stale tracking.
+  revert or by the trash) keeps a live link to a 404, and a page's title stays on the public
+  pages linking to it after it is made private or trashed that way, until Refresh all, the
+  PWA's re-render of linking pages, or that page's next save. That is accepted: there is no
+  stale tracking. Make private, and deleting a page, in the PWA re-render them at once.
+- If the receiver can't be told at once, Make private says the page comes off "shortly"
+  (`"unpublish": "pending"`), and reconcile finishes it.
 - A public page's photos are its 2048-pixel previews, and at most 20 images and files go with it.
   Drawings stay private until the follow-up that publishes them.
 - Any change to what `pagehtml.ts` writes in publish mode must keep to the allow-list scrap
   checks, or publishing fails with `422`: the two change together.
 - The site can be lost and rebuilt at any time; scrap's data folder holds the copy that matters.
 - scrap gains settings for the push (`SCRAP_PUBLISH_TO`, `SCRAP_PUBLISH_SITE`,
-  `SCRAP_PUBLISH_TOKEN` or `SCRAP_PUBLISH_TOKEN_FILE`); without them the feature is off.
+  `SCRAP_PUBLISH_TOKEN_FILE`: the token only from a file); without them the feature is off.
 - CI builds and publishes a second image, `scrap-public`, beside scrap's, and scrap gains the
   `pagefind[bin]` dependency.
 - The gist workflow goes: no `gh` token with the `gist` scope, no headless Chrome, no second
