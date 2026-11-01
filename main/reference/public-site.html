@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Public site &#8212; scrap 1.3.2.dev1+g29a9c793f documentation</title>
+    <title>Public site &#8212; scrap 1.3.2.dev2+g1a5796953 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=07b28749"></script>
+    <script src="../_static/documentation_options.js?v=2b935a50"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -630,7 +630,7 @@ inside a unit.</p>
 <tr class="row-even"><td><p>Shared assets</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">assets</span></code></p></td>
 <td><p>at least one file</p></td>
-<td><p>the site’s CSS, KaTeX’s fonts and <code class="docutils literal notranslate"><span class="pre">prefs.js</span></code></p></td>
+<td><p>the site’s CSS, KaTeX’s fonts, <code class="docutils literal notranslate"><span class="pre">prefs.js</span></code> and the site’s icons</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">/assets/&lt;path&gt;</span></code></p></td>
 </tr>
 </tbody>
@@ -660,14 +660,16 @@ string, is <code class="docutils literal notranslate"><span class="pre">422</spa
 <td><p><code class="docutils literal notranslate"><span class="pre">js</span></code>, <code class="docutils literal notranslate"><span class="pre">mjs</span></code>, <code class="docutils literal notranslate"><span class="pre">json</span></code>, <code class="docutils literal notranslate"><span class="pre">wasm</span></code>, <code class="docutils literal notranslate"><span class="pre">pagefind</span></code>, <code class="docutils literal notranslate"><span class="pre">pf_meta</span></code>, <code class="docutils literal notranslate"><span class="pre">pf_index</span></code>, <code class="docutils literal notranslate"><span class="pre">pf_fragment</span></code>, <code class="docutils literal notranslate"><span class="pre">pf_filter</span></code></p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">assets</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">css</span></code>, <code class="docutils literal notranslate"><span class="pre">woff</span></code>, <code class="docutils literal notranslate"><span class="pre">woff2</span></code>, <code class="docutils literal notranslate"><span class="pre">ttf</span></code>; and <code class="docutils literal notranslate"><span class="pre">prefs.js</span></code>, at its top only</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">css</span></code>, <code class="docutils literal notranslate"><span class="pre">woff</span></code>, <code class="docutils literal notranslate"><span class="pre">woff2</span></code>, <code class="docutils literal notranslate"><span class="pre">ttf</span></code>; and <code class="docutils literal notranslate"><span class="pre">prefs.js</span></code>, <code class="docutils literal notranslate"><span class="pre">icon.svg</span></code> and <code class="docutils literal notranslate"><span class="pre">icon-192.png</span></code>, at its top only</p></td>
 </tr>
 </tbody>
 </table>
 </div>
 <p>So <code class="docutils literal notranslate"><span class="pre">.wasm</span></code> and every script but one exist only under <code class="docutils literal notranslate"><span class="pre">/pagefind/</span></code>; the one other script is
 <code class="docutils literal notranslate"><span class="pre">/assets/prefs.js</span></code>, the reader’s theme and column width (<a class="reference internal" href="#reader-preferences"><span class="std std-ref">Reader preferences</span></a>). CSS and fonts
-exist only under <code class="docutils literal notranslate"><span class="pre">/assets/</span></code>, and no page or tag unit can hold a script or a stylesheet. An attachment is never published as <code class="docutils literal notranslate"><span class="pre">html</span></code>,
+exist only under <code class="docutils literal notranslate"><span class="pre">/assets/</span></code>, and no page or tag unit can hold a script or a stylesheet. The
+site’s icons, scrap’s own (#527), are the only other files in <code class="docutils literal notranslate"><span class="pre">assets</span></code>, and the only SVG there.
+An attachment is never published as <code class="docutils literal notranslate"><span class="pre">html</span></code>,
 <code class="docutils literal notranslate"><span class="pre">htm</span></code>, <code class="docutils literal notranslate"><span class="pre">js</span></code>, <code class="docutils literal notranslate"><span class="pre">mjs</span></code>, <code class="docutils literal notranslate"><span class="pre">css</span></code> or <code class="docutils literal notranslate"><span class="pre">svg</span></code>: an SVG attachment is published as an image (<code class="docutils literal notranslate"><span class="pre">img-*.svg</span></code>), and
 a type outside the list as <code class="docutils literal notranslate"><span class="pre">bin</span></code>.</p>
 </section>
@@ -959,7 +961,13 @@ restarted pod starts empty and scrap fills it again (<a class="reference interna
 served at the top level: <code class="docutils literal notranslate"><span class="pre">/home/...</span></code>, <code class="docutils literal notranslate"><span class="pre">/units/...</span></code>, <code class="docutils literal notranslate"><span class="pre">/v1/...</span></code> and dotfiles are <code class="docutils literal notranslate"><span class="pre">404</span></code>.</p>
 <p>Types come from the extension: <code class="docutils literal notranslate"><span class="pre">.md</span></code> as <code class="docutils literal notranslate"><span class="pre">text/markdown</span></code>, <code class="docutils literal notranslate"><span class="pre">.txt</span></code> as <code class="docutils literal notranslate"><span class="pre">text/plain</span></code>, <code class="docutils literal notranslate"><span class="pre">.ttf</span></code> as
 <code class="docutils literal notranslate"><span class="pre">font/ttf</span></code>, <code class="docutils literal notranslate"><span class="pre">.wasm</span></code> as <code class="docutils literal notranslate"><span class="pre">application/wasm</span></code>, Pagefind’s index files and <code class="docutils literal notranslate"><span class="pre">.bin</span></code> as
-<code class="docutils literal notranslate"><span class="pre">application/octet-stream</span></code>; text types are <code class="docutils literal notranslate"><span class="pre">charset=utf-8</span></code>.</p>
+<code class="docutils literal notranslate"><span class="pre">application/octet-stream</span></code>; text types and JSON are <code class="docutils literal notranslate"><span class="pre">charset=utf-8</span></code>. An SVG is exactly
+<code class="docutils literal notranslate"><span class="pre">image/svg+xml</span></code>, with no <code class="docutils literal notranslate"><span class="pre">charset</span></code>: it is XML, UTF-8 unless it says otherwise, and excalidraw.com
+opens a drawing’s SVG only if its type is exactly that (#526: its <code class="docutils literal notranslate"><span class="pre">loadFromBlob</span></code> compares the
+Blob’s type whole, so <code class="docutils literal notranslate"><span class="pre">image/svg+xml;charset=utf-8</span></code> is read as JSON and refused).</p>
+<p><code class="docutils literal notranslate"><span class="pre">/favicon.ico</span></code>, which a browser asks for on its own where nothing names an icon (an image or a
+PDF opened alone), is a <code class="docutils literal notranslate"><span class="pre">302</span></code> to <code class="docutils literal notranslate"><span class="pre">/assets/icon.svg</span></code>, with a relative <code class="docutils literal notranslate"><span class="pre">Location</span></code> so it holds
+behind the TLS proxy (#527).</p>
 <section id="headers">
 <h3>Headers<a class="headerlink" href="#headers" title="Link to this heading">#</a></h3>
 <p>On every response:</p>
@@ -979,7 +987,7 @@ served at the top level: <code class="docutils literal notranslate"><span class=
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">/p/&lt;slug&gt;/file-*.pdf</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">sandbox</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">/p/&lt;slug&gt;/img-*</span></code>, <code class="docutils literal notranslate"><span class="pre">/p/&lt;slug&gt;/file-*</span></code> (not a PDF)</p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">/p/&lt;slug&gt;/img-*</span></code>, <code class="docutils literal notranslate"><span class="pre">/p/&lt;slug&gt;/file-*</span></code> (not a PDF), and <code class="docutils literal notranslate"><span class="pre">/assets/*.svg</span></code> (the site’s icon)</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">sandbox;</span> <span class="pre">default-src</span> <span class="pre">'none';</span> <span class="pre">style-src</span> <span class="pre">'unsafe-inline';</span> <span class="pre">img-src</span> <span class="pre">data:;</span> <span class="pre">font-src</span> <span class="pre">data:</span></code></p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">/p/...</span></code> and <code class="docutils literal notranslate"><span class="pre">/t/...</span></code> otherwise (a page’s or tag’s HTML)</p></td>
@@ -1068,7 +1076,9 @@ rather than going out without it.</p></li>
 </ul>
 <p><strong>Left out</strong>: Claude’s notes on a photo (its description, the read text), revisions, the
 extracted text of files, the PWA’s controls, and every <code class="docutils literal notranslate"><span class="pre">/api</span></code> or other private address.</p>
-<p><strong>Head</strong>: the fixed meta CSP, <code class="docutils literal notranslate"><span class="pre">/assets/page.css</span></code>, <code class="docutils literal notranslate"><span class="pre">/assets/katex.css</span></code> for a page with maths, and
+<p><strong>Head</strong>: the fixed meta CSP, <code class="docutils literal notranslate"><span class="pre">/assets/page.css</span></code>, <code class="docutils literal notranslate"><span class="pre">/assets/katex.css</span></code> for a page with maths, the
+site’s icons (#527), <code class="docutils literal notranslate"><span class="pre">&lt;link</span> <span class="pre">rel=&quot;icon&quot;</span> <span class="pre">href=&quot;/assets/icon.svg&quot;</span> <span class="pre">type=&quot;image/svg+xml&quot;&gt;</span></code> and
+<code class="docutils literal notranslate"><span class="pre">&lt;link</span> <span class="pre">rel=&quot;apple-touch-icon&quot;</span> <span class="pre">href=&quot;/assets/icon-192.png&quot;&gt;</span></code>, and
 <code class="docutils literal notranslate"><span class="pre">&lt;script</span> <span class="pre">src=&quot;/assets/prefs.js&quot;</span> <span class="pre">defer</span> <span class="pre">blocking=&quot;render&quot;&gt;&lt;/script&gt;</span></code>
 (<a class="reference internal" href="#the-html-scrap-accepts"><span class="std std-ref">The HTML scrap accepts</span></a>).</p>
 <p><strong>The PWA’s dialogs</strong> (the sim’s wording on the design branch is the final text):</p>
@@ -1261,7 +1271,10 @@ or another attribute, is refused.</p></li>
 <code class="docutils literal notranslate"><span class="pre">&lt;meta</span> <span class="pre">http-equiv=&quot;Content-Security-Policy&quot;</span> <span class="pre">content=&quot;default-src</span> <span class="pre">'none';</span> <span class="pre">img-src</span> <span class="pre">'self'</span> <span class="pre">data:;</span> <span class="pre">style-src</span> <span class="pre">'self';</span> <span class="pre">style-src-attr</span> <span class="pre">'unsafe-inline';</span> <span class="pre">font-src</span> <span class="pre">'self';</span> <span class="pre">script-src</span> <span class="pre">'self'&quot;&gt;</span></code>.
 Its parsed <code class="docutils literal notranslate"><span class="pre">content</span></code>, with whitespace normalised, must equal that exactly;</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">&lt;link</span> <span class="pre">rel=&quot;stylesheet&quot;</span> <span class="pre">href=&quot;/assets/page.css&quot;&gt;</span></code> (pagehtml’s page CSS, moved out of the file),
-and, for a page with maths, <code class="docutils literal notranslate"><span class="pre">&lt;link</span> <span class="pre">rel=&quot;stylesheet&quot;</span> <span class="pre">href=&quot;/assets/katex.css&quot;&gt;</span></code>. No other <code class="docutils literal notranslate"><span class="pre">link</span></code>;</p></li>
+and, for a page with maths, <code class="docutils literal notranslate"><span class="pre">&lt;link</span> <span class="pre">rel=&quot;stylesheet&quot;</span> <span class="pre">href=&quot;/assets/katex.css&quot;&gt;</span></code>;</p></li>
+<li><p>the site’s icons (#527), each at most once and exactly so (its attributes in any order):
+<code class="docutils literal notranslate"><span class="pre">&lt;link</span> <span class="pre">rel=&quot;icon&quot;</span> <span class="pre">href=&quot;/assets/icon.svg&quot;</span> <span class="pre">type=&quot;image/svg+xml&quot;&gt;</span></code> and
+<code class="docutils literal notranslate"><span class="pre">&lt;link</span> <span class="pre">rel=&quot;apple-touch-icon&quot;</span> <span class="pre">href=&quot;/assets/icon-192.png&quot;&gt;</span></code>. No other <code class="docutils literal notranslate"><span class="pre">link</span></code>;</p></li>
 <li><p>at most one <code class="docutils literal notranslate"><span class="pre">script</span></code>, which must be exactly <code class="docutils literal notranslate"><span class="pre">src=&quot;/assets/prefs.js&quot;</span></code> with <code class="docutils literal notranslate"><span class="pre">defer</span></code> or <code class="docutils literal notranslate"><span class="pre">async</span></code>
 (one, with no value), and <code class="docutils literal notranslate"><span class="pre">blocking=&quot;render&quot;</span></code> if given: no other attribute (no <code class="docutils literal notranslate"><span class="pre">type</span></code>,
 <code class="docutils literal notranslate"><span class="pre">integrity</span></code>, <code class="docutils literal notranslate"><span class="pre">nomodule</span></code>) and no text. The publish mode writes
@@ -1543,9 +1556,10 @@ tries the unit again.</p></li>
 beside its HTML. The publish mode loads Excalidraw’s chunk only for a page that has drawings.</p>
 <p><strong>What the PWA sends.</strong> For each drawing the page shows, its id (the drawing’s current
 version, the one the page view draws) and an SVG from Excalidraw’s <code class="docutils literal notranslate"><span class="pre">exportToSvg</span></code>, on white, with
-its fonts inlined and <code class="docutils literal notranslate"><span class="pre">exportEmbedScene</span></code> on: the picture and the scene in one file. A drawing of
-a photo has the photo under it, as a locked image of the drawing’s frame, embedded as the
-photo’s 2048-pixel preview (<code class="docutils literal notranslate"><span class="pre">/api/blobs/&lt;sha&gt;/preview?size=2048</span></code>). Before sending it, the PWA
+its fonts inlined and <code class="docutils literal notranslate"><span class="pre">exportEmbedScene</span></code> on: the picture and the scene in one file. The
+drawing replaces its photo, as the app’s Drawing tab shows it (#524): it is drawn alone, framed
+as the photo is, with no photo under it, in the picture or in the scene (the owner’s decision,
+1 Nov 2026: the scene opened in Excalidraw has no photo either, as in the app). Before sending it, the PWA
 reads the SVG back with Excalidraw’s own <code class="docutils literal notranslate"><span class="pre">loadFromBlob</span></code>, and sends nothing if the scene does not
 come back whole.</p>
 <p><strong>What the page holds</strong>, for a photo with a drawing:</p>
@@ -1575,26 +1589,25 @@ last two; and no CDATA section anywhere. The base64 is that of <code class="docu
 is the zlib deflate of the scene’s JSON (Excalidraw 0.18, <code class="docutils literal notranslate"><span class="pre">data/encode.ts</span></code>). scrap decodes it
 (at most 24 MiB inflated, 32 levels deep) and keeps only:</p>
 <ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">type</span></code>, <code class="docutils literal notranslate"><span class="pre">version</span></code>, <code class="docutils literal notranslate"><span class="pre">elements</span></code>, <code class="docutils literal notranslate"><span class="pre">appState</span></code> and <code class="docutils literal notranslate"><span class="pre">files</span></code>, and <code class="docutils literal notranslate"><span class="pre">source</span></code> as <code class="docutils literal notranslate"><span class="pre">scrap</span></code> (Excalidraw
-writes the address of the app it ran in, which is scrap’s own);</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">type</span></code>, <code class="docutils literal notranslate"><span class="pre">version</span></code>, <code class="docutils literal notranslate"><span class="pre">elements</span></code> and <code class="docutils literal notranslate"><span class="pre">appState</span></code>, <code class="docutils literal notranslate"><span class="pre">files</span></code> as <code class="docutils literal notranslate"><span class="pre">{}</span></code>, and <code class="docutils literal notranslate"><span class="pre">source</span></code> as <code class="docutils literal notranslate"><span class="pre">scrap</span></code>
+(Excalidraw writes the address of the app it ran in, which is scrap’s own);</p></li>
 <li><p>of <code class="docutils literal notranslate"><span class="pre">appState</span></code>, the background colour and the grid;</p></li>
-<li><p>every element not deleted, with only Excalidraw’s own element fields (no <code class="docutils literal notranslate"><span class="pre">customData</span></code>),
+<li><p>every element not deleted and not an image, with only Excalidraw’s own element fields (no
+<code class="docutils literal notranslate"><span class="pre">customData</span></code>, and none of an image’s),
 and inside them only keys that are plain names. Every string in an element loses any
 embedded <code class="docutils literal notranslate"><span class="pre">data:</span></code> URL and goes through the page text’s rule: an address of scrap’s own, or
 an <code class="docutils literal notranslate"><span class="pre">/api/</span></code> path, becomes “a private link”. An element’s <code class="docutils literal notranslate"><span class="pre">link</span></code> follows the page’s link rules: a web or <code class="docutils literal notranslate"><span class="pre">mailto:</span></code> link stays, a
 public page’s becomes its address on the site, and anything else (a private page, scrap’s
 own, <code class="docutils literal notranslate"><span class="pre">/api/</span></code>) is removed;</p></li>
-<li><p>each embedded image only if it is one of the page’s photos, matched by its bytes (the photo
-as stored, or its 2048-pixel preview, never by a name in the upload), and then always as
-that preview: so no original bytes and no EXIF or GPS. It is renamed by the SHA-1 of its
-data URL, as Excalidraw names a file. An image that matches none of the page’s photos is
-dropped, with the elements that show it.</p></li>
+<li><p>no image, and no file: every image element is dropped, the page’s photo (as 1.3.1’s PWA
+put under the drawing) or any other, so no photo bytes, original or preview, go out in a
+drawing.</p></li>
 </ul>
 </li>
 <li><p><strong>The picture.</strong> The SVG goes through scrap’s SVG sanitiser (as any SVG; up to 20 MiB here,
-since it holds the photo twice), which drops the old scene. In what is drawn, each <code class="docutils literal notranslate"><span class="pre">&lt;image&gt;</span></code>
-is likewise the preview of the page’s photo it is, or removed, with the symbols naming a
-dropped image (matched by its exact name, <code class="docutils literal notranslate"><span class="pre">image-&lt;id&gt;</span></code> or <code class="docutils literal notranslate"><span class="pre">image-crop-&lt;id&gt;-&lt;hash&gt;</span></code>); every
+as 1.3.1’s PWA sent the photo in it twice), which drops the old scene. In what is drawn,
+every <code class="docutils literal notranslate"><span class="pre">&lt;image&gt;</span></code> and <code class="docutils literal notranslate"><span class="pre">&lt;feImage&gt;</span></code> is removed, and every element whose <code class="docutils literal notranslate"><span class="pre">id</span></code> or fragment <code class="docutils literal notranslate"><span class="pre">href</span></code>
+names an image symbol (<code class="docutils literal notranslate"><span class="pre">image-...</span></code>: Excalidraw’s symbols and their uses); every
 text and attribute value is scrubbed by the same rule; and its <code class="docutils literal notranslate"><span class="pre">&lt;style&gt;</span></code> may embed only
 whole WOFF2 or WOFF fonts (as Excalidraw inlines them; the font’s header must give the
 data’s own length) and no address of scrap’s, else the drawing is refused. Text Excalidraw
@@ -1603,9 +1616,8 @@ writes is one <code class="docutils literal notranslate"><span class="pre">&lt;t
 (<code class="docutils literal notranslate"><span class="pre">&lt;!--</span> <span class="pre">svg-source:excalidraw</span> <span class="pre">--&gt;&lt;metadata&gt;...&lt;/metadata&gt;</span></code>), so the file is both the picture
 and a drawing.</p></li>
 </ol>
-<p>The request’s own limit, 25 MiB, holds the HTML and every drawing: a drawing of a photo is
-about 1 to 3 MB (the preview twice, in base64, and its fonts), so a page with more than about
-ten drawings is refused as too large (<code class="docutils literal notranslate"><span class="pre">413</span></code>) before the 20-file cap.</p>
+<p>The request’s own limit, 25 MiB, holds the HTML and every drawing: a drawing is mostly its
+inlined fonts, a few hundred kB, so the 20-file cap comes first.</p>
 <p>It is published as <code class="docutils literal notranslate"><span class="pre">img-&lt;n&gt;-&lt;hex&gt;.svg</span></code>, numbered with the page’s images, under the image CSP
 (<code class="docutils literal notranslate"><span class="pre">sandbox</span></code>, loading nothing). <code class="docutils literal notranslate"><span class="pre">scrap-drawing:&lt;id&gt;</span></code> becomes its path, and
 <code class="docutils literal notranslate"><span class="pre">scrap-excalidraw:&lt;id&gt;</span></code> becomes <code class="docutils literal notranslate"><span class="pre">https://excalidraw.com/#url=</span></code> and the SVG’s address on the site,
@@ -1617,7 +1629,8 @@ page and scrap checking it is no longer the page’s (<code class="docutils lite
 page again once, as for a stale tag.</p>
 <p><strong>Opening it.</strong> excalidraw.com reads a <code class="docutils literal notranslate"><span class="pre">#url=</span></code> address on load, fetches that file in the
 reader’s browser (hence the SVG’s <code class="docutils literal notranslate"><span class="pre">Access-Control-Allow-Origin</span></code>) and opens it as it opens a file
-dropped on it, with <code class="docutils literal notranslate"><span class="pre">loadFromBlob</span></code>. Nothing is uploaded to Excalidraw’s servers. <code class="docutils literal notranslate"><span class="pre">#url=</span></code> is not a
+dropped on it, with <code class="docutils literal notranslate"><span class="pre">loadFromBlob</span></code>, which takes it as an SVG only if the answer’s type is
+exactly <code class="docutils literal notranslate"><span class="pre">image/svg+xml</span></code> (hence no <code class="docutils literal notranslate"><span class="pre">charset</span></code>, <a class="reference internal" href="#nginx"><span class="std std-ref">nginx</span></a>). Nothing is uploaded to Excalidraw’s servers. <code class="docutils literal notranslate"><span class="pre">#url=</span></code> is not a
 documented feature of excalidraw.com and could change; Download is the fallback: the SVG opens in
 excalidraw.com, or a copy of Excalidraw, with its own Open.</p>
 </section>
@@ -1679,12 +1692,18 @@ dates lines, tag chips), so a result’s excerpt is the page’s text. The unit 
 on a digest of the pinned version, <code class="docutils literal notranslate"><span class="pre">scrap-search.js</span></code> and every record, so an unchanged index
 is not built again; a build has about 120 seconds, and if it fails or runs out the site keeps
 its last index (<code class="docutils literal notranslate"><span class="pre">&quot;derived&quot;:</span> <span class="pre">&quot;pending&quot;</span></code>);</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">assets</span></code>: <code class="docutils literal notranslate"><span class="pre">page.css</span></code> (pagehtml’s page CSS), <code class="docutils literal notranslate"><span class="pre">katex.css</span></code>, KaTeX’s fonts and <code class="docutils literal notranslate"><span class="pre">prefs.js</span></code>
-(<a class="reference internal" href="#reader-preferences"><span class="std std-ref">Reader preferences</span></a>), from scrap’s own static build of the PWA, and Pagefind’s UI
-stylesheet, as CSS lives only in <code class="docutils literal notranslate"><span class="pre">assets</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">assets</span></code>: <code class="docutils literal notranslate"><span class="pre">page.css</span></code> (pagehtml’s page CSS), <code class="docutils literal notranslate"><span class="pre">katex.css</span></code>, KaTeX’s fonts, <code class="docutils literal notranslate"><span class="pre">prefs.js</span></code>
+(<a class="reference internal" href="#reader-preferences"><span class="std std-ref">Reader preferences</span></a>) and the app’s own icons, <code class="docutils literal notranslate"><span class="pre">icon.svg</span></code> and <code class="docutils literal notranslate"><span class="pre">icon-192.png</span></code> (#527), from
+scrap’s own static build of the PWA, and Pagefind’s UI stylesheet, as CSS lives only in
+<code class="docutils literal notranslate"><span class="pre">assets</span></code>.</p></li>
 </ul>
-<p>Each of the site’s own pages loads <code class="docutils literal notranslate"><span class="pre">/assets/page.css</span></code> and <code class="docutils literal notranslate"><span class="pre">/assets/prefs.js</span></code> from its head, as a
-published page does.</p>
+<p>Each of the site’s own pages loads <code class="docutils literal notranslate"><span class="pre">/assets/page.css</span></code> and <code class="docutils literal notranslate"><span class="pre">/assets/prefs.js</span></code> and names the two
+icons from its head, as a published page does.</p>
+<p>Every page’s header, a published page’s site name and the site’s own “Pages · Tags”, starts
+with scrap’s mark (#527): <code class="docutils literal notranslate"><span class="pre">/assets/icon.svg</span></code>, about the line’s height, drawn by <code class="docutils literal notranslate"><span class="pre">page.css</span></code> alone
+(a <code class="docutils literal notranslate"><span class="pre">::before</span></code> background on the header’s first link, under <code class="docutils literal notranslate"><span class="pre">img-src</span> <span class="pre">'self'</span></code>), so the markup, the
+check and the receiver are unchanged. The header keeps one row: a name too long for it is cut
+with “…” rather than wrapping under the theme and width switches.</p>
 <p>Titles and tag names come from <code class="docutils literal notranslate"><span class="pre">meta.json</span></code>. Every build is deterministic: the same copies give
 the same bytes (sorted order, no timestamps), so an unchanged unit has an unchanged digest.</p>
 </section>

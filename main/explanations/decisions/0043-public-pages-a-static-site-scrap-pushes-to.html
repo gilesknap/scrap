@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>43. Public pages: a static site scrap pushes to &#8212; scrap 1.3.2.dev1+g29a9c793f documentation</title>
+    <title>43. Public pages: a static site scrap pushes to &#8212; scrap 1.3.2.dev2+g1a5796953 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../../_static/documentation_options.js?v=07b28749"></script>
+    <script src="../../_static/documentation_options.js?v=2b935a50"></script>
     <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -557,6 +557,9 @@ public.</p>
 <p>Amended 2026-11-01 (1.3.1): a reader’s theme and column width, by one script of the site’s
 own (#519), and drawings published, downloadable and opened in excalidraw.com (#520). See
 <a class="reference internal" href="#amendment-reader-preferences-and-drawings"><span class="std std-ref">Amendment: reader preferences and drawings (1.3.1, #519, #520)</span></a> at the end.</p>
+<p>Amended 2026-11-01 (1.3.2): a drawing replaces its photo, with no photo in it (#524); an SVG
+served as exactly <code class="docutils literal notranslate"><span class="pre">image/svg+xml</span></code>, so excalidraw.com opens it (#526); the site’s icons and
+header mark, scrap’s own (#527); and tables shown as the app shows them (#530). See <a class="reference internal" href="#amendment-drawings-without-the-photo-and-the-sites-icon"><span class="std std-ref">Amendment: drawings without the photo, and the site’s icon (1.3.2, #524, #526, #527, #530)</span></a> at the end.</p>
 </section>
 <section id="context">
 <h2>Context<a class="headerlink" href="#context" title="Link to this heading">#</a></h2>
@@ -910,6 +913,81 @@ cannot be drawn fails the publish rather than going out half made.</p></li>
 </ul>
 </section>
 </section>
+<section id="amendment-drawings-without-the-photo-and-the-site-s-icon-1-3-2-524-526-527-530">
+<span id="amendment-drawings-without-the-photo-and-the-sites-icon"></span><h2>Amendment: drawings without the photo, and the site’s icon (1.3.2, #524, #526, #527, #530)<a class="headerlink" href="#amendment-drawings-without-the-photo-and-the-site-s-icon-1-3-2-524-526-527-530" title="Link to this heading">#</a></h2>
+<p>Date: 2026-11-01</p>
+<section id="a-drawing-replaces-its-photo-524">
+<h3>A drawing replaces its photo (#524)<a class="headerlink" href="#a-drawing-replaces-its-photo-524" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><strong>The drawing alone.</strong> In the app a photo’s drawing replaces the photo in its Drawing tab; it
+is not an overlay. 1.3.1 published the drawing over the photo’s preview, which made it hard to
+read. The PWA now draws it as the app’s Drawing tab does, framed as the photo is, with no photo
+under it. The Photo tab still shows the photo.</p></li>
+<li><p><strong>No photo in the scene either</strong> (the owner’s decision, 1 Nov 2026): the scene opened in
+Excalidraw is the drawing, as in the app, not the drawing on its whiteboard. So the one SVG is
+right for showing, opening and downloading, and no second file is needed.</p></li>
+<li><p><strong>scrap keeps no image in a drawing.</strong> The cleaner drops every image element and file from the
+scene, and every <code class="docutils literal notranslate"><span class="pre">&lt;image&gt;</span></code>, <code class="docutils literal notranslate"><span class="pre">&lt;feImage&gt;</span></code> and image symbol from the picture, whatever they are:
+a drawing sent by 1.3.1’s PWA, the photo under it, comes out as the drawing alone. Matching
+images to the page’s photos by their bytes is no longer needed, so it is gone, and no photo
+bytes, original or preview, can go out in a drawing.</p></li>
+</ul>
+</section>
+<section id="an-svg-is-exactly-image-svg-xml-526">
+<h3>An SVG is exactly <code class="docutils literal notranslate"><span class="pre">image/svg+xml</span></code> (#526)<a class="headerlink" href="#an-svg-is-exactly-image-svg-xml-526" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><strong>The cause.</strong> excalidraw.com opens <code class="docutils literal notranslate"><span class="pre">#url=</span></code> with <code class="docutils literal notranslate"><span class="pre">loadFromBlob</span></code>, which takes a file as an SVG
+only if the Blob’s type is exactly <code class="docutils literal notranslate"><span class="pre">image/svg+xml</span></code>. nginx sent <code class="docutils literal notranslate"><span class="pre">image/svg+xml;</span> <span class="pre">charset=utf-8</span></code>,
+so the browser’s Blob type had the parameter, Excalidraw read the SVG as JSON, and refused it
+(“doesn’t contain valid Excalidraw JSON data”). The test in 1.3.1 built its Blob by hand, with
+the exact type, so it passed.</p></li>
+<li><p><strong>The fix.</strong> nginx adds no <code class="docutils literal notranslate"><span class="pre">charset</span></code> to SVG (an SVG is XML, UTF-8 unless it says otherwise).
+The e2e test now fetches the published SVG from the site in the browser, as excalidraw.com
+does, and opens that Blob with <code class="docutils literal notranslate"><span class="pre">loadFromBlob</span></code>.</p></li>
+<li><p><strong>Turned down:</strong> a sibling <code class="docutils literal notranslate"><span class="pre">.excalidraw</span></code> file for Open in Excalidraw. With the type fixed the
+SVG opens as it is, and without the photo there is nothing the SVG cannot carry.</p></li>
+</ul>
+</section>
+<section id="the-site-s-icon-527">
+<h3>The site’s icon (#527)<a class="headerlink" href="#the-site-s-icon-527" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><strong>scrap’s own icons</strong>, <code class="docutils literal notranslate"><span class="pre">icon.svg</span></code> and <code class="docutils literal notranslate"><span class="pre">icon-192.png</span></code> from the PWA, are in the <code class="docutils literal notranslate"><span class="pre">assets</span></code> unit,
+and every page the site serves names them in <code class="docutils literal notranslate"><span class="pre">&lt;head&gt;</span></code>:
+<code class="docutils literal notranslate"><span class="pre">&lt;link</span> <span class="pre">rel=&quot;icon&quot;</span> <span class="pre">href=&quot;/assets/icon.svg&quot;</span> <span class="pre">type=&quot;image/svg+xml&quot;&gt;</span></code> and
+<code class="docutils literal notranslate"><span class="pre">&lt;link</span> <span class="pre">rel=&quot;apple-touch-icon&quot;</span> <span class="pre">href=&quot;/assets/icon-192.png&quot;&gt;</span></code>. scrap’s check allows exactly
+these two links; the receiver allows exactly these two files, at the top of <code class="docutils literal notranslate"><span class="pre">assets</span></code> only, so
+<code class="docutils literal notranslate"><span class="pre">icon.svg</span></code> is the only SVG there, and it goes out under the image CSP.</p></li>
+<li><p><strong><code class="docutils literal notranslate"><span class="pre">/favicon.ico</span></code></strong>, which browsers ask for on their own, is a <code class="docutils literal notranslate"><span class="pre">302</span></code> to <code class="docutils literal notranslate"><span class="pre">/assets/icon.svg</span></code>
+rather than a <code class="docutils literal notranslate"><span class="pre">404</span></code>, so an image or PDF opened alone has the icon too.</p></li>
+<li><p><strong>The scrap mark in the header</strong> (the owner chose “mark + name” from a mock): <code class="docutils literal notranslate"><span class="pre">icon.svg</span></code> at
+about the line’s height, left of the site’s name on a page and of “Pages · Tags” on the
+site’s own pages. It is <code class="docutils literal notranslate"><span class="pre">page.css</span></code> alone (a <code class="docutils literal notranslate"><span class="pre">::before</span></code> background, <code class="docutils literal notranslate"><span class="pre">img-src</span> <span class="pre">'self'</span></code>), so no
+markup, check or receiver change. A long name is cut with “…” rather than wrapping under the
+switches.</p></li>
+</ul>
+</section>
+<section id="tables-as-the-app-s-530">
+<h3>Tables as the app’s (#530)<a class="headerlink" href="#tables-as-the-app-s-530" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p>A published table looked unlike the app’s and broke words (“Dem/o” even at an 880 px
+column): the page’s <code class="docutils literal notranslate"><span class="pre">overflow-wrap:</span> <span class="pre">anywhere</span></code> reached into it, so its first column could
+shrink to a letter while the long cells filled the column. <code class="docutils literal notranslate"><span class="pre">page.css</span></code> now has the app’s table rules: the table in its own box that scrolls sideways
+(the page never does), sized to its content, a shaded header row, the app’s smaller text and
+padding, and words kept whole. The markup was already the app’s (<code class="docutils literal notranslate"><span class="pre">&lt;div</span> <span class="pre">class=&quot;table&quot;&gt;</span></code>), so
+nothing else changes.</p></li>
+</ul>
+</section>
+<section id="consequences-of-the-1-3-2-amendment">
+<h3>Consequences of the 1.3.2 amendment<a class="headerlink" href="#consequences-of-the-1-3-2-amendment" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p>A published drawing shows and opens as the app shows it, without its whiteboard: a reader who
+wants the photo has the Photo tab. Pages published by 1.3.1 keep the overlay until the owner
+presses Refresh all after the deploy.</p></li>
+<li><p>The scrap-public image changes (nginx’s types, the receiver’s <code class="docutils literal notranslate"><span class="pre">assets</span></code> rule), so both images
+ship together, as before.</p></li>
+</ul>
+</section>
+</section>
 </section>
 
 
@@ -967,6 +1045,14 @@ cannot be drawn fails the publish rather than going out half made.</p></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#reader-preferences-one-script-of-the-site-s-own-519">Reader preferences: one script of the site’s own (#519)</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#drawings-an-svg-that-is-also-the-scene-520">Drawings: an SVG that is also the scene (#520)</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#consequences-of-the-amendment">Consequences of the amendment</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#amendment-drawings-without-the-photo-and-the-site-s-icon-1-3-2-524-526-527-530">Amendment: drawings without the photo, and the site’s icon (1.3.2, #524, #526, #527, #530)</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#a-drawing-replaces-its-photo-524">A drawing replaces its photo (#524)</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#an-svg-is-exactly-image-svg-xml-526">An SVG is exactly <code class="docutils literal notranslate"><span class="pre">image/svg+xml</span></code> (#526)</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#the-site-s-icon-527">The site’s icon (#527)</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#tables-as-the-app-s-530">Tables as the app’s (#530)</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#consequences-of-the-1-3-2-amendment">Consequences of the 1.3.2 amendment</a></li>
 </ul>
 </li>
 </ul>
