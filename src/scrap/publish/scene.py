@@ -223,7 +223,7 @@ def clean(
             continue
         el = {k: v for k, v in el.items() if k in FIELDS}
         if el.get("type") == "image":
-            if el.get("fileId") not in ids:
+            if not isinstance(el.get("fileId"), str) or el["fileId"] not in ids:
                 continue
             el["fileId"] = ids[el["fileId"]]
         target = el.pop("link", None)

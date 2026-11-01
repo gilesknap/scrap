@@ -337,6 +337,85 @@ def test_nothing_private_survives_in_attributes_keys_fonts_or_dropped_ids(
         clean_drawing(bad, no_photos, keep, lambda _: None)
 
 
+def woff2(body: bytes) -> bytes:
+    """A font as far as the check reads one: WOFF2's magic and its length."""
+    data = b"wOF2" + b"\0" * 4 + (12 + len(body)).to_bytes(4, "big") + body
+    return data
+
+
+def styled(css: str) -> str:
+    return drawn([], {}, []).replace(
+        'class="style-fonts">', f'class="style-fonts">{css}'
+    )
+
+
+@pytest.mark.parametrize(
+    "css",
+    [
+        # a parameter before base64, which the sanitiser keeps: still checked
+        "@font-face{{src:url(data:font/woff2;x=1;base64,{jpeg})}}",
+        # a font's magic, then the photo: its length is not the font's
+        "@font-face{{src:url(data:font/woff2;base64,{fake})}}",
+        ".b{{--x: {own}/api/blobs/x}}",
+        ".b{{font-family: scrap.example.org}}",
+    ],
+)
+def test_a_style_holds_only_fonts_and_nothing_of_scraps(css, monkeypatch) -> None:
+    monkeypatch.setenv("SCRAP_PUBLIC_URL", OWN)
+    jpeg = photo()
+    fake = b64(b"wOF2" + b"\0" * 4 + (12).to_bytes(4, "big") + jpeg)
+    text = styled(css.format(jpeg=b64(jpeg), fake=fake, own=OWN))
+    with pytest.raises(CheckError):
+        clean_drawing(text, no_photos, scrub_text, lambda _: None)
+
+
+def test_a_real_font_passes() -> None:
+    font = b64(woff2(b"glyphs"))
+    out = clean_drawing(
+        styled(f"@font-face{{font-family:Excalifont;src:url(data:font/woff2;base64,{font})}}"),
+        no_photos, keep, lambda _: None,
+    ).decode()  # fmt: skip
+    assert font in out
+    # an image's data in a style: the sanitiser drops the url() whole
+    jpeg = b64(photo())
+    out = clean_drawing(
+        styled(f"@font-face{{src:url(data:image/jpeg;base64,{jpeg})}}"),
+        no_photos, keep, lambda _: None,
+    ).decode()  # fmt: skip
+    assert jpeg[:200] not in out
+
+
+def test_fragments_ids_and_odd_file_ids(monkeypatch) -> None:
+    monkeypatch.setenv("SCRAP_PUBLIC_URL", OWN)
+    kept, other = photo(), photo((0, 0, 255), (40, 40))
+    files = {
+        "photo": {"id": "photo", "mimeType": "image/jpeg", "dataURL": data_url(kept)},
+        "photoX": {
+            "id": "photoX",
+            "mimeType": "image/jpeg",
+            "dataURL": data_url(other),
+        },
+    }
+    elements = [
+        {"id": "a", "type": "image", "fileId": "photo"},
+        {"id": "b", "type": "image", "fileId": "photoX"},
+        {"id": "c", "type": "image", "fileId": ["photo"]},  # not a string: dropped
+    ]
+    text = drawn(elements, files, [kept, other]).replace(
+        "<g>", f'<g><a href="#{OWN}/api/blobs/abc"><path d="M0 0"></path></a>'
+    )
+    out = clean_drawing(
+        text, lambda b: b"\xff\xd8kept" if b == kept else None, scrub_text,
+        lambda _: None,
+    ).decode()  # fmt: skip
+    assert "scrap.example.org" not in out and "/api/" not in out
+    assert "photoX" not in out and "image-photo" not in out
+    got = svg_scene(out)
+    assert [e["id"] for e in got["elements"]] == ["a"]
+    (fid,) = got["files"]
+    assert out.count(f"image-{fid}") == 2  # its symbol, and the use of it
+
+
 def test_a_deep_scene_is_refused_not_a_500() -> None:
     deep: dict = {"id": "d", "type": "rectangle", "boundElements": []}
     at = deep["boundElements"]

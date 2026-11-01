@@ -738,9 +738,11 @@ without it the one link is "Download, then open in excalidraw.com to edit".
 3. **The picture.** The SVG goes through scrap's SVG sanitiser (as any SVG; up to 20 MiB here,
    since it holds the photo twice), which drops the old scene. In what is drawn, each `<image>`
    is likewise the preview of the page's photo it is, or removed, with the symbols naming a
-   dropped image; every text and attribute value is scrubbed by the same rule; and a font
-   inlined in its `<style>` must be a font (WOFF2, WOFF, OpenType or TrueType), else the drawing
-   is refused.
+   dropped image (matched by its exact name, `image-<id>` or `image-crop-<id>-<hash>`); every
+   text and attribute value is scrubbed by the same rule; and its `<style>` may embed only
+   whole WOFF2 or WOFF fonts (as Excalidraw inlines them; the font's header must give the
+   data's own length) and no address of scrap's, else the drawing is refused. Text Excalidraw
+   writes is one `<text>` a line: an address split across elements is not joined first.
 4. The cleaned scene goes back where Excalidraw puts it, first in the SVG
    (`<!-- svg-source:excalidraw --><metadata>...</metadata>`), so the file is both the picture
    and a drawing.

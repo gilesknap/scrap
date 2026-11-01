@@ -84,7 +84,11 @@ async function photoUrl(sha: string): Promise<string> {
     await new Promise((ok) => setTimeout(ok, 1000 * Number(got.headers.get("Retry-After") || 2)));
     got = await fetch(`/api/blobs/${sha}/preview?size=2048`);
   }
-  if (!got.ok) throw new Error(`its photo could not be fetched (HTTP ${got.status})`);
+  if (!got.ok)
+    throw new ApiError(got.status === 503 ? 422 : got.status, {
+      error: "drawing",
+      detail: `the photo of a drawing could not be fetched (HTTP ${got.status})`,
+    });
   const bytes = new Uint8Array(await got.arrayBuffer());
   let text = "";
   for (let i = 0; i < bytes.length; i += 0x8000)
@@ -104,10 +108,10 @@ export async function drawingsFor(root: HTMLElement): Promise<{ key: string; svg
   for (const d of found) {
     const path = `captures/${encodeURIComponent(d.cid)}/photos/${d.sha}/drawing`;
     const drawing = await api<Drawing>(path); // an ApiError, or not reached, as it is
+    const photo = await photoUrl(d.sha); // offline: not reached, as it is
     try {
-      out.push({ key: d.id, svg: await board.publishSvg(drawing.data, await photoUrl(d.sha)) });
+      out.push({ key: d.id, svg: await board.publishSvg(drawing.data, photo) });
     } catch (err) {
-      if (err instanceof ApiError) throw err;
       // said as scrap's own refusals are (publicapi.ts whyNot), not as "offline"
       const why = err instanceof Error ? err.message : String(err);
       throw new ApiError(422, { error: "drawing", detail: `a drawing could not be drawn: ${why}` });

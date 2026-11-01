@@ -39,12 +39,14 @@ __all__ = ["MAX_DRAWING", "Photos", "clean_drawing", "page_drawings"]
 MAX_DRAWING = 20 * 2**20  # an uploaded drawing's SVG, its photo in it twice
 PREVIEW = 2048
 IMAGES = ("image", "feImage")
-# A font Excalidraw inlines in the SVG's <style>: url(data:font/...;base64,...), as
-# svg.KEPT keeps it, and what a font file starts with (WOFF2, WOFF, OpenType, TrueType)
+# A font Excalidraw inlines in the SVG's <style>: url(data:font/woff2;base64,...), as
+# svg.KEPT keeps it (with any parameters); any other data: in a <style> is refused
+DATA = re.compile(r"data:", re.IGNORECASE)
 FONT_DATA = re.compile(
-    r"url\(\s*['\"]?data:[^;,)]*;base64,([A-Za-z0-9+/=]*)", re.IGNORECASE | re.ASCII
+    r"url\(\s*['\"]?data:[\w.+/-]*(?:;(?!base64,)[\w=.+-]*)*;base64,([A-Za-z0-9+/=]*)",
+    re.IGNORECASE | re.ASCII,
 )
-FONT_MAGIC = (b"wOF2", b"wOFF", b"OTTO", b"\x00\x01\x00\x00", b"true")
+FONT_MAGIC = (b"wOF2", b"wOFF")  # WOFF2 and WOFF: their header says their length
 
 
 class Photos:
@@ -94,26 +96,44 @@ def _refuse(why: str) -> CheckError:
     return CheckError(f"Not published: a drawing {why}.", "bad_drawing")
 
 
-def _image_ref(el: ET.Element) -> str | None:
-    """The file id an Excalidraw image symbol or use names (image-<id>, or
-    image-crop-<id>-<hash>), else None."""
+def _image_names(el: ET.Element) -> list[str]:
+    """The Excalidraw image symbol names an element has or points to (its id, or a
+    #fragment href starting image-)."""
+    out = []
     for key in ("id", "href"):
-        value = (el.get(key) or "").lstrip("#")
+        value = (el.get(key) or "").removeprefix("#")
         if value.startswith("image-"):
-            return value.removeprefix("image-").removeprefix("crop-")
-    return None
+            out.append(value)
+    return out
 
 
-def _fonts(css: str) -> None:
-    """Refuses a <style> whose embedded data is anything but a font (Excalidraw
-    inlines its fonts as data:font/woff2): never the photo, nor anything else."""
-    for m in FONT_DATA.finditer(css):
+def _named(name: str, file_id: str) -> bool:
+    """Whether a symbol name is Excalidraw's for this file id, exactly: image-<id>,
+    or image-crop-<id>-<hash>."""
+    return name == f"image-{file_id}" or bool(
+        re.fullmatch(rf"image-crop-{re.escape(file_id)}-[0-9a-z]+", name)
+    )
+
+
+def _fonts(css: str, scrub: Callable[[str], str]) -> None:
+    """Refuses a <style> holding embedded data that is not a whole WOFF2 or WOFF font
+    (Excalidraw inlines its fonts as data:font/woff2; the header's length must be the
+    data's, so nothing rides after it), or an address of scrap's (css is not
+    rewritten: it is refused)."""
+    found = list(FONT_DATA.finditer(css))
+    if len(DATA.findall(css)) != len(found):
+        raise _refuse("has embedded data in its style that is not a font")
+    for m in found:
         try:
             data = base64.b64decode(m[1], validate=True)
         except binascii.Error:
             raise _refuse("has a font that is not one") from None
-        if not data.startswith(FONT_MAGIC):
+        size = int.from_bytes(data[8:12], "big") if len(data) >= 12 else -1
+        if not data.startswith(FONT_MAGIC) or size != len(data):
             raise _refuse("has a font that is not one")
+    rest = FONT_DATA.sub("", css)
+    if scrub(rest) != rest:
+        raise _refuse("has an address of scrap's in its style")
 
 
 def _drawn(
@@ -129,12 +149,14 @@ def _drawn(
 
     def rename(el: ET.Element) -> None:
         for key in ("id", "href"):
-            value = el.get(key)
-            if value and value.lstrip("#").startswith("image-"):
-                for old, new in ids.items():
-                    value = value.replace(f"image-{old}", f"image-{new}")
-                    value = value.replace(f"image-crop-{old}-", f"image-crop-{new}-")
-                el.set(key, value)
+            value = el.get(key) or ""
+            hash_, name = ("#", value[1:]) if value.startswith("#") else ("", value)
+            for old, new in ids.items():
+                if name == f"image-{old}":
+                    el.set(key, f"{hash_}image-{new}")
+                elif _named(name, old):
+                    rest = name.removeprefix(f"image-crop-{old}")
+                    el.set(key, f"{hash_}image-crop-{new}{rest}")
 
     rename(root)
     stack = [root]
@@ -142,17 +164,17 @@ def _drawn(
         el = stack.pop()
         local = el.tag.rpartition("}")[2]
         for key, value in el.attrib.items():  # no address of scrap's in any value
-            if key != "href":
+            if key != "href" or not value.startswith(("#image-", "data:")):
                 el.set(key, scene.words(value, scrub))
         if local == "style":
-            _fonts(el.text or "")
+            _fonts(el.text or "", scrub)
         elif el.text:
             el.text = scene.words(el.text, scrub)
         for child in list(el):
             child.tail = scene.words(child.tail, scrub) if child.tail else child.tail
             rename(child)
-            ref = _image_ref(child)
-            if ref is not None and not any(ref.startswith(k) for k in kept):
+            names = _image_names(child)
+            if any(not any(_named(n, k) for k in kept) for n in names):
                 el.remove(child)  # a file the scene no longer has: its name goes too
                 continue
             if child.tag.rpartition("}")[2] in IMAGES:
