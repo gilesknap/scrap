@@ -86,8 +86,12 @@ export function readingFold(o: {
   const regen = button && h("div", { className: "regen-row" }, button);
   const fold = h(
     "details",
-    // open while its guidance is being typed: kept across a redraw, as the write-up's is (#538)
-    { className: "reading-fold", open: !!o.guidance?.open },
+    // open while its guidance is being typed, or just saved: kept across a redraw, as the
+    // write-up's is (#538)
+    {
+      className: "reading-fold",
+      open: !!o.guidance && (o.guidance.open || o.guidance.getAttribute("data-saved") !== null),
+    },
     h("summary", {}, h("span", {}, READING)),
     h(
       "div",

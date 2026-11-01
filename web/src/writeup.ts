@@ -133,7 +133,7 @@ export function writeupParts(p: Page, show: (p: Page) => void) {
         : null,
     guidance:
       !up && can
-        ? Object.assign(guidanceFold(p, w, show), { className: "claude-text sub writeup" })
+        ? Object.assign(guidanceFold(p, w, show), { className: "claude-text sub writeup guidance" })
         : null,
   };
 }

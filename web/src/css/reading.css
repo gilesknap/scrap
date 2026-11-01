@@ -93,6 +93,7 @@
    scrap's other folds (.claude-text: todos.css), closed; none above it when it comes first */
 .reading-fold .claude > .readtext:first-child {
   border-top: 0;
+  margin-top: 0;
 }
 .reading-fold .claude > .readtext > pre {
   margin-bottom: var(--s-3);

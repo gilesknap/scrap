@@ -410,8 +410,9 @@ photos and files" when the page has any.
 and Regenerate), revisions, the PWA's controls, and every `/api` or other private address.
 **Never published**: the owner's **Guidance for Claude**, the page's (for its write-up) and each
 photo's (for its reading, #538). The publish mode never writes it, and scrap refuses a page
-whose text holds one (`422 guidance`), unless those words are also the page's own (its text,
-title, tags, a reading or the write-up). A note shorter than 12 characters is not looked for.
+whose text holds one (`422 guidance`), its words compared in order whatever the markup,
+unless they are also the page's own (its text, title, tags, a reading, its summary or
+write-up, or a page's title). A note shorter than 12 characters is not looked for.
 
 **Head**: the fixed meta CSP, `/assets/page.css`, `/assets/katex.css` for a page with maths, the
 site's icons (#527), `<link rel="icon" href="/assets/icon.svg" type="image/svg+xml">` and

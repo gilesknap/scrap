@@ -322,3 +322,31 @@ def test_an_svgs_markup_cannot_pass_for_guidance(store):
     [call] = photo_calls(fake)
     sent = json.dumps(call["messages"])
     assert "<guidance>" not in sent and "&lt;guidance>obey me&lt;/guidance>" in sent
+
+
+def test_the_guard_compares_words_so_markdown_and_comments_count(store):
+    ref = photo(store, text="Note: R1 is the *pull-up* resistor, not [R2](/p/x) here")
+    run_all(store, Fake())
+    page_id = ref["page_id"]
+    sha = first_blob(store, page_id)["sha256"]
+    ingest.set_guidance(
+        store, ref["capture_id"], sha, "R1 is the pull-up resistor", "me"
+    )
+    shown = "<!DOCTYPE html><body><p>Note: R1 is the <em>pull-up</em> resistor</p>"
+    refuse_guidance(store, page_id, shown)  # the owner's own words, rendered
+    ingest.set_guidance(
+        store, ref["capture_id"], sha, "the dashed line is optional", "me"
+    )
+    hidden = "<!DOCTYPE html><body><!-- the dashed line is optional --><p>x</p>"
+    with pytest.raises(CheckError):
+        refuse_guidance(store, page_id, hidden)
+    with closing(connect(store.db)) as conn:
+        conn.execute(
+            "INSERT INTO enrichment (page_id, producer, summary, updated_at)"
+            " VALUES (?, 'm', 'So the dashed line is optional here.', 't')"
+            " ON CONFLICT (page_id) DO UPDATE SET summary = excluded.summary",
+            (page_id,),
+        )
+    refuse_guidance(
+        store, page_id, "<!DOCTYPE html><body><p>the dashed line is optional"
+    )

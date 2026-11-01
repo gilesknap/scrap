@@ -10,6 +10,9 @@ import { h, toast } from "./ui";
 
 /** Guidance being typed, by what it is for (a page's id, an image's capture and sha). */
 const typing = new Map<string, string>();
+/** Guidance just saved, until it is drawn again: the fold holding it stays open (a reading's,
+ * reading.ts), so its "(set)" and Regenerate are in sight, as the write-up's are. */
+const saved = new Set<string>();
 export const why = (err: unknown) =>
   err instanceof ApiError ? err.message : "can't reach the server";
 
@@ -53,6 +56,7 @@ export function guidanceFold<T>(o: {
       try {
         const next = await o.put(box.value);
         typing.delete(o.key);
+        saved.add(o.key);
         o.shown(next);
         toast(box.value.trim() ? o.done : "Guidance removed");
       } catch (err) {
@@ -61,7 +65,7 @@ export function guidanceFold<T>(o: {
     },
     "primary",
   );
-  return h(
+  const fold = h(
     "details",
     { className: "claude-text sub guidance", open: typing.has(o.key) },
     h("summary", {}, o.saved ? "Guidance for Claude (set)" : "Guidance for Claude"),
@@ -69,4 +73,6 @@ export function guidanceFold<T>(o: {
     box,
     h("div", { className: "row" }, save),
   );
+  if (saved.delete(o.key)) fold.setAttribute("data-saved", "");
+  return fold;
 }

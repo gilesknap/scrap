@@ -112,6 +112,11 @@ describe("an image's reading", () => {
     expect(JSON.parse(init.body)).toEqual({ guidance: "  R1 is a resistor " });
     expect(refresh).toHaveBeenCalledOnce();
     expect(toast).toHaveBeenCalledWith("Saved: the next Regenerate follows it");
+    // drawn again: the reading stays open, its guidance closed and set, as the write-up's
+    const again = panel({}, "R1 is a resistor");
+    expect(again.fold.open).toBe(true);
+    expect(folds(again.card)[1].open).toBe(false);
+    expect(panel({}, "R1 is a resistor").fold.open).toBe(false); // and only that once
   });
 
   it("keeps what is being typed, with its fold open, when the page is drawn again", () => {
