@@ -936,13 +936,14 @@ test("a wide code block keeps its lines whole and scrolls in its own box, as the
     "                                 /    \\",
     "                               2       90 --> 2 x 45 --> 3 x 15 --> 3 x 5",
   ];
+  await page.setViewportSize({ width: 308, height: 800 }); // the owner's phone
   const n = await publicOne(page, `Public e2e code\n\n\`\`\`\n${tree.join("\n")}\n\`\`\``);
   // Each line of the tree is one line box, and the block scrolls, not the page
   const shape = () =>
     page.locator(".md pre").evaluate((pre) => {
       const tops = new Set<number>();
       const r = document.createRange();
-      r.selectNodeContents(pre);
+      r.selectNodeContents(pre.querySelector("code")?.firstChild ?? pre); // the text's own boxes
       for (const box of r.getClientRects()) if (box.width > 0) tops.add(Math.round(box.top));
       const doc = document.documentElement;
       return {
