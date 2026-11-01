@@ -18,6 +18,10 @@ spec:
   failedJobsHistoryLimit: 3
   jobTemplate:
     spec:
+      # Finished Jobs, and one-off ones made with
+      # `kubectl create job --from=cronjob/...`,
+      # are deleted after 7 days.
+      ttlSecondsAfterFinished: 604800
       backoffLimit: 0
       # The pass makes one Claude call per changed page: allow it up to 4 hours.
       activeDeadlineSeconds: 14400

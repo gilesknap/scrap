@@ -10,6 +10,8 @@ metadata:
 spec:
   # SQLite has a single writer: exactly one pod, and the old one stops first.
   replicas: 1
+  # Keep two old ReplicaSets for rollback, not the default ten.
+  revisionHistoryLimit: 2
   strategy:
     type: Recreate
   selector:
