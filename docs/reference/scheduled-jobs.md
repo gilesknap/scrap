@@ -84,6 +84,11 @@ it; `SCRAP_BACKUP_MONTHLY_KEEP=0` is an opt-out that `install.sh` keeps.
   (`startingDeadlineSeconds`) is skipped, and a Job is stopped after its run time
   (`activeDeadlineSeconds`). On a single server, the backup, monthly backup and gc services stop
   after an hour (`TimeoutStartSec`); the Claude ones have no limit.
+- **Finished Jobs.** In the chart, each CronJob keeps its last 3 successful and 3 failed Jobs,
+  and Kubernetes deletes any finished Job, with its pod, 7 days after it ends
+  (`ttlSecondsAfterFinished`). That includes one-off Jobs made with
+  `kubectl create job --from=cronjob/...`, such as the pre-release backup. Each Deployment keeps
+  2 old ReplicaSets (`revisionHistoryLimit`).
 - **Time zone.** In the chart, an empty `timeZone` uses the cluster's clock (the controller's,
   usually UTC); set an IANA name such as `Europe/London` to change it. A single server's timers
   use the machine's local time.

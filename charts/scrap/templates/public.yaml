@@ -25,6 +25,8 @@ metadata:
 spec:
   # One pod: the site lives in its emptyDir, and the receiver serialises writes.
   replicas: 1
+  # Keep two old ReplicaSets for rollback, not the default ten.
+  revisionHistoryLimit: 2
   strategy:
     type: Recreate
   selector:

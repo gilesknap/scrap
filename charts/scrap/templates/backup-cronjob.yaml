@@ -16,6 +16,10 @@ spec:
   failedJobsHistoryLimit: 3
   jobTemplate:
     spec:
+      # Finished Jobs, and one-off ones made with
+      # `kubectl create job --from=cronjob/...`,
+      # are deleted after 7 days.
+      ttlSecondsAfterFinished: 604800
       backoffLimit: 1
       # A run waiting for the scrap pod's node (below) gives up after an hour.
       activeDeadlineSeconds: 3600
