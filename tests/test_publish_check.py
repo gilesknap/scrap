@@ -272,7 +272,9 @@ def test_scrap_s_host_in_text_is_refused_only_when_it_is_set(monkeypatch):
         ok(f"<p>{text}</p>")
 
 
-def test_a_host_hidden_by_zero_width_or_full_width_dots_or_in_alt_is_refused(monkeypatch):
+def test_a_host_hidden_by_zero_width_or_full_width_dots_or_in_alt_is_refused(
+    monkeypatch,
+):
     monkeypatch.setenv("SCRAP_PUBLIC_URL", "https://scrap.example.ts.net:8446")
     for text in ("scrap\u200b.example.ts.net", "scrap.exa\u2060mple.ts.net/p/x",
                  "scrap\u3002example\uff0ets\uff61net",

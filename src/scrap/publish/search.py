@@ -142,7 +142,9 @@ def _stop(proc: subprocess.Popen[bytes]) -> None:
     timed-out build otherwise), and reap it."""
     try:
         if os.name == "posix":
-            os.killpg(proc.pid, signal.SIGKILL)  # what is left of the group, if anything
+            os.killpg(
+                proc.pid, signal.SIGKILL
+            )  # what is left of the group, if anything
         elif proc.poll() is None:
             proc.kill()
     except (ProcessLookupError, PermissionError):
