@@ -143,7 +143,9 @@ class Publisher:
                         if derived.pending(units):  # Pagefind failed
                             out["derived"] = PENDING
                 except Exception:  # noqa: BLE001  reconcile does the rest
-                    log.exception("publish: p/%s is out; the rest is pending", page.slug)
+                    log.exception(
+                        "publish: p/%s is out; the rest is pending", page.slug
+                    )
                     out["derived"] = PENDING
             return out
 

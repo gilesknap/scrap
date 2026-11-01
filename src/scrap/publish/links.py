@@ -52,9 +52,7 @@ def _named(host: str) -> re.Pattern[str]:
     """host in lower-case text, only where it is not part of a longer name: no
     letter, digit, - or . before it, and no letter, digit or - after it, nor a .
     and then one (a full stop after it still counts)."""
-    return re.compile(
-        rf"(?<![a-z0-9.-]){re.escape(host)}(?![a-z0-9-]|\.[a-z0-9])"
-    )
+    return re.compile(rf"(?<![a-z0-9.-]){re.escape(host)}(?![a-z0-9-]|\.[a-z0-9])")
 
 
 def private_text(text: str) -> str | None:

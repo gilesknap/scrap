@@ -72,7 +72,8 @@ def chip(tag: str) -> str:
     return f'<a class="chip" href="scrap-tag:{quote(tag, safe="")}">{tag}</a>'
 
 
-def put(client, p: dict, body: str, base_rev=None, defer=False, confirmed=True,
+def put(client, p: dict, body: str, base_rev=None, defer=False,
+        confirmed: bool | None = True,
         **kw):  # fmt: skip
     html = page(body, title=p["title"], **kw)
     rev = p["rev"] if base_rev is None else base_rev
@@ -527,7 +528,7 @@ def test_a_tag_with_an_apostrophe_publishes(client, site):
     as they are."""
     tag = "it's (fun)!*"
     p = made(client, tags=(tag,))
-    r = put(client, p, f'<p><a class="chip" href="scrap-tag:it\'s%20(fun)!*">x</a></p>')
+    r = put(client, p, '<p><a class="chip" href="scrap-tag:it\'s%20(fun)!*">x</a></p>')
     assert r.status_code == 200, r.text
     index = site.file(f"p/{p['slug']}", "index.html").decode()
     assert f'href="/t/{tag_key(tag)}"' in index and "scrap-tag" not in index

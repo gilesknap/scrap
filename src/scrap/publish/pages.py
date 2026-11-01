@@ -1,5 +1,6 @@
 """What publishing reads of the store: a page's state (public, in the trash, its
-revision, text, tags and attached files), the public pages, and the pages that refer to a page."""
+revision, text, tags and attached files), the public pages, and the pages that refer
+to a page."""
 
 import sqlite3
 from dataclasses import dataclass

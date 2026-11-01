@@ -29,7 +29,14 @@ from pagefind.index import PagefindIndex
 
 from .katex import HTML, MATHML
 
-__all__ = ["TIMEOUT", "UI_CSS", "SearchError", "build_index", "cached_css", "index_text"]
+__all__ = [
+    "TIMEOUT",
+    "UI_CSS",
+    "SearchError",
+    "build_index",
+    "cached_css",
+    "index_text",
+]
 
 TIMEOUT = 115.0  # seconds a build may take (with Pagefind's 5 s to close, about 120)
 VERSION = importlib.metadata.version("pagefind")
