@@ -7,7 +7,7 @@ import { icon, kindIcon } from "./icons";
 import { holds, says } from "./says";
 import { chipOf, dueOf } from "./status";
 import { swipeRows, trail } from "./swipe";
-import { blobImg, empty, h, problem, settle, whenShort } from "./ui";
+import { blobImg, empty, h, pageHref, problem, settle, whenShort } from "./ui";
 
 function row(
   thumb: string | Blob | null,
@@ -58,7 +58,7 @@ export const pageRow = (
     p.title,
     whenShort(p.updated_at),
     snippet ?? chipOf(p.kind, p.fields),
-    `/p/${encodeURIComponent(p.slug)}`,
+    pageHref(p.slug),
     p.kind,
     snippet && chipOf(p.kind, p.fields),
     dueOf(p),

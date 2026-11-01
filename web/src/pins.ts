@@ -7,9 +7,10 @@
 //   - [Contacts](/p/contacts)
 import { ApiError, api, type Page } from "./api";
 import { checkName } from "./checks";
+import { KIND_ROW } from "./kindrow";
 import { MEDIA } from "./termedit";
-import { KIND_ROW, words } from "./terms";
-import { h, toast } from "./ui";
+import { words } from "./terms";
+import { h, pageHref, toast } from "./ui";
 
 export const SLUG = "pinned";
 export const PINS_PAGE = `/p/${SLUG}`;
@@ -31,7 +32,6 @@ export const searchHref = (q: string) =>
     .replaceAll("%2F", "/")
     .replaceAll("(", "%28")
     .replaceAll(")", "%29")}`;
-export const pageHref = (slug: string) => `/p/${encodeURIComponent(slug)}`;
 
 /** What a link points at, so the same search typed differently is still the same pin. */
 export function keyOf(href: string): string {
@@ -70,7 +70,7 @@ export function parse(body: string): Pin[] {
   return out;
 }
 
-export const line = (name: string, href: string) => `- [${slashed(name)}](${href})`;
+const line = (name: string, href: string) => `- [${slashed(name)}](${href})`;
 
 /** The text with a pin added at its end (or at a line: Undo puts one back where it was). */
 export function adding(body: string, name: string, href: string, at?: number): string {

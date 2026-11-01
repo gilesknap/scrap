@@ -6,7 +6,7 @@ import type { Page } from "./api";
 import { short as dayName, today } from "./status";
 import { h } from "./ui";
 
-export const PRIORITIES = ["high", "medium", "low"];
+const PRIORITIES = ["high", "medium", "low"];
 
 type Todo = { due: string | null; priority: string | null };
 

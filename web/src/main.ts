@@ -6,16 +6,16 @@ import { address, view as current, go, LISTS, markNav, plain, queue } from "./ap
 import { capture } from "./capture";
 import { named, remember } from "./crumbs";
 import { KEY } from "./debug";
+import { KIND_ROW } from "./kindrow";
 import { pageRow } from "./lists";
 import { holdScroll, restoreScroll, watchScroll } from "./scroll";
-import { search } from "./search";
 import { whenSlow } from "./slow";
 import { today } from "./status";
 import { trailOf } from "./swipe";
-import { KIND_ROW } from "./terms";
 import { clearToasts, empty, h, placeToasts, problem, toast } from "./ui";
 
 const todos = () => import("./todos").then((m) => m.todos(pageRow)); // a lazy chunk
+const search = () => import("./search").then((m) => m.search()); // a lazy chunk, kept offline
 const add = document.getElementById("new") as HTMLButtonElement;
 // The Todos screen's New todo: the composer (a chunk of its own) with Todo chosen; saved, it
 // closes back onto the list

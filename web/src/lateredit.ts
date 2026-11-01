@@ -4,7 +4,7 @@ import { MEDIA } from "./termedit";
 import { h } from "./ui";
 
 /** What each type is for: read, watch, listen or play. */
-export const SUBTYPE: Record<string, string> = {
+const SUBTYPE: Record<string, string> = {
   book: "read",
   article: "read",
   film: "watch",

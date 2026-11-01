@@ -1,5 +1,5 @@
 // Sharing and downloading: what a Share or Download button does once tapped. A chunk of its
-// own, loaded on the first tap (ui.ts draws the buttons), so the app shell carries only the
+// own, loaded on the first tap (sharebuttons.ts draws the buttons), so a page carries only the
 // buttons; the service worker keeps it for offline (vite.config.ts OFFLINE).
 import { copyRich, copyText } from "./clipboard";
 import type { Icon } from "./icons";
@@ -174,7 +174,7 @@ export interface Sharing {
 /** Share's taps on button b: given a link, the first opens a menu of Link and the content
  * (and `more`); each choice is a tap of its own, so it calls the share sheet within that tap.
  * Without a link, or a popover, a tap shares the content at once. Without a share sheet (a
- * computer, ui.ts) the menu copies instead: the link, the Markdown, or the page as rich text. */
+ * computer, sharebuttons.ts) the menu copies instead: the link, the Markdown, or the page as rich text. */
 export function attach(b: HTMLButtonElement, s: Sharing) {
   const shareContent = () =>
     busy(b, "Share", async () => {
@@ -212,7 +212,7 @@ export function attach(b: HTMLButtonElement, s: Sharing) {
   const saved = s.more?.find((r) => r instanceof HTMLAnchorElement && r.hasAttribute("download"));
   const article = saved instanceof HTMLAnchorElement && b.closest<HTMLElement>("article.page");
   if (!navigator.share) {
-    // No share sheet (a computer, ui.ts): what it would send goes on the clipboard
+    // No share sheet (a computer, sharebuttons.ts): what it would send goes on the clipboard
     const copy = (name: "link" | "copy", label: string, job: () => Promise<void>) =>
       pick(name, label, () => void busy(b, "Copy", job));
     const text = () => s.what().text ?? "";

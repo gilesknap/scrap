@@ -20,7 +20,7 @@ function read(): Record<number, Crumb> {
 
 /** The depth of the entry on screen: go()'s mark, 0 for one with none (opened cold); null for
  * an overlay's entry, which is no screen (the editor, Settings, a viewer, a drawing). */
-export function depth(): number | null {
+function depth(): number | null {
   const s = history.state;
   if (s?.editor || s?.settings || s?.viewer || s?.drawing) return null;
   return typeof s?.at === "number" ? s.at : 0;

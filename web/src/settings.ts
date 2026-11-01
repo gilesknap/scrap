@@ -27,7 +27,7 @@ import { h } from "./ui";
 const CHROME: Record<Theme, string> = { light: "#f6f3ec", dark: "#161411" };
 
 /** Show the app theme: the attribute, the form-control scheme and the browser's bar colour. */
-export function applyTheme() {
+function applyTheme() {
   const pref = getAppPref();
   const root = document.documentElement;
   if (pref === "system") root.removeAttribute("data-theme");

@@ -15,7 +15,7 @@ export interface Question {
 }
 
 /** The page's files that are not images: they go public with it, by name. */
-export const filesOf = (p: Page): FileRef[] => {
+const filesOf = (p: Page): FileRef[] => {
   const seen = new Set<string>();
   return p.captures
     .flatMap((c) => c.blobs)

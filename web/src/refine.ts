@@ -12,6 +12,7 @@ import { api, kept } from "./api";
 import { checkName } from "./checks";
 import { day, unsorted } from "./filters";
 import { icon } from "./icons";
+import { KIND_ROW } from "./kindrow";
 import { actions, offerNew } from "./searchacts";
 import { tagLabel } from "./taglabel";
 import { matching } from "./tagname";
@@ -24,7 +25,6 @@ import {
   groupBy,
   groupDefault,
   has,
-  KIND_ROW,
   kindsIn,
   listing,
   tagsIn,

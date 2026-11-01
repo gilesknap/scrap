@@ -16,8 +16,8 @@ export interface N {
 
 const TEXT = 3;
 const ELEMENT = 1;
-export const PREVIEW = 480; // pixels, longest side
-export const CAP = 4 * 2 ** 20; // bytes of photos in one file, as base64
+const PREVIEW = 480; // pixels, longest side
+const CAP = 4 * 2 ** 20; // bytes of photos in one file, as base64
 
 // Markup that keeps its look: the page's own text, headings, lists, tables, its Claude card
 export const KEEP = new Set(

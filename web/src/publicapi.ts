@@ -46,9 +46,6 @@ export const publishOn = () =>
 /** Build the home page, the tag pages and search once, after deferred publishes. */
 export const rebuild = () => api<{ units: string[] }>("public/rebuild", { method: "POST" });
 
-/** A page's address on the public site, as scrap gives it (null: no SCRAP_PUBLISH_SITE). */
-export const publicUrl = (p: Pick<Page, "public_url">) => p.public_url || null;
-
 /** The public site's name, for a toast or the warning: its host, else "the public site". */
 export const siteName = (p: Pick<Page, "site">) =>
   p.site?.replace(/^https?:\/\//, "") || "the public site";

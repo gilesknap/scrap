@@ -7,7 +7,7 @@ import { publicPages, publishOn, whyNot } from "./publicapi";
 import { h } from "./ui";
 
 const pagesWord = (n: number) => (n === 1 ? "1 page" : `${n} pages`);
-export const NONE = "No pages are public. Make one public from its Share menu.";
+const NONE = "No pages are public. Make one public from its Share menu.";
 const WHAT =
   "For changes made elsewhere (over MCP, a new write-up, a new scrap): draws each public page again and publishes it.";
 

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { unembedded } from "../src/md";
 import { markdown as marked, origins, own } from "../src/render";
+import { unembedded } from "../src/sharetext";
 
 const SHA = "a".repeat(64);
 const a = (href: string, text = href) =>

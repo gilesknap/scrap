@@ -1,7 +1,7 @@
 // The contract's check of a public page (docs/reference/public-site.md, "The HTML scrap
 // accepts"), as a test's stand-in for scrap's own (Python, html5lib): the publish mode's output
 // must pass it. Returns the problems found, none for a page scrap would take.
-import { decode, type El, parse, type T } from "./htmlparse";
+import { type El, parse, type T } from "./htmlparse";
 
 export const CSP =
   "default-src 'none'; img-src 'self' data:; style-src 'self'; style-src-attr 'unsafe-inline'; font-src 'self'";
@@ -158,5 +158,3 @@ export function check(html: string, live: ReadonlySet<string>, own: readonly str
   if (/<style[\s>]/i.test(html)) bad.push("a <style> element");
   return bad;
 }
-
-export { decode };

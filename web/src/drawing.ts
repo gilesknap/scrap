@@ -15,7 +15,7 @@ type Chunk = typeof import("./board/excalidraw");
 let chunk: Promise<Chunk> | null = null;
 
 /** The viewer's chunk, fetched once; a failure (offline) is retried on the next call. */
-export function loadBoard(): Promise<Chunk> {
+function loadBoard(): Promise<Chunk> {
   chunk ??= import("./board/excalidraw").catch((e) => {
     chunk = null;
     throw e;
