@@ -1,5 +1,5 @@
 // A page Claude wrote over MCP (#37): written through /mcp, shown with its badge, and
-// is:claude finds it. Runs after the others (alphabetical; smoke.spec.ts wants an empty store).
+// is:claude finds it.
 import { expect, test } from "@playwright/test";
 import { deletedAfterEach, ulid } from "./helpers";
 

@@ -1,6 +1,6 @@
 // The UI sweep (#345): the results header on Todos and Topics, one amber fill while a page's
 // form is open, Add photo above the keys, no line ending in "·", the "Kept on this phone"
-// toast, and the offline search. Named to run after smoke.spec.ts, which wants an empty store.
+// toast, and the offline search.
 import { execFileSync } from "node:child_process";
 import { expect, type Page, test } from "@playwright/test";
 import { day, deletedAfterEach, ulid } from "./helpers";

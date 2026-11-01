@@ -1,6 +1,5 @@
 // Share > HTML (pagehtml.ts): the saved file shows the page's Markdown as elements, also in
 // Claude's summary (plain text on the screen), and loads with the network blocked (#427).
-// Named to run after smoke.spec.ts, which wants an empty store.
 import { readFileSync } from "node:fs";
 import { expect, test } from "@playwright/test";
 import { ulid } from "./helpers";
