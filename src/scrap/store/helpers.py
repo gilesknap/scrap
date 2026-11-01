@@ -316,7 +316,9 @@ def fields_for(kind: str | None, url: str | None) -> dict[str, Value]:
 def meta_of(row: sqlite3.Row, when: str) -> Meta:
     """A page_meta_rev row's state before or after (when) its change."""
     return Meta(
-        row[f"kind_{when}"], row[f"fixed_{when}"], json.loads(row[f"tags_{when}"]),
+        row[f"kind_{when}"],
+        row[f"fixed_{when}"],
+        json.loads(row[f"tags_{when}"]),
         row[f"public_{when}"],
     )
 

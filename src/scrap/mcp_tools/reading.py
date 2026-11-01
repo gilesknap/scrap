@@ -11,6 +11,7 @@ from .. import viewed
 from ..markdown import wiki_targets
 from ..mcp_page import page_key
 from ..public import public_origins
+from ..publish import page_url
 from ..query import parse
 from ..store import KIND_NAMES, NotFoundError
 from ..store.constants import KINDS
@@ -199,6 +200,10 @@ def register_reading(mcp: MCPServer, ctx: Ctx) -> None:
                 "created_at": p["created_at"], "updated_at": p["updated_at"],
                 "rev": p["rev"],
                 "written_by_claude": p["made_by"] == "claude",
+                # public pages (ADR 43): published_at null until the app publishes it
+                "public": bool(p.get("public")),
+                "public_url": page_url(p["slug"]) if p.get("public") else None,
+                "published_at": ctx.publisher.published_at(p["id"], p["slug"]),
                 "edited_by_claude": store.edited_by_claude(p["id"]),
                 "origin": fields.get("origin"),
                 "fields": {k: v for k, v in fields.items() if k != "summary"},

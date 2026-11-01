@@ -429,7 +429,9 @@ class MetaMixin(Core):
                     t for t in before.tags if t not in remove
                 ] + add  # fmt: skip
                 after = Meta(
-                    kind or before.kind, 1 if kind else before.fixed, sorted(set(new)),
+                    kind or before.kind,
+                    1 if kind else before.fixed,
+                    sorted(set(new)),
                     before.public if public is None else int(public),
                 )
                 if len(after.tags) > MAX_TAGS:

@@ -61,11 +61,13 @@ def register_editing(mcp: MCPServer, ctx: Ctx) -> None:
     ) -> dict[str, Any]:
         keys = [text(page_key(p), "page") for p in pages]
         found = checked(store.trash_pages, keys, AUTHOR, MCP, dry_run)
-        return {
+        out = {
             "dry_run": dry_run, "batch": found["batch"],
             "trashed": 0 if dry_run else len(found["pages"]),
             "pages": linked(found["pages"]),
         }  # fmt: skip
+        # a public page leaves the public site with the trash
+        return ctx.settled(out, [] if dry_run else [p["id"] for p in found["pages"]])
 
     @mcp.tool()
     def undelete(
