@@ -467,7 +467,7 @@ Page text is Markdown as GitHub writes it:
   `[[slug#heading]]` links to that page too (it opens at the top, not at the heading). A link with
   no label shows the page's title (as it is now, if the page was renamed), as does a page's full
   address written bare (not as `[words](address)`); a label you typed stays, and a link to no page
-  shows what you typed. In **Preview** a link added since the page was opened shows its slug.
+  shows what you typed. In **Preview** a link added since the page was opened, or on a new page, shows its slug.
 - A ` ```mermaid ` block is drawn as a [Mermaid](https://mermaid.js.org) diagram; offline, or with
   a mistake, it shows as code.
 - **Maths** (LaTeX, drawn by [KaTeX](https://katex.org)): `$x^2$` inline, `$$...$$` for a
