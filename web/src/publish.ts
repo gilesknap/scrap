@@ -365,10 +365,10 @@ export function publishHtml(root: N, ctx: Context, swaps: Swaps = new Map()): st
         .filter((s) => !apart || s)
         .join(apart ? " · " : "");
     // A task's box (render.ts, #539): no <input>, an empty span page.css draws as the app's
-    // box, its state in its label
+    // box, its state in its label; as shown (a tick tasks.ts is still saving too)
     if (t === "input") {
       if (attr(n, "type") !== "checkbox") return "";
-      return n.hasAttribute?.("checked")
+      return ((n as { checked?: boolean }).checked ?? n.hasAttribute?.("checked"))
         ? '<span class="taskbox done" role="img" aria-label="Done"></span>'
         : '<span class="taskbox" role="img" aria-label="To do"></span>';
     }
