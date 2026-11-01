@@ -8,7 +8,17 @@ from urllib.parse import unquote, urlsplit
 
 from ..public import origin, public_origins
 
-__all__ = ["BLOB", "ID", "PAGE", "TAG", "TAG_KEY", "classify", "own_hosts"]
+__all__ = [
+    "BLOB",
+    "ID",
+    "PAGE",
+    "TAG",
+    "TAG_KEY",
+    "classify",
+    "normal_path",
+    "own_hosts",
+    "private_text",
+]
 
 BLOB = re.compile(r"scrap-blob:([0-9a-f]{64})")
 # encodeURIComponent's output: what the publish mode writes a tag as
@@ -20,6 +30,7 @@ FRAGMENT = re.compile(r"#[a-z0-9_-]{1,80}")
 MAILTO = re.compile(r"mailto:[^\s\x00-\x1f\x7f]+", re.IGNORECASE)
 ABSOLUTE = re.compile(r"https?://[^\s\x00-\x1f\x7f\\]+", re.IGNORECASE)
 API = re.compile(r"/api(?:/|$)", re.IGNORECASE)
+BLOBS = "/api/blobs/"  # a stored file's private address, in text
 
 
 def _host(name: str) -> str:
@@ -37,6 +48,53 @@ def own_hosts() -> frozenset[str]:
     return frozenset(hosts)
 
 
+def private_text(text: str) -> str | None:
+    """What private address of scrap's a text holds (one of its own hosts, or
+    /api/blobs/, compared case-insensitively), else None.
+
+    >>> private_text("see /API/Blobs/abc"), private_text("plain")
+    ('/api/blobs/', None)
+    """
+    lower = text.lower()
+    for found in (BLOBS, *sorted(own_hosts())):
+        if found in lower:
+            return found
+    return None
+
+
+def _dot_segments(path: str) -> str:
+    """RFC 3986's remove_dot_segments (5.2.4)."""
+    out: list[str] = []
+    while path:
+        if path.startswith(("../", "./")):
+            path = path.partition("/")[2]
+        elif path.startswith("/./") or path == "/.":
+            path = "/" + path[3:] if path != "/." else "/"
+        elif path.startswith("/../") or path == "/..":
+            path = "/" + path[4:] if path != "/.." else "/"
+            if out:
+                out.pop()
+        elif path in (".", ".."):
+            path = ""
+        else:
+            start = 1 if path.startswith("/") else 0
+            end = path.find("/", start)
+            end = len(path) if end < 0 else end
+            out.append(path[:end])
+            path = path[end:]
+    return "".join(out)
+
+
+def normal_path(path: str) -> str:
+    """A URL's path as a server may read it: percent-decoded, repeated slashes as
+    one, dot segments removed.
+
+    >>> normal_path("/x/%2e%2e/api/x"), normal_path("//api/x"), normal_path("/a/./b/..")
+    ('/api/x', '/api/x', '/a/')
+    """
+    return _dot_segments(re.sub(r"/{2,}", "/", unquote(path)))
+
+
 def _web(href: str) -> str | None:
     """Why an absolute http(s) URL is refused, else None."""
     try:
@@ -46,13 +104,15 @@ def _web(href: str) -> str | None:
         return f"not a valid address: {href}"
     if "@" in parts.netloc:
         return f"an address with a user name: {href}"
+    if "%" in parts.netloc:
+        return f"an address with % in its host: {href}"
     if not parts.hostname:
         return f"an address with no host: {href}"
     normal = origin(href)  # punycode, as a browser compares it
     host = _host(urlsplit(normal).hostname or "") if normal else None
     if host is None or host in own_hosts() or _host(parts.hostname) in own_hosts():
         return f"a link to scrap itself: {href}"
-    if API.match(unquote(parts.path)):
+    if API.match(normal_path(parts.path)):
         return f"a link to an /api address: {href}"
     return None
 

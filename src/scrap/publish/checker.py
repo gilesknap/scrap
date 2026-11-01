@@ -31,7 +31,7 @@ from .katex import (
     no_url,
     style_ok,
 )
-from .links import ID, classify
+from .links import ID, classify, private_text
 
 __all__ = ["CSP", "KEPT", "RAW_PLACEHOLDER", "Checked", "check"]
 
@@ -98,6 +98,14 @@ def _classes(el: ET.Element) -> list[str]:
 def _no_placeholder(text: str | None, where: str) -> None:
     if text and PLACEHOLDER.search(text):
         raise _refuse(f"a placeholder in {where}")
+
+
+def _plain(text: str | None, where: str) -> None:
+    """Text in the body: no placeholder, and no private address of scrap's (its own
+    hosts, /api/blobs/), which the PWA writes as "a private link"."""
+    _no_placeholder(text, where)
+    if text and (found := private_text(text)):
+        raise _refuse(f"a private address of scrap's in {where} ({found})")
 
 
 class _Walk:
@@ -180,15 +188,15 @@ class _Walk:
         stack: list[tuple[ET.Element, bool, int]] = [(root, False, 0)]
         while stack:
             el, katex, depth = stack.pop()
-            _no_placeholder(el.tail, "the text")
+            _plain(el.tail, "the text")
             if el.tag is ET.Comment:  # type: ignore[comparison-overlap]
-                _no_placeholder(el.text, "a comment")
+                _plain(el.text, "a comment")
                 continue
             if depth > MAX_DEPTH:
                 raise _refuse("markup nested too deeply")
             if el is not root:
                 self.element(el, katex)
-            _no_placeholder(el.text, "the text")
+            _plain(el.text, "the text")
             ns, local = _name(el.tag)
             inner = katex or (
                 ns == HTML and local == "span" and "katex" in _classes(el)

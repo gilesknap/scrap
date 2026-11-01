@@ -68,6 +68,9 @@ ALLOWED = [
     '<pre><code class="language-mermaid">graph TD; A--&gt;B</code></pre>',
     '<p dir="rtl">שלום</p><!-- a comment -->',
     "<blockquote><p>q</p></blockquote><hr><br>",
+    '<p><a href="https://example.org/x/../y">up</a> <a href="https://e.org/apis">'
+    "apis</a> <a href=\"https://e.org/x?q=/api/\">query</a></p>",
+    "<p>a private link</p>",
 ]
 
 
@@ -153,6 +156,22 @@ REFUSED_BODIES = {
     "a backslash link": '<a href="/\\example.org/x">x</a>',
     "a backslash in an absolute link": '<a href="https://example.org\\@x/">x</a>',
     "a private page": '<a href="/p/private-page">x</a>',
+    "/api after a dot segment": '<a href="https://other.example/x/../api/x">x</a>',
+    "/api after an encoded dot segment": '<a href="https://other.example/x/%2e%2e/api/x">'
+    "x</a>",
+    "/api after a ./": '<a href="https://other.example/./api/x">x</a>',
+    "/api after two slashes": '<a href="https://other.example//api/x">x</a>',
+    "/api after an encoded slash": '<a href="https://other.example/%2fapi/x">x</a>',
+    "% in the host": '<a href="https://scrap%2Eexample.ts.net/p/x">x</a>',
+    "% in the host, a letter": '<a href="https://%73crap.example.ts.net/p/x">x</a>',
+    "% in the host, elsewhere": '<a href="https://ex%61mple.org/">x</a>',
+    "scrap's host in the text": "<p>see https://scrap.example.ts.net:8446/p/x</p>",
+    "scrap's host in the text, upper case": "<p>SCRAP.Example.TS.net</p>",
+    "scrap's host in a link's text": '<a href="https://e.org/">scrap.example.ts.net</a>',
+    "scrap's host in a comment": "<!-- scrap.example.ts.net --><p>x</p>",
+    "a blob address in the text": f"<p>/api/blobs/{SHA}</p>",
+    "a blob address in the text, upper case": "<p><code>/API/Blobs/x</code></p>",
+    "a blob address in a tail": "<p><b>x</b> /api/blobs/y</p>",
     "a relative link": '<a href="other">x</a>',
     "a heading id with a capital": '<h2 id="Intro">x</h2>',
     "an id on a p": '<p id="x">x</p>',
@@ -227,6 +246,13 @@ def test_the_pwa_publish_modes_pages_pass(path):
     """web/tests/fixtures/published/*.html: what the PWA's publish mode writes (its
     vitest saves them). Its links to /p/ pages count as public here."""
     check(path.read_text(), lambda slug: True)
+
+
+def test_scrap_s_host_in_text_is_refused_only_when_it_is_set(monkeypatch):
+    monkeypatch.delenv("SCRAP_PUBLIC_URL", raising=False)
+    ok("<p>scrap.example.ts.net</p>")
+    monkeypatch.setenv("SCRAP_PUBLIC_URL", "https://scrap.example.ts.net:8446")
+    assert "private address" in refused(page("<p>scrap.example.ts.net</p>"))
 
 
 def test_site_links_and_a_neutralised_placeholder_in_text_pass():
