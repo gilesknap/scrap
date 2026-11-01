@@ -369,10 +369,18 @@ test("dark mode, and a Regenerate that asks before replacing an edit", async ({ 
   await open(page);
   await expect(dialog(page).locator(".excalidraw.theme--dark")).toBeVisible();
   await page.goBack();
+  await expect(dialog(page)).toBeHidden();
+  await expect(page.locator(".drawing-card.ready svg")).toBeVisible();
 
-  await page.locator(".photo-panel .reading-fold > summary").click();
+  // Regenerate is in the reading fold (#521); the page may be drawn again as the viewer
+  // closes, the fold closed with it: open it until its Regenerate is there to tap
+  const fold = page.locator(".photo-panel .reading-fold");
   const again = page.locator(".photo-panel").getByRole("button", { name: "Regenerate" });
-  await again.click();
+  await expect(async () => {
+    if (!(await fold.evaluate((d) => (d as HTMLDetailsElement).open)))
+      await fold.locator("> summary").click({ timeout: 2000 });
+    await again.click({ timeout: 2000 });
+  }).toPass();
   await again.click(); // asked once, not twice
   await expect(page.getByText("You edited its drawing: replace it?")).toHaveCount(1);
   const asked = page.waitForRequest((r) => r.url().endsWith("/reprocess"));
