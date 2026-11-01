@@ -76,27 +76,6 @@ async function tex() {
   return katex;
 }
 
-/** A photo's 2048 px preview as a data: URL, as the drawing of it embeds it (scrap matches
- * these bytes to the page's photo). */
-async function photoUrl(sha: string): Promise<string> {
-  let got = await fetch(`/api/blobs/${sha}/preview?size=2048`);
-  for (let tries = 0; got.status === 503 && tries < 3; tries++) {
-    // its preview is being made (scrap's decoder is busy): as scrap asks, a little later
-    await new Promise((ok) => setTimeout(ok, 1000 * Number(got.headers.get("Retry-After") || 2)));
-    got = await fetch(`/api/blobs/${sha}/preview?size=2048`);
-  }
-  if (!got.ok)
-    throw new ApiError(got.status === 503 ? 422 : got.status, {
-      error: "drawing",
-      detail: `the photo of a drawing could not be fetched (HTTP ${got.status})`,
-    });
-  const bytes = new Uint8Array(await got.arrayBuffer());
-  let text = "";
-  for (let i = 0; i < bytes.length; i += 0x8000)
-    text += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
-  return `data:${got.headers.get("Content-Type") || "image/jpeg"};base64,${btoa(text)}`;
-}
-
 /** The view's drawings drawn as public pages show them (#520), by id: Excalidraw's chunk is
  * loaded only for a page that has one. */
 export async function drawingsFor(root: HTMLElement): Promise<{ key: string; svg: string }[]> {
@@ -109,9 +88,8 @@ export async function drawingsFor(root: HTMLElement): Promise<{ key: string; svg
   for (const d of found) {
     const path = `captures/${encodeURIComponent(d.cid)}/photos/${d.sha}/drawing`;
     const drawing = await api<Drawing>(path); // an ApiError, or not reached, as it is
-    const photo = await photoUrl(d.sha); // offline: not reached, as it is
     try {
-      out.push({ key: d.id, svg: await board.publishSvg(drawing.data, photo) });
+      out.push({ key: d.id, svg: await board.publishSvg(drawing.data) });
     } catch (err) {
       // said as scrap's own refusals are (publicapi.ts whyNot), not as "offline"
       const why = err instanceof Error ? err.message : String(err);

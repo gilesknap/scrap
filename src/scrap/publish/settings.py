@@ -87,6 +87,7 @@ def page_url(slug: str) -> str | None:
 
 
 def static_dir() -> Path:
-    """The PWA build's public/ folder: page.css, katex.css and fonts/ (the assets
-    unit), from $SCRAP_WEB_DIR when set, as the PWA itself is served."""
+    """The PWA build's public/ folder: page.css, katex.css, prefs.js, the icons and
+    fonts/ (the assets unit), from $SCRAP_WEB_DIR when set, as the PWA itself is
+    served."""
     return Path(os.environ.get("SCRAP_WEB_DIR") or STATIC) / "public"

@@ -104,6 +104,13 @@ echo '.katex{}' >"$work/assets/katex.css"
 echo 'body{}' >"$work/assets/page.css"
 echo 'ttf' >"$work/assets/fonts/KaTeX_Main.ttf"
 echo 'document.documentElement.dataset.theme = "dark"' >"$work/assets/prefs.js"
+echo '<svg xmlns="http://www.w3.org/2000/svg"><title>scrap</title></svg>' >"$work/assets/icon.svg"
+printf '\211PNG\r\n\032\n' >"$work/assets/icon-192.png"
+mkdir -p "$work/assets4" "$work/bad3"
+cp "$work/assets/page.css" "$work/assets/icon.svg" "$work/assets4/"
+echo 'x' >"$work/assets4/other.svg"
+echo '<p>x</p>' >"$work/bad3/index.html"
+cp "$work/assets/icon-192.png" "$work/bad3/icon-192.png"
 mkdir -p "$work/assets2" "$work/assets3"
 cp "$work/assets/page.css" "$work/assets2/page.css"
 echo 'alert(1)' >"$work/assets2/other.js"
@@ -129,7 +136,9 @@ check "PUT pagefind" [ "$(put pagefind "$work/pagefind")" = 200 ]
 check "an assets unit holding another script is refused" [ "$(put assets "$work/assets2")" = 422 ]
 check "prefs.js only at the top of assets" [ "$(put assets "$work/assets3")" = 422 ]
 check "a page holding prefs.js is refused" [ "$(put p/bad "$work/bad2")" = 422 ]
-check "PUT assets, with prefs.js" [ "$(put assets "$work/assets")" = 200 ]
+check "assets holds no SVG but the icon" [ "$(put assets "$work/assets4")" = 422 ]
+check "a page holding the icon is refused" [ "$(put p/bad "$work/bad3")" = 422 ]
+check "PUT assets, with prefs.js and the icons" [ "$(put assets "$work/assets")" = 200 ]
 check "a page holding a script is refused" [ "$(put p/bad "$work/bad")" = 422 ]
 # The image's own Python enforces the tar limits (its tarfile has the hooks): a
 # pax header block over 64 KiB is refused, as is a GNU-format tar
@@ -167,6 +176,14 @@ check "/assets/prefs.js is served" \
     sh -c "curl -fsS '$web/assets/prefs.js' | grep -q dataset.theme"
 check "/assets/prefs.js is a script" \
     [ "$(header "$web/assets/prefs.js" content-type)" = "text/javascript; charset=utf-8" ]
+check "/assets/icon.svg is served" sh -c "curl -fsS '$web/assets/icon.svg' | grep -q '<title>scrap'"
+check "/assets/icon.svg is exactly image/svg+xml" \
+    [ "$(header "$web/assets/icon.svg" content-type)" = image/svg+xml ]
+check "/assets/icon-192.png is served as image/png" \
+    [ "$(header "$web/assets/icon-192.png" content-type)" = image/png ]
+check "/favicon.ico is a 302" [ "$(status "$web/favicon.ico")" = 302 ]
+check "/favicon.ico goes to the icon, a relative address" \
+    [ "$(header "$web/favicon.ico" location)" = /assets/icon.svg ]
 check "a missing page is 404" [ "$(status "$web/p/nope")" = 404 ]
 check "a 404 shows home/404.html" [ "$(curl -sS "$web/p/nope")" = '<p>not here</p>' ]
 check "HEAD works" [ "$(status -I "$web/p/a-page")" = 200 ]
@@ -194,6 +211,10 @@ check "another attachment is sandboxed and loads nothing" \
     [ "$(header "$web/p/a-page/file-2-0123456789.md" content-security-policy)" = "$strict" ]
 check "an image is sandboxed and loads nothing" \
     [ "$(header "$web/p/a-page/img-1-0123456789.svg" content-security-policy)" = "$strict" ]
+check "the icon is sandboxed and loads nothing" \
+    [ "$(header "$web/assets/icon.svg" content-security-policy)" = "$strict" ]
+check "an SVG image is exactly image/svg+xml, no charset (excalidraw.com, #526)" \
+    [ "$(header "$web/p/a-page/img-1-0123456789.svg" content-type)" = image/svg+xml ]
 check "an SVG image may be read by excalidraw.com (Open in Excalidraw)" \
     [ "$(header "$web/p/a-page/img-1-0123456789.svg" access-control-allow-origin)" = https://excalidraw.com ]
 for path in /p/a-page /p/a-page/file-1-0123456789.pdf /assets/prefs.js / /p/nope/img-1-0123456789.svg; do

@@ -32,8 +32,18 @@ CSP = (
         " font-src data:",
         0,
     ),
+    (
+        r"^/assets/[^/]*\.svg$",
+        "sandbox; default-src 'none'; style-src 'unsafe-inline'; img-src data:;"
+        " font-src data:",
+        re.IGNORECASE,
+    ),
     (r"^/[pt]/", PAGE_CSP, 0),
 )
+# nginx's charset_types (and text/html, always): these get "; charset=utf-8", nothing
+# else does. Not image/svg+xml: excalidraw.com reads an SVG only as exactly that (#526)
+CHARSET = ("text/html", "text/css", "text/javascript", "text/plain", "text/markdown",
+           "text/csv", "application/json")  # fmt: skip
 # nginx's Access-Control-Allow-Origin: a page's SVG images, for Open in Excalidraw
 CORS = re.compile(r"^/p/[a-z0-9-]+/img-[^/]*\.svg$")
 TYPES = {".wasm": "application/wasm", ".md": "text/markdown", ".mjs": "text/javascript"}
@@ -59,6 +69,8 @@ class Site(BaseHTTPRequestHandler):
         path = self.path.split("?", 1)[0]
         if path == "/robots.txt":
             return self.send(200, b"User-agent: *\nDisallow: /\n", "text/plain")
+        if path == "/favicon.ico":  # the site's icon (#527), a relative Location
+            return self.send(302, b"", "text/html", location="/assets/icon.svg")
         file = where(path)
         if file is None or not file.is_file():
             missing = WWW / "home" / "404.html"
@@ -70,12 +82,14 @@ class Site(BaseHTTPRequestHandler):
     def do_HEAD(self) -> None:
         self.do_GET()
 
-    def send(self, status: int, body: bytes, kind: str) -> None:
+    def send(self, status: int, body: bytes, kind: str, location: str = "") -> None:
         path = self.path.split("?", 1)[0]
         csp = next((c for p, c, f in CSP if re.search(p, path, f)), HOME_CSP)
-        if kind.startswith("text/"):
+        if kind in CHARSET:
             kind += "; charset=utf-8"
         self.send_response(status)
+        if location:
+            self.send_header("Location", location)
         self.send_header("Content-Type", kind)
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Content-Security-Policy", csp)

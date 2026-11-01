@@ -61,8 +61,11 @@ http {
     }
     # Pagefind's index files (pagefind, pf_*) and bin
     default_type application/octet-stream;
+    # Not image/svg+xml: an SVG is XML (UTF-8 unless it says otherwise), and
+    # excalidraw.com opens a drawing's SVG only as exactly "image/svg+xml" (#526:
+    # its loadFromBlob compares the Blob's type whole, so a charset makes it JSON)
     charset utf-8;
-    charset_types text/css text/javascript text/plain text/markdown text/csv application/json image/svg+xml;
+    charset_types text/css text/javascript text/plain text/markdown text/csv application/json;
 
     # The CSP, by path (docs/reference/public-site.md). A page's images and
     # attachments follow ADR 42's rule for stored files: sandboxed and loading
@@ -71,9 +74,11 @@ http {
     # KaTeX's inline style attributes only) and run only the site's own scripts
     # ('self'): the one a page may name is /assets/prefs.js, the theme and column
     # width (#519; scrap's check refuses any other). Home also runs Pagefind's.
+    # The site's icon (/assets/icon.svg, #527) is an SVG as a page's images are.
     map $uri $scrap_csp {
         "~*^/p/[a-z0-9-]+/file-[^/]*\.pdf$" "sandbox";
         "~^/p/[a-z0-9-]+/(img|file)-" "sandbox; default-src 'none'; style-src 'unsafe-inline'; img-src data:; font-src data:";
+        "~*^/assets/[^/]*\.svg$" "sandbox; default-src 'none'; style-src 'unsafe-inline'; img-src data:; font-src data:";
         "~^/[pt]/" "default-src 'none'; img-src 'self' data:; style-src 'self'; style-src-attr 'unsafe-inline'; font-src 'self'; script-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'";
         default "default-src 'none'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; font-src 'self'; script-src 'self' 'wasm-unsafe-eval'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'";
     }
@@ -126,6 +131,13 @@ http {
         }
         location = /tags {
             try_files /home/tags.html =404;
+        }
+        # What a browser asks for on its own where a page names no icon (an image or
+        # a PDF opened alone): the site's, scrap's icon (#527). A relative Location,
+        # so it holds behind the TLS proxy
+        location = /favicon.ico {
+            absolute_redirect off;
+            return 302 /assets/icon.svg;
         }
 
         # A page or a tag page: /p/<slug> and /t/<key>, with or without the slash

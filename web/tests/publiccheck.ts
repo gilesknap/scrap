@@ -8,6 +8,17 @@ export const CSP =
 const PAIR = /^pair-[0-9]{1,3}(-photo|-drawing)?$/;
 const DRAWING = /^scrap-drawing:[1-9][0-9]{0,17}$/;
 const EXCALIDRAW = /^scrap-excalidraw:[1-9][0-9]{0,17}$/;
+const ICON_LINKS = [
+  [
+    ["href", "/assets/icon.svg"],
+    ["rel", "icon"],
+    ["type", "image/svg+xml"],
+  ],
+  [
+    ["href", "/assets/icon-192.png"],
+    ["rel", "apple-touch-icon"],
+  ],
+].map((a) => JSON.stringify(a));
 
 const KEPT = new Set(
   "a abbr article aside b blockquote br caption code dd del details div dl dt em figcaption figure h1 h2 h3 h4 h5 h6 hr i img ins kbd li mark ol p pre q s section small span strong sub summary sup table tbody td tfoot th thead time tr u ul input label".split(
@@ -74,6 +85,7 @@ export function check(html: string, live: ReadonlySet<string>, own: readonly str
   for (const n of [doc, head, body])
     for (const [k] of n.attrs) if (!["lang", "dir"].includes(k)) bad.push(`${name(n)}@${k}`);
   let csp = false;
+  const icons = new Set<string>();
   for (const n of kids(head)) {
     const a = (k: string) => n.getAttribute?.(k) ?? null;
     if (name(n) === "meta" && n.attrs.length === 1 && a("charset")?.toLowerCase() === "utf-8")
@@ -103,6 +115,13 @@ export function check(html: string, live: ReadonlySet<string>, own: readonly str
       /^\/assets\/(page|katex)\.css$/.test(href)
     )
       continue;
+    // the site's two icons (#527), exactly so
+    const attrs = JSON.stringify([...n.attrs].sort());
+    if (name(n) === "link" && ICON_LINKS.includes(attrs)) {
+      if (icons.has(attrs)) bad.push("in head: an icon link twice");
+      icons.add(attrs);
+      continue;
+    }
     bad.push(`in head: <${name(n)}>`);
   }
   if (!csp) bad.push("no CSP");

@@ -49,8 +49,8 @@ vi.mock("../src/drawing", () => ({
   loadBoard: async () => {
     boards.push("loaded");
     return {
-      publishSvg: async (data: { elements: unknown[] }, photo: string) =>
-        `<svg data-n="${data.elements.length}">${photo}</svg>`,
+      publishSvg: async (...args: [{ elements: unknown[] }, ...unknown[]]) =>
+        `<svg data-n="${args[0].elements.length}" data-args="${args.length}"></svg>`,
     };
   },
 }));
@@ -137,10 +137,6 @@ beforeEach(() => {
       const text = /^\/api\/captures\/c2\/files\/([0-9a-f]+)\/text$/.exec(u.pathname);
       if (text && text[1] === "dd") return reply(404, { detail: "gone" });
       if (text) return reply(200, { text: text[1] === "cd" ? "Long text" : null, truncated: true });
-      if (u.pathname.endsWith("/preview"))
-        return new Response(new Uint8Array([1, 2, 3]), {
-          headers: { "Content-Type": "image/jpeg" },
-        });
       if (u.pathname === "/api/public") {
         const to = u.searchParams.get("links_to");
         const list = [...store.values()]
@@ -218,7 +214,7 @@ describe("a page with a PDF's reading (#521)", () => {
 });
 
 describe("a page with drawings (#520)", () => {
-  it("draws each with its photo, and sends them with the page; Excalidraw only then", async () => {
+  it("draws each without its photo (#524), and sends them with the page; Excalidraw only then", async () => {
     add("a");
     const v = view("a");
     (v.root as unknown as { drawings: unknown[] }).drawings = [{ id: "7", cid: "c1", sha: "ab" }];
@@ -226,9 +222,10 @@ describe("a page with drawings (#520)", () => {
     const put = calls.find((c) => c.method === "PUT");
     expect(put?.body?.html).toBe('<!DOCTYPE html>A "scrap-drawing:7"');
     expect(put?.body?.drawings).toEqual([
-      { key: "7", svg: '<svg data-n="2">data:image/jpeg;base64,AQID</svg>' },
+      { key: "7", svg: '<svg data-n="2" data-args="1"></svg>' },
     ]);
-    expect(calls.map((c) => c.url)).toContain("/api/blobs/ab/preview?size=2048");
+    // the drawing replaces the photo, as in the app: its preview is not fetched for it
+    expect(calls.some((c) => c.url.includes("/api/blobs/"))).toBe(false);
     expect(boards).toEqual(["loaded"]);
   });
 

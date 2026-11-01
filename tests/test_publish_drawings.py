@@ -1,11 +1,10 @@
 """A page's drawings published (#520; docs/reference/public-site.md, "Drawings"): the
-PWA's SVG, with Excalidraw's scene in it, cleaned by scrap (the photo in it its
-preview, no original bytes or EXIF, private addresses and links gone, a foreign image
-dropped), re-embedded, and published as an img-*.svg beside the page, with Open in
-Excalidraw and Download links."""
+PWA's SVG, with Excalidraw's scene in it, cleaned by scrap (no image at all: the
+drawing replaces its photo, #524; private addresses and links gone), re-embedded, and
+published as an img-*.svg beside the page, with Open in Excalidraw and Download
+links."""
 
 import base64
-import hashlib
 import io
 import re
 from urllib.parse import quote, unquote
@@ -128,7 +127,8 @@ def svg_scene(svg: str) -> dict:
 def test_a_drawing_is_published_clean(client, site):
     original = photo()
     p, key, sha = made(client, original)
-    foreign = photo((0, 0, 255), (50, 50))  # on no page: dropped
+    # the page's photo under it (as 1.3.1's PWA drew it), and another: both go (#524)
+    foreign = photo((0, 0, 255), (50, 50))
     elements = [
         {"id": "img", "type": "image", "fileId": "orig", "x": 0, "y": 0},
         {"id": "img2", "type": "image", "fileId": "theirs", "x": 0, "y": 0},
@@ -162,25 +162,18 @@ def test_a_drawing_is_published_clean(client, site):
     assert set(got) == {"type", "version", "source", "elements", "appState", "files"}
     assert got["source"] == "scrap"
     assert got["appState"] == {"viewBackgroundColor": "#ffffff", "gridSize": 20}
-    (fid,) = got["files"]
-    embedded = base64.b64decode(got["files"][fid]["dataURL"].split(",", 1)[1])
-    assert embedded != original and b"EOS secret" not in embedded
-    assert not Image.open(io.BytesIO(embedded)).getexif()
+    assert got["files"] == {}  # no photo: the drawing replaces it, as in the app
     preview = client.get(f"/api/blobs/{sha}/preview?size=2048").content
-    assert embedded == preview  # the page's 2048-pixel preview
-    assert fid == hashlib.sha1(data_url(preview).encode()).hexdigest()  # noqa: S324
+    assert base64.b64encode(preview)[:200].decode() not in text
     by_id = {e["id"]: e for e in got["elements"]}
-    assert set(by_id) == {"img", "t", "l", "w"}  # theirs and the deleted one gone
-    assert by_id["img"]["fileId"] == fid
+    assert set(by_id) == {"t", "l", "w"}  # the images and the deleted one gone
     assert by_id["t"]["text"] == "see a private link or a private link"
     assert by_id["t"]["originalText"] == "a private link"
     assert by_id["t"]["link"] is None and "customData" not in by_id["t"]
     assert by_id["l"]["link"] is None  # a private page
     assert by_id["w"]["link"] == "https://example.com/ok"
-    # what is drawn: the photo's preview only, under the new id; the text scrubbed
-    images = re.findall(r'href="data:image/jpeg;base64,([^"]*)"', text)
-    assert [base64.b64decode(i) for i in images] == [preview]
-    assert f'id="image-{fid}"' in text and f'href="#image-{fid}"' in text
+    # what is drawn: no image, no image symbol or use of one; the text scrubbed
+    assert "<image" not in text and "image-" not in text and "data:image" not in text
     assert "<text" in text and "see a private link</text>" in text
     # the page: the drawing's img, its download, and Open in Excalidraw
     index = (unit / "index.html").read_text()
@@ -225,10 +218,6 @@ def test_a_drawing_counts_toward_the_caps(client, monkeypatch):
     monkeypatch.setattr(publish_files, "MAX_FILES", 1)  # the photo, then the drawing
     r = publish(client, p, pair(sha, key), [{"key": key, "svg": svg}])
     assert (r.status_code, r.json()["error"]) == (422, "too_many_files")
-
-
-def no_photos(data: bytes) -> bytes | None:
-    return None
 
 
 def keep(text: str) -> str:
@@ -280,17 +269,17 @@ def b64(data: bytes) -> str:
 )  # fmt: skip
 def test_a_malformed_scene_is_refused(svg: str, why: str) -> None:
     with pytest.raises(CheckError) as refused:
-        clean_drawing(svg, no_photos, keep, lambda _: None)
+        clean_drawing(svg, keep, lambda _: None)
     assert refused.value.code == "bad_drawing" and why in refused.value.detail
 
 
 def test_a_scene_that_is_not_one_is_refused() -> None:
-    clean_drawing(drawn([], {}, []), no_photos, keep, lambda _: None)  # a real one
+    clean_drawing(drawn([], {}, []), keep, lambda _: None)  # a real one
     for bad in ({"type": "other", "elements": []}, {"type": "excalidraw"}):
         mark = scene.metadata(scene.encode(bad))
         text = f'<svg xmlns="http://www.w3.org/2000/svg">{mark}</svg>'
         with pytest.raises(CheckError):
-            clean_drawing(text, no_photos, keep, lambda _: None)
+            clean_drawing(text, keep, lambda _: None)
 
 
 def test_its_words_may_name_the_markers() -> None:
@@ -298,7 +287,7 @@ def test_its_words_may_name_the_markers() -> None:
     said = "payload-type: and payload-start"
     text = drawn([{"id": "t", "type": "text", "text": said}],
                  {}, [], "<!-- payload-start --> payload-version:2")  # fmt: skip
-    out = clean_drawing(text, no_photos, keep, lambda _: None).decode()
+    out = clean_drawing(text, keep, lambda _: None).decode()
     assert svg_scene(out)["elements"][0]["text"] == said
     assert "payload-version:2</text>" in out
 
@@ -321,7 +310,7 @@ def test_nothing_private_survives_in_attributes_keys_fonts_or_dropped_ids(
     text = drawn(elements, files, [photo_bytes]).replace(
         "<text ", f'<text aria-label="{OWN}/p/secret" data-x="/api/blobs/abc" '
     )
-    out = clean_drawing(text, no_photos, scrub_text, lambda _: None).decode()
+    out = clean_drawing(text, scrub_text, lambda _: None).decode()
     assert "scrap.example.org" not in out and "/api/" not in out
     assert sha not in out and b64(photo_bytes)[:200] not in out
     got = svg_scene(out)
@@ -334,7 +323,7 @@ def test_nothing_private_survives_in_attributes_keys_fonts_or_dropped_ids(
         'class="style-fonts">', f'class="style-fonts">{jpeg}'
     )
     with pytest.raises(CheckError, match="font"):
-        clean_drawing(bad, no_photos, keep, lambda _: None)
+        clean_drawing(bad, keep, lambda _: None)
 
 
 def woff2(body: bytes) -> bytes:
@@ -366,54 +355,54 @@ def test_a_style_holds_only_fonts_and_nothing_of_scraps(css, monkeypatch) -> Non
     fake = b64(b"wOF2" + b"\0" * 4 + (12).to_bytes(4, "big") + jpeg)
     text = styled(css.format(jpeg=b64(jpeg), fake=fake, own=OWN))
     with pytest.raises(CheckError):
-        clean_drawing(text, no_photos, scrub_text, lambda _: None)
+        clean_drawing(text, scrub_text, lambda _: None)
 
 
 def test_a_real_font_passes() -> None:
     font = b64(woff2(b"glyphs"))
     out = clean_drawing(
         styled(f"@font-face{{font-family:Excalifont;src:url(data:font/woff2;base64,{font})}}"),
-        no_photos, keep, lambda _: None,
+        keep, lambda _: None,
     ).decode()  # fmt: skip
     assert font in out
     # an image's data in a style: the sanitiser drops the url() whole
     jpeg = b64(photo())
     out = clean_drawing(
         styled(f"@font-face{{src:url(data:image/jpeg;base64,{jpeg})}}"),
-        no_photos, keep, lambda _: None,
+        keep, lambda _: None,
     ).decode()  # fmt: skip
     assert jpeg[:200] not in out
 
 
-def test_fragments_ids_and_odd_file_ids(monkeypatch) -> None:
+def test_fragments_and_every_image_go(monkeypatch) -> None:
     monkeypatch.setenv("SCRAP_PUBLIC_URL", OWN)
-    kept, other = photo(), photo((0, 0, 255), (40, 40))
+    one, other = photo(), photo((0, 0, 255), (40, 40))
     files = {
-        "photo": {"id": "photo", "mimeType": "image/jpeg", "dataURL": data_url(kept)},
-        "photoX": {
-            "id": "photoX",
-            "mimeType": "image/jpeg",
-            "dataURL": data_url(other),
-        },
-    }
+        "photo": {"id": "photo", "mimeType": "image/jpeg", "dataURL": data_url(one)},
+        "photoX": {"id": "photoX", "mimeType": "image/jpeg",
+                   "dataURL": data_url(other)},
+    }  # fmt: skip
     elements = [
         {"id": "a", "type": "image", "fileId": "photo"},
         {"id": "b", "type": "image", "fileId": "photoX"},
-        {"id": "c", "type": "image", "fileId": ["photo"]},  # not a string: dropped
+        {"id": "c", "type": "image", "fileId": ["photo"]},  # not a string
+        {"id": "r", "type": "rectangle", "fileId": "photo", "status": "saved"},
     ]
-    text = drawn(elements, files, [kept, other]).replace(
-        "<g>", f'<g><a href="#{OWN}/api/blobs/abc"><path d="M0 0"></path></a>'
+    text = drawn(elements, files, [one, other]).replace(
+        "<g>",
+        f'<g><a href="#{OWN}/api/blobs/abc"><path d="M0 0"></path></a>'
+        f'<image href="{data_url(one)}"></image>'
+        f'<filter id="f"><feImage href="{data_url(other)}"></feImage></filter>'
+        '<pattern id="image-crop-photo-1x"></pattern>',
     )
-    out = clean_drawing(
-        text, lambda b: b"\xff\xd8kept" if b == kept else None, scrub_text,
-        lambda _: None,
-    ).decode()  # fmt: skip
+    out = clean_drawing(text, scrub_text, lambda _: None).decode()
     assert "scrap.example.org" not in out and "/api/" not in out
-    assert "photoX" not in out and "image-photo" not in out
+    assert "photo" not in out and "image" not in out.replace("image/svg", "")
+    assert b64(one)[:200] not in out and b64(other)[:200] not in out
     got = svg_scene(out)
-    assert [e["id"] for e in got["elements"]] == ["a"]
-    (fid,) = got["files"]
-    assert out.count(f"image-{fid}") == 2  # its symbol, and the use of it
+    # only the rectangle, without an image's fields
+    assert got["elements"] == [{"id": "r", "type": "rectangle", "link": None}]
+    assert got["files"] == {}
 
 
 def test_a_deep_scene_is_refused_not_a_500() -> None:
@@ -423,7 +412,7 @@ def test_a_deep_scene_is_refused_not_a_500() -> None:
         at.append({"x": []})
         at = at[0]["x"]
     with pytest.raises(CheckError, match="deeply"):
-        clean_drawing(drawn([deep], {}, []), no_photos, keep, lambda _: None)
+        clean_drawing(drawn([deep], {}, []), keep, lambda _: None)
 
 
 def test_a_zip_bomb_is_refused(monkeypatch) -> None:
@@ -431,7 +420,7 @@ def test_a_zip_bomb_is_refused(monkeypatch) -> None:
     big = {"type": "excalidraw", "elements": [{"id": "x" * 5000}]}
     text = f'<svg xmlns="http://www.w3.org/2000/svg">{scene.metadata(scene.encode(big))}</svg>'
     with pytest.raises(CheckError, match="over"):
-        clean_drawing(text, no_photos, keep, lambda _: None)
+        clean_drawing(text, keep, lambda _: None)
 
 
 def test_the_payload_reads_as_excalidraw_writes_it() -> None:

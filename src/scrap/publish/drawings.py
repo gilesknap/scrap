@@ -5,39 +5,35 @@ it: for each one it
 
 1. takes the one Excalidraw scene in it (scene.payload: the root's one <metadata>,
    holding Excalidraw's marker comments; no CDATA anywhere), decodes it and cleans it
-   (scene.clean): the page's photo in it becomes its 2048-pixel preview, an image
-   that is not one of the page's photos goes, its text and links follow the page
-   text's rules;
+   (scene.clean): no image in it, its text and links by the page text's rules;
 2. runs the SVG through scrap's sanitiser (svg.sanitise), which drops the old scene
-   with the <metadata> it is in, then gives what is drawn the same treatment: each
-   <image> the preview of the photo it is (or gone), the symbols of a dropped image
-   gone, each text and attribute value scrubbed, and an inlined font only a font;
+   with the <metadata> it is in, then gives what is drawn the same treatment: no
+   <image> and no image symbol, each text and attribute value scrubbed, and an
+   inlined font only a font;
 3. puts the cleaned scene back where Excalidraw puts it, so the published SVG is
    both the picture and a drawing excalidraw.com opens.
 
-Photos are matched by content, never by a name the upload gives: an image is one of
-the page's photos if its bytes are the photo as stored or that photo's 2048-pixel
-preview (Photos)."""
+A drawing replaces its photo, as the app's Drawing tab shows it (#524): the PWA sends
+it without the photo, and any image an upload has (the photo under it, as 1.3.1's
+PWA drew it, or any other) goes, from the picture and the scene."""
 
 import base64
 import binascii
-import hashlib
 import re
 import xml.etree.ElementTree as ET
 from collections.abc import Callable
 
 from .. import svg
-from ..preview import BusyError, preview, raster
-from ..store import InvalidError, NotFoundError, Store, TooLargeError
+from ..store import InvalidError, TooLargeError
 from . import scene
 from .checker import DRAWING_PREFIX, Checked
-from .errors import Busy, CheckError
+from .errors import CheckError
 from .links import classify, scrub_text
 
-__all__ = ["MAX_DRAWING", "Photos", "clean_drawing", "page_drawings"]
+__all__ = ["MAX_DRAWING", "clean_drawing", "page_drawings"]
 
-MAX_DRAWING = 20 * 2**20  # an uploaded drawing's SVG, its photo in it twice
-PREVIEW = 2048
+# An uploaded drawing's SVG (an older PWA's had its photo in it twice, which goes)
+MAX_DRAWING = 20 * 2**20
 IMAGES = ("image", "feImage")
 # A font Excalidraw inlines in the SVG's <style>: url(data:font/woff2;base64,...), as
 # svg.KEPT keeps it (with any parameters); any other data: in a <style> is refused
@@ -49,69 +45,18 @@ FONT_DATA = re.compile(
 FONT_MAGIC = (b"wOF2", b"wOFF")  # WOFF2 and WOFF: their header says their length
 
 
-class Photos:
-    """What an embedded image is on this page: the bytes of its photo's 2048-pixel
-    preview if it is one of the page's photos (stored, or that preview), else None.
-    Previews are made once per publish, and only as far as a match needs."""
-
-    def __init__(self, store: Store, on_page: set[str]) -> None:
-        self.store = store
-        self.shas: list[str] = []
-        for sha in sorted(on_page):
-            try:
-                _, mime = store.blob(sha)
-            except NotFoundError:
-                continue
-            if raster(mime):
-                self.shas.append(sha)
-        self.previews: dict[str, bytes] = {}  # by the photo's sha
-        self.by_preview: dict[str, str] = {}  # a preview's sha256: its photo's sha
-
-    def _preview(self, sha: str) -> bytes:
-        if sha not in self.previews:
-            try:
-                made = preview(self.store, sha, PREVIEW).read_bytes()
-            except BusyError:
-                raise Busy() from None
-            except InvalidError:
-                made = b""
-            self.previews[sha] = made
-            if made:
-                self.by_preview[hashlib.sha256(made).hexdigest()] = sha
-        return self.previews[sha]
-
-    def __call__(self, data: bytes) -> bytes | None:
-        digest = hashlib.sha256(data).hexdigest()
-        if digest in self.shas:  # the photo as stored: never published
-            return self._preview(digest) or None
-        if digest in self.by_preview:
-            return self.previews[self.by_preview[digest]]
-        for sha in self.shas:
-            if sha not in self.previews and self._preview(sha) == data:
-                return data
-        return None
-
-
 def _refuse(why: str) -> CheckError:
     return CheckError(f"Not published: a drawing {why}.", "bad_drawing")
 
 
-def _image_names(el: ET.Element) -> list[str]:
-    """The Excalidraw image symbol names an element has or points to (its id, or a
-    #fragment href starting image-)."""
-    out = []
-    for key in ("id", "href"):
-        value = (el.get(key) or "").removeprefix("#")
-        if value.startswith("image-"):
-            out.append(value)
-    return out
-
-
-def _named(name: str, file_id: str) -> bool:
-    """Whether a symbol name is Excalidraw's for this file id, exactly: image-<id>,
-    or image-crop-<id>-<hash>."""
-    return name == f"image-{file_id}" or bool(
-        re.fullmatch(rf"image-crop-{re.escape(file_id)}-[0-9a-z]+", name)
+def _an_image(el: ET.Element) -> bool:
+    """Whether an element is an image, or Excalidraw's symbol of one or a use of it
+    (an id, or a #fragment href, starting image-)."""
+    if el.tag.rpartition("}")[2] in IMAGES:
+        return True
+    return any(
+        (el.get(key) or "").removeprefix("#").startswith("image-")
+        for key in ("id", "href")
     )
 
 
@@ -136,66 +81,29 @@ def _fonts(css: str, scrub: Callable[[str], str]) -> None:
         raise _refuse("has an address of scrap's in its style")
 
 
-def _drawn(
-    root: ET.Element,
-    images: Callable[[bytes], bytes | None],
-    scrub: Callable[[str], str],
-    ids: dict[str, str],
-) -> None:
-    """The SVG's drawing cleaned as its scene was: each embedded image the preview
-    of its photo (or gone), each text and attribute value scrubbed, image symbols
-    renamed as the scene's files are, and those of a file dropped from it gone."""
-    kept = set(ids.values())
-
-    def rename(el: ET.Element) -> None:
-        for key in ("id", "href"):
-            value = el.get(key) or ""
-            hash_, name = ("#", value[1:]) if value.startswith("#") else ("", value)
-            for old, new in ids.items():
-                if name == f"image-{old}":
-                    el.set(key, f"{hash_}image-{new}")
-                elif _named(name, old):
-                    rest = name.removeprefix(f"image-crop-{old}")
-                    el.set(key, f"{hash_}image-crop-{new}{rest}")
-
-    rename(root)
+def _drawn(root: ET.Element, scrub: Callable[[str], str]) -> None:
+    """The SVG's drawing cleaned as its scene was: no image (nor its symbol, nor a
+    use of one), each text and attribute value scrubbed."""
     stack = [root]
     while stack:
         el = stack.pop()
         local = el.tag.rpartition("}")[2]
         for key, value in el.attrib.items():  # no address of scrap's in any value
-            if key != "href" or not value.startswith(("#image-", "data:")):
-                el.set(key, scene.words(value, scrub))
+            el.set(key, scene.words(value, scrub))
         if local == "style":
             _fonts(el.text or "", scrub)
         elif el.text:
             el.text = scene.words(el.text, scrub)
         for child in list(el):
             child.tail = scene.words(child.tail, scrub) if child.tail else child.tail
-            rename(child)
-            names = _image_names(child)
-            if any(not any(_named(n, k) for k in kept) for n in names):
-                el.remove(child)  # a file the scene no longer has: its name goes too
+            if _an_image(child):
+                el.remove(child)
                 continue
-            if child.tag.rpartition("}")[2] in IMAGES:
-                m = scene.DATA_URL.fullmatch(child.get("href") or "")
-                made = None
-                if m is not None:
-                    try:
-                        made = images(base64.b64decode(m[1], validate=True))
-                    except binascii.Error:
-                        made = None
-                if made is None:
-                    el.remove(child)
-                    continue
-                child.set("href", "data:image/jpeg;base64,"
-                          + base64.b64encode(made).decode("ascii"))  # fmt: skip
             stack.append(child)
 
 
 def clean_drawing(
     text: str,
-    images: Callable[[bytes], bytes | None],
     scrub: Callable[[str], str],
     link: Callable[[str], str | None],
 ) -> bytes:
@@ -212,10 +120,10 @@ def clean_drawing(
     try:
         marked = svg.parse(data, MAX_DRAWING, comments=True)
         found = scene.decode(scene.payload(marked))
-        cleaned, ids = scene.clean(found, images, scrub, link)
+        cleaned = scene.clean(found, scrub, link)
         safe = svg.sanitise(data, MAX_DRAWING)
         root = svg.parse(safe, svg.GROWTH * MAX_DRAWING)
-        _drawn(root, images, scrub, ids)
+        _drawn(root, scrub)
     except (InvalidError, TooLargeError) as e:
         raise _refuse(f"cannot be made safe ({e})") from None
     except RecursionError:
@@ -253,11 +161,9 @@ def _link(
 
 
 def page_drawings(
-    store: Store,
     checked: Checked,
     uploads: dict[str, str],
     ours: frozenset[str],
-    on_page: set[str],
     is_public: Callable[[str], bool],
     site: str | None,
 ) -> dict[str, bytes]:
@@ -291,8 +197,5 @@ def page_drawings(
                 " (SCRAP_PUBLISH_SITE).",
                 "bad_placeholder",
             )
-    if not keys:
-        return {}
-    photos = Photos(store, on_page)
     link = _link(site, is_public)
-    return {k: clean_drawing(uploads[k], photos, scrub_text, link) for k in keys}
+    return {k: clean_drawing(uploads[k], scrub_text, link) for k in keys}

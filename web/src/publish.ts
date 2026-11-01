@@ -38,6 +38,10 @@ const CSP =
 const PREFS = '<script src="/assets/prefs.js" defer blocking="render"></script>';
 /** The reading fold's label, as the app's (reading.ts READING). */
 const READING = "Claude's reading";
+/** The site's icons, scrap's own (#527): the tab's and the home screen's (scrap's check allows
+ * exactly these two links). */
+const ICONS =
+  '<link rel="icon" href="/assets/icon.svg" type="image/svg+xml">\n<link rel="apple-touch-icon" href="/assets/icon-192.png">';
 /** A bare link to a private page whose title is not known (it is not there any more). */
 const PRIVATE = "a private page";
 
@@ -395,6 +399,7 @@ export function publishHtml(root: N, ctx: Context, swaps: Swaps = new Map()): st
 <meta http-equiv="Content-Security-Policy" content="${CSP}">
 <title>${words(ctx.title)}</title>
 ${css}
+${ICONS}
 ${PREFS}
 </head>
 <body>${top}${body}${foot}</body></html>
