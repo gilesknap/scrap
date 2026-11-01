@@ -395,9 +395,9 @@ class MetaMixin(Core):
         cancelled), a todo's or a Later's, as the PWA's tick; due and priority, a
         todo's (checked as check_todo; kept in page_todo, not fields). public sets
         the public flag (ADR 43): to True only one page at a time (OneAtATimeError
-        for a batch or several pages, dry run too), to False any number. Turning it
-        off here only changes the flag: the caller unpublishes after the commit
-        (scrap.publish). Never the title or the text."""
+        for several pages, dry run too; a query's batch that finds one page is one),
+        to False any number. Turning it off here only changes the flag: the caller
+        unpublishes after the commit (scrap.publish). Never the title or the text."""
         put = self._field_puts(fields)
         # a todo's own values (due, priority): page_todo's, not fields
         todo_put = set(put) & set(TODO)
@@ -417,7 +417,7 @@ class MetaMixin(Core):
                 page = self._page_row(conn, key)
                 pages.setdefault(page["id"], page)
             several = batch or len(pages) > 1
-            if public and several:
+            if public and len(pages) > 1:  # a query that finds one page is one
                 raise OneAtATimeError(
                     "pages are made public one at a time (making them private works"
                     " in bulk)"

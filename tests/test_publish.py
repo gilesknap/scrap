@@ -280,6 +280,11 @@ def test_mcp_edit_meta_makes_one_page_public_at_a_time(client, app, note):
     assert mcp(app, "edit_meta", pages=[two["slug"]], public=True)["changed"] == 1
     out = mcp(app, "edit_meta", pages=[one["slug"], two["slug"]], public=False)
     assert out["changed"] == 2 and out["batch"]  # private works in bulk
+    # a query that finds exactly one page may make it public; one that finds two not
+    mcp(app, "edit_meta", pages=[one["slug"], two["slug"]], public=False)
+    assert mcp(app, "edit_meta", query="One", public=True)["changed"] == 1
+    assert mcp(app, "read", page=one["slug"])["page"]["public"] is True
+    mcp(app, "edit_meta", pages=[one["slug"]], public=False)
     # made public over MCP, never rendered: "not published yet" until the app does
     mcp(app, "edit_meta", pages=[one["slug"]], public=True)
     assert mcp(app, "read", page=one["slug"])["page"]["published_at"] is None

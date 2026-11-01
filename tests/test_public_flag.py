@@ -107,10 +107,13 @@ def test_public_is_one_page_at_a_time(store):
         with pytest.raises(OneAtATimeError):
             store.edit_meta([a, b], "me", "web", public=True, dry_run=dry)
     with pytest.raises(OneAtATimeError):
-        store.edit_meta([a], "me", "web", public=True, batch=True)  # a query's
+        store.edit_meta([a, b], "me", "web", public=True, batch=True)  # a query's
     assert flag(store, a) == 0
     store.edit_meta([a, a], "me", "web", public=True)  # one page, named twice
     assert flag(store, a) == 1
+    # a query that finds exactly one page makes it public: the matches count
+    out = store.edit_meta([b], "me", "web", public=True, batch=True)
+    assert flag(store, b) == 1 and out["batch"]
 
 
 def test_the_api_refuses_with_one_at_a_time(client, note):
