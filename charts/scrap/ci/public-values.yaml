@@ -1,0 +1,28 @@
+# Public pages on, with an Ingress and a narrowed web NetworkPolicy. test-chart.sh
+# renders this with the 53-character release name too.
+networkPolicy:
+  enabled: true
+  from:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: tailscale
+public:
+  enabled: true
+  site: https://pages.example.org
+  tokenSecret:
+    name: scrap-publish
+    key: token
+  ingress:
+    className: nginx
+    annotations:
+      cert-manager.io/cluster-issuer: letsencrypt
+    hosts:
+      - pages.example.org
+    tls:
+      - hosts: [pages.example.org]
+        secretName: pages-tls
+  networkPolicy:
+    webFrom:
+      - namespaceSelector:
+          matchLabels:
+            kubernetes.io/metadata.name: ingress-nginx

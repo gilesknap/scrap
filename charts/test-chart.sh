@@ -19,7 +19,10 @@ bad() {
 for values in "$chart"/ci/*-values.yaml; do
     name=$(basename "$values" -values.yaml)
     release=scrap
-    if [ "$name" = long-names ]; then release=a-release-name-of-fifty-three-characters-the-maximum; fi
+    # public's names gain suffixes, so it is rendered with the longest name too
+    if [ "$name" = long-names ] || [ "$name" = public ]; then
+        release=a-release-name-of-fifty-three-characters-the-maximum
+    fi
     if ! helm lint --strict --quiet "$chart" -f "$values" >"$out/lint" 2>&1; then
         cat "$out/lint"
         bad "$name: helm lint"
@@ -41,10 +44,11 @@ for values in "$chart"/ci/*-values.yaml; do
     # The chart never creates Secrets or ConfigMaps, and the key only ever
     # comes from a secretKeyRef.
     if grep -Eq '^kind: (Secret|ConfigMap)$' "$m"; then bad "$name: renders a Secret/ConfigMap"; fi
-    if grep -A1 -E 'name: (ANTHROPIC_API_KEY|SCRAP_NOTIFY_URL|SCRAP_MCP_TOKEN)$' "$m" | grep -Eq 'value:'; then
+    if grep -A1 -E 'name: (ANTHROPIC_API_KEY|SCRAP_NOTIFY_URL|SCRAP_MCP_TOKEN|SCRAP_PUBLISH_TOKEN|RECEIVER_TOKEN)$' "$m" | grep -Eq 'value:'; then
         bad "$name: a secret setting rendered as a plain value"
     fi
-    if ! { grep -q '^  replicas: 1$' "$m" && grep -q 'type: Recreate' "$m"; }; then
+    if [ "$(grep -c '^  replicas: 1$' "$m")" != "$(grep -c '^kind: Deployment$' "$m")" ] ||
+        [ "$(grep -c 'type: Recreate' "$m")" != "$(grep -c '^kind: Deployment$' "$m")" ]; then
         bad "$name: not one replica with Recreate"
     fi
     # Kubernetes name limits: a CronJob's name 52, other names and label values 63
@@ -77,6 +81,102 @@ expect_refused "gc.enabled=true with backups off" --set backup.enabled=false --s
 expect_refused "gc.trashDays=0" --set gc.trashDays=0
 expect_refused "gc.jobDays=0.5" --set gc.jobDays=0.5
 expect_refused "gc.trashDays over 36500" --set gc.trashDays=36501
+expect_refused "public.enabled without tokenSecret.name" --set public.enabled=true \
+    --set public.site=https://pages.example.org
+expect_refused "public.enabled without site" --set public.enabled=true \
+    --set public.tokenSecret.name=s
+expect_refused "a public token as a value" --set public.token=not-a-token
+expect_refused "a public site that is not a URL" --set public.site=pages.example.org
+expect_refused "an unknown public key" --set public.replicas=2
+
+# Public pages (issue 497). Off by default: nothing of it renders, and scrap gets no
+# SCRAP_PUBLISH_* settings.
+if helm template scrap "$chart" | grep -Eq 'scrap-public|SCRAP_PUBLISH_'; then
+    bad "public pages render while public.enabled is off"
+else ok "public pages are off by default"; fi
+pub="$out/public-checks.yaml"
+helm template scrap "$chart" -f "$chart/ci/public-values.yaml" >"$pub"
+# Each object as one line: kind, namespace, name, then its text joined with |
+awk 'function end_doc() { if (doc != "") print doc; doc = "" }
+    /^---/ { end_doc(); next } { doc = doc $0 "|" } END { end_doc() }' "$pub" >"$out/docs"
+ingresses=$(grep '|kind: Ingress|' "$out/docs" || true)
+if echo "$ingresses" | grep -Eq 'scrap-receiver|name: receiver|8081'; then
+    bad "an Ingress points at the receiver"
+elif echo "$ingresses" | grep 'namespace: scrap-public|' | grep -q '|                name: scrap-public|'; then
+    ok "the only public Ingress is nginx's"
+else bad "no Ingress for nginx"; fi
+# The public NetworkPolicy, exactly: the receiver's port (8081) only from scrap's
+# own pods in the release namespace, nginx's (8080) from webFrom (anyone when it
+# is empty), and no egress at all.
+np_spec() { # helm-args... -> the NetworkPolicy's spec
+    helm template scrap "$chart" --namespace scrap -s templates/public.yaml "$@" |
+        awk '/^---/ { np = 0 } /^kind: NetworkPolicy$/ { np = 1 } np && /^spec:$/ { on = 1 }
+            np && on { print }'
+}
+np_head='spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: scrap-public
+      app.kubernetes.io/instance: scrap
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: scrap
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: scrap
+              app.kubernetes.io/instance: scrap
+      ports:
+        - port: receiver
+    - ports:
+        - port: web'
+np_from='      from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx'
+if [ "$(np_spec -f "$chart/ci/public-values.yaml")" = "$np_head
+$np_from
+  egress: []" ] && [ "$(np_spec -f "$chart/ci/public-namespace-values.yaml")" = "$np_head
+  egress: []" ]; then
+    ok "the public NetworkPolicy: 8081 from scrap's pods only, 8080 from webFrom, no egress"
+else bad "the public NetworkPolicy is not exactly as it should be"; fi
+# ... and the named ports are those numbers
+pubdep=$(grep '|kind: Deployment|' "$out/docs" | grep 'namespace: scrap-public|' || true)
+if echo "$pubdep" | grep -q '|            - name: web|              containerPort: 8080|' &&
+    echo "$pubdep" | grep -q '|            - name: receiver|              containerPort: 8081|'; then
+    ok "the web port is 8080 and the receiver port 8081"
+else bad "the public ports are not web 8080 and receiver 8081"; fi
+recv=$(grep '|kind: Deployment|' "$out/docs" | grep 'namespace: scrap-public|' || true)
+# The token: a Secret volume mounted in the receiver alone, read as a file
+if ! echo "$recv" | grep -Eq 'secretKeyRef|name: RECEIVER_TOKEN\|' &&
+    echo "$recv" | grep -q 'name: RECEIVER_TOKEN_FILE|' &&
+    [ "$(echo "$recv" | grep -o 'secretName: scrap-publish|' | wc -l)" = 1 ] &&
+    [ "$(echo "$recv" | grep -o 'mountPath: /run/secrets/scrap-public|' | wc -l)" = 1 ] &&
+    [ "$(echo "$recv" | grep -o 'readOnlyRootFilesystem: true' | wc -l)" = 2 ]; then
+    ok "only the receiver mounts the token, as a file; both containers have read-only roots"
+else bad "the token is an env var or reaches nginx, or a public container's root is writable"; fi
+# By default the chart leaves the namespace (and the Secret in it) alone
+if grep -q '|kind: Namespace|' "$out/docs"; then
+    bad "public renders a Namespace without createNamespace"
+else ok "public.createNamespace is off by default"; fi
+if helm template scrap "$chart" -f "$chart/ci/public-values.yaml" --set public.createNamespace=true |
+    awk '/^---/{d=""} {d=d $0 "|"} /pod-security.kubernetes.io\/enforce: restricted/{print d}' |
+    grep -q 'kind: Namespace|'; then
+    ok "createNamespace makes a Pod Security restricted namespace"
+else bad "createNamespace does not make a restricted namespace"; fi
+scrap_dep=$(grep '|kind: Deployment|' "$out/docs" | grep 'namespace: scrap-public|' -v || true)
+if grep -A1 'name: SCRAP_PUBLISH_TO$' "$pub" | grep -q 'value: "http://scrap-receiver.scrap-public.svc:8081"' &&
+    grep -A1 'name: SCRAP_PUBLISH_SITE$' "$pub" | grep -q 'value: "https://pages.example.org"' &&
+    grep -A1 'name: SCRAP_PUBLISH_TOKEN_FILE$' "$pub" | grep -q 'value: /run/secrets/scrap-publish/token' &&
+    ! grep -q 'name: SCRAP_PUBLISH_TOKEN$' "$pub" &&
+    echo "$scrap_dep" | grep -q 'mountPath: /run/secrets/scrap-publish|' &&
+    echo "$scrap_dep" | grep -q 'secretName: scrap-publish|'; then
+    ok "scrap gets SCRAP_PUBLISH_TO, _SITE and the token as a mounted file"
+else bad "scrap lacks SCRAP_PUBLISH_TO or _SITE, or its token is not a mounted file"; fi
 # An upgrade with backups off (gc.enabled unset) renders, with no gc CronJob.
 if helm template scrap "$chart" --set backup.enabled=false | grep -q -- '-gc$'; then
     bad "backup off still renders a gc CronJob"
@@ -116,6 +216,7 @@ docs=$repo/docs/reference/api.md
 {
     helm template scrap "$chart" -f "$chart/ci/ingest-values.yaml"
     helm template scrap "$chart" -f "$chart/ci/mcp-auth-values.yaml"
+    helm template scrap "$chart" -f "$chart/ci/public-values.yaml"
 } |
     grep -oE 'name: (SCRAP|ANTHROPIC)_[A-Z_]+' | sed 's/name: //' | sort -u >"$out/env"
 while read -r var; do

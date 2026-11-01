@@ -34,7 +34,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - name: shellcheck deploy scripts
-        run: shellcheck deploy/*.sh deploy/check-env deploy/scrap-run deploy/scrap-backup deploy/scrap-gc
+        run: shellcheck deploy/*.sh deploy/check-env deploy/scrap-run deploy/scrap-backup deploy/scrap-gc scrap-public/*.sh
       - name: Run deploy shell tests
         run: |
           for t in deploy/test-*.sh; do
@@ -55,13 +55,38 @@ jobs:
       contents: read
       packages: write
 
+  # The public site's image (nginx and the upload receiver), built and published
+  # the same way, with its own checks (scrap-public/test-image.sh)
+  container-public:
+    uses: ./.github/workflows/_container.yml
+    with:
+      push-digests: ${{ github.ref_type == 'tag' }}
+      name: scrap-public
+      context: scrap-public
+      file: scrap-public/Dockerfile
+      test-script: scrap-public/test-image.sh
+    permissions:
+      contents: read
+      packages: write
+
   # On a tag, publish the image as <tag> and latest once the checks have passed.
   # This and the Chart workflow are all a deploy needs: docs and the GitHub
-  # Release can finish later
+  # Release can finish later. Both images or neither: each publish job also waits
+  # for the other image's build and checks.
   container-publish:
-    needs: [container, lint, test, deploy, web]
+    needs: [container, container-public, lint, test, deploy, web]
     if: github.ref_type == 'tag'
     uses: ./.github/workflows/_container_publish.yml
+    permissions:
+      contents: read
+      packages: write
+
+  container-public-publish:
+    needs: [container, container-public, lint, test, deploy, web]
+    if: github.ref_type == 'tag'
+    uses: ./.github/workflows/_container_publish.yml
+    with:
+      name: scrap-public
     permissions:
       contents: read
       packages: write

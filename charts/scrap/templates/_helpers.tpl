@@ -180,3 +180,55 @@ unset (null) whether backup.enabled, so a release with backups off still renders
 {{- if .Values.backup.enabled }}true{{ end -}}
 {{- else if .Values.gc.enabled }}true{{ end -}}
 {{- end }}
+
+{{/* Public pages (public.*): the names of its objects in public.namespace, each
+at most 63 characters, and its pods' labels. */}}
+{{- define "scrap.publicName" -}}
+{{- printf "%s-public" (include "scrap.fullname" . | trunc 56 | trimSuffix "-") }}
+{{- end }}
+
+{{- define "scrap.receiverName" -}}
+{{- printf "%s-receiver" (include "scrap.fullname" . | trunc 54 | trimSuffix "-") }}
+{{- end }}
+
+{{- define "scrap.publicSelectorLabels" -}}
+app.kubernetes.io/name: {{ printf "%s-public" (include "scrap.name" . | trunc 56 | trimSuffix "-") }}
+app.kubernetes.io/instance: {{ .Release.Name }}
+{{- end }}
+
+{{- define "scrap.publicLabels" -}}
+helm.sh/chart: {{ printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" }}
+{{ include "scrap.publicSelectorLabels" . }}
+app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
+app.kubernetes.io/managed-by: {{ .Release.Service }}
+{{- end }}
+
+{{- define "scrap.publicImage" -}}
+{{ .Values.public.image.repository }}:{{ .Values.public.image.tag | default .Chart.AppVersion }}
+{{- end }}
+
+{{/* The receiver's URL as scrap reaches it (SCRAP_PUBLISH_TO). */}}
+{{- define "scrap.publishTo" -}}
+{{- printf "http://%s.%s.svc:8081" (include "scrap.receiverName" .) .Values.public.namespace }}
+{{- end }}
+
+{{/* Fails unless public.enabled has what it needs; empty otherwise. */}}
+{{- define "scrap.publicChecks" -}}
+{{- if .Values.public.enabled }}
+{{- if not .Values.public.tokenSecret.name }}
+{{- fail "public.enabled needs public.tokenSecret.name: a Secret (in both namespaces) holding the upload token" }}
+{{- end }}
+{{- if not .Values.public.site }}
+{{- fail "public.enabled needs public.site: the site's public base URL, e.g. https://pages.example.org" }}
+{{- end }}
+{{- end }}
+{{- end }}
+
+{{- define "scrap.publicContainerSecurity" -}}
+allowPrivilegeEscalation: false
+readOnlyRootFilesystem: true
+runAsNonRoot: true
+capabilities:
+  drop:
+    - ALL
+{{- end }}

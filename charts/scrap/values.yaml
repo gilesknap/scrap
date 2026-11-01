@@ -216,6 +216,76 @@ networkPolicy:
   #     matchLabels:
   #       kubernetes.io/metadata.name: tailscale
 
+# Public pages (issue 497): a static site of the pages marked Public, served by
+# nginx from the scrap-public image, in a namespace of its own. Its upload receiver
+# is internal only: scrap pushes each public page to it with a bearer token. Only
+# nginx is on the Ingress; a NetworkPolicy lets only scrap's pod reach the receiver,
+# and nothing in the namespace may connect out. Off by default.
+public:
+  enabled: false
+  # The namespace the public side runs in. Create it first, labelled Pod Security
+  # "restricted", with the token Secret in it (docs/how-to/deploy-kubernetes.md).
+  namespace: scrap-public
+  # true: the chart creates the namespace, with those labels. Then helm uninstall
+  # (or an Argo CD prune) deletes the namespace and the Secret in it too.
+  createNamespace: false
+  image:
+    repository: ghcr.io/gilesknap/scrap-public
+    # Defaults to the chart's appVersion, as scrap's own image does.
+    tag: ""
+    pullPolicy: IfNotPresent
+  # The site's public base URL, e.g. https://pages.example.org (SCRAP_PUBLISH_SITE,
+  # which scrap's pages and links are made with). Required when enabled.
+  site: ""
+  # The upload token: name an existing Secret and the key holding it (at least 32
+  # characters). The receiver runs in public.namespace and scrap in the release
+  # namespace, and a pod reads only its own namespace's Secrets, so create the
+  # Secret, with the same name and key, in BOTH. The receiver reads it as a
+  # mounted file (RECEIVER_TOKEN_FILE), scrap too (SCRAP_PUBLISH_TOKEN_FILE). The chart
+  # never creates it. Required when enabled.
+  tokenSecret:
+    name: ""
+    key: token
+  # false (the default): X-Robots-Tag noindex and a robots.txt disallowing all.
+  indexing: false
+  # The Ingress for nginx (never the receiver). Ingress objects live in
+  # public.namespace, with the web Service.
+  ingress:
+    enabled: true
+    className: ""
+    annotations: {}
+    # Host names for the rules, e.g. [pages.example.org]; empty gives one rule
+    # without a host.
+    hosts: []
+    tls: []
+  networkPolicy:
+    # Who may reach nginx (NetworkPolicy peers, e.g. your ingress controller's
+    # namespace). Empty: anyone, since nginx serves only public files. The
+    # receiver is always open to scrap's pods alone, and egress is always denied.
+    webFrom: []
+    # - namespaceSelector:
+    #     matchLabels:
+    #       kubernetes.io/metadata.name: ingress-nginx
+  # The site volume, an emptyDir shared by nginx (read only) and the receiver. The
+  # receiver's quota is 2 GiB; leave room for one upload in staging (256 MiB). An
+  # emptyDir starts empty when the pod moves. Refilling it (scrap checking the
+  # receiver's manifest and pushing the site back) arrives with the scrap side of
+  # issue 497, which builds scrap's publisher.
+  sizeLimit: 3Gi
+  resources:
+    web:
+      requests:
+        cpu: 10m
+        memory: 32Mi
+      limits:
+        memory: 128Mi
+    receiver:
+      requests:
+        cpu: 10m
+        memory: 64Mi
+      limits:
+        memory: 256Mi
+
 serviceAccount:
   create: true
   name: ""

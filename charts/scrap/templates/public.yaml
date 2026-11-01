@@ -1,0 +1,241 @@
+{{- include "scrap.publicChecks" . }}
+{{- if .Values.public.enabled }}
+{{- $ns := .Values.public.namespace }}
+{{- if .Values.public.createNamespace }}
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ $ns }}
+  labels:
+    {{- include "scrap.publicLabels" . | nindent 4 }}
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
+---
+{{- end }}
+# nginx (web) and the upload receiver in one pod, sharing the site volume: nginx
+# mounts it read only. Only the receiver mounts the token, as a file.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "scrap.publicName" . }}
+  namespace: {{ $ns }}
+  labels:
+    {{- include "scrap.publicLabels" . | nindent 4 }}
+spec:
+  # One pod: the site lives in its emptyDir, and the receiver serialises writes.
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      {{- include "scrap.publicSelectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "scrap.publicSelectorLabels" . | nindent 8 }}
+    spec:
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: web
+          image: {{ include "scrap.publicImage" . }}
+          imagePullPolicy: {{ .Values.public.image.pullPolicy }}
+          args: ["web"]
+          env:
+            - name: INDEXING
+              value: {{ ternary "on" "off" .Values.public.indexing | quote }}
+          ports:
+            - name: web
+              containerPort: 8080
+          readinessProbe:
+            httpGet:
+              path: /robots.txt
+              port: web
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /robots.txt
+              port: web
+            periodSeconds: 30
+          securityContext:
+            {{- include "scrap.publicContainerSecurity" . | nindent 12 }}
+          resources:
+            {{- toYaml .Values.public.resources.web | nindent 12 }}
+          volumeMounts:
+            - name: site
+              mountPath: /site
+              readOnly: true
+            - name: web-tmp
+              mountPath: /tmp
+        - name: receiver
+          image: {{ include "scrap.publicImage" . }}
+          imagePullPolicy: {{ .Values.public.image.pullPolicy }}
+          args: ["receive"]
+          env:
+            - name: RECEIVER_LISTEN
+              value: "tcp:0.0.0.0:8081"
+            - name: RECEIVER_SITE
+              value: /site
+            # The token as a mounted file, never an environment variable
+            - name: RECEIVER_TOKEN_FILE
+              value: /run/secrets/scrap-public/token
+          ports:
+            - name: receiver
+              containerPort: 8081
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: receiver
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: receiver
+            periodSeconds: 30
+          securityContext:
+            {{- include "scrap.publicContainerSecurity" . | nindent 12 }}
+          resources:
+            {{- toYaml .Values.public.resources.receiver | nindent 12 }}
+          volumeMounts:
+            - name: site
+              mountPath: /site
+            - name: receiver-tmp
+              mountPath: /tmp
+            - name: token
+              mountPath: /run/secrets/scrap-public
+              readOnly: true
+      volumes:
+        - name: site
+          emptyDir:
+            sizeLimit: {{ .Values.public.sizeLimit }}
+        - name: web-tmp
+          emptyDir:
+            sizeLimit: 64Mi
+        - name: receiver-tmp
+          emptyDir:
+            sizeLimit: 64Mi
+        - name: token
+          secret:
+            secretName: {{ .Values.public.tokenSecret.name }}
+            defaultMode: 0440
+            items:
+              - key: {{ .Values.public.tokenSecret.key }}
+                path: token
+---
+# nginx: the only Service an Ingress points at
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "scrap.publicName" . }}
+  namespace: {{ $ns }}
+  labels:
+    {{- include "scrap.publicLabels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector:
+    {{- include "scrap.publicSelectorLabels" . | nindent 4 }}
+  ports:
+    - name: http
+      port: 80
+      targetPort: web
+---
+# The receiver: cluster-internal, and the NetworkPolicy admits only scrap's pods
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "scrap.receiverName" . }}
+  namespace: {{ $ns }}
+  labels:
+    {{- include "scrap.publicLabels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector:
+    {{- include "scrap.publicSelectorLabels" . | nindent 4 }}
+  ports:
+    - name: receiver
+      port: 8081
+      targetPort: receiver
+---
+# The receiver's port only from scrap's pods in the release namespace; nginx's
+# from public.networkPolicy.webFrom (empty: anyone); no egress at all.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "scrap.publicName" . }}
+  namespace: {{ $ns }}
+  labels:
+    {{- include "scrap.publicLabels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "scrap.publicSelectorLabels" . | nindent 6 }}
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .Release.Namespace }}
+          podSelector:
+            matchLabels:
+              {{- include "scrap.selectorLabels" . | nindent 14 }}
+      ports:
+        - port: receiver
+    - ports:
+        - port: web
+      {{- with .Values.public.networkPolicy.webFrom }}
+      from:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+  egress: []
+{{- if .Values.public.ingress.enabled }}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "scrap.publicName" . }}
+  namespace: {{ $ns }}
+  labels:
+    {{- include "scrap.publicLabels" . | nindent 4 }}
+  {{- with .Values.public.ingress.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- with .Values.public.ingress.className }}
+  ingressClassName: {{ . }}
+  {{- end }}
+  {{- with .Values.public.ingress.tls }}
+  tls:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  rules:
+    {{- range (.Values.public.ingress.hosts | default (list "")) }}
+    - {{- with . }}
+      host: {{ . | quote }}
+      {{- end }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "scrap.publicName" $ }}
+                port:
+                  name: http
+    {{- end }}
+{{- end }}
+{{- end }}

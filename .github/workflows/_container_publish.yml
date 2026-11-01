@@ -1,5 +1,10 @@
 on:
   workflow_call:
+    inputs:
+      name:
+        type: string
+        default: scrap
+        description: The image's name, as given to _container.yml
 
 jobs:
   # Tags the per-platform images _container.yml pushed by digest as one multi-arch
@@ -13,7 +18,7 @@ jobs:
         uses: actions/download-artifact@v8
         with:
           path: ${{ runner.temp }}/digests
-          pattern: image-digest-*
+          pattern: image-digest.${{ inputs.name }}.*
           merge-multiple: true
 
       - name: Set up Docker Buildx
@@ -30,7 +35,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v6
         with:
-          images: ghcr.io/${{ github.repository }}
+          images: ghcr.io/${{ github.repository_owner }}/${{ inputs.name }}
           tags: |
             type=ref,event=tag
             type=raw,value=latest,enable=${{ !contains(github.ref_name, '-') && !contains(github.ref_name, 'rc') && !contains(github.ref_name, 'a') && !contains(github.ref_name, 'b') }}
@@ -38,7 +43,7 @@ jobs:
       - name: Push the multi-arch image under its tags
         working-directory: ${{ runner.temp }}/digests
         env:
-          IMAGE: ghcr.io/${{ github.repository }}
+          IMAGE: ghcr.io/${{ github.repository_owner }}/${{ inputs.name }}
         run: |
           set -euo pipefail
           args=()

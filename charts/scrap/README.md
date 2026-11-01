@@ -85,6 +85,28 @@ also turns on Claude enrichment of text pages.
 `identityHeader` to the header your authenticating proxy sends for the user (it defaults to
 `Tailscale-User-Login`).
 
+## Public pages
+
+Off by default. `public.enabled` runs the public site of the pages marked Public (issue 497)
+from the `ghcr.io/gilesknap/scrap-public` image, in a namespace of its own (`public.namespace`,
+default `scrap-public`) that you create first, labelled Pod Security `restricted`.
+`public.createNamespace: true` has the chart create it, but then `helm uninstall` deletes the
+namespace and the token Secret in it. One pod holds nginx, which serves the site read only, and an upload receiver that scrap
+pushes the pages to. Only nginx gets an Ingress (`public.ingress`). A NetworkPolicy admits only
+scrap's pods to the receiver and `public.networkPolicy.webFrom` (empty: anyone) to nginx, and
+denies all egress. The site is an `emptyDir` (`public.sizeLimit`), empty again when the pod moves.
+scrap's publisher, which pushes the pages and refills the site, arrives with the scrap side of
+issue 497: until then this section runs the public side only. The contract between the two
+sides is the [public site reference](https://gilesknap.github.io/scrap/main/reference/public-site.html),
+and the design is [ADR 43](https://gilesknap.github.io/scrap/main/explanations/decisions/0043-public-pages-a-static-site-scrap-pushes-to.html).
+
+The upload token is a Secret you create, at least 32 characters, named by
+`public.tokenSecret.name` and `.key`, in **both** namespaces (each pod reads only its own
+namespace's Secrets); both pods mount it as a file. `public.site` is the site's base URL (`SCRAP_PUBLISH_SITE`). The install
+fails without either. scrap then gets `SCRAP_PUBLISH_TO`, `SCRAP_PUBLISH_SITE` and
+`SCRAP_PUBLISH_TOKEN_FILE`. Behind Cloudflare Access, the site's host needs its own Access application
+with the Bypass action: a wildcard application covers every subdomain. See the guide.
+
 ## Operating
 
 - Check it works without exposing it: `kubectl -n scrap port-forward svc/scrap 8000:80`, then
@@ -120,3 +142,5 @@ It lints the chart, renders every value set in `ci/`, validates the output with 
 (Kubernetes 1.30.0 and 1.36.5 by default; override with `K8S_VERSIONS`) and asserts that no Secret
 or ConfigMap is rendered, there is one replica with `Recreate`, names fit the Kubernetes limits,
 bad values are refused, and every environment variable the chart sets is a documented app setting.
+For public pages it also checks that the token is never a plain value, no Ingress points at the
+receiver, and the public NetworkPolicy exists and denies egress.
