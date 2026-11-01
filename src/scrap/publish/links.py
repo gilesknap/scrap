@@ -48,17 +48,29 @@ def own_hosts() -> frozenset[str]:
     return frozenset(hosts)
 
 
+def _named(host: str) -> re.Pattern[str]:
+    """host in lower-case text, only where it is not part of a longer name: no
+    letter, digit, - or . before it, and no letter, digit or - after it, nor a .
+    and then one (a full stop after it still counts)."""
+    return re.compile(
+        rf"(?<![a-z0-9.-]){re.escape(host)}(?![a-z0-9-]|\.[a-z0-9])"
+    )
+
+
 def private_text(text: str) -> str | None:
-    """What private address of scrap's a text holds (one of its own hosts, or
-    /api/blobs/, compared case-insensitively), else None.
+    """What private address of scrap's a text holds, else None: /api/blobs/
+    anywhere, or one of its own hosts as a name of its own (not inside a longer
+    one), compared case-insensitively.
 
     >>> private_text("see /API/Blobs/abc"), private_text("plain")
     ('/api/blobs/', None)
     """
     lower = text.lower()
-    for found in (BLOBS, *sorted(own_hosts())):
-        if found in lower:
-            return found
+    if BLOBS in lower:
+        return BLOBS
+    for host in sorted(own_hosts()):
+        if _named(host).search(lower):
+            return host
     return None
 
 

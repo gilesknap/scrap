@@ -261,7 +261,14 @@ def test_scrap_s_host_in_text_is_refused_only_when_it_is_set(monkeypatch):
     monkeypatch.delenv("SCRAP_PUBLIC_URL", raising=False)
     ok("<p>scrap.example.ts.net</p>")
     monkeypatch.setenv("SCRAP_PUBLIC_URL", "https://scrap.example.ts.net:8446")
-    assert "private address" in refused(page("<p>scrap.example.ts.net</p>"))
+    for text in ("scrap.example.ts.net", "at scrap.example.ts.net.", "(SCRAP.example"
+                 ".ts.net:8446/p/x)", "https://scrap.example.ts.net/api/x"):  # fmt: skip
+        assert "private address" in refused(page(f"<p>{text}</p>")), text
+    # only as a name of its own, not inside a longer one
+    for text in ("my.scrap.example.ts.net", "scrap.example.ts.network",
+                 "scrap.example.ts.net.org", "xscrap.example.ts.net",
+                 "scrap.example.ts.net-2"):  # fmt: skip
+        ok(f"<p>{text}</p>")
 
 
 def test_site_links_and_a_neutralised_placeholder_in_text_pass():
