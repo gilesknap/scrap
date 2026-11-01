@@ -335,7 +335,8 @@ Marked *default* below: a choice the owner may still change, kept in one place s
   other page is public. Otherwise the whole entry is left out of those lists (a private page's
   title can still show in the page's own text, as a link's words: [](#private-titles)).
 - Maths, as `katex.renderToString` writes it ([](#katexs-markup)).
-- Mermaid diagrams as their source, in `<pre><code class="language-mermaid">`, not rendered.
+- Mermaid diagrams drawn, as the app draws them, light and dark ([](#diagrams)); one the PWA
+  cannot draw as its source, in `<pre><code class="language-mermaid">`.
 - Heading and footnote `id`s, so `#...` links within the page work.
 
 **Links**
@@ -347,10 +348,13 @@ Marked *default* below: a choice the owner may still change, kept in one place s
 - A bare `[[slug]]` to a public page shows the linked page's title; one to no page (or a page in
   the trash) is the plain text "a private page".
 - Elsewhere: `http:` and `https:` links as written, within [the link rules](#links-scrap-accepts).
-- **No private address in text.** Text (inline code and code blocks included) that holds an
-  address of scrap's own (one of its hosts, with or without a scheme, port or path), or any
-  `/api/...` path, says "a private link" in its place. scrap's check refuses text that still
-  holds one ([](#the-html-scrap-accepts)).
+- **No private address in text.** Text (inline code included) that holds an address of
+  scrap's own (one of its hosts, with or without a scheme, port or path), or any `/api/...`
+  path, says "a private link" in its place. In a code block, a Mermaid diagram's source and a
+  diagram's words (#529), only scrap's own addresses (its hosts, and `/api/blobs/...`) are
+  replaced, and a closing `]` after one stays: any other `/api/...` path is the code's own and
+  stays as written. scrap's check refuses text that still holds one
+  ([](#the-html-scrap-accepts)).
 
 (private-titles)=
 **Private titles on public pages.** A public page that links to a private page shows that
@@ -439,13 +443,16 @@ Publish the page. The body is JSON, at most 25 MiB:
 
 ```json
 {"html": "<!DOCTYPE html>...", "base_rev": 42, "defer": false, "confirmed": true,
- "drawings": [{"key": "17", "svg": "<svg ...>...</svg>"}]}
+ "drawings": [{"key": "17", "svg": "<svg ...>...</svg>"}],
+ "diagrams": [{"key": "1", "light": "<svg ...>...</svg>", "dark": "<svg ...>...</svg>"}]}
 ```
 
 `html` is the page from the publish mode, and `base_rev` the page's revision the PWA rendered.
 `drawings` (optional, at most 20) holds the SVG of each drawing the page shows, by its id
 (`key`, `[1-9][0-9]{0,17}`, each once): exactly those its `scrap-drawing:` placeholders name
-([](#drawings)).
+([](#drawings)). `diagrams` (optional, at most 20) holds each Mermaid diagram's two SVGs, by
+its key (`[1-9][0-9]{0,2}`, each once): exactly those its `scrap-diagram:` placeholders name
+([](#diagrams)).
 With `defer: true` scrap pushes the page's own unit but not `home`, the tag units or
 `pagefind` (Refresh all, below). `confirmed` (optional, a boolean) says the owner has just
 agreed to the page going public: the PWA sends it only from Make public's warning (and its
@@ -466,9 +473,10 @@ page's unit is pushed (Pagefind failing or timing out, say): it is logged, never
 | `409` | `unconfirmed` | A first publish (no kept copy) without `"confirmed": true` |
 | `409` | `stale` | `base_rev` is not the page's current revision (the answer has `rev`, the current one) |
 | `413` | `too_large` | The body is over 25 MiB |
-| `422` | `bad_request` | The body is not JSON `{"html", "base_rev", "defer", "confirmed", "drawings"}`, or a drawing is sent twice |
+| `422` | `bad_request` | The body is not JSON `{"html", "base_rev", "defer", "confirmed", "drawings", "diagrams"}`, or a drawing or diagram is sent twice |
 | `422` | `bad_html`, `bad_placeholder` | The HTML fails a rule, or a placeholder names a file that is not on the page (or an `img` a file that is not an image), a drawing that is not one of the page's, or Open in Excalidraw without an `https` `SCRAP_PUBLISH_SITE`; `detail` says which |
 | `422` | `bad_drawing` | A drawing the page shows was not sent, one was sent that it does not show, or one's SVG has no single Excalidraw scene, one that cannot be read, or cannot be made safe ([](#drawings)) |
+| `422` | `bad_diagram` | A diagram the page shows was not sent, or not shown in both themes, one was sent that it does not show, or one's SVG cannot be made safe or names scrap in its style ([](#diagrams)) |
 | `422` | `too_many_files`, `file_too_large`, `unit_too_large` | Over a cap ([](#placeholders-and-files)) |
 | `422` | `stale_tags` | A `scrap-tag:` names a tag the page no longer has (a tag edit raced the render); the PWA renders again |
 | `502` | `publish_failed` | The receiver refused or failed; `detail` holds its `error` code |
@@ -512,7 +520,8 @@ cleans the HTML), **replaces** its placeholders, adds the page's files, and push
 - "A class includes `katex`" means `katex` is one of its whitespace-separated tokens.
 - A `style` value is parsed as declarations, `property: value` separated by `;`, with spaces
   after `:` and a trailing `;` allowed.
-- A placeholder (`scrap-blob:`, `scrap-tag:`, `scrap-drawing:` or `scrap-excalidraw:`) anywhere but the places allowed below, in text
+- A placeholder (`scrap-blob:`, `scrap-tag:`, `scrap-drawing:`, `scrap-excalidraw:` or
+  `scrap-diagram:`) anywhere but the places allowed below, in text
   or another attribute, is refused.
 
 ### The HTML scrap accepts
@@ -568,7 +577,7 @@ Attributes:
 | `colspan`, `rowspan` | `td`, `th` | 1 to 3 digits |
 | `open` | `details` | none |
 | `alt` | `img` | any text, or empty |
-| `src` | `img` | a `scrap-blob:<sha>` or `scrap-drawing:<id>` placeholder, and nothing else |
+| `src` | `img` | a `scrap-blob:<sha>`, `scrap-drawing:<id>` or `scrap-diagram:<n>-<theme>` placeholder, and nothing else; an `img` with a `scrap-diagram:` one must have `class` exactly its theme, `light` or `dark` |
 | `href` | `a` | [below](#links-scrap-accepts) |
 | `download` | `a` whose `href` is `scrap-drawing:<id>` | empty |
 | `target`, `rel` | `a` whose `href` is `scrap-excalidraw:<id>`, which must have both | `_blank`, and `noopener noreferrer` |
@@ -656,6 +665,8 @@ reachable only from the owner's PWA session.
 - `scrap-drawing:<id>` (an `img`'s `src`, or a download `a`'s `href`) names a drawing the page
   shows, and `scrap-excalidraw:<id>` (an `a`'s `href`) its Open in Excalidraw link
   ([](#drawings)).
+- `scrap-diagram:<n>-light` and `-dark` (an `img`'s `src` only) name a Mermaid diagram's two
+  images ([](#diagrams)).
 
 What a `scrap-blob` becomes depends on the stored file, not only on the element:
 
@@ -682,7 +693,8 @@ Each becomes an absolute path, `/p/<slug>/<name>` (absolute, because a relative 
   link's label may show the name).
 - "On the page" means referenced in its text (another page's file the owner embedded
   included) or attached to its captures (the files the PWA lists under the text).
-- **Caps:** at most 20 images, drawings and files together (each drawing counts once), each at
+- **Caps:** at most 20 images, drawings and files together (each drawing counts once, each
+  Mermaid diagram twice: its light and dark images), each at
   most 20 MiB, and at most 200 MiB for the whole unit (under the receiver's 256 MiB body). Over any of them scrap refuses the publish
   with `422` and a message saying which, before pushing anything.
 - **Time:** the receiver allows 30 seconds to receive a request, so a unit must also be one scrap
@@ -782,6 +794,52 @@ exactly `image/svg+xml` (hence no `charset`, [](#nginx)). Nothing is uploaded to
 documented feature of excalidraw.com and could change; Download is the fallback: the SVG opens in
 excalidraw.com, or a copy of Excalidraw, with its own Open.
 
+(diagrams)=
+### Diagrams
+
+A Mermaid diagram (#525) is drawn by the PWA when it publishes the page, as the app draws it,
+and sent beside its HTML. The publish mode loads Mermaid's chunk only for a page that has one
+(a ```` ```mermaid ```` block, drawn on the screen or not yet).
+
+**What the PWA sends.** For each diagram, two SVGs from the same Mermaid, with the app's
+options (`securityLevel: "strict"`, theme `neutral` for light and `dark` for dark), plus
+`htmlLabels: false`, so its labels are SVG `<text>`, never a `<foreignObject>` (the sanitiser
+drops one, and its words with it); the font named as `tokens.css`'s `--font` stack (an `<img>`
+inherits none); and the root's `width` and `height` set from its `viewBox`, its `style`
+removed, so the image has a size of its own. Diagrams are keyed `1`, `2`, ... by their sources,
+in order (the same source twice is one diagram). One Mermaid cannot draw so is left out, and
+the page shows its source as a code block, as before (the reason goes to the console): a user
+journey (`journey`), whose labels Mermaid always writes as HTML, and one whose own
+configuration turns HTML labels back on. Each diagram is two of the page's 20 files, so a page
+with more diagrams than the cap leaves room for, after its images and files, publishes the
+rest as their source. A `gitGraph` without its own commit ids gets new random ones from
+Mermaid each time it is drawn, so its two images differ in those, and it is a new file on each
+publish.
+
+**What the page holds:**
+
+```html
+<figure class="diagram"><img class="light" src="scrap-diagram:1-light" alt="Diagram: Phone,
+share, Offline queue"><img class="dark" src="scrap-diagram:1-dark" alt="Diagram: Phone, share,
+Offline queue"></figure>
+```
+
+The `alt` is "Diagram: " and the words drawn in it, each label once (at most 300 characters),
+scrubbed as a code block's text.
+
+`/assets/page.css` shows one, by the page's theme: the light one unless `data-theme="dark"`
+([](#reader-preferences)), so with no script, or on paper, it is light. Centred and scaled
+down to the column, as the app's. There is no Source fold: search reads the
+diagram's words from the SVG instead ([](#what-scrap-builds)).
+
+**What scrap does with each SVG**, before anything is pushed: every diagram the HTML names must
+be shown in both themes and sent, and nothing else may be (`422 bad_diagram`). Each SVG (at most
+2 MiB) goes through scrap's SVG sanitiser (no script, `foreignObject`, event handler, link out
+or fetching CSS); every text and attribute value is then scrubbed as a code block's
+([](#what-the-publish-mode-writes): only scrap's own addresses), and a `<style>` that would
+change is refused. Each is published as an `img-<n>-<hex>.svg`, numbered with the page's
+images, under the image CSP, and counts toward the caps as an image of its own.
+
 (reader-preferences)=
 ### Reader preferences
 
@@ -835,7 +893,9 @@ The derived units are built only from the kept copies and their `meta.json`
   Pagefind's UI files and `scrap-search.js`, which starts the UI. Each page is indexed from an
   in-memory copy with its `.katex` elements removed and the formula's TeX (from its
   `annotation encoding="application/x-tex"`) put in their place, so search finds the TeX, not
-  KaTeX's glyph spans, and without the site's lines and the page's header (title, meta and
+  KaTeX's glyph spans, a Mermaid diagram (`figure.diagram`) as the words of its light image's
+  SVG (its `<text>`, `<title>` and `<desc>`, each once, a label's wrapped lines joined with a
+  space), and without the site's lines and the page's header (title, meta and
   dates lines, tag chips), so a result's excerpt is the page's text. The unit is cached, keyed
   on a digest of the pinned version, `scrap-search.js` and every record, so an unchanged index
   is not built again; a build has about 120 seconds, and if it fails or runs out the site keeps

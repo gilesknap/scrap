@@ -3,7 +3,8 @@
 // public pages that link to one drawn and published again when it is made public or private
 // (links coming alive), and Settings' Refresh all. Each page is published from its own view,
 // on the screen or drawn off it (page.ts, quiet), by publish.ts. A chunk of its own, loaded
-// on the first use. docs/reference/public-site.md has the routes and the rules.
+// on the first use. docs/reference/public-site.md has the routes and the rules. A page's
+// photos' drawings (Excalidraw) and its Mermaid diagrams are drawn here, as SVGs sent with it.
 //
 // A page never published (made public over MCP, by a revert or an undelete) goes out only
 // once the owner has said yes here: Make public's warning, or Refresh all's question. A save,
@@ -19,6 +20,7 @@ import { publishing } from "./pagehead";
 import { swapsOf } from "./pagehtml";
 import {
   codeOf,
+  type Diagram,
   publicPages,
   publishOn,
   publishPage,
@@ -30,7 +32,15 @@ import {
   whyNot,
 } from "./publicapi";
 import { ask, firstTime, warning } from "./publicask";
-import { bareSlugs, drawingsOf, hasMaths, publishHtml } from "./publish";
+import {
+  bareSlugs,
+  codeText,
+  type DiagramKey,
+  diagramsOf,
+  drawingsOf,
+  hasMaths,
+  publishHtml,
+} from "./publish";
 import { origins } from "./render";
 import { toast } from "./ui";
 
@@ -98,20 +108,74 @@ export async function drawingsFor(root: HTMLElement): Promise<{ key: string; svg
   return out;
 }
 
-/** What a page is published as: its HTML and its drawings' SVGs. */
+/** At most this many images, drawings and files go with a page (scrap's cap, files.py). */
+const MAX_FILES = 20;
+/** A diagram's SVG at most this big, in either theme (scrap's, publish/diagrams.py). */
+const MAX_DIAGRAM = 2 * 2 ** 20;
+/** The view's Mermaid diagrams drawn as public pages show them (#525), light and dark, each by
+ * its key, and each source's key and words: Mermaid's chunk is loaded only for a page that has
+ * one. One that cannot be drawn so is left out (the page shows its source). */
+export async function diagramsFor(root: HTMLElement): Promise<{
+  diagrams: Diagram[];
+  keys: Map<string, DiagramKey>;
+}> {
+  const found = diagramsOf(root);
+  const diagrams: Diagram[] = [];
+  const keys = new Map<string, DiagramKey>();
+  if (!found.length) return { diagrams, keys };
+  const mod = await import("./mermaid").catch(() => {
+    throw new TypeError("Mermaid could not be loaded"); // as offline: not reached
+  });
+  for (const [i, source] of found.entries()) {
+    try {
+      // drawn from its source as a code block publishes it: no address of scrap's own
+      const text = codeText(source, origins());
+      const light = await mod.svgFor(text, "light");
+      const dark = await mod.svgFor(text, "dark");
+      // scrap takes one of at most 2 MiB (publish/diagrams.py); a bigger one goes out as source
+      if (new Blob([light]).size > MAX_DIAGRAM || new Blob([dark]).size > MAX_DIAGRAM)
+        throw new Error("it is over 2 MiB");
+      diagrams.push({ key: String(i + 1), light, dark });
+      keys.set(source, { key: i + 1, words: mod.wordsOf(light) });
+    } catch (err) {
+      console.warn(`A diagram is published as its source: ${err}`);
+    }
+  }
+  return { diagrams, keys };
+}
+
+/** What a page is published as: its HTML and its drawings' and diagrams' SVGs. */
 export interface Rendered {
   html: string;
   drawings: { key: string; svg: string }[];
+  diagrams: Diagram[];
 }
 
-/** The page's public HTML from its view, with its drawings: the public pages known, the
- * titles of private pages its bare links name fetched. */
+/** The page's public HTML from its view, with its drawings and diagrams: the public pages
+ * known, the titles of private pages its bare links name fetched. Diagrams take two images
+ * each: those over scrap's cap, after the page's own images and files, go out as their source. */
 export async function renderedOf(d: Drawn, r: Run): Promise<Rendered> {
   const drawn = await drawingsFor(d.root);
-  const html = await htmlOf(d, r, new Set(drawn.map((x) => x.key)));
+  const shown = await diagramsFor(d.root);
+  const ids = new Set(drawn.map((x) => x.key));
+  let html = await htmlOf(d, r, ids, shown.keys);
+  const showing = (key: string) => html.includes(`"scrap-diagram:${key}-light"`);
+  const files = new Set(html.match(/"scrap-(?:blob|drawing):[^"]*"/g)).size;
+  const room = Math.max(0, Math.floor((MAX_FILES - files) / 2));
+  if (shown.diagrams.filter((x) => showing(x.key)).length > room) {
+    const kept = new Set(
+      shown.diagrams
+        .filter((x) => showing(x.key))
+        .slice(0, room)
+        .map((x) => x.key),
+    );
+    for (const [source, k] of shown.keys) if (!kept.has(String(k.key))) shown.keys.delete(source);
+    html = await htmlOf(d, r, ids, shown.keys);
+  }
   // only those the page shows (a drawing without its photo's figure is not)
   const drawings = drawn.filter((x) => html.includes(`"scrap-drawing:${x.key}"`));
-  return { html, drawings };
+  const diagrams = shown.diagrams.filter((x) => showing(x.key));
+  return { html, drawings, diagrams };
 }
 
 /** The page's public HTML from its view: the public pages known, the titles of private pages
@@ -120,6 +184,7 @@ export async function htmlOf(
   d: Drawn,
   r: Run,
   drawn: ReadonlySet<string> = new Set(),
+  diagrams: ReadonlyMap<string, DiagramKey> = new Map(),
 ): Promise<string> {
   const swaps = await swapsOf(d.root);
   // A public page that links to itself is public: this one is
@@ -155,6 +220,7 @@ export async function htmlOf(
       tex: hasMaths(d.root) ? await tex() : null,
       date,
       drawn,
+      diagrams,
     },
     swaps,
   );
@@ -172,9 +238,17 @@ async function publishOne(
   for (let again = false; ; again = true) {
     const d = await draw(again);
     if (!confirmed && !d.page.published_at) return null;
-    const { html, drawings } = await renderedOf(d, r);
+    const { html, drawings, diagrams } = await renderedOf(d, r);
     try {
-      const done = await publishPage(d.page.id, html, d.page.rev, defer, confirmed, drawings);
+      const done = await publishPage(
+        d.page.id,
+        html,
+        d.page.rev,
+        defer,
+        confirmed,
+        drawings,
+        diagrams,
+      );
       return { page: d.page, done };
     } catch (err) {
       if (codeOf(err) === "unconfirmed") return null; // unpublished meanwhile

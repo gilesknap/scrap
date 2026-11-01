@@ -37,7 +37,8 @@ What a public page holds:
   names;
 - links to other public pages, which work on the site. A link to a private page shows its label,
   or the page's title, as plain text;
-- maths as the app draws it. Mermaid diagrams go out as their source;
+- maths and Mermaid diagrams as the app draws them, a diagram in the reader's light or dark
+  theme. Code blocks are as written, but for scrap's own addresses;
 - a photo's drawing, beside the photo with **Photo | Drawing** tabs as in the app, and links to
   **Open in Excalidraw** (on excalidraw.com, which fetches it from the site: nothing is uploaded
   to Excalidraw) and **Download**. The file is an SVG with the drawing inside it, so

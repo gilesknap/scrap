@@ -9,8 +9,10 @@
 // (#519), kept across reloads and pages, light by default; a photo's drawing (#520) with its
 // Photo | Drawing tabs (pure CSS, so with JavaScript off too), the drawing alone with no photo
 // in it (#524), fetched from the site and opened as a scene by Excalidraw's own loadFromBlob as
-// excalidraw.com opens it (#526); scrap's icons in every head (#527). The site sends nginx's
-// headers, so a page that breaks its CSP fails here.
+// excalidraw.com opens it (#526); scrap's icons in every head (#527); a Mermaid diagram (#525)
+// drawn light and dark, one shown by the theme, its words found by search, and a code block's
+// /api/ path as written (#529). The site sends nginx's headers, so a page that breaks its CSP
+// fails here.
 import { execFileSync } from "node:child_process";
 import { readdirSync, readFileSync } from "node:fs";
 import { expect, type Page, type Route, test } from "@playwright/test";
@@ -687,5 +689,87 @@ test("a photo's drawing is published, shown with tabs, and downloads as a scene 
   await plain.getByText("Photo", { exact: true }).click();
   await expect(plain.locator(".pair > figure.orig")).toBeVisible();
   await expect(plain.locator("figure.drawing img")).toBeHidden();
+  await off.close();
+});
+
+test("a Mermaid diagram is published drawn, light and dark, and search finds its words (#525)", async ({
+  page,
+  browser,
+}) => {
+  test.slow(); // Mermaid's chunk, drawn twice
+  await phone(page);
+  const word = `quince${Date.now().toString(36)}`;
+  const text = [
+    "Public e2e diagram",
+    "",
+    "```mermaid",
+    "flowchart LR",
+    `  Phone -->|share| Q[${word}]`,
+    "  Q --> API[/api/captures/]",
+    '  API --> P["GET /api/pages/x"]',
+    "```",
+    "",
+    "```sh",
+    "curl -X POST /api/captures/",
+    "```",
+  ].join("\n");
+  const n = await newPage(page, text);
+  await page.goto(`/p/${n.slug}`);
+  await expect(page.locator(".md .diagram svg")).toBeVisible();
+  await makePublic(page);
+
+  // On the site: the two images and no source; the code block's /api/ path as written (#529)
+  const got = await onSite(page, `/p/${n.slug}`);
+  const img = (theme: string) =>
+    new RegExp(
+      `<img class="${theme}" src="(/p/${n.slug}/img-\\d-[0-9a-f]{10}\\.svg)" alt="Diagram: [^"]*${word}[^"]*">`,
+    );
+  const light = img("light").exec(got.text)?.[1];
+  const dark = img("dark").exec(got.text)?.[1];
+  expect(light && dark && light !== dark, got.text).toBeTruthy();
+  expect(got.text).toContain('<figure class="diagram">');
+  expect(got.text).not.toContain("language-mermaid");
+  expect(got.text).toContain("curl -X POST /api/captures/");
+  expect(got.text).not.toMatch(/scrap-diagram:|\/api\/blobs/);
+  for (const path of [light, dark]) {
+    const served = await page.request.get(`${SITE}${path}`);
+    expect(served.headers()["content-security-policy"]).toContain("sandbox");
+    const svg = await served.text();
+    expect(svg).toContain(word);
+    expect(svg).toContain("api/captures");
+    expect(svg).toContain("/api/pages/x"); // a label's /api/ path as written (#529)
+    expect(svg).not.toMatch(/<script|<foreignObject|\son\w+=/i);
+  }
+
+  // In a browser: the light one, then the dark one when the reader chooses dark
+  const csp = violations(page);
+  await page.goto(`${SITE}/p/${n.slug}`);
+  const shown = (theme: string) => page.locator(`figure.diagram img.${theme}`);
+  await expect(shown("light")).toBeVisible();
+  await expect(shown("dark")).toBeHidden();
+  const size = await shown("light").evaluate((i) => (i as HTMLImageElement).naturalWidth);
+  expect(size).toBeGreaterThan(0);
+  await page.getByRole("button", { name: "Dark theme" }).click();
+  await expect(shown("dark")).toBeVisible();
+  await expect(shown("light")).toBeHidden();
+  expect(await shown("dark").evaluate((i) => (i as HTMLImageElement).naturalWidth)).toBe(size);
+  await page.getByRole("button", { name: "Dark theme" }).click(); // back to light, as kept
+  await expect(shown("light")).toBeVisible();
+  expect(csp).toEqual([]);
+
+  // Pagefind finds a word drawn in it
+  await page.goto(`${SITE}/`);
+  await page.locator(".pagefind-ui__search-input").fill(word);
+  await expect(page.locator(".pagefind-ui__result-link").first()).toHaveAttribute(
+    "href",
+    new RegExp(`/p/${n.slug}`),
+  );
+
+  // With JavaScript off: light, by CSS alone
+  const off = await browser.newContext({ javaScriptEnabled: false });
+  const plain = await off.newPage();
+  await plain.goto(`${SITE}/p/${n.slug}`);
+  await expect(plain.locator("figure.diagram img.light")).toBeVisible();
+  await expect(plain.locator("figure.diagram img.dark")).toBeHidden();
   await off.close();
 });

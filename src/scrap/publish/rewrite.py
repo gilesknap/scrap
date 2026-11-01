@@ -1,7 +1,8 @@
 """Placeholders swapped for the site's paths in a checked page (docs/reference/
 public-site.md, "Placeholders and files"): ``scrap-blob:<sha>`` for
 ``/p/<slug>/<name>`` (absolute: a relative link from /p/<slug> resolves under /p/),
-``scrap-drawing:<id>`` for its drawing's SVG, ``scrap-excalidraw:<id>`` for the link
+``scrap-drawing:<id>`` for its drawing's SVG, ``scrap-diagram:<n>-<theme>`` for a
+Mermaid diagram's (#525), ``scrap-excalidraw:<id>`` for the link
 that opens that SVG on excalidraw.com, and ``scrap-tag:<tag>`` for ``/t/<key>``.
 The check made sure every placeholder is written plainly, once per use, as
 RAW_PLACEHOLDER finds it; nothing else in the page changes."""
@@ -9,9 +10,9 @@ RAW_PLACEHOLDER finds it; nothing else in the page changes."""
 import re
 from urllib.parse import quote, unquote
 
-from .checker import DRAWING_PREFIX, RAW_PLACEHOLDER
+from .checker import DIAGRAM_PREFIX, DRAWING_PREFIX, RAW_PLACEHOLDER
 from .errors import CheckError
-from .links import BLOB, DRAWING, EXCALIDRAW, TAG
+from .links import BLOB, DIAGRAM, DRAWING, EXCALIDRAW, TAG
 from .tagkey import tag_key
 
 __all__ = ["EXCALIDRAW_APP", "excalidraw_url", "swap"]
@@ -45,6 +46,8 @@ def swap(text: str, slug: str, names: dict[str, str], site: str | None = None) -
             return f"/p/{slug}/{names[blob[1]]}"
         if drawing := DRAWING.fullmatch(value):
             return f"/p/{slug}/{names[DRAWING_PREFIX + drawing[1]]}"
+        if diagram := DIAGRAM.fullmatch(value):
+            return f"/p/{slug}/{names[f'{DIAGRAM_PREFIX}{diagram[1]}-{diagram[2]}']}"
         if opens := EXCALIDRAW.fullmatch(value):
             if not site:  # (publish.drawings refuses this first)
                 raise CheckError("Not published: Open in Excalidraw needs the site.")

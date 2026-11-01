@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from ..preview import BusyError, preview, raster
 from ..store import InvalidError, NotFoundError, Store, TooLargeError
 from ..svg import is_svg, sanitise
-from .checker import DRAWING_PREFIX
+from .checker import DIAGRAM_PREFIX, DRAWING_PREFIX
 from .errors import Busy, CheckError
 
 __all__ = ["MAX_FILE", "MAX_FILES", "MAX_UNIT", "Files", "file_hex", "page_files"]
@@ -66,8 +66,8 @@ def _too_big(what: str) -> CheckError:
 
 def _too_many() -> CheckError:
     return CheckError(
-        f"Not published: a page publishes at most {MAX_FILES} images, drawings and"
-        " files.",
+        f"Not published: a page publishes at most {MAX_FILES} images, drawings,"
+        " diagrams (two images each) and files.",
         "too_many_files",
     )
 
@@ -123,6 +123,7 @@ def page_files(
     on_page: set[str],
     html_bytes: int,
     drawings: dict[str, bytes] | None = None,
+    diagrams: dict[str, bytes] | None = None,
 ) -> Files:
     """The files for blobs ((sha, element) in the order first named, from the check),
     each of which must be on the page (on_page: the stored files its text refers to,
@@ -130,7 +131,11 @@ def page_files(
     refused (CheckError) for one that is not, an img naming a file that is not an
     image, and over the caps (counting html_bytes, the page's own HTML, in the
     unit's total). A drawing (#520) is named in blobs as DRAWING_PREFIX + its id,
-    its cleaned SVG in drawings: an img-*.svg, counted in the caps as any image."""
+    its cleaned SVG in drawings: an img-*.svg, counted in the caps as any image; a
+    diagram's image (#525) as DIAGRAM_PREFIX + <n>-<theme>, its SVG in diagrams, the
+    same way (each theme's an image of its own)."""
+    uploaded = {DRAWING_PREFIX + k: v for k, v in (drawings or {}).items()}
+    uploaded |= {DIAGRAM_PREFIX + k: v for k, v in (diagrams or {}).items()}
     names: dict[str, str] = {}
     data: dict[str, bytes] = {}
     count = {"img": 0, "file": 0}
@@ -138,12 +143,13 @@ def page_files(
     for sha, element in blobs:
         if sha in names:
             continue
-        if sha.startswith(DRAWING_PREFIX):
+        if sha.startswith((DRAWING_PREFIX, DIAGRAM_PREFIX)):
             if len(names) >= MAX_FILES:
                 raise _too_many()
-            content = (drawings or {})[sha.removeprefix(DRAWING_PREFIX)]
+            content = uploaded[sha]
             if len(content) > MAX_FILE:
-                raise _too_big("a drawing")
+                drawing = sha.startswith(DRAWING_PREFIX)
+                raise _too_big("a drawing" if drawing else "a diagram")
             total += len(content)
             if total > MAX_UNIT:
                 raise _over_unit()

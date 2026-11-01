@@ -3,6 +3,7 @@ scrap accepts"): matched in full (re.fullmatch) after entity decoding, which the
 has done. Anything not listed is refused: a relative /api/..., //..., /\\...,
 javascript:, data: and the rest."""
 
+import functools
 import re
 from urllib.parse import unquote, urlsplit
 
@@ -10,6 +11,7 @@ from ..public import origin, public_origins
 
 __all__ = [
     "BLOB",
+    "DIAGRAM",
     "DRAWING",
     "EXCALIDRAW",
     "ID",
@@ -20,6 +22,7 @@ __all__ = [
     "normal_path",
     "own_hosts",
     "private_text",
+    "scrub_code",
     "scrub_text",
 ]
 
@@ -29,6 +32,9 @@ DRAWING = re.compile(r"scrap-drawing:([1-9][0-9]{0,17})")
 # Its "Open in Excalidraw" link, which scrap makes https://excalidraw.com/#url=<the
 # SVG's address on the site> (rewrite.excalidraw_url)
 EXCALIDRAW = re.compile(r"scrap-excalidraw:([1-9][0-9]{0,17})")
+# A Mermaid diagram's image (#525), by its key and theme: the PWA uploads both SVGs
+# beside the HTML, and the page's CSS shows the one for its theme
+DIAGRAM = re.compile(r"scrap-diagram:([1-9][0-9]{0,2})-(light|dark)")
 # encodeURIComponent's output: what the publish mode writes a tag as
 TAG = re.compile(r"scrap-tag:([A-Za-z0-9%._~!*'()-]+)")
 PAGE = re.compile(r"/p/([a-z0-9-]{1,120})")
@@ -95,6 +101,7 @@ PRIVATE_LINK = "a private link"  # what text says in place of a private address
 # The rest of an address, as the publish mode (publish.ts privates) reads it: up to a
 # space, not its last full stop, comma or bracket
 _TAIL = r"[^\s<>\"]*[^\s<>\".,;:!?)]"
+_CODE_TAIL = r"[^\s<>\"]*[^\s<>\".,;:!?)\]]"
 _ZW = "[\u200b-\u200d\u2060\ufeff\u00ad]*"
 _API = (
     rf"https?://[^\s/<>\"]*/api/(?:{_TAIL})?|(?<![\w.~/-])/api/(?:{_TAIL})?"
@@ -102,21 +109,31 @@ _API = (
 )
 
 
-def _privates() -> re.Pattern[str]:
+def _privates(code: bool = False) -> re.Pattern[str]:
+    """The pattern for scrap's hosts now (see _compiled)."""
+    return _compiled(own_hosts(), code)
+
+
+@functools.lru_cache(maxsize=8)
+def _compiled(own: frozenset[str], code: bool) -> re.Pattern[str]:
     """Addresses of scrap's own (its hosts, with or without a scheme, port or path)
     and of /api/, as text: publish.ts's privates(), for text scrap writes itself (a
-    drawing's, #520)."""
+    drawing's, #520); in code (a diagram's, #525 and #529), only its hosts' and
+    /api/blobs/ (what private_text finds): an /api/ path there is the text's own."""
     hosts = [
         _ZW.join("[.\u3002\uff0e\uff61]" if c == "." else re.escape(c) for c in host)
-        for host in sorted(own_hosts())
+        for host in sorted(own)
     ]
-    own = (
-        rf"(?:[a-z][a-z0-9+.-]*://)?(?<![\w.-])(?:{'|'.join(hosts)})"
+    found = (
+        rf"(?:(?<![a-z0-9+.-])[a-z][a-z0-9+.-]*://)?(?<![\w.-])(?:{'|'.join(hosts)})"
         rf"(?![\w-]|\.[\w-])\.?(?::\d+)?(?:[/?#]{_TAIL})?|"
         if hosts
         else ""
     )
-    return re.compile(own + _API, re.IGNORECASE | re.ASCII)
+    api = rf"/api/blobs/(?:{_TAIL})?" if code else _API
+    if code:  # nor a square bracket: Mermaid's B[address] keeps its bracket
+        found, api = (x.replace(_TAIL, _CODE_TAIL) for x in (found, api))
+    return re.compile(found + api, re.IGNORECASE | re.ASCII)
 
 
 def scrub_text(text: str) -> str:
@@ -128,6 +145,18 @@ def scrub_text(text: str) -> str:
     'see a private link, then'
     """
     out = _privates().sub(PRIVATE_LINK, text)
+    return PRIVATE_LINK if private_text(out) else out
+
+
+def scrub_code(text: str) -> str:
+    """text from code (a Mermaid diagram's, #525) with only scrap's own addresses
+    (its hosts, /api/blobs/) as "a private link", as the publish mode does in a code
+    block (#529): any other /api/ path stays as written.
+
+    >>> scrub_code("API[/api/captures/] reads /api/blobs/abc")
+    'API[/api/captures/] reads a private link'
+    """
+    out = _privates(code=True).sub(PRIVATE_LINK, text)
     return PRIVATE_LINK if private_text(out) else out
 
 

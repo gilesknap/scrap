@@ -7,6 +7,7 @@ export const CSP =
   "default-src 'none'; img-src 'self' data:; style-src 'self'; style-src-attr 'unsafe-inline'; font-src 'self'; script-src 'self'";
 const PAIR = /^pair-[0-9]{1,3}(-photo|-drawing)?$/;
 const DRAWING = /^scrap-drawing:[1-9][0-9]{0,17}$/;
+const DIAGRAM = /^scrap-diagram:[1-9][0-9]{0,2}-(light|dark)$/;
 const EXCALIDRAW = /^scrap-excalidraw:[1-9][0-9]{0,17}$/;
 const ICON_LINKS = [
   [
@@ -54,7 +55,7 @@ STYLE.position = (v) => v === "relative";
 STYLE["text-shadow"] = (v, el) =>
   ["span", "mstyle"].includes(el) && v.split(/\s+/).every((x) => LENGTH.test(x));
 
-const PLACEHOLDER = /scrap-(blob|tag|drawing|excalidraw):/i;
+const PLACEHOLDER = /scrap-(blob|tag|drawing|excalidraw|diagram):/i;
 const BLOB = /^scrap-blob:[0-9a-f]{64}$/;
 
 /** Whether an a's href is one scrap takes: public is the public pages' slugs, own scrap's hosts. */
@@ -155,7 +156,12 @@ export function check(html: string, live: ReadonlySet<string>, own: readonly str
           return ["td", "th"].includes(t) && /^\d{1,3}$/.test(v);
         if (k === "open") return t === "details" && v === "";
         if (k === "alt") return t === "img";
-        if (k === "src") return t === "img" && (BLOB.test(v) || DRAWING.test(v));
+        if (k === "src") {
+          // a diagram's image (#525) is classed as its theme
+          const theme = DIAGRAM.exec(v)?.[1];
+          if (theme) return t === "img" && n.getAttribute?.("class") === theme;
+          return t === "img" && (BLOB.test(v) || DRAWING.test(v));
+        }
         const href = n.getAttribute?.("href") ?? "";
         if (k === "download") return t === "a" && v === "" && DRAWING.test(href);
         if (k === "target") return t === "a" && v === "_blank" && EXCALIDRAW.test(href);

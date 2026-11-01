@@ -56,6 +56,16 @@ class Kept:
             if p.is_file() and p.name != META
         }
 
+    def file(self, slug: str, name: str) -> bytes:
+        """One of a copy's files, by its name in the unit (empty if there is none, or
+        the name is not a plain one)."""
+        if not name or name in (META, ".", "..") or "/" in name or "\\" in name:
+            return b""
+        try:
+            return (self._dir(slug) / name).read_bytes()
+        except (OSError, ValueError):  # (a NUL in the name)
+            return b""
+
     def html(self, slug: str) -> bytes:
         """A copy's index.html (empty if there is none)."""
         try:

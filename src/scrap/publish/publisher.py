@@ -27,6 +27,7 @@ from ..store import Store, body_refs, now
 from . import derived, pages
 from .checker import check
 from .client import Receiver
+from .diagrams import page_diagrams
 from .drawings import page_drawings
 from .errors import (
     CheckError,
@@ -85,12 +86,15 @@ class Publisher:
     def publish(
         self, key: str, html: str, base_rev: int, defer: bool,
         confirmed: bool = False, drawings: dict[str, str] | None = None,
+        diagrams: dict[str, tuple[str, str]] | None = None,
     ) -> dict:  # fmt: skip
         """Publish a page from the PWA's publish mode (see the module docstring):
         {url, published_at, files}; NotPublic, Unconfirmed (a first publish, with no
         kept copy, needs confirmed), Stale, CheckError, PublishFailed or
         NotConfigured otherwise. drawings: each drawing's SVG the page shows, by
-        its id (#520), cleaned by publish.drawings."""
+        its id (#520), cleaned by publish.drawings; diagrams: each Mermaid
+        diagram's (light, dark) SVGs, by its key (#525), cleaned by
+        publish.diagrams."""
         if not enabled():
             raise NotConfigured()
         with self.lock:
@@ -116,9 +120,10 @@ class Publisher:
             drawn = page_drawings(
                 checked, drawings or {}, page.drawings, is_public, site
             )
+            charts = page_diagrams(checked, diagrams or {})
             files = page_files(
                 self.store, page.slug, checked.blobs, on_page, len(html.encode()),
-                drawn,
+                drawn, charts,
             )  # fmt: skip
             unit = {"index.html": swap(html, page.slug, files.names, site).encode()}
             unit |= files.data
