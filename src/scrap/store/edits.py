@@ -43,12 +43,15 @@ class EditsMixin(Core):
         tags_shown: list[str] | None = None,
         uploads: list[BlobRef] | None = None,
         cid: str | None = None,
+        public: bool | None = None,
     ) -> dict[str, Any]:
         """Change a page's title and/or body, refusing an edit of a stale revision;
         and/or its kind (the user's choice, which ingest then keeps), fields and tags
         (all of them: these replace the page's); and/or a todo's due date and priority
         (those given; None clears one). A change of kind or tags is a metadata
-        revision (page_meta_rev) by author from source. tags_shown, if given, are the
+        revision (page_meta_rev) by author from source, and so is one of public, the
+        public flag (ADR 43; turning it off only changes the flag here: the caller
+        unpublishes after the commit, scrap.publish). tags_shown, if given, are the
         tags the editor started from: a tag Claude added since (not among them) is
         kept, not retired.
 
@@ -81,9 +84,15 @@ class EditsMixin(Core):
                     "INSERT INTO tag VALUES (?, ?)", [(page["id"], t) for t in tags]
                 )
                 self._model_tags(conn, page["id"], tags, spare)
+            if public is not None:
+                conn.execute(
+                    "UPDATE page SET public = ? WHERE id = ?",
+                    (int(public), page["id"]),
+                )
             if tags is not None or (fields and "summary" in fields):  # indexed
                 self.reindex(conn, page["id"])
-            if kind is not None or tags is not None:  # before text: see _record_meta
+            # a revision (see _record_meta), recorded before the text's
+            if kind is not None or tags is not None or public is not None:
                 after = self._meta(conn, page["id"])
                 now_fields = json.loads(conn.execute(
                     "SELECT fields FROM page WHERE id = ?", (page["id"],)

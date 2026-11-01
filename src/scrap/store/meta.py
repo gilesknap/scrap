@@ -18,7 +18,7 @@ from .constants import (
 )
 from .core import Core
 from .db import transaction
-from .errors import InvalidError
+from .errors import InvalidError, OneAtATimeError
 from .helpers import (
     check_todo,
     clean_tags,
@@ -42,9 +42,13 @@ def _touched(
     before: Meta, after: Meta, added: dict[str, Any], was: dict[str, Any]
 ) -> frozenset[str]:
     """What a metadata change changes, for coalescing (#411): "meta" for its kind or
-    tags, and the fields it set or took off unless its kind changed (then they are
-    that kind's defaults, part of the kind change). subtype follows media_type."""
-    meta = {"meta"} if before != after else set()
+    tags, "public" for the public flag (so a flag change folds only into one that
+    changed the flag alone), and the fields it set or took off unless its kind changed
+    (then they are that kind's defaults, part of the kind change). subtype follows
+    media_type."""
+    meta = {"meta"} if before[:3] != after[:3] else set()
+    if before.public != after.public:
+        meta.add("public")
     if (before.kind, before.fixed) != (after.kind, after.fixed):
         return frozenset(meta)
     keys = added.keys() | was.keys()
@@ -62,12 +66,13 @@ def _fits_todo(name: str, value: Value | None) -> bool:
 
 class MetaMixin(Core):
     def _meta(self, conn: sqlite3.Connection, page_id: str) -> Meta:
-        """A page's kind, whether it is fixed, and tags, as page_meta_rev has them."""
+        """A page's kind, whether it is fixed, tags and public flag, as page_meta_rev
+        has them."""
         row = conn.execute(
-            "SELECT kind, kind_fixed FROM page WHERE id = ?", (page_id,)
+            "SELECT kind, kind_fixed, public FROM page WHERE id = ?", (page_id,)
         ).fetchone()
         tags = conn.execute("SELECT tag FROM tag WHERE page_id = ?", (page_id,))
-        return Meta(row[0], row[1], sorted(r[0] for r in tags))
+        return Meta(row[0], row[1], sorted(r[0] for r in tags), row[2])
 
     def _defaults(
         self, conn: sqlite3.Connection, page_id: str, kind: str, fields: dict[str, Any]
@@ -149,20 +154,22 @@ class MetaMixin(Core):
                 return None
             conn.execute(
                 "UPDATE page_meta_rev SET kind_after = ?, fixed_after = ?,"
-                " tags_after = ?, fields_added = ?, fields_was = ?, updated_at = ?"
-                " WHERE id = ?",
+                " tags_after = ?, fields_added = ?, fields_was = ?, updated_at = ?,"
+                " public_after = ? WHERE id = ?",
                 (after.kind, after.fixed, json.dumps(after.tags), json.dumps(merged),
-                 json.dumps(merged_was), stamp, last["id"]),
+                 json.dumps(merged_was), stamp, after.public, last["id"]),
             )  # fmt: skip
             return last["id"]
         cur = conn.execute(
             "INSERT INTO page_meta_rev (page_id, author, source, kind_before,"
             " kind_after, fixed_before, fixed_after, tags_before, tags_after,"
-            " fields_added, fields_was, reverts, batch_id, created_at, updated_at)"
-            " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            " fields_added, fields_was, reverts, batch_id, created_at, updated_at,"
+            " public_before, public_after)"
+            " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (page_id, author, source, before.kind, after.kind, before.fixed,
              after.fixed, json.dumps(before.tags), json.dumps(after.tags),
-             json.dumps(added), json.dumps(was), reverts, batch, stamp, stamp),
+             json.dumps(added), json.dumps(was), reverts, batch, stamp, stamp,
+             before.public, after.public),
         )  # fmt: skip
         return cur.lastrowid
 
@@ -260,8 +267,9 @@ class MetaMixin(Core):
             conn, page_id, before, after, edit
         )
         conn.execute(
-            "UPDATE page SET kind = ?, kind_fixed = ?, fields = ? WHERE id = ?",
-            (after.kind, after.fixed, json.dumps(fields), page_id),
+            "UPDATE page SET kind = ?, kind_fixed = ?, fields = ?, public = ?"
+            " WHERE id = ?",
+            (after.kind, after.fixed, json.dumps(fields), after.public, page_id),
         )
         if any(k in TODO for k in added.keys() | dropped.keys() | was.keys()):
             write_todo(conn, page_id, values)
@@ -295,6 +303,7 @@ class MetaMixin(Core):
             "revision": revision,
             "kind_before": before.kind, "kind_after": after.kind,
             "fixed_before": bool(before.fixed), "fixed_after": bool(after.fixed),
+            "public_before": bool(before.public), "public_after": bool(after.public),
             "tags_before": before.tags, "tags_after": after.tags,
             "tags_added": [t for t in after.tags if t not in before.tags],
             "tags_removed": [t for t in before.tags if t not in after.tags],
@@ -369,6 +378,7 @@ class MetaMixin(Core):
         dry_run: bool = False,
         batch: bool = False,
         fields: dict[str, Value | None] | None = None,
+        public: bool | None = None,
     ) -> dict[str, Any]:
         """Set the kind of these pages (ids or slugs; fixed, as the PWA's picker
         does, even if it is theirs already) and/or change their tags: add and remove
@@ -383,8 +393,11 @@ class MetaMixin(Core):
         (EDIT_FIELDS; any other name is refused): a Later's media_type, which also
         sets its subtype, never set on its own; status (open, in_progress, done or
         cancelled), a todo's or a Later's, as the PWA's tick; due and priority, a
-        todo's (checked as check_todo; kept in page_todo, not fields). Never the title
-        or the text."""
+        todo's (checked as check_todo; kept in page_todo, not fields). public sets
+        the public flag (ADR 43): to True only one page at a time (OneAtATimeError
+        for a batch or several pages, dry run too), to False any number. Turning it
+        off here only changes the flag: the caller unpublishes after the commit
+        (scrap.publish). Never the title or the text."""
         put = self._field_puts(fields)
         # a todo's own values (due, priority): page_todo's, not fields
         todo_put = set(put) & set(TODO)
@@ -404,6 +417,11 @@ class MetaMixin(Core):
                 page = self._page_row(conn, key)
                 pages.setdefault(page["id"], page)
             several = batch or len(pages) > 1
+            if public and several:
+                raise OneAtATimeError(
+                    "pages are made public one at a time (making them private works"
+                    " in bulk)"
+                )
             batch_id = new_ulid() if several and not dry_run else None
             for page in pages.values():
                 before = self._meta(conn, page["id"])
@@ -411,7 +429,8 @@ class MetaMixin(Core):
                     t for t in before.tags if t not in remove
                 ] + add  # fmt: skip
                 after = Meta(
-                    kind or before.kind, 1 if kind else before.fixed, sorted(set(new))
+                    kind or before.kind, 1 if kind else before.fixed, sorted(set(new)),
+                    before.public if public is None else int(public),
                 )
                 if len(after.tags) > MAX_TAGS:
                     raise InvalidError(f"{page['slug']}: over {MAX_TAGS} tags")

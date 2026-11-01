@@ -79,6 +79,7 @@ class PagesMixin(Core):
         fields = json.loads(page["fields"])
         removed = sorted(self.removed(conn, page["id"], page["body"]))
         extra = self._enriched(conn, page["id"], page["slug"])
+        page["public"] = bool(page["public"])  # ADR 43: published_at is scrap.publish's
         return todo_only({**page, "fields": fields, "tags": tags, "captures": captures,
                           "made_by": made_by(conn, page["id"]),  # the PWA's badge
                           "removed": removed, **extra,

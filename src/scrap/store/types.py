@@ -4,12 +4,14 @@ from typing import Any, NamedTuple
 
 
 class Meta(NamedTuple):
-    """A page's kind, whether it is fixed (kind_fixed), and tags (sorted): what
-    page_meta_rev keeps of it, before and after a change."""
+    """A page's kind, whether it is fixed (kind_fixed), tags (sorted) and whether it
+    is public (page.public, ADR 43): what page_meta_rev keeps of it, before and after
+    a change."""
 
     kind: str
     fixed: int
     tags: list[str]
+    public: int = 0
 
 
 class FieldEdit(NamedTuple):

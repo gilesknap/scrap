@@ -23,3 +23,10 @@ class TooLargeError(Exception):
 
 class InvalidError(Exception):
     """A request is malformed."""
+
+
+class OneAtATimeError(InvalidError):
+    """Pages are made public one at a time (ADR 43); making them private works in
+    bulk."""
+
+    code = "one_at_a_time"  # the error code the API answers with (422)

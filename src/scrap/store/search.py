@@ -353,6 +353,8 @@ class SearchMixin(Core):
                 sql.append(f"{no}{BY_CLAUDE.format(p='p')}")  # made_by claude
             elif f.key == "is" and f.value == "claude-edited":  # text changed by MCP
                 sql.append(f"{no}{CLAUDE_EDITED.format(p='p')}")
+            elif f.key == "is" and f.value == "public":  # public pages (ADR 43)
+                sql.append(f"{no}(p.public = 1)")
             elif f.key == "is" and f.value == "topic":  # Claude's topic pages (#261)
                 sql.append(f"{no}{IS_TOPIC.format(p='p')}")
             elif f.key == "is" and f.value in ("personal", "work"):
