@@ -130,8 +130,9 @@ const katexWoff2: Plugin = {
 };
 
 // The public site's shared assets (#497, docs/reference/public-site.md): written beside the app
-// as public/page.css (tokens.css, then src/public/page.css: scrap's look), public/katex.css
-// and public/fonts/ (KaTeX's, as WOFF2 only, as the app has them), which scrap pushes as
+// as public/page.css (tokens.css, then src/public/page.css: scrap's look), public/katex.css,
+// public/fonts/ (KaTeX's, as WOFF2 only, as the app has them) and the app's own icons (#527:
+// icon.svg and icon-192.png, the site's favicon and home-screen icon), which scrap pushes as
 // /assets/. Not part of the app: nothing of the app loads them.
 const KATEX = "node_modules/katex/dist";
 const publicAssets: Plugin = {
@@ -165,6 +166,12 @@ const publicAssets: Plugin = {
     if (/url\((?!fonts\/KaTeX_[\w-]+\.woff2\))/.test(katex))
       this.error("KaTeX's CSS names a file other than its fonts/*.woff2: update publicAssets");
     this.emitFile({ type: "asset", fileName: "public/katex.css", source: katex });
+    for (const f of ["icon.svg", "icon-192.png"])
+      this.emitFile({
+        type: "asset",
+        fileName: `public/${f}`,
+        source: readFileSync(`public/${f}`),
+      });
     for (const f of readdirSync(`${KATEX}/fonts`).filter((f) => f.endsWith(".woff2"))) {
       const source = readFileSync(`${KATEX}/fonts/${f}`);
       this.emitFile({ type: "asset", fileName: `public/fonts/${f}`, source });

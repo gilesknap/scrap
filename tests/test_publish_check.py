@@ -330,6 +330,40 @@ def test_the_head_refuses_any_other_script(script):
     refused(head(script))
 
 
+ICONS = (
+    '<link rel="icon" href="/assets/icon.svg" type="image/svg+xml">'
+    '<link rel="apple-touch-icon" href="/assets/icon-192.png">'
+)
+
+
+def test_the_head_takes_the_sites_two_icons():
+    check(head(ICONS), PUBLIC.__contains__)
+    check(head(ICONS.split("><")[0] + ">"), PUBLIC.__contains__)  # one is enough
+    reordered = '<link type="image/svg+xml" rel="icon" href="/assets/icon.svg">'
+    check(head(reordered), PUBLIC.__contains__)  # (attributes in any order)
+
+
+@pytest.mark.parametrize(
+    "link",
+    [
+        '<link rel="icon" href="/assets/icon.svg">',  # no type
+        '<link rel="icon" href="/assets/icon-192.png" type="image/svg+xml">',
+        '<link rel="icon" href="/assets/icon.svg" type="image/png">',
+        '<link rel="icon" href="https://evil.example/icon.svg" type="image/svg+xml">',
+        '<link rel="icon" href="/api/blobs/x" type="image/svg+xml">',
+        '<link rel="icon" href="/assets/icon.svg?x" type="image/svg+xml">',
+        '<link rel="shortcut icon" href="/assets/icon.svg" type="image/svg+xml">',
+        '<link rel="icon" href="/assets/icon.svg" type="image/svg+xml" sizes="any">',
+        '<link rel="apple-touch-icon" href="/assets/icon.svg">',
+        '<link rel="apple-touch-icon" href="/assets/icon-192.png" sizes="192x192">',
+        '<link rel="manifest" href="/assets/icon-192.png">',
+        '<link rel="apple-touch-icon" href="/assets/icon-192.png">' * 2,  # twice
+    ],
+)
+def test_the_head_refuses_any_other_icon(link):
+    refused(head(link))
+
+
 def test_no_script_in_the_body():
     for body in (PREFS, f"<div>{PREFS}</div>", "<svg><script>x</script></svg>"):
         refused(page(body))

@@ -43,10 +43,31 @@ div.site a {
 .site.top:has(.prefs),
 .site-head:has(.prefs) {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap; /* a name too long is cut (…), never wrapped under the switches */
   align-items: center;
   gap: 0 0.3em;
   min-height: var(--tap);
+}
+/* scrap's mark (#527) left of the site's name, about the line's height: CSS alone, the site's
+   own /assets/icon.svg (img-src 'self'). The name is cut with … rather than wrapping */
+:is(.site.top, .site-head) > a:first-child {
+  display: inline-block;
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 100%; /* cut within the column with JavaScript off too (no flex row then) */
+  vertical-align: bottom; /* on the line's baseline, as "· Tags" is, though it clips */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+:is(.site.top, .site-head) > a:first-child::before {
+  content: "";
+  display: inline-block;
+  width: 1.25em;
+  height: 1.25em;
+  margin-inline-end: 0.4em;
+  vertical-align: -0.3em;
+  background: url("/assets/icon.svg") center / contain no-repeat;
 }
 .prefs {
   display: flex;
@@ -223,17 +244,39 @@ pre code {
   padding: 0;
   background: none;
 }
+/* A table, as the app's (css/page.css, #530): it scrolls sideways in its own box, never the
+   page; the box hugs the table at the start of the line, a shaded header row, the app's smaller
+   text and padding, and words kept whole (the body's overflow-wrap: anywhere broke "Dem/o") */
 .table {
+  width: fit-content;
+  max-width: 100%;
+  margin: var(--s-3) 0;
   overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
 }
 table {
   border-collapse: collapse;
+  font-size: var(--t-sm);
+  overflow-wrap: normal;
 }
-td,
-th {
-  padding: var(--s-1) var(--s-2);
-  border: 1px solid var(--line);
+:is(th, td) {
+  min-width: 4rem;
+  max-width: 20rem;
+  padding: var(--s-2) var(--s-3);
+  border-bottom: 1px solid var(--line);
   text-align: start;
+  vertical-align: top;
+}
+:is(th, td) + :is(th, td) {
+  border-inline-start: 1px solid var(--line);
+}
+th {
+  background: var(--sunk);
+  font-weight: 600;
+}
+tbody tr:last-child td {
+  border-bottom: none;
 }
 li.task {
   list-style: none;
@@ -312,8 +355,8 @@ small {
   outline: 2px solid var(--ink);
   outline-offset: 1px;
 }
-/* The drawing: its picture, an SVG with the drawing over its photo, and its links: open it in
-   excalidraw.com, or download it */
+/* The drawing: its picture, an SVG of the drawing alone (it replaces the photo, #524), and its
+   links: open it in excalidraw.com, or download it */
 figure.drawing img {
   display: block;
   background: #ffffff; /* drawn on white, in either theme */
@@ -491,6 +534,14 @@ body.site h2.site-search-label {
   }
   img {
     break-inside: avoid;
+  }
+  /* a wide table wraps or shows whole on paper, not clipped sideways (as the app's print.css) */
+  .table {
+    overflow: visible;
+  }
+  .table :is(th, td) {
+    min-width: 0;
+    overflow-wrap: anywhere;
   }
   /* on paper, both the photo and its drawing */
   .pair .tabs {
