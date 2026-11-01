@@ -70,10 +70,13 @@ const publics = () => import("./publicpages");
 /** Whether publishing is on on the server (/healthz), asked once: off, no Make public. */
 let publishOn: Promise<boolean> | null = null;
 const publishing = () =>
-  (publishOn ??= fetch("/healthz").then(
-    (r) => r.json().then((j) => j?.publish?.enabled !== false),
-    () => true, // offline: as if on (publishing says why not when tried)
-  ));
+  (publishOn ??= fetch("/healthz")
+    .then((r) => r.json())
+    .then((j) => j?.publish?.enabled !== false)
+    .catch(() => {
+      publishOn = null; // asked again by the next view
+      return true; // offline or unreadable: as if on (publishing says why not when tried)
+    }));
 
 /** A page's view. quiet: drawn off the screen, to publish it (publicpages.ts): not opened,
  * no history, no polling, nothing told to the server or kept as seen. */

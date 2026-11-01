@@ -38,10 +38,10 @@ export const publishPage = (
 
 /** Whether publishing is on on the server (/healthz's publish block; offline: assumed on). */
 export const publishOn = () =>
-  fetch("/healthz").then(
-    (r) => r.json().then((j) => j?.publish?.enabled !== false),
-    () => true,
-  );
+  fetch("/healthz")
+    .then((r) => r.json())
+    .then((j) => j?.publish?.enabled !== false)
+    .catch(() => true);
 
 /** Build the home page, the tag pages and search once, after deferred publishes. */
 export const rebuild = () => api<{ units: string[] }>("public/rebuild", { method: "POST" });

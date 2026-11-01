@@ -92,7 +92,8 @@ export async function htmlOf(d: Drawn, r: Run): Promise<string> {
       ),
     ),
   );
-  const date = new Date().toLocaleDateString(undefined, {
+  // As the site's own pages write dates ("1 Nov 2026"), whatever the device's language
+  const date = new Date().toLocaleDateString("en-GB", {
     day: "numeric",
     month: "short",
     year: "numeric",

@@ -560,7 +560,7 @@ A page can be made public: anyone with its address can read it on the public sit
 `https://pages.gkcluster.org/p/<slug>`), read only, while scrap itself stays private. The site is
 static: scrap pushes each public page to it, and it can reach nothing of scrap's
 ([](../explanations/decisions/0043-public-pages-a-static-site-scrap-pushes-to.md),
-[](../reference/public-site.md)). It needs publishing set up on the server; without it, Make
+[](../reference/public-site.md)). It needs publishing set up on the server; without it,
 Make public and Settings' Public pages are not shown.
 
 - **Make public…** is the last row of **Share**. It asks first, every time: who can read it, and
