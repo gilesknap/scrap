@@ -66,7 +66,8 @@ def dump(store) -> list[str]:
 
 def furnish(store, page_id, cid, sha, other):
     """Give a page a row in every table that can hold one: Claude's results and runs,
-    jobs, an image's guidance, tags, a write-up, related picks both ways, and a topic membership."""
+    jobs, an image's guidance, tags, a write-up, related picks both ways, and a topic
+    membership."""
     t = now()
     with store.connect() as conn:
         run = conn.execute(

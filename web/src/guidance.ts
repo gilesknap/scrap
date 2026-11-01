@@ -38,7 +38,7 @@ export function guidanceFold<T>(o: {
   done: string; // the toast once saved
   put: (text: string) => Promise<T>;
   shown: (result: T) => void;
-}): HTMLElement {
+}): HTMLDetailsElement {
   const box = h("textarea", {
     rows: 3,
     maxLength: 2000,

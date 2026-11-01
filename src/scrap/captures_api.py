@@ -15,8 +15,8 @@ from pydantic import BaseModel, Field
 
 from . import drawing, ingest
 from .api_models import Restore, Text
-from .store import guidance as image_guidance
 from .store import SURROGATE, InvalidError, NotFoundError, Store, TooLargeError
+from .store import guidance as image_guidance
 from .uploads import author, too_large
 
 SCENE_REQUEST = 8 * 2**20  # a 5 MB scene, plus the files map it may carry (dropped)
@@ -54,7 +54,9 @@ class Reprocess(BaseModel):
 
 class Guidance(BaseModel):
     # The owner's note for the image's next reading; empty or null: none
-    guidance: Annotated[Text, Field(max_length=image_guidance.MAX_GUIDANCE)] | None = None
+    guidance: Annotated[Text, Field(max_length=image_guidance.MAX_GUIDANCE)] | None = (
+        None
+    )
 
 
 def photo(cid: str, sha: str) -> tuple[str, str]:
@@ -80,7 +82,9 @@ def add_routes(app: FastAPI, store: Store) -> None:
         none): {guidance}. It queues nothing: Regenerate (reprocess) does, and sends
         it with the image. 404 for a capture or file not there, 422 for a file that
         is not an image Claude reads."""
-        return ingest.set_guidance(store, *photo(cid, sha), ask.guidance, author(request))
+        return ingest.set_guidance(
+            store, *photo(cid, sha), ask.guidance, author(request)
+        )
 
     @app.get("/api/captures/{cid}/files/{sha}/text")
     def file_text(cid: str, sha: str) -> dict[str, Any]:

@@ -119,7 +119,9 @@ describe("an image's reading", () => {
     const box = g.find("TEXTAREA")[0];
     box.value = "half typed";
     (box.oninput as () => void)();
-    const again = folds(panel().card)[1];
+    const redrawn = panel();
+    expect(redrawn.fold.open).toBe(true); // the reading too, so it stays in sight
+    const again = folds(redrawn.card)[1];
     expect(again.open).toBe(true);
     expect(again.find("TEXTAREA")[0].value).toBe("half typed");
   });

@@ -109,7 +109,7 @@
   margin-top: 0; /* one rule between two folds */
 }
 .reading-fold .guidance .by {
-  margin: var(--s-1) 0 var(--s-2);
+  margin: var(--s-1) 0 0; /* as About this page's, its last child's (todos.css) */
   color: var(--ink-2);
   font-size: var(--t-xs);
   overflow-wrap: anywhere;

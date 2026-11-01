@@ -34,7 +34,7 @@ export function photoGuidance(o: {
   saved: string | null | undefined;
   read: boolean;
   refresh: () => void;
-}): HTMLElement {
+}): HTMLDetailsElement {
   return guidanceFold({
     key: `${o.cid}/${o.sha}`,
     saved: o.saved,
@@ -58,7 +58,7 @@ export function photoGuidance(o: {
  * it opens. */
 export function readingFold(o: {
   body: (Node | string | false | null | undefined)[];
-  guidance?: HTMLElement | null;
+  guidance?: HTMLDetailsElement | null;
   regen?: { label: string; onclick: () => void | Promise<void> } | null;
   onOpen?: () => void;
 }): HTMLElement {
@@ -86,7 +86,8 @@ export function readingFold(o: {
   const regen = button && h("div", { className: "regen-row" }, button);
   const fold = h(
     "details",
-    { className: "reading-fold" },
+    // open while its guidance is being typed: kept across a redraw, as the write-up's is (#538)
+    { className: "reading-fold", open: !!o.guidance?.open },
     h("summary", {}, h("span", {}, READING)),
     h(
       "div",

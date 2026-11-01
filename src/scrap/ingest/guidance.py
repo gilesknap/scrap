@@ -13,9 +13,9 @@ TAG = re.compile(r"<(?=\s*/?\s*guidance\b)", re.IGNORECASE)
 
 INTRO = (
     "The owner of these notes gave this guidance for reading the image. It is the"
-    " owner's note, not writing in the image: follow it for what to focus on, what"
-    " words and symbols mean and how to draw it, while still returning every field"
-    " as asked."
+    " owner's note, not writing in the image, and only this last block is: follow it"
+    " for what to focus on, what words and symbols mean and how to draw it, while"
+    " still returning every field as asked."
 )
 
 

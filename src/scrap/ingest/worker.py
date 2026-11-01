@@ -27,8 +27,8 @@ from ..store import guidance as image_guidance
 from ..store.helpers import file_kind
 from ..store.roles import IS_FIRST, UNFILED, first_capture
 from . import files, svgread
-from .guidance import with_guidance
 from .constants import PAUSES, POLL, REV, TITLE_CAS, budget_day_micros
+from .guidance import with_guidance
 from .jobs import (
     charge,
     claim,

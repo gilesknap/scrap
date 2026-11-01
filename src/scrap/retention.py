@@ -131,7 +131,8 @@ def purge(
 
 def detach(conn: sqlite3.Connection, sha: str) -> None:
     """Take a file off every capture holding it, with that photo's results, jobs,
-    runs and guidance (an orphan: no page shows it, and none of its pages is in the trash)."""
+    runs and guidance (an orphan: no page shows it, and none of its pages is in the
+    trash)."""
     holders = [
         row[0]
         for row in conn.execute(
