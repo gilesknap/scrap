@@ -78,27 +78,13 @@ export async function preview(data: Drawing["data"], theme: Theme): Promise<SVGS
 }
 
 /** A drawing as a public page shows it and a reader downloads it (#520): an SVG on white with
- * the scene embedded (exportEmbedScene), so excalidraw.com opens it as a drawing. A drawing of a
- * photo has the photo under it, locked, framed as the drawing is (photo: its 2048 px preview as
- * a data: URL, which scrap matches to the page's photo and checks). Fonts inlined: the public
- * page shows it in an <img>, which loads nothing. */
-export async function publishSvg(data: Drawing["data"], photo: string | null): Promise<string> {
-  let elements = await elementsOf(data);
+ * the scene embedded (exportEmbedScene), so excalidraw.com opens it as a drawing. It replaces
+ * the photo, as the app's Drawing tab does (#524): the drawing alone, no photo under it, in the
+ * picture or the scene; framed as the photo is. Fonts inlined: the public page shows it in an
+ * <img>, which loads nothing. */
+export async function publishSvg(data: Drawing["data"]): Promise<string> {
+  const elements = await elementsOf(data);
   const frame = frameOf(data);
-  // biome-ignore lint/suspicious/noExplicitAny: Excalidraw's file map type is not exported here
-  const files: Record<string, any> = {};
-  if (photo && frame) {
-    const fileId = "photo";
-    const under = convertToExcalidrawElements(
-      [
-        // biome-ignore lint/suspicious/noExplicitAny: a skeleton image, as Excalidraw takes it
-        { type: "image", x: 0, y: 0, width: frame.width, height: frame.height, fileId } as any,
-      ],
-      { regenerateIds: false },
-    ).map((e) => ({ ...e, locked: true, status: "saved" }));
-    elements = [...under, ...elements];
-    files[fileId] = { id: fileId, mimeType: "image/jpeg", dataURL: photo, created: 0 };
-  }
   const svg = await exportToSvg({
     elements,
     appState: {
@@ -107,7 +93,7 @@ export async function publishSvg(data: Drawing["data"], photo: string | null): P
       exportWithDarkMode: false,
       exportEmbedScene: true,
     },
-    files,
+    files: null,
     exportPadding: frame ? 0 : 10,
   });
   if (frame && elements.length) {

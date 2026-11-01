@@ -7,12 +7,13 @@
 // home page; a photo and an attached file published with the page; and, with publishing off
 // on the server, no Make public and no Settings section. The reader's theme and column width
 // (#519), kept across reloads and pages, light by default; a photo's drawing (#520) with its
-// Photo | Drawing tabs (pure CSS, so with JavaScript off too), downloaded and opened as a
-// scene by Excalidraw's own loadFromBlob, with no original photo bytes in it. The site sends
-// nginx's headers, so a page that breaks its CSP fails here.
+// Photo | Drawing tabs (pure CSS, so with JavaScript off too), the drawing alone with no photo
+// in it (#524), fetched from the site and opened as a scene by Excalidraw's own loadFromBlob as
+// excalidraw.com opens it (#526); scrap's icons in every head (#527). The site sends nginx's
+// headers, so a page that breaks its CSP fails here.
 import { execFileSync } from "node:child_process";
 import { readdirSync, readFileSync } from "node:fs";
-import { expect, type Page, test } from "@playwright/test";
+import { expect, type Page, type Route, test } from "@playwright/test";
 import { capture, deletedAfterEach, png, ulid } from "./helpers";
 import { SITE as SITE_PORT } from "./ports";
 
@@ -103,6 +104,26 @@ test("Make public warns first, with Cancel focused, then the page is on the site
   expect(got.text).not.toMatch(/scrap-(blob|tag):|\/api\//);
   for (const css of ["/assets/page.css", "/assets/katex.css"])
     expect((await onSite(page, css)).status).toBe(200);
+  // scrap's icons (#527): named in the head of the page and of home, served as themselves,
+  // and /favicon.ico (asked for on its own) sent to the SVG one
+  const icons =
+    '<link rel="icon" href="/assets/icon.svg" type="image/svg+xml">\n' +
+    '<link rel="apple-touch-icon" href="/assets/icon-192.png">';
+  expect(got.text).toContain(icons);
+  expect((await onSite(page, "/")).text).toContain(icons);
+  for (const [path, type] of [
+    ["/assets/icon.svg", "image/svg+xml"],
+    ["/assets/icon-192.png", "image/png"],
+  ]) {
+    const icon = await page.request.get(`${SITE}${path}`);
+    expect(icon.status()).toBe(200);
+    expect(icon.headers()["content-type"]).toBe(type);
+  }
+  const shipped = await page.request.get(`${SITE}/assets/icon.svg`);
+  expect(await shipped.text()).toBe(readFileSync("public/icon.svg", "utf8"));
+  const ico = await page.request.get(`${SITE}/favicon.ico`, { maxRedirects: 0 });
+  expect(ico.status()).toBe(302);
+  expect(ico.headers().location).toBe("/assets/icon.svg");
   // Opened in a browser, under nginx's CSP: drawn with the site's CSS and KaTeX's fonts
   const csp = violations(page);
   await page.goto(`${site(page)}/p/${n.slug}`);
@@ -430,23 +451,39 @@ async function boardPage(page: Page): Promise<Board> {
   return b;
 }
 
-/** Excalidraw's own reader of a file (the board chunk's loadFromBlob, as excalidraw.com
- * opens one), run on an SVG in the app's page: what the scene holds. */
-async function openAsScene(page: Page, svg: string) {
+/** Excalidraw's own reader of a file (the board chunk's loadFromBlob), run in the app's page on
+ * a Blob as excalidraw.com makes one for #url= (#526): the browser's own fetch of the published
+ * SVG, so the Blob's type is the site's Content-Type as the browser reads it. The site lets only
+ * excalidraw.com read it across origins, so the app's page fetches it at a path of its own that
+ * the test answers with the site's response, headers and all, as it is. What the scene holds,
+ * or the error. */
+async function openAsScene(page: Page, url: string) {
   const chunk = readdirSync("../src/scrap/static/assets").find((f) =>
     /^excalidraw-[\w-]+\.js$/.test(f),
   );
-  return page.evaluate(
-    async ({ url, svg }) => {
-      const m = await import(url);
-      const s = await m.loadFromBlob(new Blob([svg], { type: "image/svg+xml" }), null, null);
-      return {
-        types: s.elements.map((e: { type: string }) => e.type) as string[],
-        files: Object.values(s.files).map((f) => (f as { dataURL: string }).dataURL),
-      };
-    },
-    { url: `/assets/${chunk}`, svg },
-  );
+  const local = `/e2e-site${new URL(url).pathname}`;
+  // (on the context: the app's service worker may make the fetch, past page.route)
+  const proxy = async (route: Route) => route.fulfill({ response: await route.fetch({ url }) });
+  await page.context().route(`**${local}`, proxy);
+  try {
+    return await page.evaluate(
+      async ({ chunk, local }) => {
+        const m = await import(chunk);
+        const blob = await (await fetch(local)).blob();
+        const s = await m.loadFromBlob(blob, null, null).catch((e: Error) => e);
+        if (s instanceof Error) return { type: blob.type, error: s.message, types: [], files: [] };
+        return {
+          type: blob.type,
+          error: null,
+          types: s.elements.map((e: { type: string }) => e.type) as string[],
+          files: Object.keys(s.files ?? {}),
+        };
+      },
+      { chunk: `/assets/${chunk}`, local },
+    );
+  } finally {
+    await page.context().unroute(`**${local}`, proxy);
+  }
 }
 
 test("a photo's drawing is published, shown with tabs, and downloads as a scene (#520)", async ({
@@ -475,6 +512,11 @@ test("a photo's drawing is published, shown with tabs, and downloads as a scene 
   const served = await page.request.get(`${SITE}${svgPath}`);
   expect(served.headers()["access-control-allow-origin"]).toBe("https://excalidraw.com");
   expect(served.headers()["content-security-policy"]).toContain("sandbox");
+  // exactly this, no charset: excalidraw.com's loadFromBlob takes an SVG only so (#526)
+  expect(served.headers()["content-type"]).toBe("image/svg+xml");
+  // the drawing replaces the photo, as in the app (#524): no image in it at all
+  const published = await served.text();
+  expect(published).not.toMatch(/<image|data:image\/|href="#image-/);
 
   // On the site: the drawing shows (chosen, as in the app), Photo then Drawing switch them
   const csp = violations(page);
@@ -496,24 +538,29 @@ test("a photo's drawing is published, shown with tabs, and downloads as a scene 
   expect(label?.height).toBeGreaterThanOrEqual(42); // 48 with the track round it
   expect(csp).toEqual([]);
 
-  // Downloaded: the SVG, with the scene in it; Excalidraw opens it, the photo at preview size
+  // Downloaded: the published SVG, with the scene in it, and no photo bytes
   const [file] = await Promise.all([
     page.waitForEvent("download"),
     page.getByRole("link", { name: /^Download/ }).click(),
   ]);
   const svg = readFileSync((await file.path()) as string, "utf8");
+  expect(svg).toBe(published);
   expect(svg).toContain("<!-- payload-type:application/vnd.excalidraw+json -->");
   const original = Buffer.from(await (await page.request.get(`/api/blobs/${b.sha256}`)).body());
   const preview = Buffer.from(
     await (await page.request.get(`/api/blobs/${b.sha256}/preview?size=2048`)).body(),
   );
-  expect(svg).not.toContain(original.toString("base64").slice(100, 400));
+  for (const bytes of [original, preview])
+    expect(svg).not.toContain(bytes.toString("base64").slice(100, 400));
+  // Opened as excalidraw.com opens it (#526): fetched from the site, the Blob's type as sent,
+  // and read by Excalidraw's loadFromBlob: the drawing's elements, and no photo (#524)
   await page.goto(`/p/${b.slug}`); // the app, where Excalidraw's chunk is
-  const scene = await openAsScene(page, svg);
-  expect(scene.types[0]).toBe("image"); // the photo, under the drawing
+  const scene = await openAsScene(page, `${SITE}${svgPath}`);
+  expect(scene.error).toBeNull();
+  expect(scene.type).toBe("image/svg+xml");
   expect(scene.types).toEqual(expect.arrayContaining(["rectangle", "arrow", "text", "ellipse"]));
-  expect(scene.files).toEqual([`data:image/jpeg;base64,${preview.toString("base64")}`]);
-  expect(scene.files[0]).not.toContain(original.toString("base64").slice(100, 400));
+  expect(scene.types).not.toContain("image");
+  expect(scene.files).toEqual([]);
 
   // With JavaScript off: the same tabs, in CSS alone
   const off = await browser.newContext({ javaScriptEnabled: false });

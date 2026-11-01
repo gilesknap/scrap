@@ -114,9 +114,8 @@ class Publisher:
             on_page = body_refs(page.body) | page.attached  # its text's, its own
             site = publish_site()
             drawn = page_drawings(
-                self.store, checked, drawings or {}, page.drawings, on_page,
-                is_public, site,
-            )  # fmt: skip
+                checked, drawings or {}, page.drawings, is_public, site
+            )
             files = page_files(
                 self.store, page.slug, checked.blobs, on_page, len(html.encode()),
                 drawn,

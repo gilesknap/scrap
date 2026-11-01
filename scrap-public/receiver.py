@@ -61,7 +61,8 @@ MAX_DEPTH = 4
 # What each kind of unit may hold. A page: its index.html, images and attachments,
 # one segment each. A tag: its index.html only. Home: one-segment HTML. Scripts
 # and WebAssembly only in pagefind, CSS and fonts only in assets, with one script:
-# assets/prefs.js, the public pages' theme and column width (#519).
+# assets/prefs.js, the public pages' theme and column width (#519), and the site's
+# two icons, scrap's own (#527).
 PAGE_MEMBER = re.compile(
     r"index\.html"
     r"|img-[1-9][0-9]?-[0-9a-f]{10}\.(?:jpg|png|svg)"
@@ -74,6 +75,7 @@ PAGEFIND_TYPES = frozenset(
 )  # fmt: skip
 ASSETS_TYPES = frozenset({"css", "woff", "woff2", "ttf"})
 ASSETS_SCRIPT = "prefs.js"  # the one script outside pagefind, at the top of assets
+ASSETS_ICONS = ("icon.svg", "icon-192.png")  # the site's icons, at the top of assets
 TAR_TYPES = "application/x-tar"
 CHUNK = 64 * 1024
 # Only pax and ustar tars. A pax header block is read into memory whole: none may
@@ -141,7 +143,9 @@ def member_allowed(unit: str, parts: list[str]) -> bool:
         return len(parts) == 1 and ext == "html"
     if unit == "pagefind":
         return ext in PAGEFIND_TYPES
-    return ext in ASSETS_TYPES or parts == [ASSETS_SCRIPT]
+    if len(parts) == 1 and leaf in (ASSETS_SCRIPT, *ASSETS_ICONS):
+        return True
+    return ext in ASSETS_TYPES
 
 
 def load_token(environ: dict[str, str]) -> str:

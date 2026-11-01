@@ -20,6 +20,12 @@ __all__ = ["home", "not_found", "tag_page", "tags_page"]
 # and render-blocking where the browser can, so a kept choice is on before the first
 # paint. The same tag as the publish mode writes (checker.PREFS_SCRIPT)
 PREFS = '<script src="/assets/prefs.js" defer blocking="render"></script>\n'
+# The site's icons, scrap's own (#527): the tab's and the home screen's. The same
+# links as the publish mode writes (checker.ICON_LINKS)
+ICONS = (
+    '<link rel="icon" href="/assets/icon.svg" type="image/svg+xml">\n'
+    '<link rel="apple-touch-icon" href="/assets/icon-192.png">\n'
+)
 # home's CSP lets it run only the site's own scripts: Pagefind's, and scrap-search.js
 SEARCH = (
     '<link rel="stylesheet" href="/assets/pagefind-ui.css">\n'
@@ -52,7 +58,7 @@ def _document(title: str, body: str, head: str = "") -> bytes:
         '<meta name="viewport" content="width=device-width,initial-scale=1">\n'
         f"<title>{escape(title)}</title>\n"
         '<link rel="stylesheet" href="/assets/page.css">\n'
-        f"{PREFS}{head}</head>\n"
+        f"{ICONS}{PREFS}{head}</head>\n"
         '<body class="site">\n<header class="site-head"><a href="/">Pages</a>'
         ' · <a href="/tags">Tags</a></header>\n'
         f"<main>\n{body}</main>\n</body>\n</html>\n"

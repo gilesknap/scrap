@@ -312,8 +312,8 @@ small {
   outline: 2px solid var(--ink);
   outline-offset: 1px;
 }
-/* The drawing: its picture, an SVG with the drawing over its photo, and its links: open it in
-   excalidraw.com, or download it */
+/* The drawing: its picture, an SVG of the drawing alone (it replaces the photo, #524), and its
+   links: open it in excalidraw.com, or download it */
 figure.drawing img {
   display: block;
   background: #ffffff; /* drawn on white, in either theme */

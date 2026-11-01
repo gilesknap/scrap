@@ -12,6 +12,10 @@ Amended 2026-11-01 (1.3.1): a reader's theme and column width, by one script of 
 own (#519), and drawings published, downloadable and opened in excalidraw.com (#520). See
 [](#amendment-reader-preferences-and-drawings) at the end.
 
+Amended 2026-11-01 (1.3.2): a drawing replaces its photo, with no photo in it (#524); an SVG
+served as exactly `image/svg+xml`, so excalidraw.com opens it (#526); and the site's icons,
+scrap's own (#527). See [](#amendment-drawings-without-the-photo-and-the-sites-icon) at the end.
+
 ## Context
 
 The owner wants to show a page to anyone with its address, read only. The motivating case is a
@@ -351,3 +355,56 @@ whiteboard page, were left out. The owner decided both on 1 Nov 2026.
   published as cleaned, like the page's own text.
 - Publishing a page with drawings loads Excalidraw in the PWA and takes longer; a drawing that
   cannot be drawn fails the publish rather than going out half made.
+
+(amendment-drawings-without-the-photo-and-the-sites-icon)=
+## Amendment: drawings without the photo, and the site's icon (1.3.2, #524, #526, #527)
+
+Date: 2026-11-01
+
+### A drawing replaces its photo (#524)
+
+- **The drawing alone.** In the app a photo's drawing replaces the photo in its Drawing tab; it
+  is not an overlay. 1.3.1 published the drawing over the photo's preview, which made it hard to
+  read. The PWA now draws it as the app's Drawing tab does, framed as the photo is, with no photo
+  under it. The Photo tab still shows the photo.
+- **No photo in the scene either** (the owner's decision, 1 Nov 2026): the scene opened in
+  Excalidraw is the drawing, as in the app, not the drawing on its whiteboard. So the one SVG is
+  right for showing, opening and downloading, and no second file is needed.
+- **scrap keeps no image in a drawing.** The cleaner drops every image element and file from the
+  scene, and every `<image>`, `<feImage>` and image symbol from the picture, whatever they are:
+  a drawing sent by 1.3.1's PWA, the photo under it, comes out as the drawing alone. Matching
+  images to the page's photos by their bytes is no longer needed, so it is gone, and no photo
+  bytes, original or preview, can go out in a drawing.
+
+### An SVG is exactly `image/svg+xml` (#526)
+
+- **The cause.** excalidraw.com opens `#url=` with `loadFromBlob`, which takes a file as an SVG
+  only if the Blob's type is exactly `image/svg+xml`. nginx sent `image/svg+xml; charset=utf-8`,
+  so the browser's Blob type had the parameter, Excalidraw read the SVG as JSON, and refused it
+  ("doesn't contain valid Excalidraw JSON data"). The test in 1.3.1 built its Blob by hand, with
+  the exact type, so it passed.
+- **The fix.** nginx adds no `charset` to SVG (an SVG is XML, UTF-8 unless it says otherwise).
+  The e2e test now fetches the published SVG from the site in the browser, as excalidraw.com
+  does, and opens that Blob with `loadFromBlob`.
+- **Turned down:** a sibling `.excalidraw` file for Open in Excalidraw. With the type fixed the
+  SVG opens as it is, and without the photo there is nothing the SVG cannot carry.
+
+### The site's icon (#527)
+
+- **scrap's own icons**, `icon.svg` and `icon-192.png` from the PWA, are in the `assets` unit,
+  and every page the site serves names them in `<head>`:
+  `<link rel="icon" href="/assets/icon.svg" type="image/svg+xml">` and
+  `<link rel="apple-touch-icon" href="/assets/icon-192.png">`. scrap's check allows exactly
+  these two links; the receiver allows exactly these two files, at the top of `assets` only, so
+  `icon.svg` is the only SVG there, and it goes out under the image CSP.
+- **`/favicon.ico`**, which browsers ask for on their own, is a `302` to `/assets/icon.svg`
+  rather than a `404`, so an image or PDF opened alone has the icon too.
+- **Not yet:** the scrap mark beside the site's name in the header, waiting on a mock.
+
+### Consequences of the 1.3.2 amendment
+
+- A published drawing shows and opens as the app shows it, without its whiteboard: a reader who
+  wants the photo has the Photo tab. Pages published by 1.3.1 keep the overlay until the owner
+  presses Refresh all after the deploy.
+- The scrap-public image changes (nginx's types, the receiver's `assets` rule), so both images
+  ship together, as before.

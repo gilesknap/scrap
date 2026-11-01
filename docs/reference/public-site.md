@@ -65,7 +65,7 @@ inside a unit.
 | A tag | `t/[a-z0-9-]{1,80}` | `index.html` | nothing else | `/t/<key>`, `/t/<key>/` |
 | The home page | `home` | `index.html` | any other one-segment `.html` (scrap sends `tags.html` and `404.html`) | `/`, `/tags`, every 404 |
 | The search index | `pagefind` | at least one file | Pagefind's files and `scrap-search.js` | `/pagefind/<path>` |
-| Shared assets | `assets` | at least one file | the site's CSS, KaTeX's fonts and `prefs.js` | `/assets/<path>` |
+| Shared assets | `assets` | at least one file | the site's CSS, KaTeX's fonts, `prefs.js` and the site's icons | `/assets/<path>` |
 
 The unit is the raw request path after `/v1/units/`, matched exactly against the pattern (no
 decoding). Anything else, such as `%`, a `.` segment, `//`, a trailing `/`, upper case or a query
@@ -79,11 +79,13 @@ What each kind may hold. A member that breaks its kind's rule is `422 bad_member
 | `t/*` | `index.html` only |
 | `home` | `.html` files, one segment each (`robots.txt` is not in a unit: nginx makes it) |
 | `pagefind` | `js`, `mjs`, `json`, `wasm`, `pagefind`, `pf_meta`, `pf_index`, `pf_fragment`, `pf_filter` |
-| `assets` | `css`, `woff`, `woff2`, `ttf`; and `prefs.js`, at its top only |
+| `assets` | `css`, `woff`, `woff2`, `ttf`; and `prefs.js`, `icon.svg` and `icon-192.png`, at its top only |
 
 So `.wasm` and every script but one exist only under `/pagefind/`; the one other script is
 `/assets/prefs.js`, the reader's theme and column width ([](#reader-preferences)). CSS and fonts
-exist only under `/assets/`, and no page or tag unit can hold a script or a stylesheet. An attachment is never published as `html`,
+exist only under `/assets/`, and no page or tag unit can hold a script or a stylesheet. The
+site's icons, scrap's own (#527), are the only other files in `assets`, and the only SVG there.
+An attachment is never published as `html`,
 `htm`, `js`, `mjs`, `css` or `svg`: an SVG attachment is published as an image (`img-*.svg`), and
 a type outside the list as `bin`.
 
@@ -264,7 +266,14 @@ served at the top level: `/home/...`, `/units/...`, `/v1/...` and dotfiles are `
 
 Types come from the extension: `.md` as `text/markdown`, `.txt` as `text/plain`, `.ttf` as
 `font/ttf`, `.wasm` as `application/wasm`, Pagefind's index files and `.bin` as
-`application/octet-stream`; text types are `charset=utf-8`.
+`application/octet-stream`; text types and JSON are `charset=utf-8`. An SVG is exactly
+`image/svg+xml`, with no `charset`: it is XML, UTF-8 unless it says otherwise, and excalidraw.com
+opens a drawing's SVG only if its type is exactly that (#526: its `loadFromBlob` compares the
+Blob's type whole, so `image/svg+xml;charset=utf-8` is read as JSON and refused).
+
+`/favicon.ico`, which a browser asks for on its own where nothing names an icon (an image or a
+PDF opened alone), is a `302` to `/assets/icon.svg`, with a relative `Location` so it holds
+behind the TLS proxy (#527).
 
 ### Headers
 
@@ -279,7 +288,7 @@ On every response:
 | Path | `Content-Security-Policy` |
 | --- | --- |
 | `/p/<slug>/file-*.pdf` | `sandbox` |
-| `/p/<slug>/img-*`, `/p/<slug>/file-*` (not a PDF) | `sandbox; default-src 'none'; style-src 'unsafe-inline'; img-src data:; font-src data:` |
+| `/p/<slug>/img-*`, `/p/<slug>/file-*` (not a PDF), and `/assets/*.svg` (the site's icon) | `sandbox; default-src 'none'; style-src 'unsafe-inline'; img-src data:; font-src data:` |
 | `/p/...` and `/t/...` otherwise (a page's or tag's HTML) | `default-src 'none'; img-src 'self' data:; style-src 'self'; style-src-attr 'unsafe-inline'; font-src 'self'; script-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'` |
 | everything else (home, `/pagefind/`, `/assets/`) | `default-src 'none'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; font-src 'self'; script-src 'self' 'wasm-unsafe-eval'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'` |
 | every `404`, whatever the path: `home/404.html`, whose only script is `prefs.js` | home's, as the row above |
@@ -363,7 +372,9 @@ each of them is next saved in the PWA. There is no stale tracking.
 **Left out**: Claude's notes on a photo (its description, the read text), revisions, the
 extracted text of files, the PWA's controls, and every `/api` or other private address.
 
-**Head**: the fixed meta CSP, `/assets/page.css`, `/assets/katex.css` for a page with maths, and
+**Head**: the fixed meta CSP, `/assets/page.css`, `/assets/katex.css` for a page with maths, the
+site's icons (#527), `<link rel="icon" href="/assets/icon.svg" type="image/svg+xml">` and
+`<link rel="apple-touch-icon" href="/assets/icon-192.png">`, and
 `<script src="/assets/prefs.js" defer blocking="render"></script>`
 ([](#the-html-scrap-accepts)).
 
@@ -515,7 +526,10 @@ The document is `<!DOCTYPE html>` with `html`, `head`, `title` and `body`; `html
   `<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self' data:; style-src 'self'; style-src-attr 'unsafe-inline'; font-src 'self'; script-src 'self'">`.
   Its parsed `content`, with whitespace normalised, must equal that exactly;
 - `<link rel="stylesheet" href="/assets/page.css">` (pagehtml's page CSS, moved out of the file),
-  and, for a page with maths, `<link rel="stylesheet" href="/assets/katex.css">`. No other `link`;
+  and, for a page with maths, `<link rel="stylesheet" href="/assets/katex.css">`;
+- the site's icons (#527), each at most once and exactly so (its attributes in any order):
+  `<link rel="icon" href="/assets/icon.svg" type="image/svg+xml">` and
+  `<link rel="apple-touch-icon" href="/assets/icon-192.png">`. No other `link`;
 - at most one `script`, which must be exactly `src="/assets/prefs.js"` with `defer` or `async`
   (one, with no value), and `blocking="render"` if given: no other attribute (no `type`,
   `integrity`, `nomodule`) and no text. The publish mode writes
@@ -685,9 +699,10 @@ beside its HTML. The publish mode loads Excalidraw's chunk only for a page that 
 
 **What the PWA sends.** For each drawing the page shows, its id (the drawing's current
 version, the one the page view draws) and an SVG from Excalidraw's `exportToSvg`, on white, with
-its fonts inlined and `exportEmbedScene` on: the picture and the scene in one file. A drawing of
-a photo has the photo under it, as a locked image of the drawing's frame, embedded as the
-photo's 2048-pixel preview (`/api/blobs/<sha>/preview?size=2048`). Before sending it, the PWA
+its fonts inlined and `exportEmbedScene` on: the picture and the scene in one file. The
+drawing replaces its photo, as the app's Drawing tab shows it (#524): it is drawn alone, framed
+as the photo is, with no photo under it, in the picture or in the scene (the owner's decision,
+1 Nov 2026: the scene opened in Excalidraw has no photo either, as in the app). Before sending it, the PWA
 reads the SVG back with Excalidraw's own `loadFromBlob`, and sends nothing if the scene does not
 come back whole.
 
@@ -721,24 +736,23 @@ without it the one link is "Download, then open in excalidraw.com to edit".
    "bstring", "compressed": true, "encoded": ...}`, written one byte a character, and `encoded`
    is the zlib deflate of the scene's JSON (Excalidraw 0.18, `data/encode.ts`). scrap decodes it
    (at most 24 MiB inflated, 32 levels deep) and keeps only:
-   - `type`, `version`, `elements`, `appState` and `files`, and `source` as `scrap` (Excalidraw
-     writes the address of the app it ran in, which is scrap's own);
+   - `type`, `version`, `elements` and `appState`, `files` as `{}`, and `source` as `scrap`
+     (Excalidraw writes the address of the app it ran in, which is scrap's own);
    - of `appState`, the background colour and the grid;
-   - every element not deleted, with only Excalidraw's own element fields (no `customData`),
+   - every element not deleted and not an image, with only Excalidraw's own element fields (no
+     `customData`, and none of an image's),
      and inside them only keys that are plain names. Every string in an element loses any
      embedded `data:` URL and goes through the page text's rule: an address of scrap's own, or
      an `/api/` path, becomes "a private link". An element's `link` follows the page's link rules: a web or `mailto:` link stays, a
      public page's becomes its address on the site, and anything else (a private page, scrap's
      own, `/api/`) is removed;
-   - each embedded image only if it is one of the page's photos, matched by its bytes (the photo
-     as stored, or its 2048-pixel preview, never by a name in the upload), and then always as
-     that preview: so no original bytes and no EXIF or GPS. It is renamed by the SHA-1 of its
-     data URL, as Excalidraw names a file. An image that matches none of the page's photos is
-     dropped, with the elements that show it.
+   - no image, and no file: every image element is dropped, the page's photo (as 1.3.1's PWA
+     put under the drawing) or any other, so no photo bytes, original or preview, go out in a
+     drawing.
 3. **The picture.** The SVG goes through scrap's SVG sanitiser (as any SVG; up to 20 MiB here,
-   since it holds the photo twice), which drops the old scene. In what is drawn, each `<image>`
-   is likewise the preview of the page's photo it is, or removed, with the symbols naming a
-   dropped image (matched by its exact name, `image-<id>` or `image-crop-<id>-<hash>`); every
+   as 1.3.1's PWA sent the photo in it twice), which drops the old scene. In what is drawn,
+   every `<image>` and `<feImage>` is removed, and every element whose `id` or fragment `href`
+   names an image symbol (`image-...`: Excalidraw's symbols and their uses); every
    text and attribute value is scrubbed by the same rule; and its `<style>` may embed only
    whole WOFF2 or WOFF fonts (as Excalidraw inlines them; the font's header must give the
    data's own length) and no address of scrap's, else the drawing is refused. Text Excalidraw
@@ -747,9 +761,8 @@ without it the one link is "Download, then open in excalidraw.com to edit".
    (`<!-- svg-source:excalidraw --><metadata>...</metadata>`), so the file is both the picture
    and a drawing.
 
-The request's own limit, 25 MiB, holds the HTML and every drawing: a drawing of a photo is
-about 1 to 3 MB (the preview twice, in base64, and its fonts), so a page with more than about
-ten drawings is refused as too large (`413`) before the 20-file cap.
+The request's own limit, 25 MiB, holds the HTML and every drawing: a drawing is mostly its
+inlined fonts, a few hundred kB, so the 20-file cap comes first.
 
 It is published as `img-<n>-<hex>.svg`, numbered with the page's images, under the image CSP
 (`sandbox`, loading nothing). `scrap-drawing:<id>` becomes its path, and
@@ -764,7 +777,8 @@ page again once, as for a stale tag.
 
 **Opening it.** excalidraw.com reads a `#url=` address on load, fetches that file in the
 reader's browser (hence the SVG's `Access-Control-Allow-Origin`) and opens it as it opens a file
-dropped on it, with `loadFromBlob`. Nothing is uploaded to Excalidraw's servers. `#url=` is not a
+dropped on it, with `loadFromBlob`, which takes it as an SVG only if the answer's type is
+exactly `image/svg+xml` (hence no `charset`, [](#nginx)). Nothing is uploaded to Excalidraw's servers. `#url=` is not a
 documented feature of excalidraw.com and could change; Download is the fallback: the SVG opens in
 excalidraw.com, or a copy of Excalidraw, with its own Open.
 
@@ -826,12 +840,13 @@ The derived units are built only from the kept copies and their `meta.json`
   on a digest of the pinned version, `scrap-search.js` and every record, so an unchanged index
   is not built again; a build has about 120 seconds, and if it fails or runs out the site keeps
   its last index (`"derived": "pending"`);
-- `assets`: `page.css` (pagehtml's page CSS), `katex.css`, KaTeX's fonts and `prefs.js`
-  ([](#reader-preferences)), from scrap's own static build of the PWA, and Pagefind's UI
-  stylesheet, as CSS lives only in `assets`.
+- `assets`: `page.css` (pagehtml's page CSS), `katex.css`, KaTeX's fonts, `prefs.js`
+  ([](#reader-preferences)) and the app's own icons, `icon.svg` and `icon-192.png` (#527), from
+  scrap's own static build of the PWA, and Pagefind's UI stylesheet, as CSS lives only in
+  `assets`.
 
-Each of the site's own pages loads `/assets/page.css` and `/assets/prefs.js` from its head, as a
-published page does.
+Each of the site's own pages loads `/assets/page.css` and `/assets/prefs.js` and names the two
+icons from its head, as a published page does.
 
 Titles and tag names come from `meta.json`. Every build is deterministic: the same copies give
 the same bytes (sorted order, no timestamps), so an unchanged unit has an unchanged digest.

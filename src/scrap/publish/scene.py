@@ -22,14 +22,12 @@ Cleaning keeps only what a scene is, by an allow-list:
   every string in them goes through the page text's rule (links.scrub_text), less any
   embedded data: URL, and nested keys only if they are plain names; a link, by the
   page's link rules (link());
-- every embedded image replaced by what images() makes of its bytes (the 2048-pixel
-  preview of the page's photo it is), under a new id; one it maps to nothing is
-  dropped, with the image elements that show it.
+- no images: a drawing replaces its photo, as the app's Drawing tab shows it (#524),
+  so every image element goes, and the files with them (the scene keeps none).
 """
 
 import base64
 import binascii
-import hashlib
 import json
 import re
 import xml.etree.ElementTree as ET
@@ -56,10 +54,11 @@ VERSION = "<!-- payload-version:2 -->"
 START, END = "<!-- payload-start -->", "<!-- payload-end -->"
 BASE64 = re.compile(r"[A-Za-z0-9+/=]+")
 # The scene's JSON, decompressed: more is refused, not inflated (a drawing's SVG is at
-# most 20 MiB, and its scene holds the photo's preview once)
+# most 20 MiB; an older PWA's scene held the photo's preview once, which then goes)
 MAX_SCENE = 24 * 2**20
-# An element's fields: Excalidraw 0.18's (element/types.ts), less customData. Nested
-# objects (bindings, roundness, crop, boundElements) keep keys that are plain names
+# An element's fields: Excalidraw 0.18's (element/types.ts), less customData and an
+# image's (no image is kept). Nested objects (bindings, roundness, boundElements) keep
+# keys that are plain names
 FIELDS = frozenset(
     """id type x y width height angle strokeColor backgroundColor fillStyle strokeWidth
     strokeStyle roughness opacity groupIds frameId index roundness seed version
@@ -67,12 +66,11 @@ FIELDS = frozenset(
     textAlign verticalAlign containerId originalText autoResize lineHeight baseline
     points lastCommittedPoint startBinding endBinding startArrowhead endArrowhead
     elbowed fixedSegments startIsSpecial endIsSpecial pressures simulatePressure
-    fileId status scale crop name polygon""".split()
+    name polygon""".split()
 )
 KEY = re.compile(r"[A-Za-z][A-Za-z0-9_]{0,40}")
 # A data: URL of some length in a string: never the page's own words; it goes
 EMBEDDED = re.compile(r"data:[^,\s]{0,100};base64,[A-Za-z0-9+/=\s]{64,}", re.IGNORECASE)
-DATA_URL = re.compile(r"data:image/(?:png|jpeg|webp|gif);base64,([A-Za-z0-9+/=]*)")
 COLOUR = re.compile(r"#[0-9a-fA-F]{3,8}|[a-zA-Z]{1,30}")
 GRID = {"gridSize": int, "gridStep": int, "gridModeEnabled": bool}
 
@@ -171,63 +169,24 @@ def _strings(value: Any, scrub: Callable[[str], str], depth: int = 0) -> Any:
     return value
 
 
-def _files(
-    files: Any, images: Callable[[bytes], bytes | None]
-) -> tuple[dict[str, Any], dict[str, str]]:
-    """The scene's images replaced by what images() makes of each, under a new id
-    (the SHA-1 of its data URL, as Excalidraw names a file): the files kept, and
-    each old id's new one."""
-    if not isinstance(files, dict):
-        return {}, {}
-    out: dict[str, Any] = {}
-    ids: dict[str, str] = {}
-    for old, f in files.items():
-        url = f.get("dataURL") if isinstance(f, dict) else None
-        m = DATA_URL.fullmatch(url) if isinstance(url, str) else None
-        if m is None:
-            continue
-        try:
-            made = images(base64.b64decode(m[1], validate=True))
-        except binascii.Error:
-            continue
-        if made is None:  # not a photo of the page: dropped
-            continue
-        data_url = "data:image/jpeg;base64," + base64.b64encode(made).decode("ascii")
-        new = hashlib.sha1(data_url.encode()).hexdigest()  # noqa: S324  a name only
-        created = f.get("created")
-        out[new] = {
-            "mimeType": "image/jpeg",
-            "id": new,
-            "dataURL": data_url,
-            "created": created if isinstance(created, int) else 0,
-        }
-        ids[old] = new
-    return out, ids
-
-
 def clean(
     scene: dict[str, Any],
-    images: Callable[[bytes], bytes | None],
     scrub: Callable[[str], str],
     link: Callable[[str], str | None],
-) -> tuple[dict[str, Any], dict[str, str]]:
-    """The scene as published (see the module docstring), and each kept image's old
-    id's new one (so the SVG's own copy of it can follow)."""
+) -> dict[str, Any]:
+    """The scene as published (see the module docstring)."""
     elements = scene.get("elements")
     if not isinstance(elements, list):
         raise _refuse("has a scene with no elements")
-    files, ids = _files(scene.get("files"), images)
     kept: list[dict[str, Any]] = []
     for el in elements:
         if not isinstance(el, dict) or el.get("isDeleted") is True:
             continue
+        if el.get("type") == "image":  # the photo, or any other: the drawing has none
+            continue
         el = {k: v for k, v in el.items() if k in FIELDS}
-        if el.get("type") == "image":
-            if not isinstance(el.get("fileId"), str) or el["fileId"] not in ids:
-                continue
-            el["fileId"] = ids[el["fileId"]]
         target = el.pop("link", None)
-        el = _strings(el, scrub)  # (a new file id is hex: it stays as it is)
+        el = _strings(el, scrub)
         el["link"] = link(target) if isinstance(target, str) and target else None
         kept.append(el)
     given = scene.get("appState")
@@ -248,6 +207,6 @@ def clean(
         "source": "scrap",
         "elements": kept,
         "appState": app,
-        "files": files,
+        "files": {},
     }
-    return out, ids
+    return out
