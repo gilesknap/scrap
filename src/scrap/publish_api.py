@@ -30,12 +30,22 @@ class Drawing(BaseModel):
     svg: Text
 
 
+class Diagram(BaseModel):
+    """A Mermaid diagram the page shows (#525): its key (scrap-diagram:<key>-light
+    and -dark in the page), and its SVGs in the light and the dark theme."""
+
+    key: str = Field(pattern=r"^[1-9][0-9]{0,2}$")
+    light: Text
+    dark: Text
+
+
 class Publish(BaseModel):
     html: Text
     base_rev: StrictInt = Field(ge=0)
     defer: StrictBool = False
     confirmed: StrictBool = False  # needed for a first publish (no kept copy)
     drawings: list[Drawing] = Field(default_factory=list, max_length=MAX_FILES)
+    diagrams: list[Diagram] = Field(default_factory=list, max_length=MAX_FILES)
 
 
 def error(e: PublishError) -> JSONResponse:
@@ -51,10 +61,10 @@ def add_routes(app: FastAPI, publisher: Publisher) -> None:
 
     @app.put("/api/pages/{key}/published")
     async def published(key: str, request: Request) -> dict[str, Any]:
-        """Publish a page: {html, base_rev, defer, drawings} from the PWA's publish
-        mode, checked and pushed under scrap's lock. 200 {url, published_at,
-        files}. A page with no kept copy (never published, or unpublished since)
-        needs "confirmed": true, else 409 unconfirmed."""
+        """Publish a page: {html, base_rev, defer, drawings, diagrams} from the
+        PWA's publish mode, checked and pushed under scrap's lock. 200 {url,
+        published_at, files}. A page with no kept copy (never published, or
+        unpublished since) needs "confirmed": true, else 409 unconfirmed."""
         length = request.headers.get("content-length")
         if length is not None and length.isdigit() and int(length) > MAX_BODY:
             raise TooLarge(f"a publish is at most {MAX_BODY // 2**20} MiB")
@@ -67,15 +77,18 @@ def add_routes(app: FastAPI, publisher: Publisher) -> None:
             ask = Publish.model_validate(json.loads(raw))
         except (ValueError, ValidationError) as e:
             raise BadRequest(
-                "expected JSON {html, base_rev, defer, confirmed, drawings}:"
+                "expected JSON {html, base_rev, defer, confirmed, drawings, diagrams}:"
                 f" {str(e)[:200]}"
             ) from None
         drawings = {d.key: d.svg for d in ask.drawings}
         if len(drawings) != len(ask.drawings):
             raise BadRequest("a drawing sent twice")
+        diagrams = {d.key: (d.light, d.dark) for d in ask.diagrams}
+        if len(diagrams) != len(ask.diagrams):
+            raise BadRequest("a diagram sent twice")
         return await run_in_threadpool(
             publisher.publish, key, ask.html, ask.base_rev, ask.defer, ask.confirmed,
-            drawings,
+            drawings, diagrams,
         )  # fmt: skip
 
     @app.get("/api/public")

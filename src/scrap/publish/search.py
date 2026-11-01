@@ -26,11 +26,13 @@ import sys
 import tempfile
 import uuid
 import xml.etree.ElementTree as ET
+from collections.abc import Callable
 from pathlib import Path
 
 import html5lib
 from pagefind.index import PagefindIndex
 
+from .. import svg
 from .katex import HTML, MATHML
 
 __all__ = [
@@ -74,9 +76,19 @@ def _tex(el: ET.Element) -> str:
     return ""
 
 
-def index_text(html: bytes | str) -> str:
+def _diagram(el: ET.Element, file: Callable[[str], bytes] | None) -> str:
+    """A diagram's words (#525): those of its light image's SVG (svg.text_of), its
+    file read by its name in the unit."""
+    for img in el.iter(f"{{{HTML}}}img"):
+        if file is not None and "light" in (img.get("class") or "").split():
+            return svg.text_of(file((img.get("src") or "").rpartition("/")[2]))
+    return ""
+
+
+def index_text(html: bytes | str, file: Callable[[str], bytes] | None = None) -> str:
     """A kept page's text for the index: its body's text, a KaTeX formula as its TeX,
-    without the site's lines or the page's header.
+    a Mermaid diagram as the words drawn in it (file: one of the unit's files, by
+    name), without the site's lines or the page's header.
 
     >>> index_text('<p>Area <span class="katex"><math><semantics><mi>r</mi>'
     ...   '<annotation encoding="application/x-tex">\\\\pi r^2</annotation>'
@@ -102,6 +114,10 @@ def index_text(html: bytes | str) -> str:
         gap = " " if local in BLOCKS else ""
         if local == "h1" or SKIP & set((item.get("class") or "").split()):
             stack.append(f"{gap}{item.tail or ''}")
+            continue
+        if local == "figure" and "diagram" in (item.get("class") or "").split():
+            stack.append(f" {item.tail or ''}")
+            out.append(f" {_diagram(item, file)} ")
             continue
         if local == "span" and "katex" in (item.get("class") or "").split():
             stack.append(f"{gap}{item.tail or ''}")

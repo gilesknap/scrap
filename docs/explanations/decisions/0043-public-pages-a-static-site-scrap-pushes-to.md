@@ -12,6 +12,10 @@ Amended 2026-11-01 (1.3.1): a reader's theme and column width, by one script of 
 own (#519), and drawings published, downloadable and opened in excalidraw.com (#520). See
 [](#amendment-reader-preferences-and-drawings) at the end.
 
+Amended 2026-11-01 (1.3.3): Mermaid diagrams drawn, light and dark, rather than as their source
+(#525), and code left as written but for scrap's own addresses (#529). See
+[](#amendment-mermaid-diagrams-drawn) at the end.
+
 ## Context
 
 The owner wants to show a page to anyone with its address, read only. The motivating case is a
@@ -120,7 +124,8 @@ carry.
   and a `robots.txt` of `Disallow: /`); the image's `INDEXING=on` switch lifts it.
 - **What a public page holds**, as the contract's "What the publish mode writes" spells out:
   - The body as shown, Claude's write-up and summary, and the tags (as chips linking to their
-    tag pages). Mermaid diagrams go out as their source, not rendered.
+    tag pages). Mermaid diagrams went out as their source, not rendered (drawn since 1.3.3:
+    [](#amendment-mermaid-diagrams-drawn)).
   - Links to public pages stay links. A link to a private page becomes a plain `<span>` holding
     the label the owner typed, or, when there is none (a bare `[[slug]]` or address), that
     page's title as plain text. The owner chose the title over a neutral "a private page": it
@@ -351,3 +356,30 @@ whiteboard page, were left out. The owner decided both on 1 Nov 2026.
   published as cleaned, like the page's own text.
 - Publishing a page with drawings loads Excalidraw in the PWA and takes longer; a drawing that
   cannot be drawn fails the publish rather than going out half made.
+
+(amendment-mermaid-diagrams-drawn)=
+## Amendment: Mermaid diagrams drawn (1.3.3, #525, #529)
+
+A public page should look like the private one, and the app draws Mermaid diagrams. The owner
+approved the design on a mock, 1 Nov 2026.
+
+- **The PWA draws them, as drawings (#520).** The publish mode draws each diagram with the
+  app's own Mermaid (its lazy chunk, loaded only for a page with one) and options, plus SVG
+  labels (`htmlLabels: false`: no `foreignObject`, so the sanitiser keeps the words), the font
+  stack named and a size from the `viewBox`, and sends the SVGs beside the page as
+  `diagrams: [{key, light, dark}]`. The app shell does not grow.
+- **Light and dark, by CSS.** Mermaid bakes its colours in, so each diagram is drawn twice
+  (Mermaid's `neutral` and `dark` themes, as the app) and the page holds both `img`s
+  (`scrap-diagram:<n>-light`, `-dark`) in a `figure.diagram`; `page.css` shows the one for the
+  page's theme, light by default and with no script. The hidden one costs a download of about
+  20 kB. Each counts toward the 20-file cap as an image.
+- **scrap trusts neither SVG**: each goes through the SVG sanitiser, its text and attributes
+  are scrubbed of scrap's own addresses, and a `<style>` naming one is refused. The page CSP,
+  the image CSP and the receiver are unchanged (`img-*.svg` files, as drawings).
+- **No Source fold** (the owner's choice, as the app has none). Search reads the diagram's
+  words from its light SVG instead, so a node's label is found, and nothing shows twice.
+- **A diagram Mermaid cannot draw so** goes out as its source, as before.
+- **Code is left as written (#529).** In a code block and in a diagram, only scrap's own
+  addresses (its hosts, `/api/blobs/`) become "a private link"; other `/api/...` paths are the
+  code's own text (`API[/api/captures/]` stays, so a diagram's source still parses). scrap's
+  check, which refuses only those addresses, is unchanged.

@@ -31,8 +31,26 @@ vi.mock("../src/publish", () => ({
   hasMaths: () => false,
   // a view's drawings: those its (fake) root lists
   drawingsOf: (root: { drawings?: unknown[] }) => root.drawings ?? [],
-  publishHtml: (_root: unknown, c: { title: string; drawn?: Set<string> }) =>
-    `<!DOCTYPE html>${c.title}${[...(c.drawn ?? [])].map((d) => ` "scrap-drawing:${d}"`).join("")}`,
+  // its diagrams (#525): those its root lists
+  diagramsOf: (root: { diagrams?: unknown[] }) => root.diagrams ?? [],
+  publishHtml: (
+    _root: unknown,
+    c: { title: string; drawn?: Set<string>; diagrams?: Map<string, number> },
+  ) =>
+    `<!DOCTYPE html>${c.title}${[...(c.drawn ?? [])].map((d) => ` "scrap-drawing:${d}"`).join("")}${[
+      ...(c.diagrams?.values() ?? []),
+    ]
+      .map((k) => ` "scrap-diagram:${k}-light"`)
+      .join("")}`,
+}));
+// Mermaid's chunk, loaded only for a page with diagrams (#525): a source "bad" is not drawn
+const mermaids: string[] = [];
+vi.mock("../src/mermaid", () => ({
+  svgFor: async (text: string, theme: string) => {
+    mermaids.push(theme);
+    if (text === "bad") throw new Error("no diagram");
+    return `<svg class="${theme}">${text}</svg>`;
+  },
 }));
 // Excalidraw's chunk, loaded only for a page with drawings (#520)
 const boards: string[] = [];
@@ -102,6 +120,7 @@ const reply = (status: number, data: unknown) =>
 
 beforeEach(() => {
   boards.length = 0;
+  mermaids.length = 0;
   toasts.length = 0;
   asked.length = 0;
   answer = true;
@@ -209,6 +228,30 @@ describe("a page with drawings (#520)", () => {
     await pub.makePublic(view("a"));
     expect(calls.find((c) => c.method === "PUT")?.body?.drawings).toBeUndefined();
     expect(boards).toEqual([]);
+  });
+});
+
+describe("a page with diagrams (#525)", () => {
+  it("draws each light and dark and sends them; one it can't draw stays its source", async () => {
+    add("a");
+    const v = view("a");
+    (v.root as unknown as { diagrams: unknown[] }).diagrams = ["one", "bad", "three"];
+    await pub.makePublic(v);
+    const put = calls.find((c) => c.method === "PUT");
+    expect(put?.body?.html).toBe(
+      '<!DOCTYPE html>A "scrap-diagram:1-light" "scrap-diagram:3-light"',
+    );
+    expect(put?.body?.diagrams).toEqual([
+      { key: "1", light: '<svg class="light">one</svg>', dark: '<svg class="dark">one</svg>' },
+      { key: "3", light: '<svg class="light">three</svg>', dark: '<svg class="dark">three</svg>' },
+    ]);
+  });
+
+  it("loads no Mermaid and sends no diagrams for a page without any", async () => {
+    add("a");
+    await pub.makePublic(view("a"));
+    expect(calls.find((c) => c.method === "PUT")?.body?.diagrams).toBeUndefined();
+    expect(mermaids).toEqual([]);
   });
 });
 

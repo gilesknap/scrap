@@ -23,6 +23,14 @@ export const setPublic = (key: string, on: boolean) =>
  * the home page, tag pages or search (Refresh all, then rebuild() once). confirmed: the owner
  * has just said yes to it going public (Make public's warning, Refresh all's question), which
  * scrap needs for a page not published before (else 409 unconfirmed). */
+/** A Mermaid diagram as a public page shows it (#525): its key (scrap-diagram:<key>-light and
+ * -dark in the page) and its two SVGs. */
+export interface Diagram {
+  key: string;
+  light: string;
+  dark: string;
+}
+
 export const publishPage = (
   key: string,
   html: string,
@@ -30,6 +38,7 @@ export const publishPage = (
   defer = false,
   confirmed = false,
   drawings: { key: string; svg: string }[] = [], // its drawings' SVGs, by id (#520)
+  diagrams: Diagram[] = [], // its Mermaid diagrams' SVGs, light and dark (#525)
 ) =>
   api<Published>(`pages/${encodeURIComponent(key)}/published`, {
     method: "PUT",
@@ -40,6 +49,7 @@ export const publishPage = (
       defer,
       ...(confirmed && { confirmed }),
       ...(drawings.length && { drawings }),
+      ...(diagrams.length && { diagrams }),
     }),
   });
 
