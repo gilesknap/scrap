@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Capture from your phone (the PWA) &#8212; scrap 1.2.2.dev11+g9f83c1a15 documentation</title>
+    <title>Capture from your phone (the PWA) &#8212; scrap 1.3.1.dev1+ge86f3bf28 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=cdb6b194"></script>
+    <script src="../_static/documentation_options.js?v=1a34d020"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -1580,7 +1580,11 @@ Make public and Settings’ Public pages are not shown.</p>
 <ul class="simple">
 <li><p><strong>Make public…</strong> is the last row of <strong>Share</strong>. It asks first, every time: who can read it, and
 what goes public with the page: its tags, Claude’s write-up and summary (on a topic, its
-synthesis, which draws on its source pages), and its attached files by name. <em>Links to private pages show their titles as plain text.</em> <strong>Cancel</strong> has the focus.
+synthesis, which draws on its source pages), its attached files by name, and <em>its N drawings,
+downloadable</em> when its photos have drawings. <em>Links to private pages show their titles as
+plain text.</em> <strong>Cancel</strong> has the focus. A page with drawings takes a moment longer: the app
+loads Excalidraw to draw each one for the site, where readers can open it in excalidraw.com or
+download it (<a class="reference internal" href="publish-pages.html"><span class="std std-doc">Publish pages</span></a>).
 <strong>Make public</strong> publishes the page from the view on screen: the dates line says <em>Publishing…</em>,
 then <em>Published</em> and when, and the toast <em>Page is public</em> has <strong>Copy link</strong>.</p></li>
 <li><p>A public page has a <strong>Public</strong> chip first in its chip row (a globe), which opens it on the
@@ -1602,12 +1606,13 @@ on another device), those pages keep the old link or title until <strong>Refresh
 </ul>
 <p>What a public page holds: the page as it shows here, with its maths, tables and Claude’s summary
 and write-up; tags as links to the site’s tag pages; Mermaid diagrams as their source; photos as
-2048 pixel previews (no location), and other attached files. A link to a public page is a link
+2048 pixel previews (no location), a photo’s drawing beside it (with Photo and Drawing tabs,
+and Open in Excalidraw and Download links), and other attached files. A link to a public page is a link
 (a bare <code class="docutils literal notranslate"><span class="pre">[[slug]]</span></code> shows its title); a link to a private page is its words (a bare one, the private
 page’s title). Claude’s Related and Linked from keep only public pages. An address of scrap
 itself, or of its <code class="docutils literal notranslate"><span class="pre">/api/</span></code>, in the text reads <em>a private link</em>. Left out: Claude’s notes
-on a photo (its description, the text it read, its drawing), drawings, revisions, a file’s text
-read for search, and the app’s buttons. An image’s alt text is published as the page has it, file
+on a photo (its description and the text it read), revisions, a file’s text read for search,
+and the app’s buttons. An image’s alt text is published as the page has it, file
 names included.</p>
 <p>The site is only as current as the last publish: a change made elsewhere (over MCP, a new
 write-up) reaches it at the page’s next save here, or with <strong>Settings</strong>, <strong>Public pages</strong>,

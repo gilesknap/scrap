@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>43. Public pages: a static site scrap pushes to &#8212; scrap 1.2.2.dev11+g9f83c1a15 documentation</title>
+    <title>43. Public pages: a static site scrap pushes to &#8212; scrap 1.3.1.dev1+ge86f3bf28 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../../_static/documentation_options.js?v=cdb6b194"></script>
+    <script src="../../_static/documentation_options.js?v=1a34d020"></script>
     <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -554,6 +554,9 @@
 <p>Accepted. Replaces the scrap-to-gist skill (#481, #484, #489), which is removed. Keeps the
 access model of <a class="reference internal" href="0007-tailscale-serve-for-access-and-identity.html"><span class="std std-doc">7. Tailscale Serve is the only way in; no login code</span></a>: scrap itself never becomes
 public.</p>
+<p>Amended 2026-11-01 (1.3.1): a reader’s theme and column width, by one script of the site’s
+own (#519), and drawings published, downloadable and opened in excalidraw.com (#520). See
+<a class="reference internal" href="#amendment-reader-preferences-and-drawings"><span class="std std-ref">Amendment: reader preferences and drawings (1.3.1, #519, #520)</span></a> at the end.</p>
 </section>
 <section id="context">
 <h2>Context<a class="headerlink" href="#context" title="Link to this heading">#</a></h2>
@@ -682,11 +685,10 @@ title stays on them until Refresh all or their next save in the PWA: accepted, s
 is no stale tracking. The contract says so.</p></li>
 <li><p>An image’s <code class="docutils literal notranslate"><span class="pre">alt</span></code> is published as the app has it, a file name the PWA filled in included
 (the owner’s choice; a link’s label may show a file’s name too).</p></li>
-<li><p>Left out: Claude’s notes (a photo’s description, the read text, the drawing), revisions, the
+<li><p>Left out: Claude’s notes (a photo’s description, the read text), revisions, the
 extracted text of files, and every <code class="docutils literal notranslate"><span class="pre">/api</span></code> or other private address.</p></li>
-<li><p><strong>Drawings (Excalidraw) are not published in this version.</strong> The publish mode leaves them
-out, and a photo with a drawing on it is published as the photo alone. Publishing drawings is
-a follow-up.</p></li>
+<li><p><strong>Drawings (Excalidraw)</strong> were left out in the first version (a photo with a drawing
+published as the photo alone); 1.3.1 publishes them (<a class="reference internal" href="#amendment-reader-preferences-and-drawings"><span class="std std-ref">Amendment: reader preferences and drawings (1.3.1, #519, #520)</span></a>).</p></li>
 <li><p>External links (<code class="docutils literal notranslate"><span class="pre">http:</span></code> and <code class="docutils literal notranslate"><span class="pre">https:</span></code>) stay, except those to scrap’s own origins (hosts
 compared case-insensitively, a trailing dot removed), any URL whose path starts with
 <code class="docutils literal notranslate"><span class="pre">/api/</span></code>, and any URL with userinfo, which are refused.</p></li>
@@ -712,7 +714,8 @@ elements today, so its publish mode must keep SVG embeds, as images.</p></li>
 in all (under the receiver’s 256 MiB body). Over any of them scrap refuses the publish, saying
 why, before pushing anything. The receiver allows 30 s to receive a request, so a unit must
 also be small enough to upload in that time.</p></li>
-<li><p><strong>No script on a page, checked twice.</strong> The publish mode writes a fixed meta CSP into the page,
+<li><p><strong>No script on a page, checked twice.</strong> (1.3.1 allows one, the site’s own <code class="docutils literal notranslate"><span class="pre">prefs.js</span></code>:
+<a class="reference internal" href="#amendment-reader-preferences-and-drawings"><span class="std std-ref">Amendment: reader preferences and drawings (1.3.1, #519, #520)</span></a>.) The publish mode writes a fixed meta CSP into the page,
 <code class="docutils literal notranslate"><span class="pre">default-src</span> <span class="pre">'none';</span> <span class="pre">img-src</span> <span class="pre">'self'</span> <span class="pre">data:;</span> <span class="pre">style-src</span> <span class="pre">'self';</span> <span class="pre">style-src-attr</span> <span class="pre">'unsafe-inline';</span> <span class="pre">font-src</span> <span class="pre">'self'</span></code>, with no <code class="docutils literal notranslate"><span class="pre">script-src</span></code> (inline styles only as attributes, for KaTeX), and scrap
 checks it is there. scrap parses the upload with a WHATWG-conformant parser (html5lib), matches
 elements and attributes by namespace and name, and checks it against pagehtml’s allow-list
@@ -810,8 +813,8 @@ PWA’s re-render of linking pages, or that page’s next save. That is accepted
 stale tracking. Make private, and deleting a page, in the PWA re-render them at once.</p></li>
 <li><p>If the receiver can’t be told at once, Make private says the page comes off “shortly”
 (<code class="docutils literal notranslate"><span class="pre">&quot;unpublish&quot;:</span> <span class="pre">&quot;pending&quot;</span></code>), and reconcile finishes it.</p></li>
-<li><p>A public page’s photos are its 2048-pixel previews, and at most 20 images and files go with it.
-Drawings stay private until the follow-up that publishes them.</p></li>
+<li><p>A public page’s photos are its 2048-pixel previews, and at most 20 images, drawings and files
+go with it.</p></li>
 <li><p>Any change to what <code class="docutils literal notranslate"><span class="pre">pagehtml.ts</span></code> writes in publish mode must keep to the allow-list scrap
 checks, or publishing fails with <code class="docutils literal notranslate"><span class="pre">422</span></code>: the two change together.</p></li>
 <li><p>The site can be lost and rebuilt at any time; scrap’s data folder holds the copy that matters.</p></li>
@@ -822,6 +825,90 @@ checks, or publishing fails with <code class="docutils literal notranslate"><spa
 <li><p>The gist workflow goes: no <code class="docutils literal notranslate"><span class="pre">gh</span></code> token with the <code class="docutils literal notranslate"><span class="pre">gist</span></code> scope, no headless Chrome, no second
 Markdown renderer. Gists already made stay as they are.</p></li>
 </ul>
+</section>
+<section id="amendment-reader-preferences-and-drawings-1-3-1-519-520">
+<span id="amendment-reader-preferences-and-drawings"></span><h2>Amendment: reader preferences and drawings (1.3.1, #519, #520)<a class="headerlink" href="#amendment-reader-preferences-and-drawings-1-3-1-519-520" title="Link to this heading">#</a></h2>
+<p>Public pages went live at <code class="docutils literal notranslate"><span class="pre">pages.gkcluster.org</span></code>, and two things were missing: readers could not
+choose a theme (a phone in dark mode always got dark pages), and drawings, the point of a
+whiteboard page, were left out. The owner decided both on 1 Nov 2026.</p>
+<section id="reader-preferences-one-script-of-the-site-s-own-519">
+<h3>Reader preferences: one script of the site’s own (#519)<a class="headerlink" href="#reader-preferences-one-script-of-the-site-s-own-519" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><strong>Light by default.</strong> A public page is light, whatever the device’s <code class="docutils literal notranslate"><span class="pre">prefers-color-scheme</span></code>
+(the build leaves that default out of the site’s <code class="docutils literal notranslate"><span class="pre">page.css</span></code>); dark only when the reader chose
+it. With JavaScript off, a page is light.</p></li>
+<li><p><strong>One static script, <code class="docutils literal notranslate"><span class="pre">/assets/prefs.js</span></code>,</strong> built with the PWA and pushed by scrap in the
+<code class="docutils literal notranslate"><span class="pre">assets</span></code> unit. It sets the kept theme (<code class="docutils literal notranslate"><span class="pre">data-theme=&quot;dark&quot;</span></code>) and column width (<code class="docutils literal notranslate"><span class="pre">--column</span></code>, the
+app’s four widths, 720 to 960 px, 800 by default) on <code class="docutils literal notranslate"><span class="pre">&lt;html&gt;</span></code>, and adds two quiet buttons to the
+site’s header: a sun or moon (“Dark theme”, pressed while dark) and the width, cycling. Every
+page, tag page, home and the 404 load it from <code class="docutils literal notranslate"><span class="pre">&lt;head&gt;</span></code> as <code class="docutils literal notranslate"><span class="pre">&lt;script</span> <span class="pre">src=&quot;/assets/prefs.js&quot;</span> <span class="pre">defer</span> <span class="pre">blocking=&quot;render&quot;&gt;</span></code>: deferred, and render-blocking where the browser supports it (Chromium
+today), so a kept dark theme is on before the first paint, with no flash; elsewhere a reader
+who chose dark may see one light frame. The owner chose <code class="docutils literal notranslate"><span class="pre">defer</span></code> (or <code class="docutils literal notranslate"><span class="pre">async</span></code>) over a
+parser-blocking script. The buttons are made by the script, so
+without it there are none.</p></li>
+<li><p><strong>The CSP relaxation.</strong> Pages and tag pages go from <code class="docutils literal notranslate"><span class="pre">script-src</span> <span class="pre">'none'</span></code> to <code class="docutils literal notranslate"><span class="pre">script-src</span> <span class="pre">'self'</span></code>, in nginx’s header and the page’s meta CSP. That is what it costs, and why it is
+bounded: there is still no inline script anywhere (no <code class="docutils literal notranslate"><span class="pre">'unsafe-inline'</span></code>), so markup that slipped
+into a page could not run; scrap’s check still refuses every <code class="docutils literal notranslate"><span class="pre">&lt;script&gt;</span></code> but exactly <code class="docutils literal notranslate"><span class="pre">prefs.js</span></code>
+(<code class="docutils literal notranslate"><span class="pre">defer</span></code> or <code class="docutils literal notranslate"><span class="pre">async</span></code>, <code class="docutils literal notranslate"><span class="pre">blocking=&quot;render&quot;</span></code>, nothing else); the receiver still refuses <code class="docutils literal notranslate"><span class="pre">.js</span></code> in
+page, tag and home units, and allows it in <code class="docutils literal notranslate"><span class="pre">assets</span></code> for <code class="docutils literal notranslate"><span class="pre">prefs.js</span></code> alone, so the only scripts
+<code class="docutils literal notranslate"><span class="pre">'self'</span></code> can name are that file and Pagefind’s, all built by scrap. A <code class="docutils literal notranslate"><span class="pre">sha256-</span></code> hash of
+<code class="docutils literal notranslate"><span class="pre">prefs.js</span></code> was considered on top and not added: a hash source allows an external script only
+with an <code class="docutils literal notranslate"><span class="pre">integrity</span></code> attribute and only in some browsers, <code class="docutils literal notranslate"><span class="pre">'self'</span></code> allows it anyway, and the
+hash would tie the image’s nginx configuration to each scrap build.</p></li>
+<li><p><strong>Turned down:</strong> an inline script (needs <code class="docutils literal notranslate"><span class="pre">'unsafe-inline'</span></code> or a per-page hash), and a theme in
+CSS alone (no memory across pages).</p></li>
+</ul>
+</section>
+<section id="drawings-an-svg-that-is-also-the-scene-520">
+<h3>Drawings: an SVG that is also the scene (#520)<a class="headerlink" href="#drawings-an-svg-that-is-also-the-scene-520" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><strong>The PWA draws them.</strong> scrap has no renderer of drawings: the PWA’s publish mode draws each
+drawing on the page with Excalidraw’s <code class="docutils literal notranslate"><span class="pre">exportToSvg</span></code>, as the page view does, on white with its
+fonts inlined and <code class="docutils literal notranslate"><span class="pre">exportEmbedScene</span></code> on, so the one SVG is both the picture and the editable
+scene. A drawing of a photo has the photo under it (its 2048-pixel preview), so the file opens
+as the drawing over its whiteboard. Excalidraw’s chunk loads only when publishing a page that
+has drawings; the app shell does not grow. The PWA reads each SVG back with Excalidraw’s own
+<code class="docutils literal notranslate"><span class="pre">loadFromBlob</span></code> before sending it.</p></li>
+<li><p><strong>The upload carries them:</strong> <code class="docutils literal notranslate"><span class="pre">PUT</span> <span class="pre">/api/pages/{key}/published</span></code> gains <code class="docutils literal notranslate"><span class="pre">drawings:</span> <span class="pre">[{key,</span> <span class="pre">svg}]</span></code>,
+and the HTML names each as <code class="docutils literal notranslate"><span class="pre">scrap-drawing:&lt;id&gt;</span></code> (its <code class="docutils literal notranslate"><span class="pre">img</span></code>, and a download link) and
+<code class="docutils literal notranslate"><span class="pre">scrap-excalidraw:&lt;id&gt;</span></code> (Open in Excalidraw).</p></li>
+<li><p><strong>scrap cleans every one</strong>, never trusting it: exactly one Excalidraw scene block, in
+Excalidraw’s own markers and encoding, decoded and kept by an allow-list; every embedded image
+only if its bytes are one of the page’s photos, and then as that photo’s 2048-pixel preview
+(no original bytes, no EXIF or GPS), else dropped; every text, and every link, by the page
+text’s and links’ rules (no address of scrap’s own, no <code class="docutils literal notranslate"><span class="pre">/api/</span></code>, no private page); then the SVG
+through the SVG sanitiser of <a class="reference internal" href="0042-mcp-clients-add-svg-and-files.html"><span class="std std-doc">42. MCP clients add SVG diagrams and files to pages</span></a>, its drawn images and
+text cleaned the same way, and the cleaned scene put back. It goes out as <code class="docutils literal notranslate"><span class="pre">img-&lt;n&gt;-&lt;hex&gt;.svg</span></code>,
+under the image CSP that runs and loads nothing, and counts toward the 20 files and 200 MiB.</p></li>
+<li><p><strong>No separate <code class="docutils literal notranslate"><span class="pre">.excalidraw</span></code> file</strong> (the issue’s first design): the SVG already carries the
+scene, so the receiver needs no new type and there is one file to clean, not two.</p></li>
+<li><p><strong>Photo | Drawing tabs in CSS alone</strong>, as the app’s: two radio inputs and their labels, which
+scrap’s check allows in exactly that form (<code class="docutils literal notranslate"><span class="pre">type=&quot;radio&quot;</span></code>, names and ids <code class="docutils literal notranslate"><span class="pre">pair-&lt;n&gt;…</span></code>, a
+<code class="docutils literal notranslate"><span class="pre">role=&quot;radiogroup&quot;</span></code> div) and nothing else form-like. Without <code class="docutils literal notranslate"><span class="pre">:has()</span></code> both show.</p></li>
+<li><p><strong>Open in Excalidraw.</strong> The page links each drawing to
+<code class="docutils literal notranslate"><span class="pre">https://excalidraw.com/#url=&lt;the</span> <span class="pre">SVG's</span> <span class="pre">address</span> <span class="pre">on</span> <span class="pre">the</span> <span class="pre">site&gt;</span></code> (in a new tab), which
+excalidraw.com fetches in the reader’s browser and opens as a file: nothing is uploaded to
+Excalidraw. nginx sends <code class="docutils literal notranslate"><span class="pre">Access-Control-Allow-Origin:</span> <span class="pre">https://excalidraw.com</span></code> on a page’s SVG
+images only, for that fetch. scrap writes the link itself from the site’s <code class="docutils literal notranslate"><span class="pre">https</span></code> address, so it
+can name nothing but the drawing. <code class="docutils literal notranslate"><span class="pre">#url=</span></code> is undocumented on Excalidraw’s side and could change;
+<strong>Download</strong> (“Download, then open in excalidraw.com to edit” where there is no Open link)
+stays as the fallback.</p></li>
+<li><p><strong>The warning</strong> on Make public lists “its N drawings, downloadable” when the page has any.</p></li>
+</ul>
+</section>
+<section id="consequences-of-the-amendment">
+<h3>Consequences of the amendment<a class="headerlink" href="#consequences-of-the-amendment" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p>Pages and tag pages run one script, the site’s own; the attack surface is that file and the
+receiver’s refusal of any other.</p></li>
+<li><p>A reader’s theme and width are kept per browser; there is no account and nothing is sent.</p></li>
+<li><p>A whiteboard page shows its drawing, and anyone can download it, or open it on excalidraw.com,
+as an editable scene with the photo at preview size. Drawing elements’ text and links are
+published as cleaned, like the page’s own text.</p></li>
+<li><p>Publishing a page with drawings loads Excalidraw in the PWA and takes longer; a drawing that
+cannot be drawn fails the publish rather than going out half made.</p></li>
+</ul>
+</section>
 </section>
 </section>
 
@@ -876,6 +963,12 @@ Markdown renderer. Gists already made stay as they are.</p></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#context">Context</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#decision">Decision</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#consequences">Consequences</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#amendment-reader-preferences-and-drawings-1-3-1-519-520">Amendment: reader preferences and drawings (1.3.1, #519, #520)</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#reader-preferences-one-script-of-the-site-s-own-519">Reader preferences: one script of the site’s own (#519)</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#drawings-an-svg-that-is-also-the-scene-520">Drawings: an SVG that is also the scene (#520)</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#consequences-of-the-amendment">Consequences of the amendment</a></li>
+</ul>
+</li>
 </ul>
   </nav></div>
 

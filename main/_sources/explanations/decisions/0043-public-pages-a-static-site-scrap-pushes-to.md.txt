@@ -8,6 +8,10 @@ Accepted. Replaces the scrap-to-gist skill (#481, #484, #489), which is removed.
 access model of [](0007-tailscale-serve-for-access-and-identity.md): scrap itself never becomes
 public.
 
+Amended 2026-11-01 (1.3.1): a reader's theme and column width, by one script of the site's
+own (#519), and drawings published, downloadable and opened in excalidraw.com (#520). See
+[](#amendment-reader-preferences-and-drawings) at the end.
+
 ## Context
 
 The owner wants to show a page to anyone with its address, read only. The motivating case is a
@@ -132,11 +136,10 @@ carry.
     is no stale tracking. The contract says so.
   - An image's `alt` is published as the app has it, a file name the PWA filled in included
     (the owner's choice; a link's label may show a file's name too).
-  - Left out: Claude's notes (a photo's description, the read text, the drawing), revisions, the
+  - Left out: Claude's notes (a photo's description, the read text), revisions, the
     extracted text of files, and every `/api` or other private address.
-  - **Drawings (Excalidraw) are not published in this version.** The publish mode leaves them
-    out, and a photo with a drawing on it is published as the photo alone. Publishing drawings is
-    a follow-up.
+  - **Drawings (Excalidraw)** were left out in the first version (a photo with a drawing
+    published as the photo alone); 1.3.1 publishes them ([](#amendment-reader-preferences-and-drawings)).
   - External links (`http:` and `https:`) stay, except those to scrap's own origins (hosts
     compared case-insensitively, a trailing dot removed), any URL whose path starts with
     `/api/`, and any URL with userinfo, which are refused.
@@ -160,7 +163,8 @@ carry.
   in all (under the receiver's 256 MiB body). Over any of them scrap refuses the publish, saying
   why, before pushing anything. The receiver allows 30 s to receive a request, so a unit must
   also be small enough to upload in that time.
-- **No script on a page, checked twice.** The publish mode writes a fixed meta CSP into the page,
+- **No script on a page, checked twice.** (1.3.1 allows one, the site's own `prefs.js`:
+  [](#amendment-reader-preferences-and-drawings).) The publish mode writes a fixed meta CSP into the page,
   `default-src 'none'; img-src 'self' data:; style-src 'self'; style-src-attr 'unsafe-inline';
   font-src 'self'`, with no `script-src` (inline styles only as attributes, for KaTeX), and scrap
   checks it is there. scrap parses the upload with a WHATWG-conformant parser (html5lib), matches
@@ -255,8 +259,8 @@ carry.
   stale tracking. Make private, and deleting a page, in the PWA re-render them at once.
 - If the receiver can't be told at once, Make private says the page comes off "shortly"
   (`"unpublish": "pending"`), and reconcile finishes it.
-- A public page's photos are its 2048-pixel previews, and at most 20 images and files go with it.
-  Drawings stay private until the follow-up that publishes them.
+- A public page's photos are its 2048-pixel previews, and at most 20 images, drawings and files
+  go with it.
 - Any change to what `pagehtml.ts` writes in publish mode must keep to the allow-list scrap
   checks, or publishing fails with `422`: the two change together.
 - The site can be lost and rebuilt at any time; scrap's data folder holds the copy that matters.
@@ -266,3 +270,84 @@ carry.
   `pagefind[bin]` dependency.
 - The gist workflow goes: no `gh` token with the `gist` scope, no headless Chrome, no second
   Markdown renderer. Gists already made stay as they are.
+
+(amendment-reader-preferences-and-drawings)=
+## Amendment: reader preferences and drawings (1.3.1, #519, #520)
+
+Public pages went live at `pages.gkcluster.org`, and two things were missing: readers could not
+choose a theme (a phone in dark mode always got dark pages), and drawings, the point of a
+whiteboard page, were left out. The owner decided both on 1 Nov 2026.
+
+### Reader preferences: one script of the site's own (#519)
+
+- **Light by default.** A public page is light, whatever the device's `prefers-color-scheme`
+  (the build leaves that default out of the site's `page.css`); dark only when the reader chose
+  it. With JavaScript off, a page is light.
+- **One static script, `/assets/prefs.js`,** built with the PWA and pushed by scrap in the
+  `assets` unit. It sets the kept theme (`data-theme="dark"`) and column width (`--column`, the
+  app's four widths, 720 to 960 px, 800 by default) on `<html>`, and adds two quiet buttons to the
+  site's header: a sun or moon ("Dark theme", pressed while dark) and the width, cycling. Every
+  page, tag page, home and the 404 load it from `<head>` as `<script src="/assets/prefs.js" defer
+  blocking="render">`: deferred, and render-blocking where the browser supports it (Chromium
+  today), so a kept dark theme is on before the first paint, with no flash; elsewhere a reader
+  who chose dark may see one light frame. The owner chose `defer` (or `async`) over a
+  parser-blocking script. The buttons are made by the script, so
+  without it there are none.
+- **The CSP relaxation.** Pages and tag pages go from `script-src 'none'` to `script-src
+  'self'`, in nginx's header and the page's meta CSP. That is what it costs, and why it is
+  bounded: there is still no inline script anywhere (no `'unsafe-inline'`), so markup that slipped
+  into a page could not run; scrap's check still refuses every `<script>` but exactly `prefs.js`
+  (`defer` or `async`, `blocking="render"`, nothing else); the receiver still refuses `.js` in
+  page, tag and home units, and allows it in `assets` for `prefs.js` alone, so the only scripts
+  `'self'` can name are that file and Pagefind's, all built by scrap. A `sha256-` hash of
+  `prefs.js` was considered on top and not added: a hash source allows an external script only
+  with an `integrity` attribute and only in some browsers, `'self'` allows it anyway, and the
+  hash would tie the image's nginx configuration to each scrap build.
+- **Turned down:** an inline script (needs `'unsafe-inline'` or a per-page hash), and a theme in
+  CSS alone (no memory across pages).
+
+### Drawings: an SVG that is also the scene (#520)
+
+- **The PWA draws them.** scrap has no renderer of drawings: the PWA's publish mode draws each
+  drawing on the page with Excalidraw's `exportToSvg`, as the page view does, on white with its
+  fonts inlined and `exportEmbedScene` on, so the one SVG is both the picture and the editable
+  scene. A drawing of a photo has the photo under it (its 2048-pixel preview), so the file opens
+  as the drawing over its whiteboard. Excalidraw's chunk loads only when publishing a page that
+  has drawings; the app shell does not grow. The PWA reads each SVG back with Excalidraw's own
+  `loadFromBlob` before sending it.
+- **The upload carries them:** `PUT /api/pages/{key}/published` gains `drawings: [{key, svg}]`,
+  and the HTML names each as `scrap-drawing:<id>` (its `img`, and a download link) and
+  `scrap-excalidraw:<id>` (Open in Excalidraw).
+- **scrap cleans every one**, never trusting it: exactly one Excalidraw scene block, in
+  Excalidraw's own markers and encoding, decoded and kept by an allow-list; every embedded image
+  only if its bytes are one of the page's photos, and then as that photo's 2048-pixel preview
+  (no original bytes, no EXIF or GPS), else dropped; every text, and every link, by the page
+  text's and links' rules (no address of scrap's own, no `/api/`, no private page); then the SVG
+  through the SVG sanitiser of [](0042-mcp-clients-add-svg-and-files.md), its drawn images and
+  text cleaned the same way, and the cleaned scene put back. It goes out as `img-<n>-<hex>.svg`,
+  under the image CSP that runs and loads nothing, and counts toward the 20 files and 200 MiB.
+- **No separate `.excalidraw` file** (the issue's first design): the SVG already carries the
+  scene, so the receiver needs no new type and there is one file to clean, not two.
+- **Photo | Drawing tabs in CSS alone**, as the app's: two radio inputs and their labels, which
+  scrap's check allows in exactly that form (`type="radio"`, names and ids `pair-<n>…`, a
+  `role="radiogroup"` div) and nothing else form-like. Without `:has()` both show.
+- **Open in Excalidraw.** The page links each drawing to
+  `https://excalidraw.com/#url=<the SVG's address on the site>` (in a new tab), which
+  excalidraw.com fetches in the reader's browser and opens as a file: nothing is uploaded to
+  Excalidraw. nginx sends `Access-Control-Allow-Origin: https://excalidraw.com` on a page's SVG
+  images only, for that fetch. scrap writes the link itself from the site's `https` address, so it
+  can name nothing but the drawing. `#url=` is undocumented on Excalidraw's side and could change;
+  **Download** ("Download, then open in excalidraw.com to edit" where there is no Open link)
+  stays as the fallback.
+- **The warning** on Make public lists "its N drawings, downloadable" when the page has any.
+
+### Consequences of the amendment
+
+- Pages and tag pages run one script, the site's own; the attack surface is that file and the
+  receiver's refusal of any other.
+- A reader's theme and width are kept per browser; there is no account and nothing is sent.
+- A whiteboard page shows its drawing, and anyone can download it, or open it on excalidraw.com,
+  as an editable scene with the photo at preview size. Drawing elements' text and links are
+  published as cleaned, like the page's own text.
+- Publishing a page with drawings loads Excalidraw in the PWA and takes longer; a drawing that
+  cannot be drawn fails the publish rather than going out half made.

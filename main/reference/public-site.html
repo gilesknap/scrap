@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Public site &#8212; scrap 1.2.2.dev11+g9f83c1a15 documentation</title>
+    <title>Public site &#8212; scrap 1.3.1.dev1+ge86f3bf28 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=cdb6b194"></script>
+    <script src="../_static/documentation_options.js?v=1a34d020"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -630,7 +630,7 @@ inside a unit.</p>
 <tr class="row-even"><td><p>Shared assets</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">assets</span></code></p></td>
 <td><p>at least one file</p></td>
-<td><p>KaTeX’s CSS and fonts</p></td>
+<td><p>the site’s CSS, KaTeX’s fonts and <code class="docutils literal notranslate"><span class="pre">prefs.js</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">/assets/&lt;path&gt;</span></code></p></td>
 </tr>
 </tbody>
@@ -660,13 +660,14 @@ string, is <code class="docutils literal notranslate"><span class="pre">422</spa
 <td><p><code class="docutils literal notranslate"><span class="pre">js</span></code>, <code class="docutils literal notranslate"><span class="pre">mjs</span></code>, <code class="docutils literal notranslate"><span class="pre">json</span></code>, <code class="docutils literal notranslate"><span class="pre">wasm</span></code>, <code class="docutils literal notranslate"><span class="pre">pagefind</span></code>, <code class="docutils literal notranslate"><span class="pre">pf_meta</span></code>, <code class="docutils literal notranslate"><span class="pre">pf_index</span></code>, <code class="docutils literal notranslate"><span class="pre">pf_fragment</span></code>, <code class="docutils literal notranslate"><span class="pre">pf_filter</span></code></p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">assets</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">css</span></code>, <code class="docutils literal notranslate"><span class="pre">woff</span></code>, <code class="docutils literal notranslate"><span class="pre">woff2</span></code>, <code class="docutils literal notranslate"><span class="pre">ttf</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">css</span></code>, <code class="docutils literal notranslate"><span class="pre">woff</span></code>, <code class="docutils literal notranslate"><span class="pre">woff2</span></code>, <code class="docutils literal notranslate"><span class="pre">ttf</span></code>; and <code class="docutils literal notranslate"><span class="pre">prefs.js</span></code>, at its top only</p></td>
 </tr>
 </tbody>
 </table>
 </div>
-<p>So <code class="docutils literal notranslate"><span class="pre">.js</span></code> and <code class="docutils literal notranslate"><span class="pre">.wasm</span></code> exist only under <code class="docutils literal notranslate"><span class="pre">/pagefind/</span></code>, CSS and fonts only under <code class="docutils literal notranslate"><span class="pre">/assets/</span></code>, and no
-page or tag unit can hold a script or a stylesheet. An attachment is never published as <code class="docutils literal notranslate"><span class="pre">html</span></code>,
+<p>So <code class="docutils literal notranslate"><span class="pre">.wasm</span></code> and every script but one exist only under <code class="docutils literal notranslate"><span class="pre">/pagefind/</span></code>; the one other script is
+<code class="docutils literal notranslate"><span class="pre">/assets/prefs.js</span></code>, the reader’s theme and column width (<a class="reference internal" href="#reader-preferences"><span class="std std-ref">Reader preferences</span></a>). CSS and fonts
+exist only under <code class="docutils literal notranslate"><span class="pre">/assets/</span></code>, and no page or tag unit can hold a script or a stylesheet. An attachment is never published as <code class="docutils literal notranslate"><span class="pre">html</span></code>,
 <code class="docutils literal notranslate"><span class="pre">htm</span></code>, <code class="docutils literal notranslate"><span class="pre">js</span></code>, <code class="docutils literal notranslate"><span class="pre">mjs</span></code>, <code class="docutils literal notranslate"><span class="pre">css</span></code> or <code class="docutils literal notranslate"><span class="pre">svg</span></code>: an SVG attachment is published as an image (<code class="docutils literal notranslate"><span class="pre">img-*.svg</span></code>), and
 a type outside the list as <code class="docutils literal notranslate"><span class="pre">bin</span></code>.</p>
 </section>
@@ -982,12 +983,12 @@ served at the top level: <code class="docutils literal notranslate"><span class=
 <td><p><code class="docutils literal notranslate"><span class="pre">sandbox;</span> <span class="pre">default-src</span> <span class="pre">'none';</span> <span class="pre">style-src</span> <span class="pre">'unsafe-inline';</span> <span class="pre">img-src</span> <span class="pre">data:;</span> <span class="pre">font-src</span> <span class="pre">data:</span></code></p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">/p/...</span></code> and <code class="docutils literal notranslate"><span class="pre">/t/...</span></code> otherwise (a page’s or tag’s HTML)</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">default-src</span> <span class="pre">'none';</span> <span class="pre">img-src</span> <span class="pre">'self'</span> <span class="pre">data:;</span> <span class="pre">style-src</span> <span class="pre">'self';</span> <span class="pre">style-src-attr</span> <span class="pre">'unsafe-inline';</span> <span class="pre">font-src</span> <span class="pre">'self';</span> <span class="pre">script-src</span> <span class="pre">'none';</span> <span class="pre">base-uri</span> <span class="pre">'none';</span> <span class="pre">form-action</span> <span class="pre">'none';</span> <span class="pre">frame-ancestors</span> <span class="pre">'none'</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">default-src</span> <span class="pre">'none';</span> <span class="pre">img-src</span> <span class="pre">'self'</span> <span class="pre">data:;</span> <span class="pre">style-src</span> <span class="pre">'self';</span> <span class="pre">style-src-attr</span> <span class="pre">'unsafe-inline';</span> <span class="pre">font-src</span> <span class="pre">'self';</span> <span class="pre">script-src</span> <span class="pre">'self';</span> <span class="pre">base-uri</span> <span class="pre">'none';</span> <span class="pre">form-action</span> <span class="pre">'none';</span> <span class="pre">frame-ancestors</span> <span class="pre">'none'</span></code></p></td>
 </tr>
 <tr class="row-odd"><td><p>everything else (home, <code class="docutils literal notranslate"><span class="pre">/pagefind/</span></code>, <code class="docutils literal notranslate"><span class="pre">/assets/</span></code>)</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">default-src</span> <span class="pre">'none';</span> <span class="pre">img-src</span> <span class="pre">'self'</span> <span class="pre">data:;</span> <span class="pre">style-src</span> <span class="pre">'self'</span> <span class="pre">'unsafe-inline';</span> <span class="pre">font-src</span> <span class="pre">'self';</span> <span class="pre">script-src</span> <span class="pre">'self'</span> <span class="pre">'wasm-unsafe-eval';</span> <span class="pre">connect-src</span> <span class="pre">'self';</span> <span class="pre">base-uri</span> <span class="pre">'none';</span> <span class="pre">form-action</span> <span class="pre">'none';</span> <span class="pre">frame-ancestors</span> <span class="pre">'none'</span></code></p></td>
 </tr>
-<tr class="row-even"><td><p>every <code class="docutils literal notranslate"><span class="pre">404</span></code>, whatever the path: <code class="docutils literal notranslate"><span class="pre">home/404.html</span></code>, which has no script</p></td>
+<tr class="row-even"><td><p>every <code class="docutils literal notranslate"><span class="pre">404</span></code>, whatever the path: <code class="docutils literal notranslate"><span class="pre">home/404.html</span></code>, whose only script is <code class="docutils literal notranslate"><span class="pre">prefs.js</span></code></p></td>
 <td><p>home’s, as the row above</p></td>
 </tr>
 </tbody>
@@ -995,9 +996,16 @@ served at the top level: <code class="docutils literal notranslate"><span class=
 </div>
 <p>A page’s images and files follow ADR 42’s rule for stored files: opened on their own they run
 nothing and load nothing, and a PDF keeps <code class="docutils literal notranslate"><span class="pre">sandbox</span></code> alone so a browser’s PDF viewer works. Pages
-and tag pages run no script. The home page’s only scripts are Pagefind’s and
-<code class="docutils literal notranslate"><span class="pre">/pagefind/scrap-search.js</span></code> (scrap’s start-up file; there is no inline script), which fetch the
+and tag pages run only the site’s own scripts (<code class="docutils literal notranslate"><span class="pre">script-src</span> <span class="pre">'self'</span></code>), and the only one they name
+is <code class="docutils literal notranslate"><span class="pre">/assets/prefs.js</span></code> (<a class="reference internal" href="#reader-preferences"><span class="std std-ref">Reader preferences</span></a>): scrap’s check refuses any other script, and
+the receiver any other <code class="docutils literal notranslate"><span class="pre">.js</span></code> outside <code class="docutils literal notranslate"><span class="pre">pagefind</span></code>. There is no inline script anywhere. The CSP
+does not also pin <code class="docutils literal notranslate"><span class="pre">prefs.js</span></code> by a hash: a hash source allows an external script only with an
+<code class="docutils literal notranslate"><span class="pre">integrity</span></code> attribute, and only in some browsers, and <code class="docutils literal notranslate"><span class="pre">'self'</span></code> would allow it anyway; the hash
+would also tie the image’s nginx configuration to each scrap build. The home page’s other
+scripts are Pagefind’s and <code class="docutils literal notranslate"><span class="pre">/pagefind/scrap-search.js</span></code> (scrap’s start-up file), which fetch the
 index (<code class="docutils literal notranslate"><span class="pre">connect-src</span> <span class="pre">'self'</span></code>) and run WebAssembly (<code class="docutils literal notranslate"><span class="pre">'wasm-unsafe-eval'</span></code>).</p>
+<p>A page’s SVG images, <code class="docutils literal notranslate"><span class="pre">/p/&lt;slug&gt;/img-*.svg</span></code>, also get <code class="docutils literal notranslate"><span class="pre">Access-Control-Allow-Origin:</span> <span class="pre">https://excalidraw.com</span></code>, a fixed value (the pages are public), so excalidraw.com can fetch a
+drawing that a reader opens there (<a class="reference internal" href="#drawings"><span class="std std-ref">Drawings</span></a>). No other answer has the header.</p>
 </section>
 <section id="caching">
 <h3>Caching<a class="headerlink" href="#caching" title="Link to this heading">#</a></h3>
@@ -1054,20 +1062,21 @@ each of them is next saved in the PWA. There is no stale tracking.</p>
 <li><p>An image: <code class="docutils literal notranslate"><span class="pre">&lt;img</span> <span class="pre">src=&quot;scrap-blob:&lt;sha&gt;&quot;</span> <span class="pre">alt=&quot;...&quot;&gt;</span></code>. The <code class="docutils literal notranslate"><span class="pre">alt</span></code> is published as the app has
 it, a file name the PWA filled in included (the owner’s decision).</p></li>
 <li><p>A file: <code class="docutils literal notranslate"><span class="pre">&lt;a</span> <span class="pre">href=&quot;scrap-blob:&lt;sha&gt;&quot;&gt;</span></code> with the link’s label.</p></li>
-<li><p><strong>Drawings (Excalidraw) are not published</strong> in this version: they are left out, and a photo
-with a drawing on it is published as the photo alone. Publishing drawings is a follow-up.</p></li>
+<li><p><strong>A photo’s drawing</strong> (Excalidraw, #520): the photo and the drawing, with Photo | Drawing tabs
+over them, then its links (<a class="reference internal" href="#drawings"><span class="std std-ref">Drawings</span></a>). A drawing the PWA cannot draw fails the publish,
+rather than going out without it.</p></li>
 </ul>
-<p><strong>Left out</strong>: Claude’s notes on a photo (its description, the read text, its drawing),
-drawings, revisions, the extracted text of files, the PWA’s controls, and every <code class="docutils literal notranslate"><span class="pre">/api</span></code> or other
-private address.</p>
-<p><strong>Head</strong>: the fixed meta CSP, <code class="docutils literal notranslate"><span class="pre">/assets/page.css</span></code>, and <code class="docutils literal notranslate"><span class="pre">/assets/katex.css</span></code> for a page with maths
+<p><strong>Left out</strong>: Claude’s notes on a photo (its description, the read text), revisions, the
+extracted text of files, the PWA’s controls, and every <code class="docutils literal notranslate"><span class="pre">/api</span></code> or other private address.</p>
+<p><strong>Head</strong>: the fixed meta CSP, <code class="docutils literal notranslate"><span class="pre">/assets/page.css</span></code>, <code class="docutils literal notranslate"><span class="pre">/assets/katex.css</span></code> for a page with maths, and
+<code class="docutils literal notranslate"><span class="pre">&lt;script</span> <span class="pre">src=&quot;/assets/prefs.js&quot;</span> <span class="pre">defer</span> <span class="pre">blocking=&quot;render&quot;&gt;&lt;/script&gt;</span></code>
 (<a class="reference internal" href="#the-html-scrap-accepts"><span class="std std-ref">The HTML scrap accepts</span></a>).</p>
 <p><strong>The PWA’s dialogs</strong> (the sim’s wording on the design branch is the final text):</p>
 <ul class="simple">
 <li><p>Making a page public asks every time, Cancel or Make public, saying that anyone with the
 address can read the page, and listing what goes public with it: its tags, Claude’s
-write-up and summary, its attached files by name, and “Links to private pages show their
-titles as plain text.”</p></li>
+write-up and summary, its attached files by name, “its N drawings, downloadable” (only when
+its photos have drawings), and “Links to private pages show their titles as plain text.”</p></li>
 <li><p>On a topic page, the warning also lists “Claude’s synthesis, which draws on its source pages”.</p></li>
 <li><p>A save of a public page while offline is saved but not published, with the toast “Saved. Not
 published while offline: Refresh all public pages in Settings later.” Publishes are never
@@ -1120,10 +1129,14 @@ timestamp, not stale tracking.</p>
 <section id="put-api-pages-key-published">
 <h3><code class="docutils literal notranslate"><span class="pre">PUT</span> <span class="pre">/api/pages/{key}/published</span></code><a class="headerlink" href="#put-api-pages-key-published" title="Link to this heading">#</a></h3>
 <p>Publish the page. The body is JSON, at most 25 MiB:</p>
-<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span><span class="nt">"html"</span><span class="p">:</span><span class="w"> </span><span class="s2">"&lt;!DOCTYPE html&gt;..."</span><span class="p">,</span><span class="w"> </span><span class="nt">"base_rev"</span><span class="p">:</span><span class="w"> </span><span class="mi">42</span><span class="p">,</span><span class="w"> </span><span class="nt">"defer"</span><span class="p">:</span><span class="w"> </span><span class="kc">false</span><span class="p">,</span><span class="w"> </span><span class="nt">"confirmed"</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">}</span>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span><span class="nt">"html"</span><span class="p">:</span><span class="w"> </span><span class="s2">"&lt;!DOCTYPE html&gt;..."</span><span class="p">,</span><span class="w"> </span><span class="nt">"base_rev"</span><span class="p">:</span><span class="w"> </span><span class="mi">42</span><span class="p">,</span><span class="w"> </span><span class="nt">"defer"</span><span class="p">:</span><span class="w"> </span><span class="kc">false</span><span class="p">,</span><span class="w"> </span><span class="nt">"confirmed"</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span>
+<span class="w"> </span><span class="nt">"drawings"</span><span class="p">:</span><span class="w"> </span><span class="p">[{</span><span class="nt">"key"</span><span class="p">:</span><span class="w"> </span><span class="s2">"17"</span><span class="p">,</span><span class="w"> </span><span class="nt">"svg"</span><span class="p">:</span><span class="w"> </span><span class="s2">"&lt;svg ...&gt;...&lt;/svg&gt;"</span><span class="p">}]}</span>
 </pre></div>
 </div>
 <p><code class="docutils literal notranslate"><span class="pre">html</span></code> is the page from the publish mode, and <code class="docutils literal notranslate"><span class="pre">base_rev</span></code> the page’s revision the PWA rendered.
+<code class="docutils literal notranslate"><span class="pre">drawings</span></code> (optional, at most 20) holds the SVG of each drawing the page shows, by its id
+(<code class="docutils literal notranslate"><span class="pre">key</span></code>, <code class="docutils literal notranslate"><span class="pre">[1-9][0-9]{0,17}</span></code>, each once): exactly those its <code class="docutils literal notranslate"><span class="pre">scrap-drawing:</span></code> placeholders name
+(<a class="reference internal" href="#drawings"><span class="std std-ref">Drawings</span></a>).
 With <code class="docutils literal notranslate"><span class="pre">defer:</span> <span class="pre">true</span></code> scrap pushes the page’s own unit but not <code class="docutils literal notranslate"><span class="pre">home</span></code>, the tag units or
 <code class="docutils literal notranslate"><span class="pre">pagefind</span></code> (Refresh all, below). <code class="docutils literal notranslate"><span class="pre">confirmed</span></code> (optional, a boolean) says the owner has just
 agreed to the page going public: the PWA sends it only from Make public’s warning (and its
@@ -1162,29 +1175,33 @@ page’s unit is pushed (Pagefind failing or timing out, say): it is logged, nev
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">422</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">bad_request</span></code></p></td>
-<td><p>The body is not JSON <code class="docutils literal notranslate"><span class="pre">{&quot;html&quot;,</span> <span class="pre">&quot;base_rev&quot;,</span> <span class="pre">&quot;defer&quot;,</span> <span class="pre">&quot;confirmed&quot;}</span></code></p></td>
+<td><p>The body is not JSON <code class="docutils literal notranslate"><span class="pre">{&quot;html&quot;,</span> <span class="pre">&quot;base_rev&quot;,</span> <span class="pre">&quot;defer&quot;,</span> <span class="pre">&quot;confirmed&quot;,</span> <span class="pre">&quot;drawings&quot;}</span></code>, or a drawing is sent twice</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">422</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">bad_html</span></code>, <code class="docutils literal notranslate"><span class="pre">bad_placeholder</span></code></p></td>
-<td><p>The HTML fails a rule, or a placeholder names a file that is not on the page (or an <code class="docutils literal notranslate"><span class="pre">img</span></code> a file that is not an image); <code class="docutils literal notranslate"><span class="pre">detail</span></code> says which</p></td>
+<td><p>The HTML fails a rule, or a placeholder names a file that is not on the page (or an <code class="docutils literal notranslate"><span class="pre">img</span></code> a file that is not an image), a drawing that is not one of the page’s, or Open in Excalidraw without an <code class="docutils literal notranslate"><span class="pre">https</span></code> <code class="docutils literal notranslate"><span class="pre">SCRAP_PUBLISH_SITE</span></code>; <code class="docutils literal notranslate"><span class="pre">detail</span></code> says which</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">422</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">bad_drawing</span></code></p></td>
+<td><p>A drawing the page shows was not sent, one was sent that it does not show, or one’s SVG has no single Excalidraw scene, one that cannot be read, or cannot be made safe (<a class="reference internal" href="#drawings"><span class="std std-ref">Drawings</span></a>)</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">422</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">too_many_files</span></code>, <code class="docutils literal notranslate"><span class="pre">file_too_large</span></code>, <code class="docutils literal notranslate"><span class="pre">unit_too_large</span></code></p></td>
 <td><p>Over a cap (<a class="reference internal" href="#placeholders-and-files"><span class="std std-ref">Placeholders and files</span></a>)</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">422</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">422</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">stale_tags</span></code></p></td>
 <td><p>A <code class="docutils literal notranslate"><span class="pre">scrap-tag:</span></code> names a tag the page no longer has (a tag edit raced the render); the PWA renders again</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">502</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">502</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">publish_failed</span></code></p></td>
 <td><p>The receiver refused or failed; <code class="docutils literal notranslate"><span class="pre">detail</span></code> holds its <code class="docutils literal notranslate"><span class="pre">error</span></code> code</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">503</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">503</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">not_configured</span></code></p></td>
 <td><p>Publishing is off (no <code class="docutils literal notranslate"><span class="pre">SCRAP_PUBLISH_TO</span></code> or token)</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">503</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">503</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">busy</span></code></p></td>
 <td><p>A photo’s preview is being made; try again (<code class="docutils literal notranslate"><span class="pre">Retry-After:</span> <span class="pre">5</span></code>)</p></td>
 </tr>
@@ -1229,7 +1246,7 @@ refused, as is an attribute given twice on one element.</p></li>
 <li><p>“A class includes <code class="docutils literal notranslate"><span class="pre">katex</span></code>” means <code class="docutils literal notranslate"><span class="pre">katex</span></code> is one of its whitespace-separated tokens.</p></li>
 <li><p>A <code class="docutils literal notranslate"><span class="pre">style</span></code> value is parsed as declarations, <code class="docutils literal notranslate"><span class="pre">property:</span> <span class="pre">value</span></code> separated by <code class="docutils literal notranslate"><span class="pre">;</span></code>, with spaces
 after <code class="docutils literal notranslate"><span class="pre">:</span></code> and a trailing <code class="docutils literal notranslate"><span class="pre">;</span></code> allowed.</p></li>
-<li><p>A placeholder (<code class="docutils literal notranslate"><span class="pre">scrap-blob:</span></code> or <code class="docutils literal notranslate"><span class="pre">scrap-tag:</span></code>) anywhere but the places allowed below, in text
+<li><p>A placeholder (<code class="docutils literal notranslate"><span class="pre">scrap-blob:</span></code>, <code class="docutils literal notranslate"><span class="pre">scrap-tag:</span></code>, <code class="docutils literal notranslate"><span class="pre">scrap-drawing:</span></code> or <code class="docutils literal notranslate"><span class="pre">scrap-excalidraw:</span></code>) anywhere but the places allowed below, in text
 or another attribute, is refused.</p></li>
 </ul>
 </section>
@@ -1241,11 +1258,15 @@ or another attribute, is refused.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">&lt;meta</span> <span class="pre">charset=&quot;utf-8&quot;&gt;</span></code>;</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">&lt;meta</span> <span class="pre">name=&quot;viewport&quot;</span> <span class="pre">content=&quot;...&quot;&gt;</span></code>;</p></li>
 <li><p>the CSP, which must be present:
-<code class="docutils literal notranslate"><span class="pre">&lt;meta</span> <span class="pre">http-equiv=&quot;Content-Security-Policy&quot;</span> <span class="pre">content=&quot;default-src</span> <span class="pre">'none';</span> <span class="pre">img-src</span> <span class="pre">'self'</span> <span class="pre">data:;</span> <span class="pre">style-src</span> <span class="pre">'self';</span> <span class="pre">style-src-attr</span> <span class="pre">'unsafe-inline';</span> <span class="pre">font-src</span> <span class="pre">'self'&quot;&gt;</span></code>.
-Its parsed <code class="docutils literal notranslate"><span class="pre">content</span></code>, with whitespace normalised, must equal that exactly. There is no
-<code class="docutils literal notranslate"><span class="pre">script-src</span></code>, so no script runs even if the file is opened elsewhere;</p></li>
+<code class="docutils literal notranslate"><span class="pre">&lt;meta</span> <span class="pre">http-equiv=&quot;Content-Security-Policy&quot;</span> <span class="pre">content=&quot;default-src</span> <span class="pre">'none';</span> <span class="pre">img-src</span> <span class="pre">'self'</span> <span class="pre">data:;</span> <span class="pre">style-src</span> <span class="pre">'self';</span> <span class="pre">style-src-attr</span> <span class="pre">'unsafe-inline';</span> <span class="pre">font-src</span> <span class="pre">'self';</span> <span class="pre">script-src</span> <span class="pre">'self'&quot;&gt;</span></code>.
+Its parsed <code class="docutils literal notranslate"><span class="pre">content</span></code>, with whitespace normalised, must equal that exactly;</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">&lt;link</span> <span class="pre">rel=&quot;stylesheet&quot;</span> <span class="pre">href=&quot;/assets/page.css&quot;&gt;</span></code> (pagehtml’s page CSS, moved out of the file),
-and, for a page with maths, <code class="docutils literal notranslate"><span class="pre">&lt;link</span> <span class="pre">rel=&quot;stylesheet&quot;</span> <span class="pre">href=&quot;/assets/katex.css&quot;&gt;</span></code>. No other <code class="docutils literal notranslate"><span class="pre">link</span></code>.</p></li>
+and, for a page with maths, <code class="docutils literal notranslate"><span class="pre">&lt;link</span> <span class="pre">rel=&quot;stylesheet&quot;</span> <span class="pre">href=&quot;/assets/katex.css&quot;&gt;</span></code>. No other <code class="docutils literal notranslate"><span class="pre">link</span></code>;</p></li>
+<li><p>at most one <code class="docutils literal notranslate"><span class="pre">script</span></code>, which must be exactly <code class="docutils literal notranslate"><span class="pre">src=&quot;/assets/prefs.js&quot;</span></code> with <code class="docutils literal notranslate"><span class="pre">defer</span></code> or <code class="docutils literal notranslate"><span class="pre">async</span></code>
+(one, with no value), and <code class="docutils literal notranslate"><span class="pre">blocking=&quot;render&quot;</span></code> if given: no other attribute (no <code class="docutils literal notranslate"><span class="pre">type</span></code>,
+<code class="docutils literal notranslate"><span class="pre">integrity</span></code>, <code class="docutils literal notranslate"><span class="pre">nomodule</span></code>) and no text. The publish mode writes
+<code class="docutils literal notranslate"><span class="pre">&lt;script</span> <span class="pre">src=&quot;/assets/prefs.js&quot;</span> <span class="pre">defer</span> <span class="pre">blocking=&quot;render&quot;&gt;&lt;/script&gt;</span></code>. Any other <code class="docutils literal notranslate"><span class="pre">script</span></code>, in the
+head or the body, is refused.</p></li>
 </ul>
 <p>There is <strong>no <code class="docutils literal notranslate"><span class="pre">&lt;style&gt;</span></code> element</strong> anywhere: every one is refused.</p>
 <p>Text never holds a private address. Text, tails and comments, lower-cased, are refused if they
@@ -1254,7 +1275,8 @@ case, a trailing <code class="docutils literal notranslate"><span class="pre">.<
 <code class="docutils literal notranslate"><span class="pre">(?&lt;![a-z0-9.-])&lt;host&gt;(?![a-z0-9-]|\.[a-z0-9])</span></code>, so <code class="docutils literal notranslate"><span class="pre">my.&lt;host&gt;</span></code>, <code class="docutils literal notranslate"><span class="pre">&lt;host&gt;.org</span></code> and <code class="docutils literal notranslate"><span class="pre">&lt;host&gt;-2</span></code>
 pass, while <code class="docutils literal notranslate"><span class="pre">&lt;host&gt;.</span></code> ending a sentence, <code class="docutils literal notranslate"><span class="pre">&lt;host&gt;:8446/p/x</span></code> and <code class="docutils literal notranslate"><span class="pre">https://&lt;host&gt;/api/x</span></code> are
 refused. (The publish mode writes “a private link” in their place.)</p>
-<p>In <code class="docutils literal notranslate"><span class="pre">body</span></code>, only pagehtml’s kept elements (<code class="docutils literal notranslate"><span class="pre">a</span> <span class="pre">abbr</span> <span class="pre">article</span> <span class="pre">aside</span> <span class="pre">b</span> <span class="pre">blockquote</span> <span class="pre">br</span> <span class="pre">caption</span> <span class="pre">code</span> <span class="pre">dd</span> <span class="pre">del</span> <span class="pre">details</span> <span class="pre">div</span> <span class="pre">dl</span> <span class="pre">dt</span> <span class="pre">em</span> <span class="pre">figcaption</span> <span class="pre">figure</span> <span class="pre">h1</span> <span class="pre">h2</span> <span class="pre">h3</span> <span class="pre">h4</span> <span class="pre">h5</span> <span class="pre">h6</span> <span class="pre">hr</span> <span class="pre">i</span> <span class="pre">img</span> <span class="pre">ins</span> <span class="pre">kbd</span> <span class="pre">li</span> <span class="pre">mark</span> <span class="pre">ol</span> <span class="pre">p</span> <span class="pre">pre</span> <span class="pre">q</span> <span class="pre">s</span> <span class="pre">section</span> <span class="pre">small</span> <span class="pre">span</span> <span class="pre">strong</span> <span class="pre">sub</span> <span class="pre">summary</span> <span class="pre">sup</span> <span class="pre">table</span> <span class="pre">tbody</span> <span class="pre">td</span> <span class="pre">tfoot</span> <span class="pre">th</span> <span class="pre">thead</span> <span class="pre">time</span> <span class="pre">tr</span> <span class="pre">u</span> <span class="pre">ul</span></code>), and,
+<p>In <code class="docutils literal notranslate"><span class="pre">body</span></code>, only pagehtml’s kept elements (<code class="docutils literal notranslate"><span class="pre">a</span> <span class="pre">abbr</span> <span class="pre">article</span> <span class="pre">aside</span> <span class="pre">b</span> <span class="pre">blockquote</span> <span class="pre">br</span> <span class="pre">caption</span> <span class="pre">code</span> <span class="pre">dd</span> <span class="pre">del</span> <span class="pre">details</span> <span class="pre">div</span> <span class="pre">dl</span> <span class="pre">dt</span> <span class="pre">em</span> <span class="pre">figcaption</span> <span class="pre">figure</span> <span class="pre">h1</span> <span class="pre">h2</span> <span class="pre">h3</span> <span class="pre">h4</span> <span class="pre">h5</span> <span class="pre">h6</span> <span class="pre">hr</span> <span class="pre">i</span> <span class="pre">img</span> <span class="pre">ins</span> <span class="pre">kbd</span> <span class="pre">li</span> <span class="pre">mark</span> <span class="pre">ol</span> <span class="pre">p</span> <span class="pre">pre</span> <span class="pre">q</span> <span class="pre">s</span> <span class="pre">section</span> <span class="pre">small</span> <span class="pre">span</span> <span class="pre">strong</span> <span class="pre">sub</span> <span class="pre">summary</span> <span class="pre">sup</span> <span class="pre">table</span> <span class="pre">tbody</span> <span class="pre">td</span> <span class="pre">tfoot</span> <span class="pre">th</span> <span class="pre">thead</span> <span class="pre">time</span> <span class="pre">tr</span> <span class="pre">u</span> <span class="pre">ul</span></code>, and
+<code class="docutils literal notranslate"><span class="pre">input</span></code> and <code class="docutils literal notranslate"><span class="pre">label</span></code> only as a photo’s tabs, below), and,
 inside a <code class="docutils literal notranslate"><span class="pre">span</span></code> whose class includes <code class="docutils literal notranslate"><span class="pre">katex</span></code> (“inside KaTeX” below), KaTeX’s markup:</p>
 <ul class="simple">
 <li><p>MathML: <code class="docutils literal notranslate"><span class="pre">math</span> <span class="pre">semantics</span> <span class="pre">annotation</span> <span class="pre">mrow</span> <span class="pre">mi</span> <span class="pre">mn</span> <span class="pre">mo</span> <span class="pre">mtext</span> <span class="pre">mspace</span> <span class="pre">msup</span> <span class="pre">msub</span> <span class="pre">msubsup</span> <span class="pre">mfrac</span> <span class="pre">msqrt</span> <span class="pre">mroot</span> <span class="pre">mover</span> <span class="pre">munder</span> <span class="pre">munderover</span> <span class="pre">mtable</span> <span class="pre">mtr</span> <span class="pre">mtd</span> <span class="pre">mstyle</span> <span class="pre">mpadded</span> <span class="pre">mphantom</span> <span class="pre">menclose</span></code>. KaTeX puts
@@ -1298,37 +1320,73 @@ there: inside KaTeX, an HTML element with one of these names is checked as MathM
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">src</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">img</span></code></p></td>
-<td><p>a <code class="docutils literal notranslate"><span class="pre">scrap-blob:&lt;sha&gt;</span></code> placeholder, and nothing else</p></td>
+<td><p>a <code class="docutils literal notranslate"><span class="pre">scrap-blob:&lt;sha&gt;</span></code> or <code class="docutils literal notranslate"><span class="pre">scrap-drawing:&lt;id&gt;</span></code> placeholder, and nothing else</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">href</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">a</span></code></p></td>
 <td><p><a class="reference internal" href="#links-scrap-accepts">below</a></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">aria-hidden</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">download</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">a</span></code> whose <code class="docutils literal notranslate"><span class="pre">href</span></code> is <code class="docutils literal notranslate"><span class="pre">scrap-drawing:&lt;id&gt;</span></code></p></td>
+<td><p>empty</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">target</span></code>, <code class="docutils literal notranslate"><span class="pre">rel</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">a</span></code> whose <code class="docutils literal notranslate"><span class="pre">href</span></code> is <code class="docutils literal notranslate"><span class="pre">scrap-excalidraw:&lt;id&gt;</span></code>, which must have both</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">_blank</span></code>, and <code class="docutils literal notranslate"><span class="pre">noopener</span> <span class="pre">noreferrer</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">type</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">input</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">radio</span></code>, and it must be there</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">name</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">input</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">pair-[0-9]{1,3}(-photo|-drawing)?</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">id</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">input</span></code></p></td>
+<td><p>the same pattern</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">checked</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">input</span></code></p></td>
+<td><p>empty</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">for</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">label</span></code></p></td>
+<td><p>the same pattern, and the <code class="docutils literal notranslate"><span class="pre">id</span></code> of an <code class="docutils literal notranslate"><span class="pre">input</span></code> on the page</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">role</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">div</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">radiogroup</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">aria-label</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">input</span></code>, <code class="docutils literal notranslate"><span class="pre">div</span></code></p></td>
+<td><p>any text (as body text: no private address)</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">aria-hidden</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">span</span></code> inside KaTeX</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">true</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">style</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">style</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">span</span></code>, <code class="docutils literal notranslate"><span class="pre">mstyle</span></code>, <code class="docutils literal notranslate"><span class="pre">mpadded</span></code>, <code class="docutils literal notranslate"><span class="pre">svg</span></code> inside KaTeX</p></td>
 <td><p>the declarations below</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">xmlns</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">xmlns</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">math</span></code>, <code class="docutils literal notranslate"><span class="pre">svg</span></code></p></td>
 <td><p>the MathML or SVG namespace</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">width</span></code>, <code class="docutils literal notranslate"><span class="pre">height</span></code>, <code class="docutils literal notranslate"><span class="pre">viewBox</span></code>, <code class="docutils literal notranslate"><span class="pre">preserveAspectRatio</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">width</span></code>, <code class="docutils literal notranslate"><span class="pre">height</span></code>, <code class="docutils literal notranslate"><span class="pre">viewBox</span></code>, <code class="docutils literal notranslate"><span class="pre">preserveAspectRatio</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">svg</span></code></p></td>
 <td><p>as KaTeX writes them, with no <code class="docutils literal notranslate"><span class="pre">url(</span></code></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">d</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">d</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">path</span></code></p></td>
 <td><p>as KaTeX writes it</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">x1</span></code>, <code class="docutils literal notranslate"><span class="pre">y1</span></code>, <code class="docutils literal notranslate"><span class="pre">x2</span></code>, <code class="docutils literal notranslate"><span class="pre">y2</span></code>, <code class="docutils literal notranslate"><span class="pre">stroke-width</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">x1</span></code>, <code class="docutils literal notranslate"><span class="pre">y1</span></code>, <code class="docutils literal notranslate"><span class="pre">x2</span></code>, <code class="docutils literal notranslate"><span class="pre">y2</span></code>, <code class="docutils literal notranslate"><span class="pre">stroke-width</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">line</span></code></p></td>
 <td><p>as KaTeX writes them</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">display</span></code>, <code class="docutils literal notranslate"><span class="pre">encoding</span></code>, <code class="docutils literal notranslate"><span class="pre">accent</span></code>, <code class="docutils literal notranslate"><span class="pre">accentunder</span></code>, <code class="docutils literal notranslate"><span class="pre">columnalign</span></code>, <code class="docutils literal notranslate"><span class="pre">columnlines</span></code>, <code class="docutils literal notranslate"><span class="pre">columnspacing</span></code>, <code class="docutils literal notranslate"><span class="pre">rowlines</span></code>, <code class="docutils literal notranslate"><span class="pre">rowspacing</span></code>, <code class="docutils literal notranslate"><span class="pre">depth</span></code>, <code class="docutils literal notranslate"><span class="pre">voffset</span></code>, <code class="docutils literal notranslate"><span class="pre">lspace</span></code>, <code class="docutils literal notranslate"><span class="pre">rspace</span></code>, <code class="docutils literal notranslate"><span class="pre">width</span></code>, <code class="docutils literal notranslate"><span class="pre">height</span></code>, <code class="docutils literal notranslate"><span class="pre">displaystyle</span></code>, <code class="docutils literal notranslate"><span class="pre">scriptlevel</span></code>, <code class="docutils literal notranslate"><span class="pre">mathsize</span></code>, <code class="docutils literal notranslate"><span class="pre">mathvariant</span></code>, <code class="docutils literal notranslate"><span class="pre">mathcolor</span></code>, <code class="docutils literal notranslate"><span class="pre">mathbackground</span></code>, <code class="docutils literal notranslate"><span class="pre">linethickness</span></code>, <code class="docutils literal notranslate"><span class="pre">fence</span></code>, <code class="docutils literal notranslate"><span class="pre">stretchy</span></code>, <code class="docutils literal notranslate"><span class="pre">separator</span></code>, <code class="docutils literal notranslate"><span class="pre">largeop</span></code>, <code class="docutils literal notranslate"><span class="pre">minsize</span></code>, <code class="docutils literal notranslate"><span class="pre">maxsize</span></code>, <code class="docutils literal notranslate"><span class="pre">linebreak</span></code>, <code class="docutils literal notranslate"><span class="pre">notation</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">display</span></code>, <code class="docutils literal notranslate"><span class="pre">encoding</span></code>, <code class="docutils literal notranslate"><span class="pre">accent</span></code>, <code class="docutils literal notranslate"><span class="pre">accentunder</span></code>, <code class="docutils literal notranslate"><span class="pre">columnalign</span></code>, <code class="docutils literal notranslate"><span class="pre">columnlines</span></code>, <code class="docutils literal notranslate"><span class="pre">columnspacing</span></code>, <code class="docutils literal notranslate"><span class="pre">rowlines</span></code>, <code class="docutils literal notranslate"><span class="pre">rowspacing</span></code>, <code class="docutils literal notranslate"><span class="pre">depth</span></code>, <code class="docutils literal notranslate"><span class="pre">voffset</span></code>, <code class="docutils literal notranslate"><span class="pre">lspace</span></code>, <code class="docutils literal notranslate"><span class="pre">rspace</span></code>, <code class="docutils literal notranslate"><span class="pre">width</span></code>, <code class="docutils literal notranslate"><span class="pre">height</span></code>, <code class="docutils literal notranslate"><span class="pre">displaystyle</span></code>, <code class="docutils literal notranslate"><span class="pre">scriptlevel</span></code>, <code class="docutils literal notranslate"><span class="pre">mathsize</span></code>, <code class="docutils literal notranslate"><span class="pre">mathvariant</span></code>, <code class="docutils literal notranslate"><span class="pre">mathcolor</span></code>, <code class="docutils literal notranslate"><span class="pre">mathbackground</span></code>, <code class="docutils literal notranslate"><span class="pre">linethickness</span></code>, <code class="docutils literal notranslate"><span class="pre">fence</span></code>, <code class="docutils literal notranslate"><span class="pre">stretchy</span></code>, <code class="docutils literal notranslate"><span class="pre">separator</span></code>, <code class="docutils literal notranslate"><span class="pre">largeop</span></code>, <code class="docutils literal notranslate"><span class="pre">minsize</span></code>, <code class="docutils literal notranslate"><span class="pre">maxsize</span></code>, <code class="docutils literal notranslate"><span class="pre">linebreak</span></code>, <code class="docutils literal notranslate"><span class="pre">notation</span></code></p></td>
 <td><p>MathML inside KaTeX</p></td>
 <td><p>as KaTeX writes them, with no <code class="docutils literal notranslate"><span class="pre">url(</span></code></p></td>
 </tr>
@@ -1350,8 +1408,13 @@ there: inside KaTeX, an HTML element with one of these names is checked as MathM
 </li>
 <li><p><code class="docutils literal notranslate"><span class="pre">mailto:...</span></code>, or <code class="docutils literal notranslate"><span class="pre">#&lt;id&gt;</span></code>;</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">/p/&lt;slug&gt;</span></code> of a page that is public, <code class="docutils literal notranslate"><span class="pre">/t/&lt;key&gt;</span></code>, or the site’s own <code class="docutils literal notranslate"><span class="pre">/</span></code> and <code class="docutils literal notranslate"><span class="pre">/tags</span></code>;</p></li>
-<li><p>a placeholder, <code class="docutils literal notranslate"><span class="pre">scrap-blob:&lt;sha&gt;</span></code> or <code class="docutils literal notranslate"><span class="pre">scrap-tag:&lt;tag&gt;</span></code>.</p></li>
+<li><p>a placeholder, <code class="docutils literal notranslate"><span class="pre">scrap-blob:&lt;sha&gt;</span></code>, <code class="docutils literal notranslate"><span class="pre">scrap-tag:&lt;tag&gt;</span></code>, <code class="docutils literal notranslate"><span class="pre">scrap-drawing:&lt;id&gt;</span></code> or
+<code class="docutils literal notranslate"><span class="pre">scrap-excalidraw:&lt;id&gt;</span></code>.</p></li>
 </ul>
+<p>An <code class="docutils literal notranslate"><span class="pre">https://excalidraw.com/...</span></code> link is an ordinary web link. The one scrap writes itself, Open
+in Excalidraw, is uploaded as <code class="docutils literal notranslate"><span class="pre">scrap-excalidraw:&lt;id&gt;</span></code> and made by scrap (<a class="reference internal" href="#drawings"><span class="std std-ref">Drawings</span></a>): exactly
+<code class="docutils literal notranslate"><span class="pre">https://excalidraw.com/#url=</span></code> and the <code class="docutils literal notranslate"><span class="pre">encodeURIComponent</span></code> form of the drawing’s SVG at
+<code class="docutils literal notranslate"><span class="pre">SCRAP_PUBLISH_SITE/p/&lt;slug&gt;/img-&lt;n&gt;-&lt;hex&gt;.svg</span></code>, so it can name nothing else.</p>
 <p>A relative <code class="docutils literal notranslate"><span class="pre">/api/...</span></code> is always refused, as are <code class="docutils literal notranslate"><span class="pre">//...</span></code> and <code class="docutils literal notranslate"><span class="pre">/\...</span></code> (a browser reads both as
 another host), <code class="docutils literal notranslate"><span class="pre">javascript:</span></code>, <code class="docutils literal notranslate"><span class="pre">data:</span></code> and anything else. There is no rule about private
 (RFC 1918) addresses.</p>
@@ -1405,8 +1468,9 @@ lists again.</p>
 <p><strong>The <code class="docutils literal notranslate"><span class="pre">katex</span></code> gate is visual hygiene, not a security boundary.</strong> It keeps stray markup and
 inline styles out of the page’s own content, but a page could wrap anything in a <code class="docutils literal notranslate"><span class="pre">katex</span></code> span.
 What keeps a public page safe is the CSP (the page’s meta CSP and nginx’s, with
-<code class="docutils literal notranslate"><span class="pre">script-src</span> <span class="pre">'none'</span></code>), the allow-list of elements and attributes, and that the upload is reachable
-only from the owner’s PWA session.</p>
+<code class="docutils literal notranslate"><span class="pre">script-src</span> <span class="pre">'self'</span></code>, and the receiver holding no script but Pagefind’s and <code class="docutils literal notranslate"><span class="pre">prefs.js</span></code>), the
+allow-list of elements and attributes (one <code class="docutils literal notranslate"><span class="pre">script</span></code>, exactly <code class="docutils literal notranslate"><span class="pre">prefs.js</span></code>), and that the upload is
+reachable only from the owner’s PWA session.</p>
 </section>
 <section id="placeholders-and-files">
 <h3>Placeholders and files<a class="headerlink" href="#placeholders-and-files" title="Link to this heading">#</a></h3>
@@ -1417,6 +1481,9 @@ the page’s text, which includes another page’s file the owner embedded. Anyt
 the publish.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">scrap-tag:&lt;tag,</span> <span class="pre">URL-encoded&gt;</span></code> is allowed only as an <code class="docutils literal notranslate"><span class="pre">a</span></code>’s <code class="docutils literal notranslate"><span class="pre">href</span></code>, and must name one of the
 page’s current tags (else <code class="docutils literal notranslate"><span class="pre">422</span> <span class="pre">stale_tags</span></code>). scrap replaces it with <code class="docutils literal notranslate"><span class="pre">/t/&lt;key&gt;</span></code> (<a class="reference internal" href="#tag-keys"><span class="std std-ref">Tag keys</span></a>).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">scrap-drawing:&lt;id&gt;</span></code> (an <code class="docutils literal notranslate"><span class="pre">img</span></code>’s <code class="docutils literal notranslate"><span class="pre">src</span></code>, or a download <code class="docutils literal notranslate"><span class="pre">a</span></code>’s <code class="docutils literal notranslate"><span class="pre">href</span></code>) names a drawing the page
+shows, and <code class="docutils literal notranslate"><span class="pre">scrap-excalidraw:&lt;id&gt;</span></code> (an <code class="docutils literal notranslate"><span class="pre">a</span></code>’s <code class="docutils literal notranslate"><span class="pre">href</span></code>) its Open in Excalidraw link
+(<a class="reference internal" href="#drawings"><span class="std std-ref">Drawings</span></a>).</p></li>
 </ul>
 <p>What a <code class="docutils literal notranslate"><span class="pre">scrap-blob</span></code> becomes depends on the stored file, not only on the element:</p>
 <ul class="simple">
@@ -1460,8 +1527,8 @@ published as stored). Neither the stored sha nor the uploaded file name is publi
 link’s label may show the name).</p></li>
 <li><p>“On the page” means referenced in its text (another page’s file the owner embedded
 included) or attached to its captures (the files the PWA lists under the text).</p></li>
-<li><p><strong>Caps:</strong> at most 20 images and files together, each at most 20 MiB, and at most 200 MiB for
-the whole unit (under the receiver’s 256 MiB body). Over any of them scrap refuses the publish
+<li><p><strong>Caps:</strong> at most 20 images, drawings and files together (each drawing counts once), each at
+most 20 MiB, and at most 200 MiB for the whole unit (under the receiver’s 256 MiB body). Over any of them scrap refuses the publish
 with <code class="docutils literal notranslate"><span class="pre">422</span></code> and a message saying which, before pushing anything.</p></li>
 <li><p><strong>Time:</strong> the receiver allows 30 seconds to receive a request, so a unit must also be one scrap
 can upload in that time on its link to the receiver (200 MiB needs about 56 Mbit/s). scrap’s
@@ -1469,6 +1536,112 @@ client (httpx2) cannot send <code class="docutils literal notranslate"><span cla
 close still delivers an early refusal. A <code class="docutils literal notranslate"><span class="pre">408</span></code> is logged as a failure, and the next reconcile
 tries the unit again.</p></li>
 </ul>
+</section>
+<section id="drawings">
+<span id="id1"></span><h3>Drawings<a class="headerlink" href="#drawings" title="Link to this heading">#</a></h3>
+<p>A photo’s Excalidraw drawing (#520) is drawn by the PWA when it publishes the page, and sent
+beside its HTML. The publish mode loads Excalidraw’s chunk only for a page that has drawings.</p>
+<p><strong>What the PWA sends.</strong> For each drawing the page shows, its id (the drawing’s current
+version, the one the page view draws) and an SVG from Excalidraw’s <code class="docutils literal notranslate"><span class="pre">exportToSvg</span></code>, on white, with
+its fonts inlined and <code class="docutils literal notranslate"><span class="pre">exportEmbedScene</span></code> on: the picture and the scene in one file. A drawing of
+a photo has the photo under it, as a locked image of the drawing’s frame, embedded as the
+photo’s 2048-pixel preview (<code class="docutils literal notranslate"><span class="pre">/api/blobs/&lt;sha&gt;/preview?size=2048</span></code>). Before sending it, the PWA
+reads the SVG back with Excalidraw’s own <code class="docutils literal notranslate"><span class="pre">loadFromBlob</span></code>, and sends nothing if the scene does not
+come back whole.</p>
+<p><strong>What the page holds</strong>, for a photo with a drawing:</p>
+<div class="highlight-html notranslate"><div class="highlight"><pre><span></span><span class="p">&lt;</span><span class="nt">div</span> <span class="na">class</span><span class="o">=</span><span class="s">"pair"</span><span class="p">&gt;&lt;</span><span class="nt">div</span> <span class="na">class</span><span class="o">=</span><span class="s">"tabs"</span> <span class="na">role</span><span class="o">=</span><span class="s">"radiogroup"</span> <span class="na">aria-label</span><span class="o">=</span><span class="s">"Show"</span><span class="p">&gt;</span>
+<span class="p">&lt;</span><span class="nt">input</span> <span class="na">type</span><span class="o">=</span><span class="s">"radio"</span> <span class="na">name</span><span class="o">=</span><span class="s">"pair-1"</span> <span class="na">id</span><span class="o">=</span><span class="s">"pair-1-photo"</span> <span class="na">class</span><span class="o">=</span><span class="s">"tab-input"</span><span class="p">&gt;&lt;</span><span class="nt">label</span> <span class="na">for</span><span class="o">=</span><span class="s">"pair-1-photo"</span><span class="p">&gt;</span>Photo<span class="p">&lt;/</span><span class="nt">label</span><span class="p">&gt;</span>
+<span class="p">&lt;</span><span class="nt">input</span> <span class="na">type</span><span class="o">=</span><span class="s">"radio"</span> <span class="na">name</span><span class="o">=</span><span class="s">"pair-1"</span> <span class="na">id</span><span class="o">=</span><span class="s">"pair-1-drawing"</span> <span class="na">class</span><span class="o">=</span><span class="s">"tab-input"</span> <span class="na">checked</span><span class="p">&gt;&lt;</span><span class="nt">label</span> <span class="na">for</span><span class="o">=</span><span class="s">"pair-1-drawing"</span><span class="p">&gt;</span>Drawing<span class="p">&lt;/</span><span class="nt">label</span><span class="p">&gt;&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+<span class="p">&lt;</span><span class="nt">figure</span> <span class="na">class</span><span class="o">=</span><span class="s">"orig"</span><span class="p">&gt;</span>...the photo...<span class="p">&lt;/</span><span class="nt">figure</span><span class="p">&gt;</span>
+<span class="p">&lt;</span><span class="nt">figure</span> <span class="na">class</span><span class="o">=</span><span class="s">"drawing"</span><span class="p">&gt;&lt;</span><span class="nt">img</span> <span class="na">src</span><span class="o">=</span><span class="s">"scrap-drawing:17"</span> <span class="na">alt</span><span class="o">=</span><span class="s">"Drawing of IMG_2041.jpg"</span><span class="p">&gt;&lt;/</span><span class="nt">figure</span><span class="p">&gt;&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+<span class="p">&lt;</span><span class="nt">p</span> <span class="na">class</span><span class="o">=</span><span class="s">"drawing-get"</span><span class="p">&gt;&lt;</span><span class="nt">a</span> <span class="na">href</span><span class="o">=</span><span class="s">"scrap-excalidraw:17"</span> <span class="na">target</span><span class="o">=</span><span class="s">"_blank"</span> <span class="na">rel</span><span class="o">=</span><span class="s">"noopener noreferrer"</span><span class="p">&gt;</span>Open in Excalidraw<span class="p">&lt;/</span><span class="nt">a</span><span class="p">&gt;</span>
+ · <span class="p">&lt;</span><span class="nt">a</span> <span class="na">href</span><span class="o">=</span><span class="s">"scrap-drawing:17"</span> <span class="na">download</span><span class="p">&gt;</span>Download<span class="p">&lt;/</span><span class="nt">a</span><span class="p">&gt;&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">&lt;n&gt;</span></code> counts the page’s pairs from 1. The tabs are CSS alone (<code class="docutils literal notranslate"><span class="pre">/assets/page.css</span></code>, with
+<code class="docutils literal notranslate"><span class="pre">:has()</span></code> and <code class="docutils literal notranslate"><span class="pre">:checked</span></code>): the drawing shows first, as in the app, the arrow keys move between
+the two, and a browser without <code class="docutils literal notranslate"><span class="pre">:has()</span></code> shows both, one under the other, never neither. On
+paper both show. Open in Excalidraw is written only when <code class="docutils literal notranslate"><span class="pre">SCRAP_PUBLISH_SITE</span></code> is <code class="docutils literal notranslate"><span class="pre">https</span></code>;
+without it the one link is “Download, then open in excalidraw.com to edit”.</p>
+<p><strong>What scrap does with each SVG</strong>, before anything is pushed:</p>
+<ol class="arabic simple">
+<li><p>The id must be one of the page’s photos’ current drawings, every drawing the HTML names
+must be sent, and nothing else may be (<code class="docutils literal notranslate"><span class="pre">422</span> <span class="pre">bad_drawing</span></code>, <code class="docutils literal notranslate"><span class="pre">bad_placeholder</span></code>).</p></li>
+<li><p><strong>The scene.</strong> The SVG must hold exactly one Excalidraw scene, as Excalidraw writes it:
+the root’s one <code class="docutils literal notranslate"><span class="pre">&lt;metadata&gt;</span></code>, holding nothing but the comments
+<code class="docutils literal notranslate"><span class="pre">&lt;!--</span> <span class="pre">payload-type:application/vnd.excalidraw+json</span> <span class="pre">--&gt;</span></code>, <code class="docutils literal notranslate"><span class="pre">&lt;!--</span> <span class="pre">payload-version:2</span> <span class="pre">--&gt;</span></code>,
+<code class="docutils literal notranslate"><span class="pre">&lt;!--</span> <span class="pre">payload-start</span> <span class="pre">--&gt;</span></code> and <code class="docutils literal notranslate"><span class="pre">&lt;!--</span> <span class="pre">payload-end</span> <span class="pre">--&gt;</span></code> in that order, with base64 between the
+last two; and no CDATA section anywhere. The base64 is that of <code class="docutils literal notranslate"><span class="pre">{&quot;version&quot;:</span> <span class="pre">&quot;1&quot;,</span> <span class="pre">&quot;encoding&quot;:</span> <span class="pre">&quot;bstring&quot;,</span> <span class="pre">&quot;compressed&quot;:</span> <span class="pre">true,</span> <span class="pre">&quot;encoded&quot;:</span> <span class="pre">...}</span></code>, written one byte a character, and <code class="docutils literal notranslate"><span class="pre">encoded</span></code>
+is the zlib deflate of the scene’s JSON (Excalidraw 0.18, <code class="docutils literal notranslate"><span class="pre">data/encode.ts</span></code>). scrap decodes it
+(at most 24 MiB inflated, 32 levels deep) and keeps only:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">type</span></code>, <code class="docutils literal notranslate"><span class="pre">version</span></code>, <code class="docutils literal notranslate"><span class="pre">elements</span></code>, <code class="docutils literal notranslate"><span class="pre">appState</span></code> and <code class="docutils literal notranslate"><span class="pre">files</span></code>, and <code class="docutils literal notranslate"><span class="pre">source</span></code> as <code class="docutils literal notranslate"><span class="pre">scrap</span></code> (Excalidraw
+writes the address of the app it ran in, which is scrap’s own);</p></li>
+<li><p>of <code class="docutils literal notranslate"><span class="pre">appState</span></code>, the background colour and the grid;</p></li>
+<li><p>every element not deleted, with only Excalidraw’s own element fields (no <code class="docutils literal notranslate"><span class="pre">customData</span></code>),
+and inside them only keys that are plain names. Every string in an element loses any
+embedded <code class="docutils literal notranslate"><span class="pre">data:</span></code> URL and goes through the page text’s rule: an address of scrap’s own, or
+an <code class="docutils literal notranslate"><span class="pre">/api/</span></code> path, becomes “a private link”. An element’s <code class="docutils literal notranslate"><span class="pre">link</span></code> follows the page’s link rules: a web or <code class="docutils literal notranslate"><span class="pre">mailto:</span></code> link stays, a
+public page’s becomes its address on the site, and anything else (a private page, scrap’s
+own, <code class="docutils literal notranslate"><span class="pre">/api/</span></code>) is removed;</p></li>
+<li><p>each embedded image only if it is one of the page’s photos, matched by its bytes (the photo
+as stored, or its 2048-pixel preview, never by a name in the upload), and then always as
+that preview: so no original bytes and no EXIF or GPS. It is renamed by the SHA-1 of its
+data URL, as Excalidraw names a file. An image that matches none of the page’s photos is
+dropped, with the elements that show it.</p></li>
+</ul>
+</li>
+<li><p><strong>The picture.</strong> The SVG goes through scrap’s SVG sanitiser (as any SVG; up to 20 MiB here,
+since it holds the photo twice), which drops the old scene. In what is drawn, each <code class="docutils literal notranslate"><span class="pre">&lt;image&gt;</span></code>
+is likewise the preview of the page’s photo it is, or removed, with the symbols naming a
+dropped image (matched by its exact name, <code class="docutils literal notranslate"><span class="pre">image-&lt;id&gt;</span></code> or <code class="docutils literal notranslate"><span class="pre">image-crop-&lt;id&gt;-&lt;hash&gt;</span></code>); every
+text and attribute value is scrubbed by the same rule; and its <code class="docutils literal notranslate"><span class="pre">&lt;style&gt;</span></code> may embed only
+whole WOFF2 or WOFF fonts (as Excalidraw inlines them; the font’s header must give the
+data’s own length) and no address of scrap’s, else the drawing is refused. Text Excalidraw
+writes is one <code class="docutils literal notranslate"><span class="pre">&lt;text&gt;</span></code> a line: an address split across elements is not joined first.</p></li>
+<li><p>The cleaned scene goes back where Excalidraw puts it, first in the SVG
+(<code class="docutils literal notranslate"><span class="pre">&lt;!--</span> <span class="pre">svg-source:excalidraw</span> <span class="pre">--&gt;&lt;metadata&gt;...&lt;/metadata&gt;</span></code>), so the file is both the picture
+and a drawing.</p></li>
+</ol>
+<p>The request’s own limit, 25 MiB, holds the HTML and every drawing: a drawing of a photo is
+about 1 to 3 MB (the preview twice, in base64, and its fonts), so a page with more than about
+ten drawings is refused as too large (<code class="docutils literal notranslate"><span class="pre">413</span></code>) before the 20-file cap.</p>
+<p>It is published as <code class="docutils literal notranslate"><span class="pre">img-&lt;n&gt;-&lt;hex&gt;.svg</span></code>, numbered with the page’s images, under the image CSP
+(<code class="docutils literal notranslate"><span class="pre">sandbox</span></code>, loading nothing). <code class="docutils literal notranslate"><span class="pre">scrap-drawing:&lt;id&gt;</span></code> becomes its path, and
+<code class="docutils literal notranslate"><span class="pre">scrap-excalidraw:&lt;id&gt;</span></code> becomes <code class="docutils literal notranslate"><span class="pre">https://excalidraw.com/#url=</span></code> and the SVG’s address on the site,
+encoded as <code class="docutils literal notranslate"><span class="pre">encodeURIComponent</span></code> does.</p>
+<p><strong>When it changes.</strong> Saving a drawing in the PWA publishes its page again, as saving the page
+does. A drawing changed elsewhere (by Claude, or over MCP) keeps its published copy until the
+page is next saved in the PWA, or Refresh all. A drawing replaced between the PWA drawing the
+page and scrap checking it is no longer the page’s (<code class="docutils literal notranslate"><span class="pre">422</span> <span class="pre">bad_placeholder</span></code>): the PWA draws the
+page again once, as for a stale tag.</p>
+<p><strong>Opening it.</strong> excalidraw.com reads a <code class="docutils literal notranslate"><span class="pre">#url=</span></code> address on load, fetches that file in the
+reader’s browser (hence the SVG’s <code class="docutils literal notranslate"><span class="pre">Access-Control-Allow-Origin</span></code>) and opens it as it opens a file
+dropped on it, with <code class="docutils literal notranslate"><span class="pre">loadFromBlob</span></code>. Nothing is uploaded to Excalidraw’s servers. <code class="docutils literal notranslate"><span class="pre">#url=</span></code> is not a
+documented feature of excalidraw.com and could change; Download is the fallback: the SVG opens in
+excalidraw.com, or a copy of Excalidraw, with its own Open.</p>
+</section>
+<section id="reader-preferences">
+<span id="id2"></span><h3>Reader preferences<a class="headerlink" href="#reader-preferences" title="Link to this heading">#</a></h3>
+<p>Every page, tag page, the home page, Tags and the 404 load one script from their head,
+<code class="docutils literal notranslate"><span class="pre">/assets/prefs.js</span></code>, deferred and <code class="docutils literal notranslate"><span class="pre">blocking=&quot;render&quot;</span></code>: in Chromium-based browsers that blocks
+the first paint until it has run, so a kept dark theme shows from the first frame. Browsers that
+do not know <code class="docutils literal notranslate"><span class="pre">blocking</span></code> (Firefox and Safari, today) may paint once before it runs, so a reader
+who chose dark can see a light flash there. It keeps two choices in the reader’s browser (<code class="docutils literal notranslate"><span class="pre">localStorage</span></code>), and puts two buttons at
+the end of the site’s header:</p>
+<ul class="simple">
+<li><p><strong>The theme.</strong> Public pages are light, whatever the device’s <code class="docutils literal notranslate"><span class="pre">prefers-color-scheme</span></code>. The
+button, a moon or a sun, named “Dark theme” and pressed while dark, switches to dark and back;
+dark is <code class="docutils literal notranslate"><span class="pre">data-theme=&quot;dark&quot;</span></code> on <code class="docutils literal notranslate"><span class="pre">&lt;html&gt;</span></code>, set again on every page from the kept choice
+(<code class="docutils literal notranslate"><span class="pre">scrap.public.theme</span></code>).</p></li>
+<li><p><strong>The column’s width.</strong> As the app’s Settings → Maximum column width: Narrow (720px), Medium
+(800px, the default, <code class="docutils literal notranslate"><span class="pre">tokens.css</span></code>’s <code class="docutils literal notranslate"><span class="pre">--column</span></code>), Wide (880px) and Wider (960px), set as
+<code class="docutils literal notranslate"><span class="pre">--column</span></code> on <code class="docutils literal notranslate"><span class="pre">&lt;html&gt;</span></code> (<code class="docutils literal notranslate"><span class="pre">scrap.public.column</span></code>). The button shows the width and cycles through
+them, named “Column width: Medium (800px)” and so on. It is hidden where the window is narrower
+than the narrowest column and its gutters, where the choice makes no difference.</p></li>
+</ul>
+<p>Each button is a 48 px target with a visible focus ring, in ink, not amber. Without the script
+there are no buttons: the page is light, at the default width.</p>
 </section>
 <section id="tag-keys">
 <h3>Tag keys<a class="headerlink" href="#tag-keys" title="Link to this heading">#</a></h3>
@@ -1506,9 +1679,12 @@ dates lines, tag chips), so a result’s excerpt is the page’s text. The unit 
 on a digest of the pinned version, <code class="docutils literal notranslate"><span class="pre">scrap-search.js</span></code> and every record, so an unchanged index
 is not built again; a build has about 120 seconds, and if it fails or runs out the site keeps
 its last index (<code class="docutils literal notranslate"><span class="pre">&quot;derived&quot;:</span> <span class="pre">&quot;pending&quot;</span></code>);</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">assets</span></code>: <code class="docutils literal notranslate"><span class="pre">page.css</span></code> (pagehtml’s page CSS), <code class="docutils literal notranslate"><span class="pre">katex.css</span></code> and KaTeX’s fonts, from scrap’s own
-static build of the PWA, and Pagefind’s UI stylesheet, as CSS lives only in <code class="docutils literal notranslate"><span class="pre">assets</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">assets</span></code>: <code class="docutils literal notranslate"><span class="pre">page.css</span></code> (pagehtml’s page CSS), <code class="docutils literal notranslate"><span class="pre">katex.css</span></code>, KaTeX’s fonts and <code class="docutils literal notranslate"><span class="pre">prefs.js</span></code>
+(<a class="reference internal" href="#reader-preferences"><span class="std std-ref">Reader preferences</span></a>), from scrap’s own static build of the PWA, and Pagefind’s UI
+stylesheet, as CSS lives only in <code class="docutils literal notranslate"><span class="pre">assets</span></code>.</p></li>
 </ul>
+<p>Each of the site’s own pages loads <code class="docutils literal notranslate"><span class="pre">/assets/page.css</span></code> and <code class="docutils literal notranslate"><span class="pre">/assets/prefs.js</span></code> from its head, as a
+published page does.</p>
 <p>Titles and tag names come from <code class="docutils literal notranslate"><span class="pre">meta.json</span></code>. Every build is deterministic: the same copies give
 the same bytes (sorted order, no timestamps), so an unchanged unit has an unchanged digest.</p>
 </section>
@@ -1641,6 +1817,8 @@ next Refresh all. A <code class="docutils literal notranslate"><span class="pre"
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#links-scrap-accepts">Links scrap accepts</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#katex-s-markup">KaTeX’s markup</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#placeholders-and-files">Placeholders and files</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#drawings">Drawings</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#reader-preferences">Reader preferences</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#tag-keys">Tag keys</a></li>
 </ul>
 </li>
