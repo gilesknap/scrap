@@ -4,7 +4,10 @@
 // else: the fixed head (the meta CSP, /assets/page.css, /assets/katex.css for maths) and no
 // <style>; maths as KaTeX's own markup; a Mermaid diagram as its source; images and files as
 // scrap-blob:<sha> placeholders and tags as scrap-tag:<tag> chips, which scrap replaces; links
-// to public pages live, to private ones their words. Claude's notes on a photo, drawings and a
+// to public pages live, to private ones their words. A photo's drawing (#520), once
+// publicpages.ts has drawn it, beside the photo with Photo | Drawing tabs (radio inputs and
+// CSS, no script) and its links to open it on excalidraw.com and to download it, as
+// scrap-drawing:<id> and scrap-excalidraw:<id> placeholders. Claude's notes on a photo and a
 // file's text read for search are left out. Pure: publicpages.ts gathers what it needs.
 import { type Titles, titleOf } from "./linktext";
 import { control, esc, KEEP, type N, type Swaps, textOf } from "./pagehtml";
@@ -19,11 +22,16 @@ export interface Context {
   site: string | null; // the public site's address (https://pages.example), for its name
   tex: ((tex: string, display: boolean) => string) | null; // KaTeX, for a page with maths
   date: string; // when it is published, for the footer
+  drawn?: ReadonlySet<string>; // the drawings (by id) publicpages.ts drew: shown with their photos
 }
 
-/** The meta CSP every public page carries (the contract's, exactly): no script at all. */
+/** The meta CSP every public page carries (the contract's, exactly): the site's own scripts
+ * only, and the one it names is /assets/prefs.js, the theme and width switches (#519). */
 const CSP =
-  "default-src 'none'; img-src 'self' data:; style-src 'self'; style-src-attr 'unsafe-inline'; font-src 'self'";
+  "default-src 'none'; img-src 'self' data:; style-src 'self'; style-src-attr 'unsafe-inline'; font-src 'self'; script-src 'self'";
+/** The page's one script, from the head: deferred, and render-blocking where the browser
+ * can, so a kept theme is on before the first paint (scrap's check allows only this). */
+const PREFS = '<script src="/assets/prefs.js" defer blocking="render"></script>';
 /** A bare link to a private page whose title is not known (it is not there any more). */
 const PRIVATE = "a private page";
 
@@ -35,6 +43,7 @@ const BLOB = /^\/api\/blobs\/([0-9a-f]{64})(?:[/?#].*)?$/;
 const PAGE = /^\/p\/([^/?#]+)(?:[?#].*)?$/;
 const FOOTNOTE_ID = /^fn(ref)?\d+(:\d+)?$/;
 const HEADING = /^h[1-6]$/;
+const DRAWING_ID = /^[1-9][0-9]{0,17}$/;
 
 const el = (n: N) => n.nodeType === ELEMENT;
 const tag = (n: N) => n.nodeName.toLowerCase();
@@ -45,7 +54,8 @@ const has = (n: N, c: string) => classes(n).has(c);
 
 /** Text that names a placeholder ("scrap-blob:", "scrap-tag:") would be refused anywhere but
  * a src or href: a word joiner after "scrap-" keeps it as it reads. */
-const defuse = (s: string) => s.replace(/scrap-(blob|tag):/gi, "scrap-\u2060$1:");
+const defuse = (s: string) =>
+  s.replace(/scrap-(blob|tag|drawing|excalidraw):/gi, "scrap-\u2060$1:");
 /** What text says in place of an address of scrap's own, or of its API. */
 const PRIVATE_LINK = "a private link";
 const reEscape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -227,6 +237,25 @@ export function publishHtml(root: N, ctx: Context, swaps: Swaps = new Map()): st
     return inner(); // a screen of the app, or anywhere else: its words
   };
 
+  // A photo and its drawing, Photo | Drawing tabs over them (the drawing chosen, as in the
+  // app), pure CSS (page.css): without it both show. Then its links: Open in Excalidraw (only
+  // with the site's https address, which excalidraw.com fetches it from) and Download.
+  let pairs = 0;
+  const pair = (photo: string, id: string, name: string) => {
+    const n = ++pairs;
+    const tab = (which: "photo" | "drawing", label: string) =>
+      `<input type="radio" name="pair-${n}" id="pair-${n}-${which}" class="tab-input"${
+        which === "drawing" ? " checked" : ""
+      }><label for="pair-${n}-${which}">${label}</label>`;
+    const tabs = `<div class="tabs" role="radiogroup" aria-label="Show">${tab("photo", "Photo")}${tab("drawing", "Drawing")}</div>`;
+    const drawing = `<figure class="drawing"><img src="scrap-drawing:${id}" alt="${words(`Drawing of ${name}`)}"></figure>`;
+    const download = (said: string) => `<a href="scrap-drawing:${id}" download>${said}</a>`;
+    const links = /^https:\/\//i.test(ctx.site ?? "")
+      ? `<a href="scrap-excalidraw:${id}" target="_blank" rel="noopener noreferrer">Open in Excalidraw</a> · ${download("Download")}`
+      : download("Download, then open in excalidraw.com to edit");
+    return `<div class="pair">${tabs}${photo}${drawing}</div><p class="drawing-get">${links}</p>`;
+  };
+
   const chips = () =>
     ctx.tags.length
       ? `<p class="tags">${ctx.tags
@@ -239,10 +268,16 @@ export function publishHtml(root: N, ctx: Context, swaps: Swaps = new Map()): st
     if (!el(n)) return "";
     const t = tag(n);
     const cls = classes(n);
-    // A photo with Claude's notes and drawing: the photo alone; a file, its row alone
+    // A photo with Claude's notes and drawing: the photo, and its drawing if drawn; a file,
+    // its row alone
     if (cls.has("photo-panel")) {
       const fig = find(n, (k) => tag(k) === "figure" && has(k, "orig") && !has(k, "drawing"));
-      return fig ? render(fig, true) : "";
+      if (!fig) return "";
+      const d = find(n, (k) => tag(k) === "figure" && has(k, "drawing"));
+      const id = d && attr(d, "data-drawing");
+      if (!id || !DRAWING_ID.test(id) || !ctx.drawn?.has(id)) return render(fig, true);
+      const alt = attr(find(fig, (k) => tag(k) === "img") ?? fig, "alt")?.trim();
+      return pair(render(fig, true), id, alt || "the photo");
     }
     if (cls.has("file-panel")) {
       const row = find(n, (k) => has(k, "filerow"));
@@ -336,9 +371,26 @@ export function publishHtml(root: N, ctx: Context, swaps: Swaps = new Map()): st
 <meta http-equiv="Content-Security-Policy" content="${CSP}">
 <title>${words(ctx.title)}</title>
 ${css}
+${PREFS}
 </head>
 <body>${top}${body}${foot}</body></html>
 `;
+}
+
+/** The drawings on the view, each with the photo it is of: publicpages.ts draws them. */
+export function drawingsOf(root: N): { id: string; cid: string; sha: string }[] {
+  const out: { id: string; cid: string; sha: string }[] = [];
+  const walk = (n: N) => {
+    if (!el(n)) return;
+    const id = tag(n) === "figure" && has(n, "drawing") ? attr(n, "data-drawing") : null;
+    const cid = attr(n, "data-cid");
+    const sha = attr(n, "data-sha");
+    if (id && DRAWING_ID.test(id) && cid && sha && !out.some((d) => d.id === id))
+      out.push({ id, cid, sha });
+    kids(n).forEach(walk);
+  };
+  walk(root);
+  return out;
 }
 
 /** Whether the view has maths to draw (KaTeX is loaded only then). */

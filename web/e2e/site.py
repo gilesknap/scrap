@@ -16,7 +16,7 @@ SEGMENT = r"[A-Za-z0-9_][A-Za-z0-9._-]{0,99}"
 # nginx's CSP by path (scrap-public/nginx.conf.template's map), first match wins
 PAGE_CSP = (
     "default-src 'none'; img-src 'self' data:; style-src 'self';"
-    " style-src-attr 'unsafe-inline'; font-src 'self'; script-src 'none';"
+    " style-src-attr 'unsafe-inline'; font-src 'self'; script-src 'self';"
     " base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
 )
 HOME_CSP = (
@@ -34,6 +34,8 @@ CSP = (
     ),
     (r"^/[pt]/", PAGE_CSP, 0),
 )
+# nginx's Access-Control-Allow-Origin: a page's SVG images, for Open in Excalidraw
+CORS = re.compile(r"^/p/[a-z0-9-]+/img-[^/]*\.svg$")
 TYPES = {".wasm": "application/wasm", ".md": "text/markdown", ".mjs": "text/javascript"}
 
 
@@ -78,6 +80,8 @@ class Site(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Content-Security-Policy", csp)
         self.send_header("X-Content-Type-Options", "nosniff")
+        if status == 200 and CORS.search(path):
+            self.send_header("Access-Control-Allow-Origin", "https://excalidraw.com")
         self.send_header("Referrer-Policy", "no-referrer")
         self.send_header("X-Robots-Tag", "noindex, nofollow")
         html = kind.startswith("text/html")

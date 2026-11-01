@@ -22,10 +22,17 @@ const filesOf = (p: Page): FileRef[] => {
     .filter((b) => !b.mime.startsWith("image/") && !seen.has(b.sha256) && seen.add(b.sha256));
 };
 
+/** How many drawings the page's photos have (#520): each goes public, downloadable. */
+export const drawingsOn = (p: Page): number =>
+  p.captures
+    .flatMap((c) => c.blobs)
+    .filter((b) => b.ingest && "drawing" in b.ingest && b.ingest.drawing).length;
+
 /** What goes public with the page, a line each: its tags, Claude's write-up and summary (on a
- * topic, its synthesis too), its attached files by name. */
+ * topic, its synthesis too), its attached files by name, its drawings. */
 export function goesWith(p: Page): string[] {
   const files = filesOf(p).map((f) => f.filename || f.mime);
+  const drawings = drawingsOn(p);
   return [
     ...(p.tags.length ? [`its tags: ${p.tags.map((t) => `#${t}`).join(" ")}`] : []),
     "Claude's write-up and summary",
@@ -33,6 +40,9 @@ export function goesWith(p: Page): string[] {
     ...(p.topic ? ["Claude's synthesis, which draws on its source pages"] : []),
     ...(files.length
       ? [`${files.length === 1 ? "its attached file" : "its attached files"}: ${files.join(", ")}`]
+      : []),
+    ...(drawings
+      ? [`its ${drawings} ${drawings === 1 ? "drawing" : "drawings"}, downloadable`]
       : []),
   ];
 }

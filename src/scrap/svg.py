@@ -25,7 +25,16 @@ from xml.sax.saxutils import escape, quoteattr
 
 from .store.errors import InvalidError, TooLargeError
 
-__all__ = ["MAX_SVG", "SVG", "is_svg", "sanitise", "text_of"]
+__all__ = [
+    "MAX_SVG",
+    "NS",
+    "SVG",
+    "is_svg",
+    "parse",
+    "sanitise",
+    "serialise",
+    "text_of",
+]
 
 SVG = "image/svg+xml"
 MAX_SVG = 2**20  # bytes, as sent
@@ -92,20 +101,25 @@ def _refuse(*_: object) -> None:
 
 
 class _Builder(ET.TreeBuilder):
-    """A tree builder that refuses a DOCTYPE (the scan in parse comes first)."""
+    """A tree builder that refuses a DOCTYPE (the scan in parse comes first), and
+    keeps comments only when asked (a drawing's scene markers: publish.scene)."""
+
+    def __init__(self, comments: bool = False) -> None:
+        super().__init__(insert_comments=comments)
 
     def doctype(self, *_: object) -> None:
         _refuse()
 
 
-def parse(data: bytes) -> ET.Element:
+def parse(data: bytes, limit: int = MAX_SVG, comments: bool = False) -> ET.Element:
     """The root <svg> of a file, parsed with no DOCTYPE (one naming only an
     external DTD is dropped, unread; one with an internal subset is refused) and so
     no entities; every element put in the SVG namespace if the file uses none.
     UTF-8 only, so the scan for a declaration sees every character. InvalidError
-    otherwise."""
-    if len(data) > MAX_SVG:
-        raise TooLargeError(f"an SVG is at most {MAX_SVG // 1024} KiB")
+    otherwise; TooLargeError over limit bytes (MAX_SVG, but a public page's drawing,
+    which holds its photo, may be larger: publish.drawings)."""
+    if len(data) > limit:
+        raise TooLargeError(f"an SVG is at most {limit // 1024} KiB")
     try:
         markup = data.decode("utf-8-sig")
     except UnicodeDecodeError:
@@ -114,7 +128,7 @@ def parse(data: bytes) -> ET.Element:
     markup = PLAIN_DOCTYPE.sub("", markup, count=1)
     if DECLARATION.search(markup):  # an internal subset, or an entity: refused
         _refuse()
-    parser = ET.XMLParser(target=_Builder())  # comments and PIs are dropped
+    parser = ET.XMLParser(target=_Builder(comments))  # PIs (and comments) dropped
     try:
         parser.feed(markup)
         root = parser.close()
@@ -241,19 +255,24 @@ def _write(el: ET.Element, out: list[str], extra: str = "") -> None:
     out.append(f"</{tag}>")
 
 
-def sanitise(data: bytes) -> bytes:
-    """An SVG file made safe to store and show (see the module docstring), as UTF-8;
-    InvalidError if it is not an SVG or declares a DOCTYPE, TooLargeError if it is
-    over MAX_SVG."""
-    root = parse(data)
-    _clean(root, 0)
+def serialise(root: ET.Element) -> str:
+    """A parsed (and cleaned) SVG's root as markup, with the SVG namespace on it."""
     parts: list[str] = []
     _write(root, parts, f' xmlns="{NS}"')
-    out = "".join(parts).encode()
+    return "".join(parts)
+
+
+def sanitise(data: bytes, limit: int = MAX_SVG) -> bytes:
+    """An SVG file made safe to store and show (see the module docstring), as UTF-8;
+    InvalidError if it is not an SVG or declares a DOCTYPE, TooLargeError if it is
+    over limit (MAX_SVG unless said)."""
+    root = parse(data, limit)
+    _clean(root, 0)
+    out = serialise(root).encode()
     # The cap is on what is sent (parse). Written out, a file can grow a little
     # (<g/> becomes <g></g>, url(x) x-url()), never by much: twice is room enough
-    if len(out) > GROWTH * MAX_SVG:
-        raise TooLargeError(f"an SVG is at most {MAX_SVG // 1024} KiB")
+    if len(out) > GROWTH * limit:
+        raise TooLargeError(f"an SVG is at most {limit // 1024} KiB")
     return out
 
 

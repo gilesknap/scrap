@@ -10,6 +10,7 @@ import {
   exportToSvg,
   getCommonBounds,
   getSceneVersion,
+  loadFromBlob,
   restoreElements,
   serializeAsJSON,
 } from "@excalidraw/excalidraw";
@@ -74,6 +75,53 @@ export async function preview(data: Drawing["data"], theme: Theme): Promise<SVGS
   svg.removeAttribute("height");
   svg.setAttribute("aria-hidden", "true");
   return svg;
+}
+
+/** A drawing as a public page shows it and a reader downloads it (#520): an SVG on white with
+ * the scene embedded (exportEmbedScene), so excalidraw.com opens it as a drawing. A drawing of a
+ * photo has the photo under it, locked, framed as the drawing is (photo: its 2048 px preview as
+ * a data: URL, which scrap matches to the page's photo and checks). Fonts inlined: the public
+ * page shows it in an <img>, which loads nothing. */
+export async function publishSvg(data: Drawing["data"], photo: string | null): Promise<string> {
+  let elements = await elementsOf(data);
+  const frame = frameOf(data);
+  // biome-ignore lint/suspicious/noExplicitAny: Excalidraw's file map type is not exported here
+  const files: Record<string, any> = {};
+  if (photo && frame) {
+    const fileId = "photo";
+    const under = convertToExcalidrawElements(
+      [
+        // biome-ignore lint/suspicious/noExplicitAny: a skeleton image, as Excalidraw takes it
+        { type: "image", x: 0, y: 0, width: frame.width, height: frame.height, fileId } as any,
+      ],
+      { regenerateIds: false },
+    ).map((e) => ({ ...e, locked: true, status: "saved" }));
+    elements = [...under, ...elements];
+    files[fileId] = { id: fileId, mimeType: "image/jpeg", dataURL: photo, created: 0 };
+  }
+  const svg = await exportToSvg({
+    elements,
+    appState: {
+      exportBackground: true,
+      viewBackgroundColor: "#ffffff",
+      exportWithDarkMode: false,
+      exportEmbedScene: true,
+    },
+    files,
+    exportPadding: frame ? 0 : 10,
+  });
+  if (frame && elements.length) {
+    // Framed as the photo, as the page view's preview is: the same box in either tab
+    const [minX, minY] = getCommonBounds(elements);
+    svg.setAttribute("viewBox", frameViewBox(frame, minX, minY));
+    svg.setAttribute("width", String(frame.width));
+    svg.setAttribute("height", String(frame.height));
+  }
+  const out = new XMLSerializer().serializeToString(svg);
+  // It must open as a drawing, as excalidraw.com will open it: else nothing goes out
+  const back = await loadFromBlob(new Blob([out], { type: "image/svg+xml" }), null, null);
+  if (elements.length && !back.elements.length) throw new Error("its scene did not export");
+  return out;
 }
 
 export interface Board {

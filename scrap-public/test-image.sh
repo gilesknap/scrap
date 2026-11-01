@@ -103,6 +103,16 @@ echo 'x' >"$work/pagefind/fragment/en_1.pf_fragment"
 echo '.katex{}' >"$work/assets/katex.css"
 echo 'body{}' >"$work/assets/page.css"
 echo 'ttf' >"$work/assets/fonts/KaTeX_Main.ttf"
+echo 'document.documentElement.dataset.theme = "dark"' >"$work/assets/prefs.js"
+mkdir -p "$work/assets2" "$work/assets3"
+cp "$work/assets/page.css" "$work/assets2/page.css"
+echo 'alert(1)' >"$work/assets2/other.js"
+mkdir -p "$work/assets3/x"
+cp "$work/assets/page.css" "$work/assets3/page.css"
+cp "$work/assets/prefs.js" "$work/assets3/x/prefs.js"
+mkdir -p "$work/bad2"
+echo '<p>x</p>' >"$work/bad2/index.html"
+cp "$work/assets/prefs.js" "$work/bad2/prefs.js"
 mkdir -p "$work/bad"
 echo '<p>x</p>' >"$work/bad/index.html"
 echo 'alert(1)' >"$work/bad/app.js"
@@ -116,7 +126,10 @@ cp "$work/tag/index.html" "$work/tag2/index.html"
 cp "$work/tag/index.html" "$work/tag2/more.html"
 check "a tag unit holds index.html only" [ "$(put t/a-tag-0123abcd "$work/tag2")" = 422 ]
 check "PUT pagefind" [ "$(put pagefind "$work/pagefind")" = 200 ]
-check "PUT assets" [ "$(put assets "$work/assets")" = 200 ]
+check "an assets unit holding another script is refused" [ "$(put assets "$work/assets2")" = 422 ]
+check "prefs.js only at the top of assets" [ "$(put assets "$work/assets3")" = 422 ]
+check "a page holding prefs.js is refused" [ "$(put p/bad "$work/bad2")" = 422 ]
+check "PUT assets, with prefs.js" [ "$(put assets "$work/assets")" = 200 ]
 check "a page holding a script is refused" [ "$(put p/bad "$work/bad")" = 422 ]
 # The image's own Python enforces the tar limits (its tarfile has the hooks): a
 # pax header block over 64 KiB is refused, as is a GNU-format tar
@@ -150,6 +163,10 @@ check "/pagefind/ serves the index" \
     [ "$(curl -fsS "$web/pagefind/fragment/en_1.pf_fragment")" = x ]
 check "/assets/ serves the CSS" [ "$(curl -fsS "$web/assets/katex.css")" = '.katex{}' ]
 check "/assets/page.css is served" [ "$(curl -fsS "$web/assets/page.css")" = 'body{}' ]
+check "/assets/prefs.js is served" \
+    sh -c "curl -fsS '$web/assets/prefs.js' | grep -q dataset.theme"
+check "/assets/prefs.js is a script" \
+    [ "$(header "$web/assets/prefs.js" content-type)" = "text/javascript; charset=utf-8" ]
 check "a missing page is 404" [ "$(status "$web/p/nope")" = 404 ]
 check "a 404 shows home/404.html" [ "$(curl -sS "$web/p/nope")" = '<p>not here</p>' ]
 check "HEAD works" [ "$(status -I "$web/p/a-page")" = 200 ]
@@ -158,16 +175,18 @@ for path in /tags.html /index.html /404.html /home /anything.html; do
 done
 
 csp_home="default-src 'none'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; font-src 'self'; script-src 'self' 'wasm-unsafe-eval'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
-csp_page="default-src 'none'; img-src 'self' data:; style-src 'self'; style-src-attr 'unsafe-inline'; font-src 'self'; script-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+csp_page="default-src 'none'; img-src 'self' data:; style-src 'self'; style-src-attr 'unsafe-inline'; font-src 'self'; script-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
 strict="sandbox; default-src 'none'; style-src 'unsafe-inline'; img-src data:; font-src data:"
-check "a page's CSP runs no script" [ "$(header "$web/p/a-page" content-security-policy)" = "$csp_page" ]
-check "a tag page's CSP runs no script" \
+check "a page's CSP runs only the site's own script" [ "$(header "$web/p/a-page" content-security-policy)" = "$csp_page" ]
+check "a tag page's CSP runs only the site's own script" \
     [ "$(header "$web/t/a-tag-0123abcd" content-security-policy)" = "$csp_page" ]
 check "home's CSP allows Pagefind" [ "$(header "$web/" content-security-policy)" = "$csp_home" ]
 check "/pagefind/ has home's CSP" \
     [ "$(header "$web/pagefind/pagefind.js" content-security-policy)" = "$csp_home" ]
 check "/assets/ has home's CSP" \
     [ "$(header "$web/assets/katex.css" content-security-policy)" = "$csp_home" ]
+check "/assets/prefs.js has home's CSP" \
+    [ "$(header "$web/assets/prefs.js" content-security-policy)" = "$csp_home" ]
 check "a 404 has home's CSP" [ "$(header "$web/p/nope" content-security-policy)" = "$csp_home" ]
 check "a PDF attachment keeps sandbox alone" \
     [ "$(header "$web/p/a-page/file-1-0123456789.pdf" content-security-policy)" = sandbox ]
@@ -175,6 +194,11 @@ check "another attachment is sandboxed and loads nothing" \
     [ "$(header "$web/p/a-page/file-2-0123456789.md" content-security-policy)" = "$strict" ]
 check "an image is sandboxed and loads nothing" \
     [ "$(header "$web/p/a-page/img-1-0123456789.svg" content-security-policy)" = "$strict" ]
+check "an SVG image may be read by excalidraw.com (Open in Excalidraw)" \
+    [ "$(header "$web/p/a-page/img-1-0123456789.svg" access-control-allow-origin)" = https://excalidraw.com ]
+for path in /p/a-page /p/a-page/file-1-0123456789.pdf /assets/prefs.js / /p/nope/img-1-0123456789.svg; do
+    check "no CORS on $path" [ -z "$(header "$web$path" access-control-allow-origin)" ]
+done
 check "an attachment keeps nosniff" \
     [ "$(header "$web/p/a-page/file-2-0123456789.md" x-content-type-options)" = nosniff ]
 check "Markdown is text/markdown" \

@@ -290,3 +290,109 @@ def test_a_host_hidden_by_zero_width_or_full_width_dots_or_in_alt_is_refused(
 def test_site_links_and_a_neutralised_placeholder_in_text_pass():
     ok('<p><a href="/">All pages</a> <a href="/tags">Tags</a></p>')
     ok(f"<p>scrap-⁠blob:{SHA} and scrap-⁠tag:x as text</p>")
+
+
+PREFS = '<script src="/assets/prefs.js" defer blocking="render"></script>'
+
+
+@pytest.mark.parametrize(
+    "script",
+    [
+        PREFS,
+        '<script src="/assets/prefs.js" defer></script>',
+        '<script src="/assets/prefs.js" async></script>',
+        '<script async src="/assets/prefs.js" blocking="render"></script>',
+    ],
+)
+def test_the_head_takes_only_the_prefs_script(script):
+    check(head(script), PUBLIC.__contains__)
+
+
+@pytest.mark.parametrize(
+    "script",
+    [
+        '<script src="/assets/prefs.js"></script>',  # neither defer nor async
+        '<script src="/assets/prefs.js" defer async></script>',
+        '<script src="/assets/prefs.js" defer="defer"></script>',
+        '<script src="/assets/prefs.js" defer blocking="nothing"></script>',
+        '<script src="/assets/prefs.js" defer type="module"></script>',
+        '<script src="/assets/prefs.js" defer integrity="sha256-x"></script>',
+        '<script src="/assets/prefs.js" defer>alert(1)</script>',
+        '<script src="/assets/theme.js" defer></script>',
+        '<script src="/assets/prefs.js?x" defer></script>',
+        '<script src="https://evil.example/assets/prefs.js" defer></script>',
+        '<script src="//evil.example/assets/prefs.js" defer></script>',
+        "<script defer>alert(1)</script>",
+        PREFS + PREFS,  # twice
+    ],
+)
+def test_the_head_refuses_any_other_script(script):
+    refused(head(script))
+
+
+def test_no_script_in_the_body():
+    for body in (PREFS, f"<div>{PREFS}</div>", "<svg><script>x</script></svg>"):
+        refused(page(body))
+
+
+TABS = (
+    '<div class="pair"><div class="tabs" role="radiogroup" aria-label="Show">'
+    '<input type="radio" name="pair-1" id="pair-1-photo" class="tab-input">'
+    '<label for="pair-1-photo">Photo</label>'
+    '<input type="radio" name="pair-1" id="pair-1-drawing" class="tab-input" checked>'
+    '<label for="pair-1-drawing">Drawing</label></div>'
+    '<figure class="drawing"><img src="scrap-drawing:7" alt="Drawing"></figure></div>'
+    '<p class="drawing-get"><a href="scrap-excalidraw:7" target="_blank"'
+    ' rel="noopener noreferrer">Open in Excalidraw</a> ·'
+    ' <a href="scrap-drawing:7" download>Download</a></p>'
+)
+
+
+def test_a_photos_tabs_and_drawing_links_pass():
+    found = ok(TABS)
+    assert found.blobs == [("drawing:7", "img"), ("drawing:7", "a")]  # type: ignore[attr-defined]
+    assert found.opens == ["7"]  # type: ignore[attr-defined]
+
+
+@pytest.mark.parametrize(
+    ("old", "new"),
+    [
+        ('type="radio" name="pair-1" id="pair-1-photo"',
+         'type="radio" formaction="/x" name="pair-1" id="pair-1-photo"'),
+        ('type="radio" name="pair-1" id="pair-1-photo"',
+         'type="text" name="pair-1" id="pair-1-photo"'),
+        ('type="radio" name="pair-1" id="pair-1-photo"',
+         'name="pair-1" id="pair-1-photo"'),  # no type: a text box
+        ('type="radio" name="pair-1" id="pair-1-photo"',
+         'type="radio" name="pair-1" id="pair-1-photo" value="x"'),
+        ('name="pair-1" id="pair-1-photo"', 'name="search" id="pair-1-photo"'),
+        ('id="pair-1-photo"', 'id="photo"'),
+        ('id="pair-1-photo"', 'id="pair-1000-photo"'),
+        ('<label for="pair-1-photo">', '<label for="search">'),
+        ('<label for="pair-1-photo">', '<label for="pair-2-photo">'),  # no such tab
+        ('<label for="pair-1-photo">', '<label for="pair-1-photo" form="f">'),
+        ('role="radiogroup"', 'role="button"'),
+        ('class="tab-input" checked', 'class="tab-input" checked="checked"'),
+        ('class="tab-input" checked', 'class="tab-input" onclick="x()"'),
+        ('target="_blank"', 'target="_top"'),
+        (' rel="noopener noreferrer"', ""),
+        ('rel="noopener noreferrer"', 'rel="opener"'),
+        ("download>", 'download="x.svg">'),
+        ('href="scrap-drawing:7" download', 'href="https://x.org/a.svg" download'),
+        ('href="scrap-excalidraw:7"', 'href="scrap-excalidraw:0"'),
+        ('src="scrap-drawing:7"', 'src="scrap-drawing:x"'),
+        ('<p class="drawing-get">', "<form><button>x</button></form><p>"),
+        ('<p class="drawing-get">', '<select name="pair-1"></select><p>'),
+        ('<p class="drawing-get">', '<textarea name="pair-1"></textarea><p>'),
+    ],
+)  # fmt: skip
+def test_a_photos_tabs_refuse_anything_else(old, new):
+    assert old in TABS
+    refused(page(TABS.replace(old, new, 1)))
+
+
+def test_target_and_rel_only_on_open_in_excalidraw():
+    refused(
+        page('<a href="https://x.org/" target="_blank" rel="noopener noreferrer">x</a>')
+    )
+    refused(page('<a href="/p/open-page" download>x</a>'))

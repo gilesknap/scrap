@@ -139,8 +139,25 @@ const publicAssets: Plugin = {
   apply: "build",
   generateBundle() {
     const css = (f: string) => readFileSync(f, "utf8");
-    const page = `${css("src/tokens.css")}\n${css("src/public/page.css")}`;
+    // Public pages are light unless the reader chooses dark (#519): tokens.css less its
+    // prefers-color-scheme default, so only data-theme="dark" (prefs.js) makes them dark
+    const tokens = css("src/tokens.css");
+    const light = tokens
+      .replace(
+        /@media \(prefers-color-scheme: dark\) \{\n {2}:root:not\(\[data-theme="light"\]\) \{\n[^}]*\}\n\}\n/,
+        "",
+      )
+      .replace("color-scheme: light dark;", "color-scheme: light;");
+    if (light.includes("prefers-color-scheme") || !light.includes('[data-theme="dark"]'))
+      this.error("tokens.css's themes changed: update publicAssets' light default");
+    const page = `${light}\n${css("src/public/page.css")}`;
     this.emitFile({ type: "asset", fileName: "public/page.css", source: page });
+    // The public pages' one script (#519), as it is: scrap pushes it as /assets/prefs.js
+    this.emitFile({
+      type: "asset",
+      fileName: "public/prefs.js",
+      source: css("src/public/prefs.js"),
+    });
     const katex = css(`${KATEX}/katex.min.css`).replace(
       /,url\([^)]+\.(woff|ttf)\) format\("(woff|truetype)"\)/g,
       "",

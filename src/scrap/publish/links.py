@@ -10,6 +10,8 @@ from ..public import origin, public_origins
 
 __all__ = [
     "BLOB",
+    "DRAWING",
+    "EXCALIDRAW",
     "ID",
     "PAGE",
     "TAG",
@@ -18,9 +20,15 @@ __all__ = [
     "normal_path",
     "own_hosts",
     "private_text",
+    "scrub_text",
 ]
 
 BLOB = re.compile(r"scrap-blob:([0-9a-f]{64})")
+# A drawing on the page (#520), by its id: the PWA uploads its SVG beside the HTML
+DRAWING = re.compile(r"scrap-drawing:([1-9][0-9]{0,17})")
+# Its "Open in Excalidraw" link, which scrap makes https://excalidraw.com/#url=<the
+# SVG's address on the site> (rewrite.excalidraw_url)
+EXCALIDRAW = re.compile(r"scrap-excalidraw:([1-9][0-9]{0,17})")
 # encodeURIComponent's output: what the publish mode writes a tag as
 TAG = re.compile(r"scrap-tag:([A-Za-z0-9%._~!*'()-]+)")
 PAGE = re.compile(r"/p/([a-z0-9-]{1,120})")
@@ -83,6 +91,46 @@ def private_text(text: str) -> str | None:
     return None
 
 
+PRIVATE_LINK = "a private link"  # what text says in place of a private address
+# The rest of an address, as the publish mode (publish.ts privates) reads it: up to a
+# space, not its last full stop, comma or bracket
+_TAIL = r"[^\s<>\"]*[^\s<>\".,;:!?)]"
+_ZW = "[\u200b-\u200d\u2060\ufeff\u00ad]*"
+_API = (
+    rf"https?://[^\s/<>\"]*/api/(?:{_TAIL})?|(?<![\w.~/-])/api/(?:{_TAIL})?"
+    rf"|/api/blobs/(?:{_TAIL})?"
+)
+
+
+def _privates() -> re.Pattern[str]:
+    """Addresses of scrap's own (its hosts, with or without a scheme, port or path)
+    and of /api/, as text: publish.ts's privates(), for text scrap writes itself (a
+    drawing's, #520)."""
+    hosts = [
+        _ZW.join("[.\u3002\uff0e\uff61]" if c == "." else re.escape(c) for c in host)
+        for host in sorted(own_hosts())
+    ]
+    own = (
+        rf"(?:[a-z][a-z0-9+.-]*://)?(?<![\w.-])(?:{'|'.join(hosts)})"
+        rf"(?![\w-]|\.[\w-])\.?(?::\d+)?(?:[/?#]{_TAIL})?|"
+        if hosts
+        else ""
+    )
+    return re.compile(own + _API, re.IGNORECASE | re.ASCII)
+
+
+def scrub_text(text: str) -> str:
+    """text with every private address of scrap's (its own hosts, /api/...) as "a
+    private link", by the same rules as the publish mode's for page text; a text
+    that would still hold one (private_text) is "a private link" whole.
+
+    >>> scrub_text("see /api/blobs/abc, then")
+    'see a private link, then'
+    """
+    out = _privates().sub(PRIVATE_LINK, text)
+    return PRIVATE_LINK if private_text(out) else out
+
+
 def _dot_segments(path: str) -> str:
     """RFC 3986's remove_dot_segments (5.2.4)."""
     out: list[str] = []
@@ -139,8 +187,9 @@ def _web(href: str) -> str | None:
 
 
 def classify(href: str) -> tuple[str, str]:
-    """What an allowed href is, (kind, value): blob (a sha), tag (a tag as stored),
-    page (a slug), tag-key, site (/ or /tags), fragment, mailto or web; ValueError
+    """What an allowed href is, (kind, value): blob (a sha), drawing or excalidraw
+    (a drawing's id), tag (a tag as stored), page (a slug), tag-key, site (/ or
+    /tags), fragment, mailto or web; ValueError
     saying why for any
     other.
 
@@ -154,6 +203,10 @@ def classify(href: str) -> tuple[str, str]:
     """
     if m := BLOB.fullmatch(href):
         return "blob", m[1]
+    if m := DRAWING.fullmatch(href):
+        return "drawing", m[1]
+    if m := EXCALIDRAW.fullmatch(href):
+        return "excalidraw", m[1]
     if m := TAG.fullmatch(href):
         tag = unquote(m[1], errors="strict")
         return "tag", tag

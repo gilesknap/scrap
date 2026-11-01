@@ -5,8 +5,13 @@
 // it back; a save published again, and not when scrap can't be reached; Refresh all asking
 // before a first publish (and nothing else publishing one); Pagefind finding a word on the
 // home page; a photo and an attached file published with the page; and, with publishing off
-// on the server, no Make public and no Settings section. The site sends nginx's headers, so a
-// page that breaks its CSP fails here.
+// on the server, no Make public and no Settings section. The reader's theme and column width
+// (#519), kept across reloads and pages, light by default; a photo's drawing (#520) with its
+// Photo | Drawing tabs (pure CSS, so with JavaScript off too), downloaded and opened as a
+// scene by Excalidraw's own loadFromBlob, with no original photo bytes in it. The site sends
+// nginx's headers, so a page that breaks its CSP fails here.
+import { execFileSync } from "node:child_process";
+import { readdirSync, readFileSync } from "node:fs";
 import { expect, type Page, test } from "@playwright/test";
 import { capture, deletedAfterEach, png, ulid } from "./helpers";
 import { SITE as SITE_PORT } from "./ports";
@@ -289,4 +294,235 @@ test.describe("publishing off", () => {
     await expect(sheet.getByRole("heading", { name: "Store" })).toBeVisible();
     await expect(sheet.getByRole("heading", { name: "Public pages" })).toHaveCount(0);
   });
+});
+
+/** The page made public, opened on the site: the reader's view of it. */
+async function publicOne(page: Page, text: string) {
+  await phone(page);
+  const n = await newPage(page, text);
+  await page.goto(`/p/${n.slug}`);
+  await makePublic(page);
+  return n;
+}
+
+const LIGHT_BG = "rgb(246, 243, 236)"; // tokens.css --bg, light and dark
+const DARK_BG = "rgb(22, 20, 17)";
+const bg = (page: Page) => page.evaluate(() => getComputedStyle(document.body).backgroundColor);
+
+test.describe("the reader's theme and width (#519)", () => {
+  test.use({ colorScheme: "dark" }); // a dark phone: the site is still light until chosen
+
+  test("light by default, dark when chosen, kept across a reload and pages, no flash", async ({
+    page,
+  }) => {
+    const n = await publicOne(page, "Public e2e theme");
+    const csp = violations(page);
+    // Each paint's theme, from the first: prefs.js is render-blocking, so a kept dark is on
+    await page.addInitScript(() => {
+      const seen: string[] = [];
+      (window as unknown as { painted: string[] }).painted = seen;
+      const look = () => {
+        seen.push(document.documentElement.dataset.theme ?? "none");
+        if (seen.length < 3) requestAnimationFrame(look);
+      };
+      requestAnimationFrame(look);
+    });
+    await page.goto(`${SITE}/p/${n.slug}`);
+    expect(await bg(page)).toBe(LIGHT_BG);
+    const theme = page.getByRole("button", { name: "Dark theme" });
+    await expect(theme).toHaveAttribute("aria-pressed", "false");
+    const box = await theme.boundingBox();
+    expect(box?.height).toBeGreaterThanOrEqual(48);
+    expect(box?.width).toBeGreaterThanOrEqual(48);
+    await theme.focus();
+    await page.keyboard.press("Enter");
+    await expect(theme).toHaveAttribute("aria-pressed", "true");
+    expect(await bg(page)).toBe(DARK_BG);
+
+    await page.reload();
+    // the first frame painted after the reload (the load event can come before it)
+    const first = await page.waitForFunction(
+      () => (window as unknown as { painted: string[] }).painted[0],
+    );
+    expect(await first.jsonValue()).toBe("dark");
+    expect(await bg(page)).toBe(DARK_BG);
+    await expect(page.getByRole("button", { name: "Dark theme" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    // the home page, tag list and a 404 have it too, and keep the choice
+    for (const path of ["/", "/tags", "/p/no-such-page"]) {
+      await page.goto(`${SITE}${path}`);
+      expect(await bg(page), path).toBe(DARK_BG);
+      await expect(page.getByRole("button", { name: "Dark theme" })).toBeVisible();
+    }
+    await page.getByRole("button", { name: "Dark theme" }).click();
+    expect(await bg(page)).toBe(LIGHT_BG);
+    await page.goto(`${SITE}/p/${n.slug}`);
+    expect(await bg(page)).toBe(LIGHT_BG);
+    expect(csp).toEqual([]);
+  });
+
+  test("the column's width cycles and is kept; no button where it makes no difference", async ({
+    page,
+  }) => {
+    const n = await publicOne(page, "Public e2e column width");
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto(`${SITE}/p/${n.slug}`);
+    const column = () =>
+      page.evaluate(() => {
+        const s = getComputedStyle(document.body);
+        return (
+          document.body.clientWidth -
+          Number.parseFloat(s.paddingLeft) -
+          Number.parseFloat(s.paddingRight)
+        );
+      });
+    const width = page.getByRole("button", { name: /^Column width: / });
+    await expect(width).toHaveAccessibleName("Column width: Medium (800px)");
+    expect(await column()).toBe(800);
+    await width.click();
+    await expect(width).toHaveAccessibleName("Column width: Wide (880px)");
+    expect(await column()).toBe(880);
+    await width.click();
+    await expect(width).toHaveAccessibleName("Column width: Wider (960px)");
+    await page.reload();
+    await expect(width).toHaveAccessibleName("Column width: Wider (960px)");
+    expect(await column()).toBe(960);
+    await width.click();
+    await expect(width).toHaveAccessibleName("Column width: Narrow (720px)");
+    expect(await column()).toBe(720);
+    await width.click(); // back to the default
+    expect(await column()).toBe(800);
+    // a phone: the column is the screen less its gutters whatever is chosen, so no button
+    await page.setViewportSize({ width: 412, height: 800 });
+    await expect(width).toBeHidden();
+    await expect(page.getByRole("button", { name: "Dark theme" })).toBeVisible();
+  });
+});
+
+test("with JavaScript off a page is light, at the default width, with no switches", async ({
+  page,
+  browser,
+}) => {
+  const n = await publicOne(page, "Public e2e no script");
+  const off = await browser.newContext({ javaScriptEnabled: false, colorScheme: "dark" });
+  const plain = await off.newPage();
+  await plain.goto(`${SITE}/p/${n.slug}`);
+  expect(await bg(plain)).toBe(LIGHT_BG);
+  await expect(plain.locator(".pref")).toHaveCount(0);
+  await off.close();
+});
+
+interface Board {
+  slug: string;
+  capture_id: string;
+  sha256: string;
+}
+
+/** A photo of a whiteboard with Claude's drawing of it (e2e/draw.py, as whiteboard.spec.ts). */
+async function boardPage(page: Page): Promise<Board> {
+  const data = process.env.SCRAP_E2E_DATA as string;
+  const args = ["run", "--locked", "python", "web/e2e/draw.py", data];
+  const out = execFileSync("uv", args, { cwd: "..", encoding: "utf8" });
+  const b = JSON.parse(out.trim().split("\n").pop() || "null") as Board;
+  made.push((await (await page.request.get(`/api/pages/${b.slug}`)).json()).id);
+  return b;
+}
+
+/** Excalidraw's own reader of a file (the board chunk's loadFromBlob, as excalidraw.com
+ * opens one), run on an SVG in the app's page: what the scene holds. */
+async function openAsScene(page: Page, svg: string) {
+  const chunk = readdirSync("../src/scrap/static/assets").find((f) =>
+    /^excalidraw-[\w-]+\.js$/.test(f),
+  );
+  return page.evaluate(
+    async ({ url, svg }) => {
+      const m = await import(url);
+      const s = await m.loadFromBlob(new Blob([svg], { type: "image/svg+xml" }), null, null);
+      return {
+        types: s.elements.map((e: { type: string }) => e.type) as string[],
+        files: Object.values(s.files).map((f) => (f as { dataURL: string }).dataURL),
+      };
+    },
+    { url: `/assets/${chunk}`, svg },
+  );
+}
+
+test("a photo's drawing is published, shown with tabs, and downloads as a scene (#520)", async ({
+  page,
+  browser,
+}) => {
+  test.slow(); // Excalidraw's chunk, and its fonts inlined in the SVG
+  await phone(page);
+  const b = await boardPage(page);
+  await page.goto(`/p/${b.slug}`);
+  await expect(page.locator(".drawing-card.ready")).toBeVisible({ timeout: 20_000 });
+  await shareRow(page, "Make public…");
+  const ask = page.getByRole("dialog", { name: "Make this page public?" });
+  await expect(ask).toContainText("its 1 drawing, downloadable");
+  await ask.getByRole("button", { name: "Make public" }).click();
+  await expect(page.locator(".toast")).toContainText("Page is public", { timeout: 20_000 });
+
+  const got = await onSite(page, `/p/${b.slug}`);
+  const svgPath = new RegExp(`/p/${b.slug}/img-\\d-[0-9a-f]{10}\\.svg`).exec(got.text)?.[0];
+  expect(svgPath, got.text).toBeTruthy();
+  expect(got.text).toContain(
+    `<a href="${svgPath}" download>Download, then open in excalidraw.com to edit</a>`,
+  );
+  expect(got.text).not.toContain("scrap-excalidraw"); // the e2e site is not https: no Open link
+  expect(got.text).not.toMatch(/scrap-(blob|drawing):|\/api\//);
+  const served = await page.request.get(`${SITE}${svgPath}`);
+  expect(served.headers()["access-control-allow-origin"]).toBe("https://excalidraw.com");
+  expect(served.headers()["content-security-policy"]).toContain("sandbox");
+
+  // On the site: the drawing shows (chosen, as in the app), Photo then Drawing switch them
+  const csp = violations(page);
+  await page.goto(`${SITE}/p/${b.slug}`);
+  const drawing = page.locator("figure.drawing img");
+  const photoFig = page.locator(".pair > figure.orig");
+  await expect(drawing).toBeVisible();
+  await expect(photoFig).toBeHidden();
+  expect(await drawing.evaluate((i) => (i as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
+  const group = page.getByRole("radiogroup", { name: "Show" });
+  await group.getByText("Photo", { exact: true }).click();
+  await expect(photoFig).toBeVisible();
+  await expect(drawing).toBeHidden();
+  await expect(group.getByRole("radio", { name: "Photo" })).toBeChecked();
+  await page.keyboard.press("ArrowRight"); // a radio group: the arrow keys move in it
+  await expect(drawing).toBeVisible();
+  await expect(photoFig).toBeHidden();
+  const label = await group.getByText("Drawing", { exact: true }).boundingBox();
+  expect(label?.height).toBeGreaterThanOrEqual(42); // 48 with the track round it
+  expect(csp).toEqual([]);
+
+  // Downloaded: the SVG, with the scene in it; Excalidraw opens it, the photo at preview size
+  const [file] = await Promise.all([
+    page.waitForEvent("download"),
+    page.getByRole("link", { name: /^Download/ }).click(),
+  ]);
+  const svg = readFileSync((await file.path()) as string, "utf8");
+  expect(svg).toContain("<!-- payload-type:application/vnd.excalidraw+json -->");
+  const original = Buffer.from(await (await page.request.get(`/api/blobs/${b.sha256}`)).body());
+  const preview = Buffer.from(
+    await (await page.request.get(`/api/blobs/${b.sha256}/preview?size=2048`)).body(),
+  );
+  expect(svg).not.toContain(original.toString("base64").slice(100, 400));
+  await page.goto(`/p/${b.slug}`); // the app, where Excalidraw's chunk is
+  const scene = await openAsScene(page, svg);
+  expect(scene.types[0]).toBe("image"); // the photo, under the drawing
+  expect(scene.types).toEqual(expect.arrayContaining(["rectangle", "arrow", "text", "ellipse"]));
+  expect(scene.files).toEqual([`data:image/jpeg;base64,${preview.toString("base64")}`]);
+  expect(scene.files[0]).not.toContain(original.toString("base64").slice(100, 400));
+
+  // With JavaScript off: the same tabs, in CSS alone
+  const off = await browser.newContext({ javaScriptEnabled: false });
+  const plain = await off.newPage();
+  await plain.goto(`${SITE}/p/${b.slug}`);
+  await expect(plain.locator("figure.drawing img")).toBeVisible();
+  await expect(plain.locator(".pair > figure.orig")).toBeHidden();
+  await plain.getByText("Photo", { exact: true }).click();
+  await expect(plain.locator(".pair > figure.orig")).toBeVisible();
+  await expect(plain.locator("figure.drawing img")).toBeHidden();
+  await off.close();
 });

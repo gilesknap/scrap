@@ -60,7 +60,8 @@ SEGMENT = re.compile(r"[A-Za-z0-9_][A-Za-z0-9._-]{0,99}")
 MAX_DEPTH = 4
 # What each kind of unit may hold. A page: its index.html, images and attachments,
 # one segment each. A tag: its index.html only. Home: one-segment HTML. Scripts
-# and WebAssembly only in pagefind, CSS and fonts only in assets.
+# and WebAssembly only in pagefind, CSS and fonts only in assets, with one script:
+# assets/prefs.js, the public pages' theme and column width (#519).
 PAGE_MEMBER = re.compile(
     r"index\.html"
     r"|img-[1-9][0-9]?-[0-9a-f]{10}\.(?:jpg|png|svg)"
@@ -72,6 +73,7 @@ PAGEFIND_TYPES = frozenset(
      "pf_filter"}
 )  # fmt: skip
 ASSETS_TYPES = frozenset({"css", "woff", "woff2", "ttf"})
+ASSETS_SCRIPT = "prefs.js"  # the one script outside pagefind, at the top of assets
 TAR_TYPES = "application/x-tar"
 CHUNK = 64 * 1024
 # Only pax and ustar tars. A pax header block is read into memory whole: none may
@@ -139,7 +141,7 @@ def member_allowed(unit: str, parts: list[str]) -> bool:
         return len(parts) == 1 and ext == "html"
     if unit == "pagefind":
         return ext in PAGEFIND_TYPES
-    return ext in ASSETS_TYPES
+    return ext in ASSETS_TYPES or parts == [ASSETS_SCRIPT]
 
 
 def load_token(environ: dict[str, str]) -> str:

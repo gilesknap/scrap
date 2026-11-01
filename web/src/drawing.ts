@@ -14,8 +14,9 @@ import { h, toast } from "./ui";
 type Chunk = typeof import("./board/excalidraw");
 let chunk: Promise<Chunk> | null = null;
 
-/** The viewer's chunk, fetched once; a failure (offline) is retried on the next call. */
-function loadBoard(): Promise<Chunk> {
+/** The viewer's chunk, fetched once; a failure (offline) is retried on the next call. (The
+ * publish mode loads it too, for a page with drawings: publicpages.ts.) */
+export function loadBoard(): Promise<Chunk> {
   chunk ??= import("./board/excalidraw").catch((e) => {
     chunk = null;
     throw e;

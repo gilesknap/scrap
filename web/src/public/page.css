@@ -1,7 +1,10 @@
-/* A public page's look (#497): scrap's paper and ink, light or dark as the reader's device is.
-   Not the app's CSS: the build (vite.config.ts publicAssets) writes tokens.css, then this, to
-   src/scrap/static/public/page.css, which scrap pushes as /assets/page.css. A public page has
-   no script and no <style>: everything here styles what publish.ts writes. */
+/* A public page's look (#497): scrap's paper and ink, light unless the reader chose dark with
+   the header's switch (#519: /assets/prefs.js sets data-theme="dark" on <html>, tokens.css's
+   dark values; the build drops tokens.css's prefers-color-scheme default for public pages, so
+   [data-theme="light"] and no choice are both light), and --column for the width. Not the app's CSS: the build
+   (vite.config.ts publicAssets) writes tokens.css, then this, to src/scrap/static/public/page.css,
+   which scrap pushes as /assets/page.css. A public page has no <style> and no script of its
+   own: everything here styles what publish.ts and templates.py write, and prefs.js's buttons. */
 * {
   box-sizing: border-box;
 }
@@ -10,10 +13,11 @@ html {
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
 }
+/* One centred column, at most --column wide (tokens.css's 800px, or the reader's choice), as
+   the app's css/todos.css: a narrower window shrinks it, keeping the usual gutter */
 body {
-  max-width: 46rem;
-  margin: 0 auto;
-  padding: var(--s-3) var(--s-4) var(--s-6);
+  margin: 0;
+  padding: var(--s-3) max(var(--s-4), calc((100% - var(--column)) / 2)) var(--s-6);
   background: var(--bg);
   color: var(--ink);
   font: var(--t-md) / var(--lh) var(--font);
@@ -32,6 +36,76 @@ div.site a {
   padding-bottom: var(--s-2);
   border-bottom: 1px solid var(--line);
   font-weight: 600;
+}
+/* The reader's preferences (prefs.js makes them; none without it): the column width, cycling
+   through the four, and the theme, a sun or a moon. At the header's end, quiet: ink, no amber.
+   A 48px target each; the header row grows round them (its words stay centred on them) */
+.site.top:has(.prefs),
+.site-head:has(.prefs) {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 0.3em;
+  min-height: var(--tap);
+}
+.prefs {
+  display: flex;
+  margin-inline-start: auto;
+}
+.pref {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--tap);
+  height: var(--tap);
+  margin: 0;
+  padding: 0 var(--s-2);
+  border: 0;
+  border-radius: var(--r-sm);
+  background: none;
+  color: var(--ink-2);
+  font: 600 var(--t-sm) / 1 var(--font);
+  cursor: pointer;
+}
+.pref:hover {
+  background: var(--sunk);
+  color: var(--ink);
+}
+.pref:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: -2px;
+}
+/* The theme's icon: a moon while the page is light, a sun while it is dark (the switch says
+   "Dark theme", pressed while dark). Drawn by a mask, so it takes the ink's colour */
+.pref.theme::before {
+  content: "";
+  width: 20px;
+  height: 20px;
+  background: currentColor;
+  -webkit-mask: var(--icon) center / contain no-repeat;
+  mask: var(--icon) center / contain no-repeat;
+  --icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z'/%3E%3C/svg%3E");
+}
+.pref.theme[aria-pressed="true"]::before {
+  --icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round'%3E%3Ccircle cx='12' cy='12' r='4.5' fill='black'/%3E%3Cpath d='M12 1.5v2.5M12 20v2.5M1.5 12H4M20 12h2.5M4.6 4.6l1.8 1.8M17.6 17.6l1.8 1.8M4.6 19.4l1.8-1.8M17.6 6.4l1.8-1.8'/%3E%3C/svg%3E");
+}
+/* The width's icon, a two-headed arrow, before the width it shows */
+.pref.column::before {
+  content: "";
+  width: 18px;
+  height: 18px;
+  margin-inline-end: 4px;
+  background: currentColor;
+  -webkit-mask: var(--icon) center / contain no-repeat;
+  mask: var(--icon) center / contain no-repeat;
+  --icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 12h18M7 8l-4 4 4 4M17 8l4 4-4 4'/%3E%3C/svg%3E");
+}
+/* The width makes no difference on a screen narrower than the narrowest (720px and the
+   gutters): no button there */
+@media (max-width: 751.98px) {
+  .pref.column {
+    display: none;
+  }
 }
 .site.foot {
   margin-top: var(--s-6);
@@ -174,6 +248,85 @@ small {
 .math.display {
   overflow-x: auto;
   overflow-y: hidden;
+}
+/* A photo and its drawing (#520): Photo | Drawing tabs over them, as the app's segmented
+   control (excalidraw.css .tabs), in CSS alone: two radio inputs (the arrow keys move between
+   them) and their labels; the one checked shows. Where :has() is not known neither the tabs nor
+   the hiding apply, so both show, one under the other: never neither */
+.pair {
+  margin: var(--s-4) 0;
+}
+.pair > figure {
+  margin: var(--s-3) 0 0;
+}
+.pair .tabs {
+  display: none;
+}
+/* (on screen: on paper, both, without the tabs) */
+@supports selector(:has(a)) {
+  .pair .tabs {
+    display: inline-flex;
+    padding: 3px;
+    border-radius: var(--r-md);
+    background: var(--sunk);
+  }
+  @media screen {
+    .pair:has(> .tabs > .tab-input[id$="-photo"]:checked) > figure.drawing,
+    .pair:has(> .tabs > .tab-input[id$="-drawing"]:checked) > figure:not(.drawing) {
+      display: none;
+    }
+  }
+}
+/* The input itself, out of sight but still focusable and in the radio group */
+.tab-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+.tab-input + label {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  min-height: 42px; /* with the track round it, a 48px target, as the app's */
+  padding: 0 var(--s-4);
+  border-radius: 10px;
+  color: var(--ink-2);
+  font-size: var(--t-sm);
+  font-weight: 600;
+  cursor: pointer;
+}
+.tab-input + label::after {
+  content: ""; /* the track's padding answers a tap too */
+  position: absolute;
+  inset: -3px 0;
+}
+.tab-input:checked + label {
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: var(--shadow);
+}
+.tab-input:focus-visible + label {
+  outline: 2px solid var(--ink);
+  outline-offset: 1px;
+}
+/* The drawing: its picture, an SVG with the drawing over its photo, and its links: open it in
+   excalidraw.com, or download it */
+figure.drawing img {
+  display: block;
+  background: #ffffff; /* drawn on white, in either theme */
+}
+.drawing-get {
+  margin-top: var(--s-1);
+  color: var(--ink-2);
+  font-size: var(--t-sm);
+}
+.drawing-get a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tap);
 }
 /* The page's files, a row each */
 .filerow {
@@ -329,14 +482,18 @@ body.site h2.site-search-label {
 }
 @media print {
   body {
-    max-width: none;
-    margin: 0;
+    padding-inline: 0;
   }
   div.site,
-  .site-head {
+  .site-head,
+  .drawing-get {
     display: none;
   }
   img {
     break-inside: avoid;
+  }
+  /* on paper, both the photo and its drawing */
+  .pair .tabs {
+    display: none;
   }
 }

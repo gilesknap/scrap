@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from ..preview import BusyError, preview, raster
 from ..store import InvalidError, NotFoundError, Store, TooLargeError
 from ..svg import is_svg, sanitise
+from .checker import DRAWING_PREFIX
 from .errors import Busy, CheckError
 
 __all__ = ["MAX_FILE", "MAX_FILES", "MAX_UNIT", "Files", "file_hex", "page_files"]
@@ -63,6 +64,21 @@ def _too_big(what: str) -> CheckError:
     )
 
 
+def _too_many() -> CheckError:
+    return CheckError(
+        f"Not published: a page publishes at most {MAX_FILES} images, drawings and"
+        " files.",
+        "too_many_files",
+    )
+
+
+def _over_unit() -> CheckError:
+    return CheckError(
+        f"Not published: the page and its files are over {MAX_UNIT // 2**20} MiB.",
+        "unit_too_large",
+    )
+
+
 def _image(store: Store, sha: str, mime: str) -> tuple[bytes, str]:
     """An image's published bytes and extension: its preview, or the SVG sanitised."""
     path, _ = store.blob(sha)
@@ -106,19 +122,34 @@ def page_files(
     blobs: list[tuple[str, str]],
     on_page: set[str],
     html_bytes: int,
+    drawings: dict[str, bytes] | None = None,
 ) -> Files:
     """The files for blobs ((sha, element) in the order first named, from the check),
     each of which must be on the page (on_page: the stored files its text refers to,
     and those attached to its captures);
     refused (CheckError) for one that is not, an img naming a file that is not an
     image, and over the caps (counting html_bytes, the page's own HTML, in the
-    unit's total)."""
+    unit's total). A drawing (#520) is named in blobs as DRAWING_PREFIX + its id,
+    its cleaned SVG in drawings: an img-*.svg, counted in the caps as any image."""
     names: dict[str, str] = {}
     data: dict[str, bytes] = {}
     count = {"img": 0, "file": 0}
     total = html_bytes
     for sha, element in blobs:
         if sha in names:
+            continue
+        if sha.startswith(DRAWING_PREFIX):
+            if len(names) >= MAX_FILES:
+                raise _too_many()
+            content = (drawings or {})[sha.removeprefix(DRAWING_PREFIX)]
+            if len(content) > MAX_FILE:
+                raise _too_big("a drawing")
+            total += len(content)
+            if total > MAX_UNIT:
+                raise _over_unit()
+            count["img"] += 1
+            name = f"img-{count['img']}-{file_hex(slug, content)}.svg"
+            names[sha], data[name] = name, content
             continue
         try:
             if sha not in on_page:
@@ -137,11 +168,7 @@ def page_files(
                 "bad_placeholder",
             )
         if len(names) >= MAX_FILES:
-            raise CheckError(
-                f"Not published: a page publishes at most {MAX_FILES} images and"
-                " files.",
-                "too_many_files",
-            )
+            raise _too_many()
         if image:
             content, ext = _image(store, sha, mime)
             kind = "img"
@@ -151,11 +178,7 @@ def page_files(
             raise _too_big("an image" if image else "a file on the page")
         total += len(content)
         if total > MAX_UNIT:
-            raise CheckError(
-                f"Not published: the page and its files are over"
-                f" {MAX_UNIT // 2**20} MiB.",
-                "unit_too_large",
-            )
+            raise _over_unit()
         count[kind] += 1
         name = f"{kind}-{count[kind]}-{file_hex(slug, content)}.{ext}"
         names[sha], data[name] = name, content

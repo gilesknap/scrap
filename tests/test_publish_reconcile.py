@@ -167,9 +167,13 @@ def test_derived_units_are_deterministic_and_from_the_copies_alone(client, app):
     assert "/pagefind/scrap-search.js" in home and "<script>" not in home
     tags = one["home"]["tags.html"].decode()
     assert "personal/family" in tags and f"/t/{tag_key('personal/family')}" in tags
-    assert "<script" not in one["home"]["404.html"].decode()
+    # the 404 runs only the theme and width switches (#519), as every page does
+    missing = one["home"]["404.html"].decode()
+    assert missing.count("<script") == 1
+    assert '<script src="/assets/prefs.js" defer blocking="render"></script>' in missing
     assert sorted(one["assets"]) == [
         "fonts/KaTeX_Main-Regular.woff2", "katex.css", "page.css", "pagefind-ui.css",
+        "prefs.js",
     ]  # fmt: skip
     assert not any(n.endswith(".css") for n in one["pagefind"])  # CSS only in assets
     assert "scrap-search.js" in one["pagefind"]

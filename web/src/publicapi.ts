@@ -29,11 +29,18 @@ export const publishPage = (
   base_rev: number,
   defer = false,
   confirmed = false,
+  drawings: { key: string; svg: string }[] = [], // its drawings' SVGs, by id (#520)
 ) =>
   api<Published>(`pages/${encodeURIComponent(key)}/published`, {
     method: "PUT",
     headers: JSON_TYPE,
-    body: JSON.stringify({ html, base_rev, defer, ...(confirmed && { confirmed }) }),
+    body: JSON.stringify({
+      html,
+      base_rev,
+      defer,
+      ...(confirmed && { confirmed }),
+      ...(drawings.length && { drawings }),
+    }),
   });
 
 /** Whether publishing is on on the server (/healthz's publish block; offline: assumed on). */
@@ -57,7 +64,9 @@ export const codeOf = (err: unknown) => (err instanceof ApiError ? err.body.erro
 export const redraw = (err: unknown) =>
   err instanceof ApiError &&
   ((err.status === 409 && codeOf(err) === "stale") ||
-    (err.status === 422 && codeOf(err) === "stale_tags"));
+    (err.status === 422 && codeOf(err) === "stale_tags") ||
+    // a drawing superseded since the view was drawn: its id is no longer the page's (#520)
+    (err.status === 422 && codeOf(err) === "bad_placeholder" && /drawing/.test(err.message)));
 
 /** Not sent at all: offline, or the server not reached. */
 export const unreached = (err: unknown) => !(err instanceof ApiError);

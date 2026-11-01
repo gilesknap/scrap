@@ -143,13 +143,16 @@ Broken: $\\frac{1}{$ stays TeX.`);
     );
     const html = article(
       head("Architecture whiteboard", "Board", ["work"]),
-      `<div class="body md" dir="auto"><section class="photo-panel"><div class="tabs" role="tablist"><button role="tab">Photo</button><button role="tab">Drawing</button></div><div class="pair show-drawing"><figure class="orig"><a href="/api/blobs/${SHA("a")}"><img src="/api/blobs/${SHA("a")}/preview?size=2048" alt="IMG_2041.jpg" loading="lazy"></a></figure><figure class="orig drawing"><button class="drawing-card"><svg><path d="M0 0"/></svg></button></figure></div><div class="claude"><div class="ingest"><h3 class="ctitle">What's in the photo</h3><button class="link">Regenerate</button></div><details class="claude-text"><summary>Description</summary><p>SECRET description</p></details><details class="claude-text"><summary>Text in the photo</summary><pre>SECRET read text</pre></details></div></section>
+      `<div class="body md" dir="auto"><section class="photo-panel"><div class="tabs" role="tablist"><button role="tab">Photo</button><button role="tab">Drawing</button></div><div class="pair show-drawing"><figure class="orig"><a href="/api/blobs/${SHA("a")}"><img src="/api/blobs/${SHA("a")}/preview?size=2048" alt="IMG_2041.jpg" loading="lazy"></a></figure><figure class="orig drawing" data-drawing="7" data-cid="cap1" data-sha="${SHA("a")}"><button class="drawing-card"><svg><path d="M0 0"/></svg></button></figure></div><div class="claude"><div class="ingest"><h3 class="ctitle">What's in the photo</h3><button class="link">Regenerate</button></div><details class="claude-text"><summary>Description</summary><p>SECRET description</p></details><details class="claude-text"><summary>Text in the photo</summary><pre>SECRET read text</pre></details></div></section>
 <p>Drawn after the <a href="/p/weekly-sync">weekly-sync</a>; see <a href="/p/design-notes">design-notes</a>. A sketch: <img src="/api/blobs/${SHA("b")}/preview?size=2048" alt="sketch.png" data-sha="${SHA("b")}" loading="lazy">, the <a href="/api/blobs/${SHA("c")}" target="_blank" rel="noopener" data-sha="${SHA("c")}">spec</a>, and an image from elsewhere: <img src="https://example.com/x.png" alt="theirs"></p></div>`,
       `<div class="originals"><section class="file-panel"><div class="orig filerow"><a href="/api/blobs/${SHA("c")}" target="_blank" class="file"><svg class="i"></svg><span class="words"><span>spec.pdf</span><small>12 pages</small></span></a></div><div class="claude"><div class="ingest"><h3 class="ctitle">What's in the file</h3></div><p class="did">SECRET reading</p><details class="claude-text"><summary>Text</summary><p>SECRET file text</p></details></div></section><div class="orig filerow"><a href="/api/blobs/${SHA("d")}" target="_blank" class="file"><svg class="i"></svg><span class="words"><span>notes.md</span></span></a><p class="hint">Text couldn't be read; not searchable</p></div></div>`,
       `<section class="enrich claude" aria-label="About this page"><div class="ingest"><h3 class="ctitle">About this page</h3><span class="state done" role="status">x</span><button class="link">Regenerate</button></div><details class="claude-text"><summary>Summary</summary><p class="summary" dir="auto">A **whiteboard** of the [[design-notes]] flow, from the [[weekly-sync]].</p></details><details class="claude-text writeup"><summary>In detail</summary><div class="card"><p class="by" title="claude-opus-5-5">Claude · 1 Nov, 10:04</p><div class="body md" dir="auto">${writeup}</div><details class="claude-text sub"><summary>Guidance for Claude</summary><p class="by">Used by the next write-up.</p><textarea>SECRET guidance</textarea><div class="row"><button class="primary">Save</button></div></details></div></details><details class="claude-text related topics"><summary>Topics</summary><ul><li><a href="/p/private-topic" dir="auto"><svg class="i"></svg>A private topic</a></li></ul></details><details class="claude-text related"><summary>Related</summary><ul><li><a href="/p/design-notes" dir="auto"><svg class="i"></svg>Design notes</a><small> · links here</small></li><li><a href="/p/weekly-sync" dir="auto"><svg class="i"></svg>Weekly controls sync</a><small> · in a write-up</small></li></ul></details></section>`,
       tools,
     );
-    return { html, c: ctx({ title: "Architecture whiteboard", tags: ["work"] }) };
+    return {
+      html,
+      c: ctx({ title: "Architecture whiteboard", tags: ["work"], drawn: new Set(["7"]) }),
+    };
   },
   plain: () => {
     const html = article(
@@ -187,7 +190,12 @@ describe("what a public page holds", () => {
     expect(h).toContain(`<meta http-equiv="Content-Security-Policy" content="${CSP}">`);
     expect(h).toContain('<link rel="stylesheet" href="/assets/page.css">');
     expect(h).not.toContain("katex.css");
-    expect(h).not.toMatch(/<style|<script|\/api\//);
+    expect(h).not.toMatch(/<style|\/api\//);
+    // its one script, the theme and width switches (#519), from the head
+    expect(h.match(/<script/g)).toHaveLength(1);
+    expect(h).toContain(
+      '<script src="/assets/prefs.js" defer blocking="render"></script>\n</head>',
+    );
     expect(out.maths).toContain('<link rel="stylesheet" href="/assets/katex.css">');
   });
 
@@ -247,7 +255,33 @@ describe("what a public page holds", () => {
     expect(h).toContain('<code class="math">$\\frac{1}{$</code>');
   });
 
-  it("publishes the photo alone, its alt as the app has it, and files as placeholders", () => {
+  it("publishes a photo and its drawing with Photo | Drawing tabs, and its links (#520)", () => {
+    const h = out["photo-board"];
+    expect(h).toContain(
+      '<div class="pair"><div class="tabs" role="radiogroup" aria-label="Show">' +
+        '<input type="radio" name="pair-1" id="pair-1-photo" class="tab-input"><label for="pair-1-photo">Photo</label>' +
+        '<input type="radio" name="pair-1" id="pair-1-drawing" class="tab-input" checked><label for="pair-1-drawing">Drawing</label></div>' +
+        `<figure class="orig"><a href="scrap-blob:${SHA("a")}"><img src="scrap-blob:${SHA("a")}" alt="IMG_2041.jpg"></a></figure>` +
+        '<figure class="drawing"><img src="scrap-drawing:7" alt="Drawing of IMG_2041.jpg"></figure></div>' +
+        '<p class="drawing-get"><a href="scrap-excalidraw:7" target="_blank" rel="noopener noreferrer">Open in Excalidraw</a>' +
+        ' · <a href="scrap-drawing:7" download>Download</a></p>',
+    );
+    expect(h).not.toMatch(/SECRET|Regenerate|drawing-card/);
+  });
+
+  it("publishes the photo alone when its drawing was not drawn, and no Open link without https", () => {
+    const { html, c } = FIXTURES["photo-board"]();
+    const alone = publishHtml(view(html).root, { ...c, drawn: new Set() }, view(html).swaps);
+    expect(alone).not.toMatch(/scrap-drawing|pair|radio/);
+    const local = publishHtml(view(html).root, { ...c, site: "http://pages.local" });
+    expect(local).toContain(
+      '<p class="drawing-get"><a href="scrap-drawing:7" download>Download, then open in excalidraw.com to edit</a></p>',
+    );
+    expect(local).not.toContain("scrap-excalidraw");
+    expect(check(local, LIVE, ["scrap.example"])).toEqual([]);
+  });
+
+  it("publishes images and files as placeholders, alt as the app has it", () => {
     const h = out["photo-board"];
     expect(h).toContain(
       `<a href="scrap-blob:${SHA("a")}"><img src="scrap-blob:${SHA("a")}" alt="IMG_2041.jpg"></a>`,
@@ -256,7 +290,7 @@ describe("what a public page holds", () => {
     expect(h).toContain(`<a href="scrap-blob:${SHA("c")}">spec</a>`);
     expect(h).toContain(`<a href="scrap-blob:${SHA("d")}">`);
     expect(h).toContain('<em class="named">[theirs]</em>');
-    expect(h).not.toMatch(/SECRET|drawing|Regenerate|Guidance|textarea|Photo<|What's in/);
+    expect(h).not.toMatch(/SECRET|drawing-card|Regenerate|Guidance|textarea|What's in/);
   });
 
   it("keeps Claude's summary and write-up, and only the public pages it lists", () => {
