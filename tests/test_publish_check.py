@@ -212,7 +212,9 @@ def test_the_document():
 
 
 PWA = sorted(
-    (Path(__file__).parent.parent / "web" / "tests" / "fixtures" / "published").glob("*.html")
+    (Path(__file__).parent.parent / "web" / "tests" / "fixtures" / "published").glob(
+        "*.html"
+    )
 )
 
 

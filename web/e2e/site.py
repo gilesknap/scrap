@@ -1,6 +1,6 @@
-"""The public site for the e2e tests: the receiver's www/ folder served as nginx serves it
-(scrap-public/nginx.conf.template, docs/reference/public-site.md "nginx"), so a spec can
-open what scrap published. Stdlib only; GET and HEAD.
+"""The public site for the e2e tests: the receiver's www/ folder served as nginx
+serves it (scrap-public/nginx.conf.template, docs/reference/public-site.md "nginx"),
+so a spec can open what scrap published. Stdlib only; GET and HEAD.
 
     python web/e2e/site.py <site folder> <port>
 """
@@ -56,7 +56,7 @@ class Site(BaseHTTPRequestHandler):
         if self.command != "HEAD":
             self.wfile.write(body)
 
-    def log_message(self, *_args: object) -> None:
+    def log_message(self, format: str, *args: object) -> None:  # noqa: A002
         pass
 
 

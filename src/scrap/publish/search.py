@@ -33,9 +33,9 @@ BLOCKS = frozenset(
     " section article aside br".split()
 )
 TEX = "application/x-tex"
-# What a page's index text leaves out (the PWA's publish mode writes them): the site's own
-# lines (.site), and the page's header, its title (the record's own), meta and dates lines
-# and tag chips, so a result's excerpt is the page's text
+# What a page's index text leaves out (the PWA's publish mode writes them): the
+# site's own lines (.site), and the page's header, its title (the record's own),
+# meta and dates lines and tag chips, so a result's excerpt is the page's text
 SKIP = frozenset({"site", "meta", "dates", "tags"})
 
 
