@@ -4,6 +4,10 @@
 // (links coming alive), and Settings' Refresh all. Each page is published from its own view,
 // on the screen or drawn off it (page.ts, quiet), by publish.ts. A chunk of its own, loaded
 // on the first use. docs/reference/public-site.md has the routes and the rules.
+//
+// A page never published (made public over MCP, by a revert or an undelete) goes out only
+// once the owner has said yes here: Make public's warning, or Refresh all's question. A save,
+// a tick or a link coming alive passes it by; scrap refuses it too (409 unconfirmed).
 import type { Page, PublicPage } from "./api";
 import { api } from "./api";
 import { copyText } from "./clipboard";
@@ -14,6 +18,7 @@ import { swapsOf } from "./pagehtml";
 import {
   codeOf,
   publicPages,
+  publishOn,
   publishPage,
   rebuild,
   redraw,
@@ -31,18 +36,19 @@ export const OFFLINE =
   "Saved. Not published while offline: Refresh all public pages in Settings later.";
 const LONG = 8000; // a toast with an action, or an error, stays this long
 
-/** What one run of publishes knows: the public pages, and the titles of pages bare links name. */
+/** What one run of publishes knows: the public pages, when each was published (null: never),
+ * and the titles of pages bare links name. */
 interface Run {
   live: Set<string>;
+  published: Map<string, string | null>;
   titles: Map<string, string>;
 }
-async function run(): Promise<Run> {
-  const list = await publicPages();
-  return {
-    live: new Set(list.map((q) => q.slug)),
-    titles: new Map(list.map((q) => [q.slug, q.title])),
-  };
-}
+const runOf = (list: PublicPage[]): Run => ({
+  live: new Set(list.map((q) => q.slug)),
+  published: new Map(list.map((q) => [q.slug, q.published_at])),
+  titles: new Map(list.map((q) => [q.slug, q.title])),
+});
+const run = async () => runOf(await publicPages());
 
 /** A view drawn with a page: the article and the page it shows. */
 interface Drawn {
@@ -105,14 +111,23 @@ export async function htmlOf(d: Drawn, r: Run): Promise<string> {
 }
 
 /** Draw and publish a page; drawn again once if it changed since (a 409 stale, a 422
- * stale_tags). */
-async function publishOne(draw: (again: boolean) => Promise<Drawn>, r: Run, defer: boolean) {
+ * stale_tags). Null, publishing nothing, for a page never published unless confirmed (the
+ * owner has just said yes to it). */
+async function publishOne(
+  draw: (again: boolean) => Promise<Drawn>,
+  r: Run,
+  defer: boolean,
+  confirmed = false,
+) {
   for (let again = false; ; again = true) {
     const d = await draw(again);
+    if (!confirmed && !d.page.published_at) return null;
     const html = await htmlOf(d, r);
     try {
-      return { page: d.page, done: await publishPage(d.page.id, html, d.page.rev, defer) };
+      const done = await publishPage(d.page.id, html, d.page.rev, defer, confirmed);
+      return { page: d.page, done };
     } catch (err) {
+      if (codeOf(err) === "unconfirmed") return null; // unpublished meanwhile
       if (again || !redraw(err)) throw err;
     }
   }
@@ -131,12 +146,14 @@ const offScreen = (slug: string, signal: AbortSignal) => () => offscreen(slug, s
 
 /** Publish the page on the screen, its dates line saying Publishing… meanwhile, and show
  * when; the answer, or the error. */
-async function publishShown(view: View, r: Run, defer: boolean) {
+async function publishShown(view: View, r: Run, defer: boolean, confirmed = false) {
   const id = view.shown().id;
   publishing.add(id);
   view.show(view.shown());
   try {
-    const { page, done } = await publishOne(onScreen(view), r, defer);
+    const got = await publishOne(onScreen(view), r, defer, confirmed);
+    if (!got) return null;
+    const { page, done } = got;
     publishing.delete(id);
     view.show({
       ...page,
@@ -149,28 +166,35 @@ async function publishShown(view: View, r: Run, defer: boolean) {
   }
 }
 
-/** The public pages to publish again now that this one is public or private: those whose
- * published copy refers to it (scrap's list), and those that link to it as its card says
- * (Linked from), which are public. */
-async function linking(p: Page, live: ReadonlySet<string>): Promise<PublicPage[]> {
+/** The published pages to publish again now that this one is public or private (or gone):
+ * those whose published copy refers to it (scrap's list), and those that link to it as its
+ * card says (Linked from), which are public. Never one not published yet: that waits for
+ * the owner's yes. */
+async function linking(p: Pick<Page, "slug" | "related">, r: Run): Promise<PublicPage[]> {
   const listed = await publicPages(p.slug).catch(() => [] as PublicPage[]);
   const known = new Set(listed.map((q) => q.slug));
   const backlinks = (p.related ?? [])
-    .filter((q) => q.via === "link" && live.has(q.slug) && !known.has(q.slug))
-    .map((q) => ({ id: q.id, slug: q.slug, title: q.title, published_at: null }));
-  return [...listed, ...backlinks].filter((q) => q.slug !== p.slug);
+    .filter((q) => q.via === "link" && r.live.has(q.slug) && !known.has(q.slug))
+    .map((q) => ({
+      id: q.id,
+      slug: q.slug,
+      title: q.title,
+      published_at: r.published.get(q.slug) ?? null,
+    }));
+  return [...listed, ...backlinks].filter((q) => q.slug !== p.slug && q.published_at);
 }
 
-/** Publish each of these pages again, drawn off the screen, deferred: how many were. */
-async function again(list: PublicPage[], r: Run, each?: (i: number) => void) {
+/** Publish each of these pages again, drawn off the screen, deferred: how many were (one
+ * never published is passed by unless fresh: the owner has just said yes to those). */
+export async function again(list: PublicPage[], r: Run, each?: (i: number) => void, fresh = false) {
   let done = 0;
   const failed: string[] = [];
   for (const [i, q] of list.entries()) {
     each?.(i);
+    if (!q.published_at && !fresh) continue;
     const ac = new AbortController();
     try {
-      await publishOne(offScreen(q.slug, ac.signal), r, true);
-      done++;
+      if (await publishOne(offScreen(q.slug, ac.signal), r, true, fresh)) done++;
     } catch (err) {
       if (codeOf(err) !== "not_public") failed.push(`${q.title} (${whyNot(err)})`);
     } finally {
@@ -199,8 +223,9 @@ export async function makePublic(view: View, warned = false) {
   let n = 0;
   try {
     const r = await run();
-    const others = await linking(on, r.live);
-    url = (await publishShown(view, r, others.length > 0)).url;
+    const others = await linking(on, r);
+    // (confirmed: the warning was just answered, or this is Undo, the owner's own tap)
+    url = (await publishShown(view, r, others.length > 0, true))?.url ?? null;
     if (others.length) {
       n = (await again(others, r)).done;
       await rebuild().catch(() => {}); // scrap's reconcile builds them anyway
@@ -236,26 +261,40 @@ export async function makePrivate(view: View) {
     return toast(`Not made private: ${whyNot(err)}`, "", undefined, LONG);
   }
   view.show(off);
-  let n = 0;
-  try {
-    const r = await run();
-    const others = await linking(off, r.live);
-    if (others.length) {
-      n = (await again(others, r)).done;
-      await rebuild().catch(() => {});
-    }
-  } catch {} // the page is private all the same: the others wait for Refresh all
-  toast(
-    `Private: taken off ${siteName(off)}${linkingSaid(n)}`,
-    "Undo",
-    () => void makePublic(view, true),
-    LONG,
-  );
+  const n = await relink(off);
+  // The site could not be told yet: scrap's reconcile takes it off shortly
+  const said =
+    off.unpublish === "pending"
+      ? `Private: comes off ${siteName(off)} shortly`
+      : `Private: taken off ${siteName(off)}`;
+  toast(`${said}${linkingSaid(n)}`, "Undo", () => void makePublic(view, true), LONG);
 }
 
+/** The published pages linking to this page (made private, or deleted) drawn and published
+ * again, its link now its words: how many were. */
+async function relink(p: Pick<Page, "slug" | "related">): Promise<number> {
+  try {
+    const r = await run();
+    const others = await linking(p, r);
+    if (!others.length) return 0;
+    const n = (await again(others, r)).done;
+    if (n) await rebuild().catch(() => {}); // scrap's reconcile builds them anyway
+    return n;
+  } catch {
+    return 0; // the others wait for Refresh all
+  }
+}
+
+/** A page deleted here (to the trash): the published pages that showed its title, as a link
+ * or as words, published again without it. */
+export const deleted = async (p: Pick<Page, "slug" | "related">) =>
+  (await publishOn()) ? relink(p) : 0;
+
 /** A public page saved here: published again. Offline, or the server not reached, it is
- * saved but not published, and the toast says so (publishes are never queued). */
+ * saved but not published, and the toast says so (publishes are never queued). One never
+ * published waits for the owner's yes (Refresh all asks). */
 export async function republish(view: View) {
+  if (!view.shown().published_at) return;
   if (!navigator.onLine) return toast(OFFLINE, "", undefined, LONG);
   try {
     await publishShown(view, await run(), false);
@@ -289,11 +328,8 @@ export async function refreshAll(progress: (i: number, n: number) => void) {
   const list = await publicPages();
   const fresh = list.filter((q) => !q.published_at);
   if (fresh.length && !(await ask(firstTime(fresh)))) return null;
-  const r: Run = {
-    live: new Set(list.map((q) => q.slug)),
-    titles: new Map(list.map((q) => [q.slug, q.title])),
-  };
-  const out = await again(list, r, (i) => progress(i + 1, list.length));
+  // (fresh: the owner has just said yes to those never published)
+  const out = await again(list, runOf(list), (i) => progress(i + 1, list.length), true);
   if (out.done) await rebuild();
   return { ...out, of: list.length };
 }

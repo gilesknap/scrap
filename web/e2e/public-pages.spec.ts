@@ -3,20 +3,33 @@
 // started by playwright.config.ts. Share's Make public… with its warning, then the page on the
 // site with its maths; a link coming alive; Make private taking the page off and Undo putting
 // it back; a save published again, and not when scrap can't be reached; Refresh all asking
-// before a first publish; and Pagefind finding a word on the home page.
+// before a first publish (and nothing else publishing one); Pagefind finding a word on the
+// home page; a photo and an attached file published with the page; and, with publishing off
+// on the server, no Make public and no Settings section. The site sends nginx's headers, so a
+// page that breaks its CSP fails here.
 import { expect, type Page, test } from "@playwright/test";
-import { capture, deletedAfterEach } from "./helpers";
+import { capture, deletedAfterEach, png, ulid } from "./helpers";
+import { SITE as SITE_PORT } from "./ports";
 
 const made = deletedAfterEach();
 test.describe.configure({ mode: "serial" });
 
-/** The public site (playwright.config.ts: scrap's port + 2000). */
-const SITE = `http://127.0.0.1:${(Number(process.env.SCRAP_E2E_PORT) || 8791) + 2000}`;
+/** The public site (e2e/ports.ts). */
+const SITE = `http://127.0.0.1:${SITE_PORT}`;
 const site = (_page?: Page) => SITE;
 const onSite = async (page: Page, path: string) => {
   const r = await page.request.get(`${site(page)}${path}`);
   return { status: r.status(), text: await r.text() };
 };
+
+/** Every CSP violation the browser reports, for the test to say there were none. */
+function violations(page: Page): string[] {
+  const seen: string[] = [];
+  page.on("console", (m) => {
+    if (/Content Security Policy|Refused to/i.test(m.text())) seen.push(m.text());
+  });
+  return seen;
+}
 
 /** A phone that shares (the Pixel's Chrome has no share sheet in tests), so Share has its menu. */
 async function phone(page: Page) {
@@ -85,7 +98,8 @@ test("Make public warns first, with Cancel focused, then the page is on the site
   expect(got.text).not.toMatch(/scrap-(blob|tag):|\/api\//);
   for (const css of ["/assets/page.css", "/assets/katex.css"])
     expect((await onSite(page, css)).status).toBe(200);
-  // Opened in a browser: drawn with the site's CSS and KaTeX's fonts
+  // Opened in a browser, under nginx's CSP: drawn with the site's CSS and KaTeX's fonts
+  const csp = violations(page);
   await page.goto(`${site(page)}/p/${n.slug}`);
   await expect(page.locator(".katex-html").first()).toBeVisible();
   await expect(page.locator(".site.foot")).toContainText("from scrap · All pages");
@@ -98,6 +112,7 @@ test("Make public warns first, with Cancel focused, then the page is on the site
     "href",
     new RegExp(`/p/${n.slug}`),
   );
+  expect(csp).toEqual([]);
 });
 
 test("making a page public publishes the public pages linking to it again", async ({ page }) => {
@@ -177,6 +192,20 @@ test("Refresh all asks once before a first publish, then publishes every page", 
   await page.goto(`/p/${n.slug}`);
   await expect(page.locator(".dates .pubdate")).toHaveText("Public · not published yet");
   expect((await onSite(page, `/p/${n.slug}`)).status).toBe(404);
+  // A save here doesn't publish it: that waits for the owner's yes
+  await page.locator(".page > .tools").getByRole("button", { name: "Edit" }).click();
+  await page.locator(".editor textarea").fill("Public e2e never published, edited");
+  await page.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(page.locator(".page .body")).toContainText("edited");
+  await expect(page.locator(".dates .pubdate")).toHaveText("Public · not published yet");
+  expect((await onSite(page, `/p/${n.slug}`)).status).toBe(404);
+  // and scrap refuses a first publish the owner didn't confirm
+  const page_ = await (await page.request.get(`/api/pages/${n.page_id}`)).json();
+  const refused = await page.request.put(`/api/pages/${n.page_id}/published`, {
+    data: { html: "<!DOCTYPE html>", base_rev: page_.rev },
+  });
+  expect(refused.status()).toBe(409);
+  expect((await refused.json()).error).toBe("unconfirmed");
 
   await page.getByRole("button", { name: "Settings" }).click();
   const sheet = page.getByRole("dialog", { name: "Settings" });
@@ -195,4 +224,65 @@ test("Refresh all asks once before a first publish, then publishes every page", 
     /^Refreshed \d+ pages? at /,
   );
   expect((await onSite(page, `/p/${n.slug}`)).status).toBe(200);
+});
+
+test("a photo and an attached file are published with the page", async ({ page }) => {
+  await phone(page);
+  const form = new FormData();
+  form.append("id", ulid());
+  form.append("text", "Public e2e with files\n\nA photo and a file.");
+  form.append(
+    "file",
+    new Blob([new Uint8Array(png(64, 48, 90))], { type: "image/png" }),
+    "board.png",
+  );
+  form.append("file", new Blob(["Plain words"], { type: "text/plain" }), "words.txt");
+  const n = (await (await page.request.post("/api/captures", { multipart: form })).json()) as {
+    page_id: string;
+    slug: string;
+  };
+  made.push(n.page_id);
+  await page.goto(`/p/${n.slug}`);
+  await makePublic(page);
+  const got = await onSite(page, `/p/${n.slug}`);
+  const img = new RegExp(`/p/${n.slug}/(img-1-[0-9a-f]{10}\\.(?:png|jpg))`).exec(got.text);
+  const file = new RegExp(`/p/${n.slug}/(file-1-[0-9a-f]{10}\\.txt)`).exec(got.text);
+  expect(img, got.text).toBeTruthy();
+  expect(file, got.text).toBeTruthy();
+  expect(got.text).not.toMatch(/scrap-blob:|\/api\//);
+  const served = await page.request.get(`${SITE}/p/${n.slug}/${file?.[1]}`);
+  expect(await served.text()).toBe("Plain words");
+  expect(served.headers()["content-security-policy"]).toContain("sandbox");
+  const csp = violations(page);
+  await page.goto(`${SITE}/p/${n.slug}`);
+  await expect(page.locator("figure img, .body img").first()).toBeVisible();
+  expect(
+    await page
+      .locator("img")
+      .first()
+      .evaluate((i) => (i as HTMLImageElement).naturalWidth),
+  ).toBeGreaterThan(0);
+  expect(csp).toEqual([]);
+});
+
+test("with publishing off on the server, no Make public and no Settings section", async ({
+  page,
+}) => {
+  await phone(page);
+  await page.route("**/healthz", async (rt) => {
+    const r = await rt.fetch();
+    const j = await r.json();
+    await rt.fulfill({ json: { ...j, publish: { ...j.publish, enabled: false } } });
+  });
+  const n = await newPage(page, "Public e2e publishing off");
+  await page.goto(`/p/${n.slug}`);
+  await page.locator(".page > .tools").getByRole("button", { name: "Share" }).click();
+  const menu = page.locator(".share-menu");
+  await expect(menu.getByRole("button", { name: "Pin to Search" })).toBeVisible();
+  await expect(menu.getByRole("button", { name: /Make p/ })).toHaveCount(0);
+  await page.keyboard.press("Escape");
+  await page.getByRole("button", { name: "Settings" }).click();
+  const sheet = page.getByRole("dialog", { name: "Settings" });
+  await expect(sheet.getByRole("heading", { name: "Store" })).toBeVisible();
+  await expect(sheet.getByRole("heading", { name: "Public pages" })).toHaveCount(0);
 });

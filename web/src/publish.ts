@@ -45,7 +45,26 @@ const has = (n: N, c: string) => classes(n).has(c);
 /** Text that names a placeholder ("scrap-blob:", "scrap-tag:") would be refused anywhere but
  * a src or href: a word joiner after "scrap-" keeps it as it reads. */
 const defuse = (s: string) => s.replace(/scrap-(blob|tag):/gi, "scrap-\u2060$1:");
-const words = (s: string) => esc(defuse(s));
+/** What text says in place of an address of scrap's own, or of its API. */
+export const PRIVATE_LINK = "a private link";
+const reEscape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+/** Addresses of scrap's own (its hosts, with or without a scheme) and of /api/, as text. */
+function privates(origins: readonly string[]): RegExp {
+  // the rest of an address: up to a space, not its last full stop, comma or bracket
+  const tail = `[^\\s<>"]*[^\\s<>".,;:!?)]`;
+  const hosts = origins
+    .map(hostOf)
+    .filter((h): h is string => !!h)
+    .map(reEscape);
+  const own = hosts.length
+    ? `(?:[a-z][a-z0-9+.-]*://)?(?<![\\w.-])(?:${hosts.join("|")})(?![\\w-]|\\.[\\w-])\\.?(?::\\d+)?(?:[/?#]${tail})?|`
+    : "";
+  const api = `https?://[^\\s/<>"]*/api/(?:${tail})?|(?<![\\w.~/-])/api/(?:${tail})?|/api/blobs/(?:${tail})?`;
+  return new RegExp(own + api, "gi");
+}
+/** A tag as a scrap-tag: placeholder, every character but letters, digits and -_.~ escaped. */
+export const tagHref = (t: string) =>
+  `scrap-tag:${encodeURIComponent(t).replace(/[!'()*]/g, (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`)}`;
 
 const decoded = (s: string) => {
   try {
@@ -136,6 +155,9 @@ export function idsOf(root: N, swaps: Swaps): Map<string, string> {
 /** The page's view (the article on the screen) as its public HTML. */
 export function publishHtml(root: N, ctx: Context, swaps: Swaps = new Map()): string {
   const ids = idsOf(root, swaps);
+  // Text never names an address of scrap's own, or of its API (S3): it says "a private link"
+  const hidden = privates(ctx.origins);
+  const words = (s: string) => esc(defuse(s.replace(hidden, PRIVATE_LINK)));
   let maths = false;
   let listed = false; // in Claude's Related, Topics or Sources: a private page's line goes
 
@@ -204,7 +226,7 @@ export function publishHtml(root: N, ctx: Context, swaps: Swaps = new Map()): st
   const chips = () =>
     ctx.tags.length
       ? `<p class="tags">${ctx.tags
-          .map((t) => `<a href="scrap-tag:${encodeURIComponent(t)}">#${words(t)}</a>`)
+          .map((t) => `<a href="${tagHref(t)}">#${words(t)}</a>`)
           .join("")}</p>`
       : "";
 
@@ -295,7 +317,10 @@ export function publishHtml(root: N, ctx: Context, swaps: Swaps = new Map()): st
 
   const body = render(root);
   // The site's home is / (its name, the site's host, or Pages as its own pages say)
-  const host = ctx.site ? (hostOf(ctx.site) ?? "Pages") : "Pages";
+  // (not a host of scrap's own: a site on scrap's host has its name, Pages, instead)
+  const named = ctx.site ? hostOf(ctx.site) : null;
+  const own = ctx.origins.map(hostOf);
+  const host = named && !own.includes(named) ? named : "Pages";
   const top = `<div class="site top"><a href="/">${esc(host)}</a></div>`;
   const foot = `<div class="site foot">Published ${esc(ctx.date)} from scrap · <a href="/">All pages</a></div>`;
   const css = [...(maths ? ["/assets/katex.css"] : []), "/assets/page.css"]

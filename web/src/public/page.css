@@ -299,6 +299,23 @@ a.chip {
   --pagefind-ui-border-radius: var(--r-sm);
   --pagefind-ui-font: var(--font);
 }
+/* Its box: the site's face, a readable placeholder, scrap's field edge (not Pagefind's 2px ink) */
+#search .pagefind-ui__search-input {
+  border: 1px solid var(--line-strong);
+  background-color: var(--surface);
+  color: var(--ink);
+  font-family: var(--font);
+  font-weight: 400;
+}
+#search .pagefind-ui__search-input::placeholder {
+  color: var(--ink-3);
+  opacity: 1;
+}
+#search .pagefind-ui__search-clear {
+  background-color: var(--surface);
+  color: var(--ink-2);
+  font-family: var(--font);
+}
 #search.site-search mark {
   background: var(--accent-soft);
   color: var(--ink);

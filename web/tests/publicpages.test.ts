@@ -51,6 +51,12 @@ describe("the warning", () => {
       "its attached files: spec.pdf, notes.md",
     ]);
     expect(goesWith(page({ tags: [], captures: [] }))).toEqual(["Claude's write-up and summary"]);
+    // A topic: its synthesis, drawn from its sources (S6)
+    const topic = page({ tags: [], captures: [], topic: { key: "k", sources: [] } });
+    expect(goesWith(topic)).toEqual([
+      "Claude's write-up and summary",
+      "Claude's synthesis, which draws on its source pages",
+    ]);
     const one = page({
       captures: [{ ...page().captures[0], blobs: [page().captures[0].blobs[1]] }],
     });

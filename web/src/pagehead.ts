@@ -6,7 +6,6 @@ import { foldChips } from "./chipfold";
 import { icon, kindIcon } from "./icons";
 import { KINDS } from "./kinds";
 import { edited, metaParts } from "./pagemeta";
-import { publicUrl } from "./publicapi";
 import { closed, dueChip } from "./status";
 import { tagLabel } from "./taglabel";
 import { token } from "./terms";
@@ -34,7 +33,7 @@ export function publishedLine(p: Page, busy = publishing.has(p.id)): string {
  * "Public", a link to the page on the public site (in a new window; plain when scrap has no
  * SCRAP_PUBLISH_SITE, so no address for it). */
 export function publicChip(p: Page): HTMLElement {
-  const url = publicUrl(p);
+  const url = p.public_url || null;
   const where = url?.replace(/^https?:\/\//, "") ?? "the public site";
   const said = `${publishedLine(p)}: ${where}`;
   return h(

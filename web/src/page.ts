@@ -67,6 +67,13 @@ export interface View {
 }
 /** What publicpages.ts does, a chunk of its own, loaded when it is first needed. */
 const publics = () => import("./publicpages");
+/** Whether publishing is on on the server (/healthz), asked once: off, no Make public. */
+let publishOn: Promise<boolean> | null = null;
+const publishing = () =>
+  (publishOn ??= fetch("/healthz").then(
+    (r) => r.json().then((j) => j?.publish?.enabled !== false),
+    () => true, // offline: as if on (publishing says why not when tried)
+  ));
 
 /** A page's view. quiet: drawn off the screen, to publish it (publicpages.ts): not opened,
  * no history, no polling, nothing told to the server or kept as seen. */
@@ -77,13 +84,14 @@ export async function page(key: string, signal: AbortSignal, quiet = false): Pro
     : (history.state as { trail?: Trail; edit?: boolean; from?: 1 | -1 } | null);
   // The renderer, a chunk of its own, while the page is fetched (offline without it: as typed)
   // and Share's Pin to Search (pins.ts, a chunk of its own; none offline before it was kept)
-  const [p, pinRow] = await Promise.all([
+  const [p, pinRow, canPublish] = await Promise.all([
     api<Page>(`pages/${encodeURIComponent(key)}`, { signal }),
     import("./pins").then(
       (m) => ({ slug: m.SLUG, make: (p: Page) => m.pinPageButton(p.slug, p.title) }),
       () => null,
     ),
     renderer(),
+    publishing(),
   ]);
   signal.throwIfAborted(); // gone meanwhile (Back, or timed out): no poll or listeners
   // Tell the server this page is the one open (MCP current_page, #452); no reply awaited,
@@ -251,7 +259,11 @@ export async function page(key: string, signal: AbortSignal, quiet = false): Pro
       // (and Pin to Search, from the pins chunk: not on the Pinned page itself)
       // and, last, Make public… or Make private (publicpages.ts)
       menus
-        ? [saved, ...(pinRow && p.slug !== pinRow.slug ? [pinRow.make(p)] : []), publicRow(p)]
+        ? [
+            saved,
+            ...(pinRow && p.slug !== pinRow.slug ? [pinRow.make(p)] : []),
+            ...(canPublish ? [publicRow(p)] : []),
+          ]
         : undefined,
     ) ?? saved,
     !menus && "share" in navigator && saved,
@@ -333,8 +345,14 @@ export async function page(key: string, signal: AbortSignal, quiet = false): Pro
   const remove = (p: Page) =>
     deletePage(
       p.id,
-      () =>
-        (history.state?.at ?? 0) > 0 // an entry the app pushed: one of the app's is behind it
+      () => {
+        // Gone from the public pages that showed its title too (S5: as Make private does)
+        if (canPublish)
+          void publics().then(
+            (m) => m.deleted(p),
+            () => {},
+          );
+        return (history.state?.at ?? 0) > 0 // an entry the app pushed: one of the app's is behind it
           ? new Promise<void>((done) => {
               addEventListener("popstate", () => done(), { once: true }); // after main.ts's
               history.back();
@@ -342,7 +360,8 @@ export async function page(key: string, signal: AbortSignal, quiet = false): Pro
           : import("./back").then(
               (m) => m.up(go),
               () => go("/", true), // the chunk is not here (offline): Capture
-            ),
+            );
+      },
       () => go(`/p/${encodeURIComponent(p.slug)}`),
     );
 

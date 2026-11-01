@@ -22,13 +22,15 @@ export const filesOf = (p: Page): FileRef[] => {
     .filter((b) => !b.mime.startsWith("image/") && !seen.has(b.sha256) && seen.add(b.sha256));
 };
 
-/** What goes public with the page, a line each: its tags, Claude's write-up and summary, its
- * attached files by name. */
+/** What goes public with the page, a line each: its tags, Claude's write-up and summary (on a
+ * topic, its synthesis too), its attached files by name. */
 export function goesWith(p: Page): string[] {
   const files = filesOf(p).map((f) => f.filename || f.mime);
   return [
     ...(p.tags.length ? [`its tags: ${p.tags.map((t) => `#${t}`).join(" ")}`] : []),
     "Claude's write-up and summary",
+    // A topic's synthesis is drawn from its sources, private ones too
+    ...(p.topic ? ["Claude's synthesis, which draws on its source pages"] : []),
     ...(files.length
       ? [`${files.length === 1 ? "its attached file" : "its attached files"}: ${files.join(", ")}`]
       : []),

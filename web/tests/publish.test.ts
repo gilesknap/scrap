@@ -97,10 +97,12 @@ code();
 graph TD; A-->B
 \`\`\`
 
-Text naming scrap-blob:abc and scrap-tag:x.`);
+Text naming scrap-blob:abc and scrap-tag:x.
+
+Private addresses: scrap.example:8000/health, \`curl https://scrap.example/api/blobs/aaa\`, and /api/pages/x; not scrap.example.org.`);
     const drawn =
       '<div class="diagram" role="img" data-source="graph LR; X--&gt;Y"><svg><g><text>X</text></g></svg></div>';
-    const tags = ["work", "personal/family", "café talk"];
+    const tags = ["work", "personal/family", "café talk", "it's (done)"];
     const html = article(
       head("Links &amp; more", "Note", tags),
       `<div class="body md" dir="auto">${body}${drawn}</div>`,
@@ -198,7 +200,7 @@ describe("what a public page holds", () => {
     expect(h).toContain("<span>the <em>sync</em></span>"); // private, labelled
     expect(h).not.toMatch(/weekly-sync|gone-page/); // never the slug
     // A full address of a page here is the page's (render.ts), so its title
-    expect(h).not.toContain("scrap.example");
+    expect(h).not.toMatch(/scrap\.example(?!\.org)/);
   });
 
   it("keeps the web's links, not scrap's own, /api/ ones, a user's, or the app's screens", () => {
@@ -221,7 +223,7 @@ describe("what a public page holds", () => {
 
   it("writes tags as scrap-tag chips, in order, and not the Public chip", () => {
     expect(out.links).toContain(
-      '<p class="tags"><a href="scrap-tag:work">#work</a><a href="scrap-tag:personal%2Ffamily">#personal/family</a><a href="scrap-tag:caf%C3%A9%20talk">#café talk</a></p>',
+      '<p class="tags"><a href="scrap-tag:work">#work</a><a href="scrap-tag:personal%2Ffamily">#personal/family</a><a href="scrap-tag:caf%C3%A9%20talk">#café talk</a><a href="scrap-tag:it%27s%20%28done%29">#it\'s (done)</a></p>',
     );
     for (const h of Object.values(out))
       expect(h).not.toMatch(/Public<|pubchip|morechips|Published 1 Nov, 11/);
@@ -273,6 +275,24 @@ describe("what a public page holds", () => {
     expect(out.links).toContain(foot);
     expect(out.plain).toContain('<div class="site top"><a href="/">Pages</a></div>');
     expect(out.plain).toContain(foot);
+  });
+
+  it("says a private link for an address of scrap's own, or of its API, in any text (S3)", () => {
+    const h = out.links;
+    expect(h).toContain(
+      "Private addresses: a private link, <code>curl a private link</code>, and a private link; not scrap.example.org.",
+    );
+    expect(h).not.toMatch(/scrap\.example[:/]|\/api\//);
+  });
+
+  it("escapes a tag's every special character in its placeholder", () => {
+    expect(out.links).toContain('<a href="scrap-tag:it%27s%20%28done%29">#it\'s (done)</a>');
+  });
+
+  it("names the site Pages when it is on scrap's own host", () => {
+    const { root, swaps } = view(article(markdown("x")));
+    const h = publishHtml(root, ctx({ site: "http://scrap.example:9000" }), swaps);
+    expect(h).toContain('<div class="site top"><a href="/">Pages</a></div>');
   });
 
   it("leaves a placeholder in the text unable to be read as one", () => {

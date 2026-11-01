@@ -20,13 +20,28 @@ export const setPublic = (key: string, on: boolean) =>
   });
 
 /** Publish the page's HTML, rendered from revision base_rev. defer: push the page alone, not
- * the home page, tag pages or search (Refresh all, then rebuild() once). */
-export const publishPage = (key: string, html: string, base_rev: number, defer = false) =>
+ * the home page, tag pages or search (Refresh all, then rebuild() once). confirmed: the owner
+ * has just said yes to it going public (Make public's warning, Refresh all's question), which
+ * scrap needs for a page not published before (else 409 unconfirmed). */
+export const publishPage = (
+  key: string,
+  html: string,
+  base_rev: number,
+  defer = false,
+  confirmed = false,
+) =>
   api<Published>(`pages/${encodeURIComponent(key)}/published`, {
     method: "PUT",
     headers: JSON_TYPE,
-    body: JSON.stringify({ html, base_rev, defer }),
+    body: JSON.stringify({ html, base_rev, defer, ...(confirmed && { confirmed }) }),
   });
+
+/** Whether publishing is on on the server (/healthz's publish block; offline: assumed on). */
+export const publishOn = () =>
+  fetch("/healthz").then(
+    (r) => r.json().then((j) => j?.publish?.enabled !== false),
+    () => true,
+  );
 
 /** Build the home page, the tag pages and search once, after deferred publishes. */
 export const rebuild = () => api<{ units: string[] }>("public/rebuild", { method: "POST" });
@@ -57,6 +72,8 @@ export function whyNot(err: unknown, online = navigator.onLine): string {
   if (err.status === 503) return "publishing is off on this server";
   if (err.status === 502) return `the public site refused it (${err.message})`;
   if (err.status === 409 && code === "not_public") return "the page isn't public any more";
+  if (err.status === 409 && code === "unconfirmed")
+    return "it has never been published: Refresh public pages in Settings asks first";
   if (redraw(err)) return "the page changed meanwhile; try again";
   if (err.status === 413) return "the page is too big to publish";
   return err.message; // a 422 from scrap's check: its detail says which rule
