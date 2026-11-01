@@ -63,8 +63,8 @@ test("rows, tags, wiki links and the pager are links; Ctrl-click opens a new tab
   // On the page: the wiki link and the pager's next are links too
   const wiki = page.locator(".md a", { hasText: "the first" });
   await expect(wiki).toHaveAttribute("href", `/p/${first}`);
-  // One to a heading links to the page (#498)
-  const heading = page.locator(".md a", { hasText: `${first}#a-heading` });
+  // One to a heading links to the page (#498), named by its title (#508)
+  const heading = page.locator(".md a", { hasText: `Linked first ${tag}` });
   await expect(heading).toHaveAttribute("href", `/p/${first}`);
   const next = page.getByRole("link", { name: "Next" });
   await expect(next).toHaveAttribute("href", `/p/${first}`);

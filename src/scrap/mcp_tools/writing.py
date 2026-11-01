@@ -77,7 +77,8 @@ def register_writing(mcp: MCPServer, ctx: Ctx) -> None:
             ),
         ] = None,
     ) -> dict[str, Any]:
-        """Save a new page (Markdown body; [[slug|label]] links to other pages), marked
+        """Save a new page (Markdown body; [[slug]] links to other pages, shown as their
+        titles: [[slug|label]] only for other words), marked
         as written by Claude with its origin; a todo may have a due date and
         priority.
         With append_to, add body as a new section at the end of a page written over

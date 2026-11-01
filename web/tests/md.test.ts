@@ -412,3 +412,48 @@ describe("unembedded", () => {
     expect(unembedded("![x](https://e.com/a.png)")).toBe("![x](https://e.com/a.png)");
   });
 });
+
+describe("a page link with no label shows the page's title (#508)", () => {
+  const HERE = "https://scrap.example.org";
+  const TITLES = { "a-page": "A page & more", "b-page": "B page" };
+  const titled = (s: string) =>
+    marked(s, TITLES)
+      .replace(/ data-at="\d+,\d+"/g, "")
+      .trim();
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("is the title for [[slug]] and [[slug#heading]], escaped", () => {
+    expect(titled("see [[a-page]]")).toBe('<p>see <a href="/p/a-page">A page &amp; more</a></p>');
+    expect(titled("[[b-page#intro]]")).toBe('<p><a href="/p/b-page">B page</a></p>');
+    expect(titled("| a |\n|---|\n| [[b-page]] |")).toContain('<a href="/p/b-page">B page</a>');
+  });
+
+  it("keeps a label as typed, and a dangling link (no title known) as typed", () => {
+    expect(titled("[[a-page|my words]]")).toBe('<p><a href="/p/a-page">my words</a></p>');
+    expect(titled("[[gone-page#x]]")).toBe('<p><a href="/p/gone-page">gone-page#x</a></p>');
+    expect(one("[[a-page]]")).toBe('<p><a href="/p/a-page">a-page</a></p>'); // none given yet
+  });
+
+  it("is never one of Object's own names", () => {
+    expect(titled("[[constructor]] [[tostring]]")).toBe(
+      '<p><a href="/p/constructor">constructor</a> <a href="/p/tostring">tostring</a></p>',
+    );
+  });
+
+  it("is the title for a page's bare address, not for a link with words of its own", () => {
+    vi.stubGlobal("location", { origin: HERE });
+    expect(titled(`see ${HERE}/p/a-page`)).toBe(
+      '<p>see <a href="/p/a-page">A page &amp; more</a></p>',
+    );
+    expect(titled(`<${HERE}/p/b-page#h-x>`)).toBe('<p><a href="/p/b-page#h-x">B page</a></p>');
+    expect(titled("[/p/b-page](/p/b-page)")).toBe('<p><a href="/p/b-page">B page</a></p>');
+    expect(titled(`[Words](${HERE}/p/a-page) [x **y**](/p/b-page)`)).toBe(
+      '<p><a href="/p/a-page">Words</a> <a href="/p/b-page">x <strong>y</strong></a></p>',
+    );
+    expect(titled(`${HERE}/p/gone-page`)).toBe(
+      `<p><a href="/p/gone-page">${HERE}/p/gone-page</a></p>`,
+    );
+    // another site's /p/ page is not this server's
+    expect(titled("https://elsewhere.org/p/a-page")).not.toContain("A page");
+  });
+});

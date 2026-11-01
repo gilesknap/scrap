@@ -464,7 +464,10 @@ Page text is Markdown as GitHub writes it:
   saved at once, no editor. If the page changed elsewhere meanwhile it is shown as it is now and
   the tap is not saved: tap again. Boxes do not tick offline or in **Preview**, nor in code.
 - **`[[slug]]`, `[[slug|label]]`** link to another page (in a table cell `[[slug\|label]]`).
-  `[[slug#heading]]` links to that page too (it opens at the top, not at the heading).
+  `[[slug#heading]]` links to that page too (it opens at the top, not at the heading). A link with
+  no label shows the page's title (as it is now, if the page was renamed), as does a page's full
+  address written bare (not as `[words](address)`); a label you typed stays, and a link to no page
+  shows what you typed. In **Preview** a link added since the page was opened shows its slug.
 - A ` ```mermaid ` block is drawn as a [Mermaid](https://mermaid.js.org) diagram; offline, or with
   a mistake, it shows as code.
 - **Maths** (LaTeX, drawn by [KaTeX](https://katex.org)): `$x^2$` inline, `$$...$$` for a
@@ -527,7 +530,8 @@ tags, status and topics. After your text and the files comes one section headed 
 topic's synthesis, and related pages. Then *Linked from* lists the pages that link here. The text
 read from a PDF or text file follows the file's link, in a block cut at 20,000 characters. If
 `SCRAP_PUBLIC_URL` is set, `[[slug]]`, `[[slug|label]]` and `[[slug#heading]]` links are written
-as full addresses so they work outside scrap; a `[[...]]` whose target is not a slug, such as
+as full addresses so they work outside scrap; a link with no label is named by the page's title
+either way; a `[[...]]` whose target is not a slug, such as
 `[[Some Title]]`, is kept as typed. The export of every page ([](export-your-pages.md)) keeps Claude's notes in a file of their
 own instead.
 

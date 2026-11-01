@@ -242,7 +242,7 @@ def view(
     board's current write-up is: OUTDATED, version the current prompt's; a
     topic's synthesis is never said to be, the weekly pass remakes it),
     and the current one, with links: the slugs of the pages (not in the trash) it
-    links to."""
+    links to, and titles: their titles by slug."""
     kind = writeup_type(conn, page_id)
     if kind is None:
         return None
@@ -263,6 +263,7 @@ def view(
         if state == "queued" and job["paused"] and on:
             state = "paused"
     fields = ("producer", "created_at", "prompt_version", "summary", "text", "guidance")
+    linked = links(conn, page_id) if up else []
     return {
         "board": board,
         "topic": topic,
@@ -272,10 +273,12 @@ def view(
         "state": state,
         "error": job["last_error"] if job is not None and state == "failed" else None,
         "outdated": board and outdated(conn, page_id, version),
-        # with the pages it links that exist: the PWA links no other
+        # with the pages it links that exist (the PWA links no other), and their
+        # titles, which a bare link shows (#508)
         "current": up
         and {
             **{k: up[k] for k in fields},
-            "links": [p["slug"] for p in links(conn, page_id)],
+            "links": [p["slug"] for p in linked],
+            "titles": {p["slug"]: p["title"] for p in linked},
         },
     }

@@ -9,9 +9,12 @@
 // maths ($...$, $$...$$, ```math; mathrules.ts) by KaTeX, the same way (math.ts).
 // The server parses text the same way for search (src/scrap/markdown.py). The stored text is
 // never changed. On a Later page, a link on its own line is drawn as a card (cards()).
+// A page link with no label of its own ([[slug]], or a page's bare address) shows the page's
+// title, from the titles the page came with (linktext.ts), else the link as typed.
 import markdownit, { type StateCore, type StateInline, type Token } from "markdown-it";
 import footnote from "markdown-it-footnote";
 import { icon } from "./icons";
+import { linkText, type Titles } from "./linktext";
 import maths from "./mathrules";
 
 const IMAGE = /^\/api\/blobs\/([0-9a-f]{64})(\/preview\?size=(480|2048))?$/;
@@ -27,6 +30,9 @@ const FOOTNOTE = /^#fn(ref)?\d+(:\d+)?$/;
 // [[slug]], [[slug#heading]], each with an optional |label: a link to the page (the #heading
 // dropped, as the app does not yet scroll to another page's; markdown.py wiki_page)
 const WIKI = /^([a-z0-9-]+)(?:#[^|]*?)?(?:\\?\|(.+))?$/;
+
+/** What a render is given besides the text: the titles of the pages it links to. */
+type Env = { titles?: Titles };
 
 const md = markdownit({ html: false, breaks: true, linkify: true });
 md.linkify.set({ fuzzyLink: false, fuzzyEmail: false }).add("ftp:", null).add("//", null);
@@ -59,7 +65,11 @@ function wiki(state: StateInline, silent: boolean): boolean {
       state.md.inline.tokenize(state);
       state.linkLevel--;
       state.posMax = posMax;
-    } else state.push("text", "", 0).content = src.slice(pos + 2, end); // as typed, any #heading
+    } else {
+      // its page's title, else as typed (any #heading)
+      const typed = src.slice(pos + 2, end);
+      state.push("text", "", 0).content = linkText(m[1], typed, "", (state.env as Env).titles);
+    }
     state.push("link_close", "a", -1);
   }
   state.pos = end + 2;
@@ -167,13 +177,25 @@ function task(t: Token, item: Token, line: string, state: StateCore) {
   item.attrJoin("class", "task");
 }
 
+/** A link whose text is only its own address (a bare one, as typed or linkified): its text. */
+function bare(children: Token[], i: number, href: string): Token | null {
+  const text = children[i + 1];
+  const said = text?.type === "text" ? text.content : null;
+  if (children[i + 2]?.type !== "link_close" || !said) return null;
+  return said === href || said === decoded(href) ? text : null;
+}
+
 function inline(children: Token[], state: StateCore): Token[] {
   const out: Token[] = [];
   const opened: Token[] = []; // the open links: a close is dropped with its open
-  for (const t of children) {
+  for (const [i, t] of children.entries()) {
     if (t.type === "link_open") {
       const href = String(t.attrGet("href") ?? "");
       const here = own(href);
+      // A page's bare address (here, or its /p/ path) shows the page's title
+      const slug = /^\/p\/([a-z0-9-]+)(?:[?#]|$)/.exec(here ?? href)?.[1];
+      const text = slug && !t.meta?.wiki ? bare(children, i, href) : null;
+      if (slug && text) text.content = linkText(slug, text.content, "", (state.env as Env).titles);
       // A link in a link (a bare URL in a link's text): its text only
       if (opened.some((o) => !o.hidden)) t.hidden = true;
       else if (here) {
@@ -235,9 +257,10 @@ function inline(children: Token[], state: StateCore): Token[] {
   return out;
 }
 
-/** Markdown to HTML that is safe to set as innerHTML. */
-export function markdown(text: string): string {
-  return md.render(text);
+/** Markdown to HTML that is safe to set as innerHTML; titles, the titles of the pages it
+ * links to, for the links that have no label of their own. */
+export function markdown(text: string, titles?: Titles): string {
+  return md.render(text, { titles });
 }
 
 /** Draw the ```mermaid blocks in el as diagrams (Mermaid is loaded only for them; offline, or

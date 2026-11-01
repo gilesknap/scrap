@@ -161,7 +161,7 @@ export async function page(key: string, signal: AbortSignal): Promise<Node> {
     // A topic shown, however it was reached: its dot on the Topics screen has done its job
     if (p.topic) seenTopic(p.id, p.writeup?.current?.created_at ?? p.updated_at);
     schedule(p);
-    const body = bodyView(untitled(p.body, p.title), false);
+    const body = bodyView(untitled(p.body, p.title), false, p.titles);
     if (p.kind === "consume") rendered()?.cards(body); // a link on its own line: a card
     // Its task boxes: ticked in place (tasks.ts, a chunk of its own)
     if (body.querySelector("[data-line]"))

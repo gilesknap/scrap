@@ -5,12 +5,15 @@ from GET /api/store/download, laid out so it opens as an Obsidian vault:
   (title, aliases, id, kind, tags, created, updated, a todo's due and priority, each
   field, made_by when not human, and attachments: the files the text does not embed),
   then the body exactly as stored, its files' addresses made `files/<name>`. Its
-  `[[slug]]` links name the files here, so they resolve with no rewriting.
+  `[[slug]]` links name the files here, so they resolve with no rewriting. They stay
+  as typed, with no title added (#508): an import reads the text back as the owner's,
+  and a label written in would stop following the page's renames.
 - `files/` the originals, named by content (`<sha256>.<ext>`), and the drawings.
 - `_claude/<slug>.md` what a model wrote about the page (its summary, the tags it added,
   a write-up or topic synthesis, related pages, and each photo's description, the
   text read from it and its drawing). Model text never goes in `<slug>.md`: a file
-  read back in would make it the owner's (ADR 0020, 0027).
+  read back in would make it the owner's (ADR 0020, 0027). Its page links with no
+  label show their pages' titles.
 
 The pages are read in one transaction; the files are copied (or streamed) after it. The
 trash, revisions and model runs are left out: backup is the full-fidelity copy.
@@ -32,7 +35,7 @@ from urllib.parse import quote
 from .backup import _derived, _drawing_name, _fenced, _sha_name, localise
 from .drawing import excalidraw_file
 from .markdown import rewrite, wiki_link
-from .page_notes import NOTES_HEADING, Extras, _notes, _quoted
+from .page_notes import NOTES_HEADING, Extras, _notes, _quoted, page_titles
 from .store import Store
 from .store.todo import read as read_todo
 
@@ -114,8 +117,10 @@ def _here(slug: str) -> str:
     return f"../{quote(slug)}.md"
 
 
-def _sidecar_links(text: str) -> str:
-    return rewrite(text, lambda link: wiki_link(link, _here))
+def _sidecar_links(text: str, titles: dict[str, str]) -> str:
+    """The sidecar's [[slug]] links as relative links, one with no label showing its
+    page's title (#508)."""
+    return rewrite(text, lambda link: wiki_link(link, _here, titles))
 
 
 def _page(store: Store, conn: sqlite3.Connection, row: sqlite3.Row) -> Page:
@@ -149,7 +154,8 @@ def _page(store: Store, conn: sqlite3.Connection, row: sqlite3.Row) -> Page:
     slug, title = row["slug"], row["title"].replace("[", "(").replace("]", ")")
     head = ["---", f"generated_by: {_yaml('claude')}", f"page: {_yaml(slug)}", "---"]
     about = [BANNER, "", f"About [{title or slug}]({_here(slug)}).", ""]
-    sidecar = _sidecar_links("\n".join([*head, "", *about, *notes]))
+    lines = [*head, "", *about, *notes]
+    sidecar = _sidecar_links("\n".join(lines), page_titles(p))
     return Page(slug, text, sidecar.rstrip("\n") + "\n", files)
 
 

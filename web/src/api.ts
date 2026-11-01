@@ -70,6 +70,7 @@ export interface CurrentWriteup {
   text: string; // Markdown, its links [[slug]]
   guidance: string | null; // the owner's guidance it was written with
   links?: string[]; // the slugs of the pages it links that exist
+  titles?: Record<string, string>; // their titles, by slug (#508)
 }
 /** A board page's write-up: Claude's explanation, apart from the text (#256). */
 export interface Writeup {
@@ -91,6 +92,7 @@ export interface Page extends Summary {
   tags: string[];
   captures: { id: string; url: string | null; source: string; blobs: FileRef[] }[];
   removed?: string[]; // files an earlier revision's text embedded and this one doesn't
+  titles?: Record<string, string>; // the titles of the pages its text links to, by slug (#508)
   model_tags?: string[]; // its tags Claude added (enrich.ts)
   related?: { id: string; slug: string; title: string; kind: string; via: string }[];
   enrich?: {

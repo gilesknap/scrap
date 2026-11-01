@@ -1,6 +1,7 @@
 import { ApiError } from "./api";
 import { rerender } from "./app";
 import { type Icon, icon } from "./icons";
+import type { Titles } from "./linktext";
 import { rendered, renderer } from "./md";
 
 // DOM helpers: h() builds an element, toast() shows a message with an optional action.
@@ -195,26 +196,28 @@ export function share(
 }
 
 /** Page text as Markdown (safe HTML from render.ts), or as typed with links made clickable:
- * also while the renderer is not loaded (load it first: renderer()). */
-export function bodyView(text: string, raw: boolean): HTMLElement {
+ * also while the renderer is not loaded (load it first: renderer()). titles: of the pages it
+ * links to, which a link with no label of its own shows. */
+export function bodyView(text: string, raw: boolean, titles?: Titles): HTMLElement {
   const md = rendered();
   if (raw || !md) return h("div", { className: "body raw", dir: "auto" }, ...linkify(text));
   const el = h("div", { className: "body md", dir: "auto" });
-  el.innerHTML = md.markdown(text);
+  el.innerHTML = md.markdown(text, titles);
   void md.diagrams(el);
   void md.math(el);
   return el;
 }
 
 /** A Preview button that swaps a textarea for its text as formatted Markdown, and back. read
- * gives the text as Markdown (the editor's box shows embeds as tokens). */
-export function previewer(text: HTMLTextAreaElement, read = () => text.value) {
+ * gives the text as Markdown (the editor's box shows embeds as tokens); titles, the titles of
+ * the pages it links to. */
+export function previewer(text: HTMLTextAreaElement, read = () => text.value, titles?: Titles) {
   const pane = h("div", { className: "preview", hidden: true });
   const button = h("button", { type: "button" }, "Preview");
   button.onclick = async () => {
     const on = pane.hidden;
     if (on) await renderer();
-    pane.replaceChildren(bodyView(read(), false));
+    pane.replaceChildren(bodyView(read(), false, titles));
     pane.hidden = !on;
     text.hidden = on;
     button.textContent = on ? "Edit" : "Preview";
