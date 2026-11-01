@@ -15,6 +15,7 @@ import { drafts } from "./db";
 import { type Embed, expand, found, tokenise } from "./embeds";
 import { type Icon, icon } from "./icons";
 import { KINDS } from "./kinds";
+import { link } from "./linkkey";
 import type { Titles } from "./linktext";
 import {
   bullet,
@@ -70,7 +71,8 @@ export function todoSays(v: { due: string | null; priority: string | null }) {
 }
 
 /** The editor keys' icons, drawn here (not in the shell's icons): a task's empty box, a
- * bulleted and a numbered list, lines moved in and out, and Undo's arrow turning back. */
+ * bulleted and a numbered list, lines moved in and out, Link's chain (the shell's link icon)
+ * and Undo's arrow turning back. */
 const KEY_ICONS = {
   task: '<rect x="4.5" y="4.5" width="15" height="15" rx="3"/>',
   bullet:
@@ -78,6 +80,7 @@ const KEY_ICONS = {
   numbered: '<path d="M4 4.5h1.5V9M4 9h3M4 14.5h3l-3 4h3M10.5 6.5h9m-9 5.5h9m-9 5.5h9"/>',
   indent: '<path d="M4 5h16M11 10h9m-9 4h9M4 19h16M4 9.5l3 2.5-3 2.5"/>',
   outdent: '<path d="M4 5h16M11 10h9m-9 4h9M4 19h16M7 9.5 4 12l3 2.5"/>',
+  link: '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>',
   undo: '<path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/>',
 };
 const keyIcon = (name: keyof typeof KEY_ICONS) => {
@@ -266,11 +269,13 @@ const keyButton = (
   );
 
 /** A field whose typing goes in the page's undo history: a text box, a text-like input (a
- * tag, the title); not a kind's radio, a date or a select. */
+ * tag, the title); not a kind's radio, a date or a select, nor the Link key's page picker's
+ * box, whose steps leave the history with it (linkpick.ts). */
 const typed = (el: EventTarget | null) =>
-  el instanceof HTMLTextAreaElement ||
-  (el instanceof HTMLInputElement &&
-    ["text", "search", "url", "email", "tel", "password", "number"].includes(el.type));
+  (el instanceof HTMLTextAreaElement ||
+    (el instanceof HTMLInputElement &&
+      ["text", "search", "url", "email", "tel", "password", "number"].includes(el.type))) &&
+  !el.closest(".linkpick");
 
 /** The keys' last, Undo (no Redo): the browser's own undo, as Ctrl+Z, for phones whose
  * keyboard has none (Gboard). Typing and the other keys go through the same history (edit(),
@@ -361,7 +366,8 @@ export function editor(o: {
   const preview = previewer(o.text, o.read, o.titles);
   // Just above the keyboard (the layer is the visual viewport's height): the keys that make
   // the line (or the lines selected) a task, a bullet or a numbered item, or indent or outdent
-  // it, and Undo. In a code block the list keys do nothing. A tap keeps the keyboard up.
+  // it, Link (a page picked, [[slug]]: linkkey.ts) and Undo. In a code block the list keys and
+  // Link do nothing. A tap keeps the keyboard up.
   const undo = undoKey(o.text);
   const keys = h(
     "div",
@@ -374,6 +380,7 @@ export function editor(o: {
         edit(t, change(t.value, t.selectionStart, t.selectionEnd));
       }),
     ),
+    keyButton("link", "Link", "Link", () => void link(o.text)),
     undo.key,
   );
   const save = h("button", { type: "submit", className: "primary" }, "Save");
@@ -427,6 +434,13 @@ export function editor(o: {
   // (its history entry put back) with the refusal said; Cancel is the way to discard.
   const onpop = async (e: PopStateEvent) => {
     e.stopImmediatePropagation();
+    // Back with the Link key's picker open, where it isn't the picker's own close request (a
+    // computer's Back): the picker closes, the editor stays, its history entry put back
+    const sheet = document.querySelector<HTMLDialogElement>("dialog.linkpick[open]");
+    if (sheet) {
+      history.pushState({ editor: true }, "");
+      return sheet.close();
+    }
     const kept = !closing && o.dirty();
     if (kept) {
       warned = false; // say it again for this Back, though a typing save said it

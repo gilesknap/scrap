@@ -1,6 +1,6 @@
 // The editor's Undo key (#313): the browser's own undo, for phones whose keyboard has none.
 // It takes back typing and the editor's keys in order, is off until there is something to
-// take back, and the six keys fit on one line on any phone.
+// take back, and the seven keys fit on one line on any phone.
 import { expect, type Page, test } from "@playwright/test";
 import { deletedAfterEach, ulid } from "./helpers";
 
@@ -194,7 +194,7 @@ test("at a larger text size the words go sooner: icons alone at 390 px and 130%"
   await page.setViewportSize({ width: 390, height: 640 });
   await open(page);
   const keys = page.locator(".editor .keys button");
-  await expect(keys).toHaveCount(6);
+  await expect(keys).toHaveCount(7);
   await expect
     .poll(() =>
       keys.evaluateAll((ks) => ({
@@ -206,19 +206,19 @@ test("at a larger text size the words go sooner: icons alone at 390 px and 130%"
     .toEqual({ words: 0, fit: true, overflow: false });
 });
 
-// At 100% text the words go under about 356 px (css/composer.css): icons alone at 320 px
+// At 100% text the words go under about 413 px (css/composer.css): icons alone at 390 px
 for (const [width, words] of [
   [320, false],
-  [360, true],
-  [390, true],
+  [360, false],
+  [390, false],
   [430, true],
 ] as const) {
-  test(`the six keys fit on one line at ${width} px, ${words ? "each word on one line" : "icons alone"}`, async ({
+  test(`the seven keys fit on one line at ${width} px, ${words ? "each word on one line" : "icons alone"}`, async ({
     page,
   }) => {
     await page.setViewportSize({ width, height: 640 });
     await open(page);
-    await expect(page.locator(".editor .keys button")).toHaveCount(6);
+    await expect(page.locator(".editor .keys button")).toHaveCount(7);
     await expect
       .poll(
         () =>
@@ -248,6 +248,6 @@ for (const [width, words] of [
           }),
         { message: `no overflow at ${width} px` },
       )
-      .toEqual({ overflow: false, rowOverflow: false, words: Array(6).fill(words), bad: [] });
+      .toEqual({ overflow: false, rowOverflow: false, words: Array(7).fill(words), bad: [] });
   });
 }
