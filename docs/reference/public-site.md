@@ -31,9 +31,11 @@ scrap:
 | --- | --- |
 | `SCRAP_PUBLISH_TO` | The receiver's base URL, e.g. `http://scrap-receiver.scrap-public.svc:8081` (the chart's Service is `<fullname>-receiver`, here for a release named `scrap`) |
 | `SCRAP_PUBLISH_SITE` | The site's public base URL, e.g. `https://pages.gkcluster.org`, for the links scrap shows |
-| `SCRAP_PUBLISH_TOKEN_FILE`, `SCRAP_PUBLISH_TOKEN` | The same token, as a file or a value; the file wins |
+| `SCRAP_PUBLISH_TOKEN_FILE` | A file holding the same token (its content, stripped). scrap reads the token only from a file, never from an environment variable |
 
-Without `SCRAP_PUBLISH_TO` and a token, publishing is off.
+Without `SCRAP_PUBLISH_TO` and a token, publishing is off. A token file that is set but
+unreadable, shorter than 32 characters or holding whitespace, or a `SCRAP_PUBLISH_TO` that
+is not an `http(s)` URL, stops scrap starting.
 
 ## Transport and auth
 
@@ -320,15 +322,16 @@ Marked *default* below: a choice the owner may still change, kept in one place s
 
 - To a public page: `<a href="/p/<slug>">`, which works on the site as it does in scrap.
 - To a private page: a plain `<span>` holding the label the owner typed. With no typed label (a
-  bare `[[slug]]`, or a bare `/p/<slug>` address) the text is "a private page", never the slug.
-  *Default.*
+  bare `[[slug]]`, or a bare `/p/<slug>` address) the text is that page's title, as plain text:
+  a `<span>`, not a link. (The owner's decision; the warning on making a page public says so.)
+- A bare `[[slug]]` to a public page shows the linked page's title; one to no page (or a page in
+  the trash) is the plain text "a private page".
 - Elsewhere: `http:` and `https:` links as written, within [the link rules](#links-scrap-accepts).
 
 **Images and files**
 
-- An image: `<img src="scrap-blob:<sha>" alt="...">`. The `alt` is the text the owner typed in
-  Markdown (`![alt](...)`). An alt the PWA filled in from the file name is written as `alt=""`:
-  a file name is never published as alt text. *Default.*
+- An image: `<img src="scrap-blob:<sha>" alt="...">`. The `alt` is published as the app has
+  it, a file name the PWA filled in included (the owner's decision).
 - A file: `<a href="scrap-blob:<sha>">` with the link's label.
 - **Drawings (Excalidraw) are not published** in this version: they are left out, and a photo
   with a drawing on it is published as the photo alone. Publishing drawings is a follow-up.
@@ -342,8 +345,10 @@ private address.
 
 **The PWA's dialogs** (the sim's wording on the design branch is the final text):
 
-- Turning Public on asks once, OK or Cancel, saying that anyone with the address can read the
-  page, and that its tags and Claude's write-up and summary go public with it.
+- Making a page public asks every time, Cancel or Make public, saying that anyone with the
+  address can read the page, and listing what goes public with it: its tags, Claude's
+  write-up and summary, its attached files by name, and "Links to private pages show their
+  titles as plain text."
 - A save of a public page while offline is saved but not published, with the toast "Saved. Not
   published while offline: Refresh all public pages in Settings later." Publishes are never
   queued.
@@ -373,7 +378,10 @@ request is refused with `422 one_at_a_time`.
   (`200`) carries `"unpublish": "pending"`, and the next reconcile finishes the deletion.
 - Undelete and revert keep the flag as it is.
 
-`GET /api/pages/{key}` includes `public` (`true` or `false`) and `published_at`.
+`GET /api/pages/{key}` includes `public` (`true` or `false`), `published_at` and `public_url`
+(`<SCRAP_PUBLISH_SITE>/p/<slug>` while the page is public and the site is set, else null), and
+`site`, the site's base URL (`SCRAP_PUBLISH_SITE`, or null). The PATCH and undelete answers
+carry the same four.
 `published_at` is not a database column: it is read from the kept copy's `meta.json`, and is
 null when there is no kept copy (never published, or unpublished). A page with `public` on and
 `published_at` null shows its badge as "Public · not published yet". That is only a null
@@ -393,14 +401,19 @@ With `defer: true` scrap pushes the page's own unit but not `home`, the tag unit
 
 Under scrap's lock, scrap reads the page again, then checks ([](#what-scrap-sends-for-a-page)),
 replaces the placeholders, builds the unit and pushes it. `200` with
-`{"url": "<SCRAP_PUBLISH_SITE>/p/<slug>", "published_at": "<UTC ISO 8601>", "files": <n>}`.
+`{"url": "<SCRAP_PUBLISH_SITE>/p/<slug>", "published_at": "<UTC ISO 8601>", "files": <n>}`
+(`url` null without `SCRAP_PUBLISH_SITE`). If the page's unit went out but `home`, the tag
+units or `pagefind` could not be pushed after it, the answer is still `200`, with
+`"derived": "pending"`: the next reconcile pushes them.
 
 | Status | `error` | When |
 | --- | --- | --- |
 | `409` | `not_public` | The page is not `public`, or it is in the trash |
-| `409` | `stale` | `base_rev` is not the page's current revision |
+| `409` | `stale` | `base_rev` is not the page's current revision (the answer has `rev`, the current one) |
 | `413` | `too_large` | The body is over 25 MiB |
-| `422` | from the check | The HTML fails a rule, or a cap ([](#placeholders-and-files)); `detail` says which |
+| `422` | `bad_request` | The body is not JSON `{"html", "base_rev", "defer"}` |
+| `422` | `bad_html`, `bad_placeholder` | The HTML fails a rule, or a placeholder names a file that is not on the page (or an `img` a file that is not an image); `detail` says which |
+| `422` | `too_many_files`, `file_too_large`, `unit_too_large` | Over a cap ([](#placeholders-and-files)) |
 | `422` | `stale_tags` | A `scrap-tag:` names a tag the page no longer has (a tag edit raced the render); the PWA renders again |
 | `502` | `publish_failed` | The receiver refused or failed; `detail` holds its `error` code |
 | `503` | `not_configured` | Publishing is off (no `SCRAP_PUBLISH_TO` or token) |
@@ -411,14 +424,16 @@ A receiver `503 busy` is retried for up to 10 seconds before `502`.
 
 The public pages not in the trash: `[{"id", "slug", "title", "published_at"}]`, with
 `published_at` null for a page not published yet. `?links_to=<slug>` lists only the public pages
-whose kept copy refers to that page anywhere: a link in the text, Linked from or Related (the
-`refs` in each `meta.json`). The PWA uses it to decide which links in a page stay live, to find
+that refer to that page, from scrap's own link data, not the published HTML (where a link to a
+private page is only a label): those whose text or current write-up links to it (wiki links
+and `/p/` addresses: its Linked from), and those related to it either way (Claude's picks).
+The PWA uses it to decide which links in a page stay live, to find
 the pages to render again when a page is made public or private, and for Refresh all.
 
 ### `POST /api/public/rebuild`
 
-Build `home`, every tag unit and `pagefind` once, and push those whose digest changed: `200`
-with `{"units": [<each unit pushed>]}`, or `502` and `503` as for a publish. Refresh all sends
+Build `home`, every tag unit, `pagefind` and `assets` once, and push those whose digest
+changed: `200` with `{"units": [<each unit pushed>]}`, or `502` and `503` as for a publish. Refresh all sends
 each public page with `defer: true`, then calls this once.
 
 ## What scrap sends for a page
@@ -463,7 +478,10 @@ s section small span strong sub summary sup table tbody td tfoot th thead time t
 inside a `span` whose class includes `katex` ("inside KaTeX" below), KaTeX's markup:
 
 - MathML: `math semantics annotation mrow mi mn mo mtext mspace msup msub msubsup mfrac msqrt
-  mroot mover munder munderover mtable mtr mtd mstyle mpadded mphantom menclose`;
+  mroot mover munder munderover mtable mtr mtd mstyle mpadded mphantom menclose`. KaTeX puts
+  MathML inside `mo` and `mtext` (`\pmod`, `\operatorname`), which are text integration points,
+  so a browser (and html5lib) parses those children as HTML elements, which mean nothing
+  there: inside KaTeX, an HTML element with one of these names is checked as MathML;
 - SVG: `svg`, `path` and `line`, which it draws stretchy symbols with.
 
 Attributes:
@@ -471,7 +489,8 @@ Attributes:
 | Attribute | Where | Value |
 | --- | --- | --- |
 | `class`, `dir` | any kept HTML element | any text |
-| `id` | `h1` to `h6`, and the footnote markup's `a` and `li` | `[a-z0-9_-]{1,80}` (render.ts's heading and footnote ids) |
+| `class` | MathML inside KaTeX | any text (KaTeX's `mtd` classes, `mtr-glue` and `mml-eqn-num`) |
+| `id` | `h1` to `h6`, `a` and `li` (the footnote markup's) | `[a-z0-9_-]{1,80}` (render.ts's heading and footnote ids) |
 | `colspan`, `rowspan` | `td`, `th` | 1 to 3 digits |
 | `open` | `details` | none |
 | `alt` | `img` | any text, or empty |
@@ -495,7 +514,7 @@ An `a`'s `href` must fully match one of:
   - its path starts with `/api/`, whatever the host;
   - it has userinfo (`user@` or `user:pass@` before the host);
 - `mailto:...`, or `#<id>`;
-- `/p/<slug>` of a page that is public, or `/t/<key>`;
+- `/p/<slug>` of a page that is public, `/t/<key>`, or the site's own `/` and `/tags`;
 - a placeholder, `scrap-blob:<sha>` or `scrap-tag:<tag>`.
 
 A relative `/api/...` is always refused, as are `//...` and `/\...` (a browser reads both as
@@ -558,7 +577,7 @@ Each becomes an absolute path, `/p/<slug>/<name>` (absolute, because a relative 
 
 | Stored file | Name | Bytes |
 | --- | --- | --- |
-| A photo or other raster image | `img-<n>-<hex>.jpg` (`.png` when its preview is a PNG) | Its 2048-pixel preview, EXIF and GPS stripped when the preview was made |
+| A photo or other raster image | `img-<n>-<hex>.jpg` (scrap's previews are JPEGs) | Its 2048-pixel preview, EXIF and GPS stripped when the preview was made |
 | An SVG (an image or an attachment) | `img-<n>-<hex>.svg` | The stored SVG, run through scrap's SVG sanitiser again at publish (SVGs stored before #480 were never sanitised) |
 | Any other file | `file-<n>-<hex>.<ext>` | The file as stored; `<ext>` from the list in [](#units), else `bin` |
 
@@ -571,8 +590,9 @@ Each becomes an absolute path, `/p/<slug>/<name>` (absolute, because a relative 
   with `422` and a message saying which, before pushing anything.
 - **Time:** the receiver allows 30 seconds to receive a request, so a unit must also be one scrap
   can upload in that time on its link to the receiver (200 MiB needs about 56 Mbit/s). scrap's
-  client sends `Expect: 100-continue` where the client library supports it. A `408` is logged
-  as a failure, and the next reconcile tries the unit again.
+  client (httpx2) cannot send `Expect: 100-continue`, so it does not; the receiver's lingering
+  close still delivers an early refusal. A `408` is logged as a failure, and the next reconcile
+  tries the unit again.
 
 ### Tag keys
 
@@ -618,11 +638,10 @@ For each published page scrap keeps the unit exactly as it last pushed it, under
 `file-*`, with `meta.json` beside them (not part of the unit):
 
 ```json
-{"id": "...", "title": "...", "tags": ["..."], "published_at": "<UTC ISO 8601>", "refs": ["<slug>", "..."]}
+{"id": "...", "title": "...", "tags": ["..."], "published_at": "<UTC ISO 8601>"}
 ```
 
-`tags` are the page's tags in the database at publish time; `refs` the slugs the published page
-refers to (its links, Linked from and Related), for `?links_to=`. It is derived data, not
+`tags` are the page's tags in the database at publish time. It is derived data, not
 backed up. scrap also stores the digest it last pushed for every unit; a kept copy is damaged
 when the digest of its files, computed again, differs from that stored digest.
 

@@ -71,13 +71,15 @@ carry.
   refused (`409 not_public`) unless the page is public and not in the trash, so a render that
   raced an unpublish can never put the page back.
 - **When a page is published.**
-  - Turning Public on, after one OK or Cancel warning that the page's tags and Claude's write-up
-    and summary go public too.
+  - Making a page public, after a warning shown every time (Cancel or Make public) listing
+    what goes public with it: its tags, Claude's write-up and summary, its attached files by
+    name, and "Links to private pages show their titles as plain text."
   - Saving a public page in the PWA.
   - **Links coming alive.** When a page is made public or private, the PWA also renders and uploads
-    again the public pages that refer to it (`GET /api/public?links_to=`, from the `refs` each
-    kept copy records: links, Linked from and Related), so a label becomes a link, or a link a
-    label, without anyone editing those pages.
+    again the public pages that refer to it (`GET /api/public?links_to=`, from scrap's own link
+    data: pages whose text or write-up links to it, and pages related to it either way; not
+    the published HTML, where a link to a private page is only a label), so a label becomes a
+    link, or a link a label, without anyone editing those pages.
   - **Settings, "Refresh all public pages".** One action renders and uploads every public page
     again. It covers what the PWA did not see: edits over MCP, a regenerated write-up, a change in
     scrap's look. There is no stale tracking, no outbox, no trigger and no render on the server:
@@ -108,13 +110,13 @@ carry.
   - The body as shown, Claude's write-up and summary, and the tags (as chips linking to their
     tag pages). Mermaid diagrams go out as their source, not rendered.
   - Links to public pages stay links. A link to a private page becomes a plain `<span>` holding
-    the label the owner typed, or "a private page" when there is none (a bare `[[slug]]` or
-    address): never the slug, which comes from a title and can say more than the label (a
-    default the owner may change).
+    the label the owner typed, or, when there is none (a bare `[[slug]]` or address), that
+    page's title as plain text. The owner chose the title over a neutral "a private page": it
+    reads naturally, and the warning on making a page public says so.
   - Linked from and Related keep an entry only if the other page is public; otherwise the whole
     entry, title included, is dropped.
-  - An image's `alt` is the text the owner typed; an alt the PWA filled in from the file name is
-    published empty, so file names never go out as alt text (a default the owner may change).
+  - An image's `alt` is published as the app has it, a file name the PWA filled in included
+    (the owner's choice; a link's label may show a file's name too).
   - Left out: Claude's notes (a photo's description, the read text, the drawing), revisions, the
     extracted text of files, and every `/api` or other private address.
   - **Drawings (Excalidraw) are not published in this version.** The publish mode leaves them
@@ -159,7 +161,7 @@ carry.
   `assets`; a tag unit only its `index.html`, and `home` only one-segment HTML files.
 - **scrap keeps what it pushed.** For each public page scrap keeps the unit as last pushed under
   `<data>/cache/publish/p/<slug>/`: `index.html`, its `img-*` and `file-*`, and `meta.json` (the
-  page's id, title, tags at publish time, `published_at`, and `refs`, the slugs it refers to). It
+  page's id, title, tags at publish time and `published_at`). It
   is derived data, not backed up; a copy is damaged when its files' digest no longer matches the
   digest scrap last pushed. From these copies, and nothing else, scrap builds the
   home page (newest `published_at` first), the tag pages and the Pagefind index (the
@@ -240,7 +242,7 @@ carry.
   checks, or publishing fails with `422`: the two change together.
 - The site can be lost and rebuilt at any time; scrap's data folder holds the copy that matters.
 - scrap gains settings for the push (`SCRAP_PUBLISH_TO`, `SCRAP_PUBLISH_SITE`,
-  `SCRAP_PUBLISH_TOKEN` or `SCRAP_PUBLISH_TOKEN_FILE`); without them the feature is off.
+  `SCRAP_PUBLISH_TOKEN_FILE`: the token only from a file); without them the feature is off.
 - CI builds and publishes a second image, `scrap-public`, beside scrap's, and scrap gains the
   `pagefind[bin]` dependency.
 - The gist workflow goes: no `gh` token with the `gist` scope, no headless Chrome, no second
