@@ -5,7 +5,8 @@ at start too, again after RETRY_FIRST seconds, doubling up to RECONCILE_EVERY) w
 publishing is on.
 
 - publish: read the page again under the lock and refuse unless it is public, not in
-  the trash, already published or confirmed, and at base_rev; check the HTML, swap
+  the trash, already published or confirmed, and at base_rev; check the HTML (and
+  that it holds none of the owner's guidance for Claude: guarded), swap
   its placeholders, push its unit, keep the copy; then, unless deferred, push the
   derived units that changed.
 - settle (an unpublish): after a flag change or a trash has committed, delete the
@@ -39,6 +40,7 @@ from .errors import (
     Unconfirmed,
 )
 from .files import MAX_UNIT, page_files
+from .guarded import refuse_guidance
 from .kept import Kept
 from .push import push_derived, reconcile, stale_copies
 from .rewrite import swap
@@ -110,6 +112,7 @@ class Publisher:
                 raise Stale(page.rev)
             is_public = pages.public_slugs(self.store).__contains__
             checked = check(html, is_public)
+            refuse_guidance(self.store, page.id, html)  # never published (#538)
             if gone := [t for t in checked.tags if t not in page.tags]:
                 raise CheckError(
                     f"Not published: the page no longer has the tag {gone[0]!r}.",

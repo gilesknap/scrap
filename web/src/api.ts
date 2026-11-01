@@ -37,6 +37,7 @@ export interface FileRef {
   // photos: what Claude made of it; PDFs and text files: their text read for search (null:
   // never queued)
   ingest?: Ingest | FileIngest | null;
+  guidance?: string | null; // an image's: the owner's for its next reading (#538)
 }
 /** A file's photo ingest (what Claude made of it): an image's only, never a PDF's or a text
  * file's (a FileIngest has a kind); null if it has none. */

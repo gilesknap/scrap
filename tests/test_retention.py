@@ -25,7 +25,7 @@ PAGE_TABLES = (
     ("related", "page_id"), ("related", "other_id"), ("writeup", "page_id"),
     ("writeup_guidance", "page_id"), ("topic_source", "page_id"),
 )  # fmt: skip
-CAPTURE_TABLES = ("capture_blob", "job", "model_run", "derived")
+CAPTURE_TABLES = ("capture_blob", "job", "model_run", "derived", "image_guidance")
 
 
 @pytest.fixture
@@ -66,7 +66,7 @@ def dump(store) -> list[str]:
 
 def furnish(store, page_id, cid, sha, other):
     """Give a page a row in every table that can hold one: Claude's results and runs,
-    jobs, tags, a write-up, related picks both ways, and a topic membership."""
+    jobs, an image's guidance, tags, a write-up, related picks both ways, and a topic membership."""
     t = now()
     with store.connect() as conn:
         run = conn.execute(
@@ -96,6 +96,9 @@ def furnish(store, page_id, cid, sha, other):
         )
         conn.execute(
             "INSERT INTO writeup_guidance VALUES (?, 'g', 'me', ?)", (page_id, t)
+        )
+        conn.execute(
+            "INSERT INTO image_guidance VALUES (?, ?, 'g', 'me', ?)", (cid, sha, t)
         )
         conn.execute(
             "INSERT INTO model_tag VALUES (?, 'mt', 'on', 'm', ?)", (page_id, t)

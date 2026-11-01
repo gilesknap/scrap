@@ -130,8 +130,8 @@ def purge(
 
 
 def detach(conn: sqlite3.Connection, sha: str) -> None:
-    """Take a file off every capture holding it, with that photo's results, jobs and
-    runs (an orphan: no page shows it, and none of its pages is in the trash)."""
+    """Take a file off every capture holding it, with that photo's results, jobs,
+    runs and guidance (an orphan: no page shows it, and none of its pages is in the trash)."""
     holders = [
         row[0]
         for row in conn.execute(
@@ -154,6 +154,10 @@ def detach(conn: sqlite3.Connection, sha: str) -> None:
             ).fetchall(),
         )
         conn.execute("DELETE FROM job WHERE capture_id = ? AND source_sha256 = ?", args)
+        conn.execute(
+            "DELETE FROM image_guidance WHERE capture_id = ? AND source_sha256 = ?",
+            args,
+        )
         conn.execute(
             "DELETE FROM capture_blob WHERE capture_id = ? AND sha256 = ?", args
         )

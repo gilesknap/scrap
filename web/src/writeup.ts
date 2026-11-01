@@ -3,16 +3,14 @@
 // itself as a fold, In detail, with who wrote it and when, its Markdown (its [[slug]] links as
 // page links) and the owner's guidance for the next one. Only the current one is kept (ADR 39). Nobody
 // edits it. A chunk of its own: the page view loads it for a page with a write-up or a board.
-import { ApiError, api, type CurrentWriteup, kept, type Page, type Writeup } from "./api";
+import { api, type CurrentWriteup, kept, type Page, type Writeup } from "./api";
+import { act, guidanceFold as fold, why } from "./guidance";
 import { bodyView, h, toast, whenShort } from "./ui";
 import "./writeup.css";
 
 const JSON_TYPE = { "Content-Type": "application/json" };
 const FOLD = "scrap.fold.writeup";
 const TOPIC_FOLD = "scrap.fold.synthesis";
-/** Guidance being typed, by page: kept, with its fold open, when the page is drawn again. */
-const typing = new Map<string, string>();
-const why = (err: unknown) => (err instanceof ApiError ? err.message : "can't reach the server");
 
 /** Whether to look again soon: one is waiting, being written, or paused. */
 export const writing = (p: Page) =>
@@ -57,20 +55,6 @@ export function pageLinksOnly(el: HTMLElement, slugs: string[]): HTMLElement {
   for (const a of el.querySelectorAll("a"))
     if (!ok.has(a.getAttribute("href") ?? "")) a.replaceWith(...a.childNodes);
   return el;
-}
-
-/** A button that does one thing, disabled while it does it. */
-function act(label: string, run: () => Promise<void>, className = "") {
-  const b = h("button", { type: "button", className }, label);
-  b.onclick = async () => {
-    b.disabled = true;
-    try {
-      await run();
-    } finally {
-      b.disabled = false;
-    }
-  };
-  return b;
 }
 
 /** A board's write-up, as parts of the page's one Claude card (About this page, enrich.ts):
@@ -156,38 +140,18 @@ export function writeupParts(p: Page, show: (p: Page) => void) {
 
 /** The owner's guidance for the next write-up: a note, kept apart from the text. */
 function guidanceFold(p: Page, w: Writeup, show: (p: Page) => void) {
-  const box = h("textarea", {
-    rows: 3,
-    maxLength: 2000,
-    value: typing.get(p.id) ?? w.guidance ?? "",
+  return fold({
+    key: p.id,
+    saved: w.guidance,
     placeholder: "e.g. focus on the data flow; 'Enc' means encoder",
-    "aria-label": "Guidance for Claude",
-    oninput: () => typing.set(p.id, box.value),
+    line: "Used by the next write-up, and kept with it.",
+    done: "Saved: the next write-up follows it",
+    put: (text) =>
+      api<Page>(`pages/${p.id}/writeup/guidance`, {
+        method: "PUT",
+        headers: JSON_TYPE,
+        body: JSON.stringify({ guidance: text }),
+      }),
+    shown: show,
   });
-  const save = act(
-    "Save",
-    async () => {
-      try {
-        const next = await api<Page>(`pages/${p.id}/writeup/guidance`, {
-          method: "PUT",
-          headers: JSON_TYPE,
-          body: JSON.stringify({ guidance: box.value }),
-        });
-        typing.delete(p.id);
-        show(next);
-        toast(box.value.trim() ? "Saved: the next write-up follows it" : "Guidance removed");
-      } catch (err) {
-        toast(`Not saved: ${why(err)}`);
-      }
-    },
-    "primary",
-  );
-  return h(
-    "details",
-    { className: "claude-text sub", open: typing.has(p.id) },
-    h("summary", {}, w.guidance ? "Guidance for Claude (set)" : "Guidance for Claude"),
-    h("p", { className: "by" }, "Used by the next write-up, and kept with it."),
-    box,
-    h("div", { className: "row" }, save),
-  );
 }

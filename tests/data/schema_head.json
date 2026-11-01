@@ -726,6 +726,11 @@
    "enrichment",
    "CREATE TABLE enrichment ( page_id TEXT PRIMARY KEY REFERENCES page(id) ON DELETE CASCADE, run_id INTEGER REFERENCES enrich_run(id), producer TEXT NOT NULL, summary TEXT NOT NULL DEFAULT '', source TEXT, source_title TEXT, updated_at TEXT NOT NULL )"
   ],
+  "image_guidance": [
+   "table",
+   "image_guidance",
+   "CREATE TABLE image_guidance ( capture_id TEXT NOT NULL REFERENCES capture(id) ON DELETE CASCADE, source_sha256 TEXT NOT NULL, text TEXT NOT NULL, author TEXT NOT NULL, updated_at TEXT NOT NULL, PRIMARY KEY (capture_id, source_sha256) )"
+  ],
   "job": [
    "table",
    "job",
@@ -921,6 +926,7 @@
   "enrich_job": [],
   "enrich_run": [],
   "enrichment": [],
+  "image_guidance": [],
   "job": [],
   "model_run": [],
   "model_tag": [],
@@ -1788,6 +1794,67 @@
      0,
      "page",
      "page_id",
+     "id",
+     "NO ACTION",
+     "CASCADE",
+     "NONE"
+    ]
+   ]
+  },
+  "image_guidance": {
+   "columns": [
+    [
+     0,
+     "capture_id",
+     "TEXT",
+     1,
+     null,
+     1,
+     0
+    ],
+    [
+     1,
+     "source_sha256",
+     "TEXT",
+     1,
+     null,
+     2,
+     0
+    ],
+    [
+     2,
+     "text",
+     "TEXT",
+     1,
+     null,
+     0,
+     0
+    ],
+    [
+     3,
+     "author",
+     "TEXT",
+     1,
+     null,
+     0,
+     0
+    ],
+    [
+     4,
+     "updated_at",
+     "TEXT",
+     1,
+     null,
+     0,
+     0
+    ]
+   ],
+   "foreign_keys": [
+    [
+     0,
+     0,
+     "capture",
+     "capture_id",
      "id",
      "NO ACTION",
      "CASCADE",
@@ -3295,5 +3362,5 @@
    ]
   }
  },
- "user_version": 20
+ "user_version": 21
 }

@@ -389,9 +389,14 @@ open):
 
 ```html
 <details class="reading"><summary>Claude's reading</summary><div class="claude">
-<p>...the photo's description...</p><pre>...the text read from it, or a PDF's text...</pre>
+<p>...the photo's description...</p>
+<details class="readtext"><summary>Text read from the image</summary><pre>...the text read
+from it...</pre></details>
 </div></details>
 ```
+
+A photo's read text is a fold of its own inside it (#538), published closed too, and still
+indexed by Pagefind; a PDF's text is a plain `<pre>` in the fold, as before.
 
 It follows the photo (and its drawing's links), or the file's row. Its text is scrubbed as page
 text is (no address of scrap's own, no `/api/`: "a private link"), scrap's check holds it to the
@@ -403,6 +408,10 @@ photos and files" when the page has any.
 
 **Left out**: Claude's notes on a photo outside its fold (where its reading is up to, Generate
 and Regenerate), revisions, the PWA's controls, and every `/api` or other private address.
+**Never published**: the owner's **Guidance for Claude**, the page's (for its write-up) and each
+photo's (for its reading, #538). The publish mode never writes it, and scrap refuses a page
+whose text holds one (`422 guidance`), unless those words are also the page's own (its text,
+title, tags, a reading or the write-up). A note shorter than 12 characters is not looked for.
 
 **Head**: the fixed meta CSP, `/assets/page.css`, `/assets/katex.css` for a page with maths, the
 site's icons (#527), `<link rel="icon" href="/assets/icon.svg" type="image/svg+xml">` and
@@ -507,6 +516,7 @@ page's unit is pushed (Pagefind failing or timing out, say): it is logged, never
 | `422` | `bad_diagram` | A diagram the page shows was not sent, or not shown in both themes, one was sent that it does not show, or one's SVG cannot be made safe or names scrap in its style ([](#diagrams)) |
 | `422` | `too_many_files`, `file_too_large`, `unit_too_large` | Over a cap ([](#placeholders-and-files)) |
 | `422` | `stale_tags` | A `scrap-tag:` names a tag the page no longer has (a tag edit raced the render); the PWA renders again |
+| `422` | `guidance` | The page's text holds the owner's Guidance for Claude, the page's or a photo's ([](#claudes-reading)), which is never published |
 | `502` | `publish_failed` | The receiver refused or failed; `detail` holds its `error` code |
 | `503` | `not_configured` | Publishing is off (no `SCRAP_PUBLISH_TO` or token) |
 | `503` | `busy` | A photo's preview is being made; try again (`Retry-After: 5`) |

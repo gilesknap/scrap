@@ -1,19 +1,21 @@
 """The HTTP routes for a capture's photos and files: sending them to Claude again
-(reprocess; a file is read again, locally), a PDF's read text, and a photo's drawing:
+(reprocess; a file is read again, locally), an image's guidance for its next reading
+(#538), a PDF's read text, and a photo's drawing:
 the current one, its versions, saving a scene from the editor and restoring
 an old version. Registered by app.create_app (add_routes)."""
 
 import json
 import logging
-from typing import Any
+from typing import Annotated, Any
 
 from fastapi import FastAPI, Request
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from . import drawing, ingest
 from .api_models import Restore, Text
+from .store import guidance as image_guidance
 from .store import SURROGATE, InvalidError, NotFoundError, Store, TooLargeError
 from .uploads import author, too_large
 
@@ -50,6 +52,11 @@ class Reprocess(BaseModel):
     replace_human: bool = False  # the user confirmed replacing their own drawing
 
 
+class Guidance(BaseModel):
+    # The owner's note for the image's next reading; empty or null: none
+    guidance: Annotated[Text, Field(max_length=image_guidance.MAX_GUIDANCE)] | None = None
+
+
 def photo(cid: str, sha: str) -> tuple[str, str]:
     """A photo's (capture id, sha256) as stored: upper and lower case."""
     return cid.upper(), sha.lower()
@@ -64,6 +71,16 @@ def add_routes(app: FastAPI, store: Store) -> None:
         if app.state.worker:
             app.state.worker.wake()
         return added
+
+    @app.put("/api/captures/{cid}/photos/{sha}/guidance")
+    def photo_guidance(
+        cid: str, sha: str, ask: Guidance, request: Request
+    ) -> dict[str, str | None]:
+        """Keep the owner's guidance for an image's next reading (empty or null:
+        none): {guidance}. It queues nothing: Regenerate (reprocess) does, and sends
+        it with the image. 404 for a capture or file not there, 422 for a file that
+        is not an image Claude reads."""
+        return ingest.set_guidance(store, *photo(cid, sha), ask.guidance, author(request))
 
     @app.get("/api/captures/{cid}/files/{sha}/text")
     def file_text(cid: str, sha: str) -> dict[str, Any]:

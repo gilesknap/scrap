@@ -23,9 +23,11 @@ from ..store import (
     queue_after_read,
     transaction,
 )
+from ..store import guidance as image_guidance
 from ..store.helpers import file_kind
 from ..store.roles import IS_FIRST, UNFILED, first_capture
 from . import files, svgread
+from .guidance import with_guidance
 from .constants import PAUSES, POLL, REV, TITLE_CAS, budget_day_micros
 from .jobs import (
     charge,
@@ -208,6 +210,7 @@ class Worker:
                 f"SELECT {REV}, c.received_at FROM capture c"
                 " JOIN page p ON p.id = c.page_id WHERE c.id = ?", (cid,),
             ).fetchone()  # fmt: skip
+            guided = image_guidance.get(conn, cid, photo)  # the owner's (#538)
         taken = captured_on(base and base[1])
         model = claude.model_name()
         system, version = claude.prompt()
@@ -216,6 +219,7 @@ class Worker:
             messages = claude.photo_messages(sent, width, height, taken)
         else:  # an SVG: its markup as text, no image (svgread)
             messages = svgread.messages(markup, taken)
+        messages = with_guidance(messages, guided)
         request = {
             "backend": claude.backend(),
             "model": model,
@@ -224,6 +228,7 @@ class Worker:
             "system": system,
             "messages": messages,
             "schema": claude.SCHEMA,
+            "guidance": guided,  # kept with the run, as a write-up's is
         }
         with self.store.connect() as conn, transaction(conn):
             if sent is not None:
