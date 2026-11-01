@@ -76,6 +76,7 @@ model call per diagram, describing what Claude had just drawn and labelled (#521
   the page's guidance a reading.
 - **Never published.** The publish mode never writes it, and scrap refuses a publish whose text
   holds the page's or an image's guidance (`422 guidance`), unless those words are also the
-  page's own (its text, title, tags, a reading, its summary, the write-up, a page's title),
-  compared word by word whatever the markup; notes under 12 characters are not
+  page's own (its text, title, tags, files' names, a reading, its summary, the write-up, a
+  page's title, the publish mode's labels), compared word by word whatever the markup, whole
+  in one of them or every word of the note one of theirs; notes under 12 characters are not
   looked for, since a word or two would refuse ordinary pages.

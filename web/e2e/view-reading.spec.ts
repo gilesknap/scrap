@@ -92,6 +92,10 @@ test("a photo's reading has Guidance for Claude at its bottom, as About this pag
   const p = await (await page.request.get(`/api/pages/${b.slug}`)).json();
   expect(p.captures[0].blobs[0].guidance).toBe("R1 is the pull-up resistor");
   expect(sent).toBe(false);
+  // the page drawn again at once: the reading still open, its guidance closed and set
+  await expect(fold).toHaveAttribute("open", "");
+  await expect(fold.locator("details.guidance > summary")).toHaveText("Guidance for Claude (set)");
+  await expect(fold.locator("details.guidance")).not.toHaveAttribute("open", "");
   // drawn again: closed, labelled set, its text kept
   await page.reload();
   const again = page.locator(".photo-panel details.reading-fold");

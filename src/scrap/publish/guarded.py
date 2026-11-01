@@ -7,11 +7,12 @@ A guidance note is found when its words, in order, are anywhere in the published
 page: any text, head, comments and all, and the attributes that show or speak (alt,
 aria-label, title). Words are compared alone (case, punctuation and Markdown, spacing,
 compatibility forms and invisible characters aside), so the rendered page and the
-Markdown it came from compare alike. Not when they are also what the page may show:
-its own text, title and tags, what Claude read and wrote of it (a reading, its
-summary, a write-up), which the owner's words may echo, and pages' titles (a link
-shows one). A short note (under MIN characters) is not looked for: a word or two
-would refuse ordinary pages.
+Markdown it came from compare alike. Not when they are also what the page may show
+(whole in one of them, or every word of the note one of its words): its own text,
+title, tags and files' names, what Claude read and wrote of it (a reading, its
+summary, a write-up), which the owner's words may echo, pages' titles (a link shows
+one), and the publish mode's own labels. A short note (under MIN characters) is not
+looked for: a word or two would refuse ordinary pages.
 """
 
 import re
@@ -41,7 +42,16 @@ UNION ALL SELECT text FROM writeup WHERE page_id = :page
 UNION ALL SELECT summary FROM enrichment WHERE page_id = :page
 UNION ALL SELECT source_title FROM enrichment WHERE page_id = :page
 UNION ALL SELECT title FROM page WHERE deleted_at IS NULL
+UNION ALL SELECT cb.filename FROM capture_blob cb JOIN capture c ON c.id = cb.capture_id
+    WHERE c.page_id = :page AND cb.filename IS NOT NULL
 """
+# The words the publish mode writes around them (publish.ts): its labels and links
+CHROME = (
+    "Claude's reading. Text read from the image. Photo. Drawing. Drawing of. Diagram."
+    " Open in Excalidraw. Download, then open in excalidraw.com to edit. About this"
+    " page. Summary. In detail. Related. Topics. Sources. Published from scrap. All"
+    " pages. a private link. a private page. To do. Done."
+)
 NOTES = """
 SELECT text FROM writeup_guidance WHERE page_id = :page
 UNION ALL SELECT g.text FROM image_guidance g JOIN capture c ON c.id = g.capture_id
@@ -49,7 +59,11 @@ UNION ALL SELECT g.text FROM image_guidance g JOIN capture c ON c.id = g.capture
 """
 
 
-INVISIBLE = re.compile("[\u00ad\u200b-\u200f\u2060-\u2064\ufeff]")
+# Characters that show nothing (soft hyphen, zero widths, joiners, direction marks
+# and isolates, variation selectors): taken out, so none can split a word
+INVISIBLE = re.compile(
+    "[\u00ad\u034f\u200b-\u200f\u202a-\u202e\u2060-\u2069\ufe00-\ufe0f\ufeff]"
+)
 SHOWN = ("alt", "aria-label", "title")  # attributes a reader sees or hears
 
 
@@ -63,16 +77,21 @@ def _flat(text: str) -> str:
 
 
 def _all_text(html: str) -> str:
-    """Every text node of the page, head and comments and all, and its shown
-    attributes, each apart (words are compared, so markup between them is nothing)."""
+    """Every text node of the page in document order, head and comments and all,
+    and its shown attributes, each apart (words are compared, so markup between
+    them is nothing)."""
     root = html5lib.parse(html, treebuilder="etree", namespaceHTMLElements=False)
     out: list[str] = []
-    for el in root.iter():
-        if el.tag is ET.Comment:  # type: ignore[comparison-overlap]
-            out += [f" {el.text or ''} ", el.tail or ""]
-            continue
-        out += [f" {el.get(a)} " for a in SHOWN if el.get(a)]
-        out += [el.text or "", el.tail or ""]
+
+    def walk(el: ET.Element) -> None:
+        if el.tag is not ET.Comment:  # type: ignore[comparison-overlap]
+            out.extend(el.get(a) or "" for a in SHOWN)
+        out.append(el.text or "")
+        for kid in el:
+            walk(kid)
+            out.append(kid.tail or "")
+
+    walk(root)
     return " ".join(out)
 
 
@@ -89,9 +108,15 @@ def refuse_guidance(store: Store, page_id: str, html: str) -> None:
         ]
         if not notes:
             return
-        own = "\n".join(map(_flat, _texts(conn, OWN, page_id)))
+        own = [*map(_flat, _texts(conn, OWN, page_id)), _flat(CHROME)]
+    words = {w for o in own for w in o.split()}
     shown = _flat(_all_text(html))
-    if any(n in shown and n not in own for n in notes):
+    # Found, and not the page's own: not in one of its own texts whole, nor every word
+    # of it the page's own (a note may run across two of them, a title into the text)
+    if any(
+        n in shown and not any(n in o for o in own) and not set(n.split()) <= words
+        for n in notes
+    ):
         raise CheckError(
             "Not published: the page holds the owner's guidance for Claude, which"
             " is never published.",

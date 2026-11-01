@@ -417,8 +417,9 @@ and Regenerate), revisions, the PWA's controls, and every `/api` or other privat
 **Never published**: the owner's **Guidance for Claude**, the page's (for its write-up) and each
 photo's (for its reading, #538). The publish mode never writes it, and scrap refuses a page
 whose text holds one (`422 guidance`), its words compared in order whatever the markup,
-unless they are also the page's own (its text, title, tags, a reading, its summary or
-write-up, or a page's title). A note shorter than 12 characters is not looked for.
+unless they are also the page's own (its text, title, tags, files' names, a reading, its
+summary or write-up, a page's title, the publish mode's labels), whole in one of them or
+every word of the note one of theirs. A note shorter than 12 characters is not looked for.
 
 **Head**: the fixed meta CSP, `/assets/page.css`, `/assets/katex.css` for a page with maths, the
 site's icons (#527), `<link rel="icon" href="/assets/icon.svg" type="image/svg+xml">` and

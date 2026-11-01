@@ -350,3 +350,24 @@ def test_the_guard_compares_words_so_markdown_and_comments_count(store):
     refuse_guidance(
         store, page_id, "<!DOCTYPE html><body><p>the dashed line is optional"
     )
+
+
+def test_a_note_across_the_pages_own_texts_is_not_refused(store):
+    ref = photo(store, text="Diagram of the fuse box")
+    run_all(store, Fake())
+    page_id = ref["page_id"]
+    with closing(connect(store.db)) as conn:
+        conn.execute("UPDATE page SET title = 'Garage wiring' WHERE id = ?", (page_id,))
+    sha = first_blob(store, page_id)["sha256"]
+    ingest.set_guidance(store, ref["capture_id"], sha, "wiring diagram", "me")
+    html = "<!DOCTYPE html><body><h1>Garage wiring</h1><p>Diagram of the fuse box"
+    refuse_guidance(store, page_id, html)
+    ingest.set_guidance(store, ref["capture_id"], sha, "Open in Excalidraw", "me")
+    refuse_guidance(store, page_id, html + "<a>Open in Excalidraw</a>")
+    # a word the page never had still counts
+    ingest.set_guidance(store, ref["capture_id"], sha, "wiring diagram landlord", "me")
+    with pytest.raises(CheckError):
+        refuse_guidance(store, page_id, html + " wiring diagram landlord")
+    # nor can an invisible isolate split a word
+    with pytest.raises(CheckError):
+        refuse_guidance(store, page_id, html + " wiring diagram land⁦lord")

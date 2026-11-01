@@ -753,7 +753,7 @@ Under each photo:
   (or **Generate**) sends it with the photo, and it steers the description, the text read and
   Claude's drawing. A drawing you edited is still never replaced without asking. It is kept for
   later Regenerates, until you clear it and Save. It is that photo's only: the page's own guidance
-  steers its write-up, and neither feeds the other. It is never published. Files (a PDF, a text
+  steers its write-up, and neither feeds the other. It is never published, nor in Share as HTML. Files (a PDF, a text
   file) and the images Claude drew have none.
 - An image Claude drew and added (`add_svg`) has nothing under it: Claude doesn't read its own
   images. Its label is its alt text, and what search finds.
