@@ -15,7 +15,12 @@ import { trailOf } from "./swipe";
 import { clearToasts, empty, h, placeToasts, problem, toast } from "./ui";
 
 const todos = () => import("./todos").then((m) => m.todos(pageRow)); // a lazy chunk
-const search = () => import("./search").then((m) => m.search()); // a lazy chunk, kept offline
+// The search screen: a lazy chunk, kept offline. Not started if its view was left while the
+// chunk loaded (search() takes the view's signal, address and history entry as it starts)
+const search = () => {
+  const signal = current.signal;
+  return import("./search").then((m) => (signal.aborted ? new Text() : m.search()));
+};
 const add = document.getElementById("new") as HTMLButtonElement;
 // The Todos screen's New todo: the composer (a chunk of its own) with Todo chosen; saved, it
 // closes back onto the list

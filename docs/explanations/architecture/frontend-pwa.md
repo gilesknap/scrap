@@ -18,9 +18,9 @@ flowchart LR
         queue["Offline queue"]
     end
     todos["Todos /todos"]
-    page["Page /p/slug"]
     subgraph offline["Lazy, precached"]
         search["Search /search"]
+        page["Page /p/slug"]
         composer["Composer + editors"]
         render["Markdown renderer"]
         sharing["Share + download"]
