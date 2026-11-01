@@ -311,9 +311,17 @@ drawing that a reader opens there ([](#drawings)). No other answer has the heade
 ### Caching
 
 - HTML: `Cache-Control: no-cache`, so a browser or proxy checks again before each use, and an
-  unpublished page is gone on its next load.
+  unpublished page is gone on its next load. A `304` for a page says `no-cache` too (nginx
+  knows HTML there by its file, `.html`, as a `304` has no `Content-Type`).
+- The site's own CSS and script, `/assets/*.css` and `/assets/*.js` (`page.css`, `katex.css`,
+  `prefs.js`): `Cache-Control: no-cache` too. Every page names them at the same addresses, so a
+  browser asks again on each load, with the `ETag` nginx sends, and gets a short `304` when
+  nothing changed; a page republished by a new release never shows with the last release's
+  stylesheet (#534). It is `no-cache`, not `no-store`, so browsers and Cloudflare still keep a
+  copy to revalidate.
 - Every other file: `Cache-Control: public, max-age=300`, so a deleted file can be seen from a
-  cache for up to five minutes more.
+  cache for up to five minutes more. KaTeX's fonts and the site's icons are among these: they
+  change only with KaTeX or the icon, and a page shown with an older font still reads.
 
 Nothing the site does reaches copies people saved, or caches that ignore these headers.
 
