@@ -102,7 +102,8 @@ class Site(BaseHTTPRequestHandler):
         self.send_header("Referrer-Policy", "no-referrer")
         self.send_header("X-Robots-Tag", "noindex, nofollow")
         fresh = kind.startswith("text/html") or NO_CACHE.search(path)
-        self.send_header("Cache-Control", "no-cache" if fresh else "public, max-age=300")
+        cache = "no-cache" if fresh else "public, max-age=300"
+        self.send_header("Cache-Control", cache)
         self.end_headers()
         if self.command != "HEAD":
             self.wfile.write(body)

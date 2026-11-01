@@ -243,14 +243,15 @@ for path in /assets/page.css /assets/katex.css /assets/prefs.js; do
     etag=$(header "$web$path" etag)
     check "$path has an ETag" [ -n "$etag" ]
     check "$path with its ETag is 304" [ "$(status -H "If-None-Match: $etag" "$web$path")" = 304 ]
-    check "$path's 304 is no-cache too" \
-        sh -c "curl -sS -o /dev/null -D - -H 'If-None-Match: $etag' '$web$path' | tr -d '\r' |
-            grep -qix 'cache-control: no-cache'"
+    curl -sS -o /dev/null -D - -H "If-None-Match: $etag" "$web$path" | tr -d '\r' >"$work/304"
+    check "$path's 304 is no-cache too" grep -qix 'cache-control: no-cache' "$work/304"
+    check "$path's 304 keeps the CSP" grep -qiFx "content-security-policy: $csp_home" "$work/304"
+    check "$path's 304 keeps nosniff" grep -qix 'x-content-type-options: nosniff' "$work/304"
 done
 for path in /assets/fonts/KaTeX_Main.ttf /assets/icon.svg /assets/icon-192.png /pagefind/pagefind.js; do
     check "$path is max-age=300" [ "$(header "$web$path" cache-control)" = "public, max-age=300" ]
 done
-check "a missing asset is a no-cache 404" \
+check "a missing asset is a no-cache 404 (it is home/404.html, HTML)" \
     [ "$(header "$web/assets/nope.css" cache-control)" = no-cache ]
 # After an assets push, a normal reload (the old ETag) gets the new stylesheet
 old_etag=$(header "$web/assets/page.css" etag)
