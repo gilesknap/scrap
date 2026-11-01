@@ -4,12 +4,17 @@ the reconcile loop (at start and every RECONCILE_EVERY seconds) while publishing
 on.
 
 - publish: read the page again under the lock and refuse unless it is public, not in
-  the trash, already published or confirmed, and at base_rev; check the HTML, swap its placeholders, push its unit,
-  keep the copy; then, unless deferred, push the derived units that changed.
+  the trash, already published or confirmed, and at base_rev; check the HTML, swap
+  its placeholders, push its unit, keep the copy; then, unless deferred, push the
+  derived units that changed.
 - settle (an unpublish): after a flag change or a trash has committed, delete the
   kept copy of each such page that may no longer be public, then its unit, then
   push the derived units again. A receiver that cannot be reached leaves it
   "pending": the copy is gone, so the next reconcile removes the unit.
+
+Nothing fails once something has committed (the page's unit pushed, or the flag
+change or trash before a settle): any error after that is logged, and the answer
+says "pending" for what the next reconcile finishes.
 """
 
 import logging
@@ -110,19 +115,19 @@ class Publisher:
                     dig = receiver.put(f"p/{page.slug}", unit)
                 except ReceiverError as e:
                     raise PublishFailed(e.code) from None
-                self.kept.write(page.slug, unit, meta, dig)
                 out: dict[str, Any] = {
                     "url": page_url(page.slug),
                     "published_at": meta["published_at"],
                     "files": len(files.data),
                 }
-                if not defer:
-                    try:
+                try:  # the page is out: nothing after this fails the publish
+                    self.kept.write(page.slug, unit, meta, dig)
+                    if not defer:
                         self._settle_slugs(receiver, self._others(page))
                         push_derived(self.kept, receiver, self._units())
-                    except ReceiverError as e:  # the page is out: reconcile does these
-                        log.warning("publish: the index units are pending: %s", e)
-                        out["derived"] = PENDING
+                except Exception:  # noqa: BLE001  reconcile does the rest
+                    log.exception("publish: p/%s is out; the rest is pending", page.slug)
+                    out["derived"] = PENDING
             return out
 
     def _others(self, page: pages.Page) -> list[str]:
@@ -145,18 +150,22 @@ class Publisher:
         "pending" if the receiver could not be told (reconcile finishes it), else
         None."""
         with self.lock:
-            stale = stale_copies(self.store, self.kept, set(ids))
-            if not stale:
-                return None
-            if not enabled():
-                self._settle_slugs(None, stale)
-                return None
-            try:
+            stale: list[str] = []
+            try:  # the change has committed: never fail it now
+                stale = stale_copies(self.store, self.kept, set(ids))
+                if not stale:
+                    return None
+                if not enabled():
+                    self._settle_slugs(None, stale)
+                    return None
                 with self._receiver() as receiver:
                     self._settle_slugs(receiver, stale)
                     push_derived(self.kept, receiver, self._units())
             except ReceiverError as e:
-                log.warning("publish: unpublishing %s is pending: %s", stale, e)
+                log.warning("publish: unpublishing %s is pending: %s", stale or ids, e)
+                return PENDING
+            except Exception:  # noqa: BLE001  reconcile finishes it
+                log.exception("publish: unpublishing %s is pending", stale or ids)
                 return PENDING
             return None
 

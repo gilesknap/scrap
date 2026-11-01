@@ -535,6 +535,43 @@ def test_a_tag_with_an_apostrophe_publishes(client, site):
     assert "it&#x27;s (fun)!*" in site.file(f"t/{tag_key(tag)}", "index.html").decode()
 
 
+def test_a_failure_after_the_page_is_out_is_pending_not_500(client, app, site,
+                                                            monkeypatch):  # fmt: skip
+    from scrap.publish import publisher as module
+
+    p = made(client)
+
+    def broken(*args, **kw):
+        raise RuntimeError("injected")
+
+    monkeypatch.setattr(module, "push_derived", broken)
+    r = put(client, p, "<p>notes</p>")
+    assert r.status_code == 200, r.text
+    assert r.json()["derived"] == "pending"
+    assert f"p/{p['slug']}" in site.units()  # the page went out
+    # the settle after a flag change that committed: pending, never 500
+    out = client.patch(f"/api/pages/{p['slug']}", json={"public": False})
+    assert out.status_code == 200, out.text
+    assert out.json()["public"] is False and out.json()["unpublish"] == "pending"
+    monkeypatch.undo()
+    configure(monkeypatch, app.state.publisher.store.dir.parent, site)
+    app.state.publisher.reconcile()
+    assert f"p/{p['slug']}" not in site.units()
+
+
+def test_the_trash_settles_without_a_500(client, site, monkeypatch):
+    from scrap.publish import publisher as module
+
+    p = made(client)
+    assert put(client, p, "<p>notes</p>").status_code == 200
+
+    def broken(*args, **kw):
+        raise OSError("injected")
+
+    monkeypatch.setattr(module, "stale_copies", broken)
+    assert client.delete(f"/api/pages/{p['slug']}").status_code == 204
+
+
 def test_a_busy_preview_is_503_with_retry_after(client, monkeypatch):
     from scrap.preview import BusyError
 
@@ -549,3 +586,12 @@ def test_a_busy_preview_is_503_with_retry_after(client, monkeypatch):
     assert (r.status_code, r.json()["error"]) == (503, "busy"), r.text
     assert r.headers["Retry-After"] == "5"
 
+
+def test_private_with_the_receiver_unreachable_is_pending(client, monkeypatch,
+                                                          tmp_path):  # fmt: skip
+    """C2: the receiver cannot be reached at all (nothing listens)."""
+    p = made(client)
+    assert put(client, p, "<p>notes</p>").status_code == 200
+    configure(monkeypatch, tmp_path, None)
+    out = client.patch(f"/api/pages/{p['slug']}", json={"public": False})
+    assert out.status_code == 200 and out.json()["unpublish"] == "pending"
