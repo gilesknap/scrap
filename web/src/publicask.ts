@@ -30,18 +30,22 @@ export const drawingsOn = (p: Page): number =>
     .filter((b) => b.ingest && "drawing" in b.ingest && b.ingest.drawing).length;
 
 /** Whether any of the page's photos or files has a reading that goes public in its fold
- * (#521): a photo's description or text, or a PDF's text, from the owner's captures. Not an
- * image Claude made (it shows nothing: claudemade.ts), nor a file whose embed was deleted. */
+ * (#521): a photo's description or text, or a PDF's text (one Claude uploaded too: scrap reads
+ * it). Not an image Claude made (it shows nothing: claudemade.ts), nor a Claude capture's
+ * reading of a file the owner's capture holds too (it is the owner's), nor a file whose embed
+ * was deleted. */
 export const readingsOn = (p: Page): boolean => {
-  const skip = new Set([...claudeMade(p), ...(p.removed ?? [])]);
-  return p.captures
-    .flatMap((c) => (byClaude(c) ? [] : c.blobs)) // a Claude capture's: its own, or the owner's
-    .some((b) => {
+  const claude = claudeMade(p);
+  const removed = new Set(p.removed ?? []);
+  return p.captures.some((c) =>
+    c.blobs.some((b) => {
       const i = b.ingest;
-      if (!i || skip.has(b.sha256)) return false;
+      if (!i || removed.has(b.sha256)) return false;
+      if (byClaude(c) && !claude.has(b.sha256)) return false; // the owner's file
       if ("kind" in i) return i.kind === "pdf" && i.state === "done" && i.searchable;
-      return b.mime.startsWith("image/") && !!(i.description || i.text);
-    });
+      return b.mime.startsWith("image/") && !claude.has(b.sha256) && !!(i.description || i.text);
+    }),
+  );
 };
 
 /** What goes public with the page, a line each: its tags, Claude's write-up and summary (on a

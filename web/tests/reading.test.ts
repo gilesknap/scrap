@@ -191,5 +191,12 @@ describe("Claude's own images", () => {
     expect(readingsOn(files(pdf({ kind: "text" }), "text/plain"))).toBe(false);
     expect(readingsOn(files(pdf({ state: "failed" })))).toBe(false);
     expect(readingsOn(files(null))).toBe(false);
+    // a PDF Claude uploaded is read by scrap, and its fold goes public
+    const claudePdf = {
+      tags: [],
+      removed: [],
+      captures: [cap("A", "mcp", "claude", [blob("d", pdf({}), "application/pdf")])],
+    } as unknown as Page;
+    expect(readingsOn(claudePdf)).toBe(true);
   });
 });
