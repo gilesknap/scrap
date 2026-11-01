@@ -75,11 +75,14 @@ def build(kept: Kept, static: Path) -> dict[str, dict[str, bytes]]:
     }
     for tag, tagged in tags.items():
         units[f"t/{tag_key(tag)}"] = {"index.html": tag_page(tag, tagged)}
+    stored = kept.digests()
     records = sorted(
         (f"/p/{slug}", str(meta.get("title") or slug),
-         index_text(kept.html(slug)))
+         _text(kept, slug, stored.get(f"p/{slug}")))
         for slug, meta in pages
     )  # fmt: skip
+    for gone in set(_TEXTS) - {slug for slug, _ in pages}:
+        del _TEXTS[gone]
     cache = kept.root / SEARCH
     try:
         index, ui_css = build_index(records, cache)
@@ -90,6 +93,22 @@ def build(kept: Kept, static: Path) -> dict[str, dict[str, bytes]]:
     if ui_css is not None:
         units["assets"] = assets(static, ui_css)
     return units
+
+
+# Each kept page's index text, by its slug and the digest scrap stored for it: a copy
+# is replaced whole (a new digest) or not at all, so an unchanged page is not parsed
+# with html5lib again on every build. Pages no longer kept drop out at the next build.
+_TEXTS: dict[str, tuple[str, str]] = {}
+
+
+def _text(kept: Kept, slug: str, stored: str | None) -> str:
+    hit = _TEXTS.get(slug)
+    if stored is not None and hit is not None and hit[0] == stored:
+        return hit[1]
+    text = index_text(kept.html(slug))
+    if stored is not None:
+        _TEXTS[slug] = (stored, text)
+    return text
 
 
 def pending(units: dict[str, dict[str, bytes]]) -> bool:

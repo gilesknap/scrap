@@ -4,6 +4,7 @@ the Pagefind index and the assets."""
 
 import gzip
 import json
+import sys
 import time
 from pathlib import Path
 
@@ -209,13 +210,13 @@ def test_search_is_built_once_for_the_same_records(client, app, monkeypatch):
 
     published(client, "A\nx", "<p>alpha</p>")
     calls = []
-    real = search._index
+    real = search._run
 
-    async def counted(records, out):
+    def counted(records, timeout):
         calls.append(len(records))
-        await real(records, out)
+        return real(records, timeout)
 
-    monkeypatch.setattr(search, "_index", counted)
+    monkeypatch.setattr(search, "_run", counted)
     one = derived.build(kept(app), WEB / "public")
     assert calls == []  # the publish's own build is cached
     published(client, "B\ny", "<p>beta</p>")
@@ -230,10 +231,10 @@ def test_a_pagefind_failure_keeps_the_last_index(client, app, site, monkeypatch)
     a = published(client, "A\nx", "<p>alpha</p>")
     before = site.units()
 
-    async def broken(records, out):
-        raise RuntimeError("injected")
+    def broken(records, out):
+        return [sys.executable, "-c", "import sys; sys.exit('injected')"]
 
-    monkeypatch.setattr(search, "_index", broken)
+    monkeypatch.setattr(search, "_command", broken)
     ref = client.post("/api/captures", json={"id": new_ulid(), "text": "B\ny"}).json()
     b = client.patch(f"/api/pages/{ref['slug']}", json={"public": True}).json()
     r = client.put(f"/api/pages/{b['slug']}/published", json={
@@ -261,24 +262,72 @@ def test_a_pagefind_failure_keeps_the_last_index(client, app, site, monkeypatch)
     assert site.units()["pagefind"]["digest"] != before["pagefind"]["digest"]
 
 
-def test_a_pagefind_build_that_hangs_times_out(client, app, monkeypatch):
-    import asyncio
-    import time
+def _gone(pid: int) -> bool:
+    """Whether a process has ended (gone, or a zombie waiting to be reaped)."""
+    try:
+        state = Path(f"/proc/{pid}/stat").read_text().rsplit(")", 1)[1].split()[0]
+    except OSError:
+        return True
+    return state == "Z"
 
+
+@pytest.mark.skipif(sys.platform != "linux", reason="reads /proc")
+def test_a_pagefind_build_that_hangs_times_out_and_leaves_nothing_running(
+    client, app, monkeypatch, tmp_path
+):
+    """A build that hangs is given up after TIMEOUT, and its process group is killed:
+    what it started (Pagefind's service, here a sleep) does not outlive it."""
     from scrap.publish import search
 
     published(client, "A\nx", "<p>alpha</p>")
-
-    async def slow(records, out):
-        await asyncio.sleep(30)
-
-    monkeypatch.setattr(search, "_index", slow)
-    monkeypatch.setattr(search, "TIMEOUT", 0.3)
+    pids = tmp_path / "pids"
+    hang = (
+        "import subprocess, sys, time\n"
+        "child = subprocess.Popen(['sleep', '60'])\n"
+        f"open({str(pids)!r}, 'w').write(str(child.pid))\n"
+        "time.sleep(60)\n"
+    )
+    monkeypatch.setattr(
+        search, "_command", lambda records, out: [sys.executable, "-c", hang]
+    )
+    monkeypatch.setattr(search, "TIMEOUT", 1.5)
     published(client, "B\ny", "<p>beta</p>")  # records changed: built again
     start = time.monotonic()
     units = derived.build(kept(app), WEB / "public")
-    assert time.monotonic() - start < 5
+    assert time.monotonic() - start < 10
     assert "pagefind" not in units and derived.pending(units)
+    child = int(pids.read_text())
+    deadline = time.monotonic() + 5
+    while not _gone(child):
+        assert time.monotonic() < deadline, "the build's child outlived it"
+        time.sleep(0.05)
+
+
+@pytest.mark.skipif(sys.platform != "linux", reason="reads /proc")
+def test_the_real_pagefind_build_leaves_nothing_running(tmp_path):
+    """A real build (the pinned binary) ends with no Pagefind service left behind."""
+    from scrap.publish import search
+
+    def services() -> set[int]:
+        found = set()
+        for d in Path("/proc").iterdir():
+            if d.name.isdigit():
+                try:
+                    cmd = (d / "cmdline").read_bytes()
+                except OSError:
+                    continue
+                if (
+                    b"pagefind" in cmd
+                    and b"--service" in cmd
+                    and not _gone(int(d.name))
+                ):
+                    found.add(int(d.name))
+        return found
+
+    before = services()
+    unit, css = search.build_index([("/p/a", "A", "alpha words")], tmp_path / "cache")
+    assert "pagefind-entry.json" in unit and css
+    assert services() <= before
 
 
 def test_started_with_the_receiver_down_it_retries_soon(tmp_path, site, monkeypatch):

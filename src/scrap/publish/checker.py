@@ -180,7 +180,9 @@ class _Walk:
             return local in ("td", "th") and SPAN_DIGITS.fullmatch(value) is not None
         if key == "open":
             return local == "details" and value == ""
-        if key == "alt":
+        if key == "alt":  # its text, as body text: no private address of scrap's
+            if local == "img":
+                _plain(value, "an img's alt")
             return local == "img"
         if key == "aria-hidden":
             return local == "span" and katex and value == "true"

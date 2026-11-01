@@ -20,7 +20,11 @@ import importlib.metadata
 import json
 import os
 import shutil
+import signal
+import subprocess
+import sys
 import tempfile
+import uuid
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
@@ -128,15 +132,51 @@ def _key(records: list[tuple[str, str, str]]) -> str:
     return hashlib.sha256(raw.encode()).hexdigest()
 
 
+def _command(records: Path, out: Path) -> list[str]:
+    """The build, as a process of its own: this module run on a records file."""
+    return [sys.executable, "-m", "scrap.publish.search", str(records), str(out)]
+
+
+def _stop(proc: subprocess.Popen[bytes]) -> None:
+    """End the build's process group, Pagefind's service with it (it would outlive a
+    timed-out build otherwise), and reap it."""
+    try:
+        if os.name == "posix":
+            os.killpg(proc.pid, signal.SIGKILL)  # what is left of the group, if anything
+        elif proc.poll() is None:
+            proc.kill()
+    except (ProcessLookupError, PermissionError):
+        pass
+    proc.wait()
+
+
 def _run(records: list[tuple[str, str, str]], timeout: float) -> dict[str, bytes]:
+    """Index records in a process of its own (and its own process group), killed
+    with all it started if it takes over timeout."""
     with tempfile.TemporaryDirectory(prefix="scrap-pagefind-") as tmp:
         out = Path(tmp) / "pagefind"
+        src = Path(tmp) / "records.json"
+        src.write_text(json.dumps(records, ensure_ascii=False), encoding="utf-8")
+        proc = subprocess.Popen(  # noqa: S603  our own interpreter and module
+            _command(src, out),
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.PIPE,
+            start_new_session=True,
+        )
         try:
-            asyncio.run(asyncio.wait_for(_index(records, out), timeout))
-        except TimeoutError:
+            _, err = proc.communicate(timeout=timeout)
+        except subprocess.TimeoutExpired:
             raise SearchError(f"Pagefind took over {timeout:.0f} s") from None
-        except Exception as e:  # noqa: BLE001  whatever the binary or its IPC raised
-            raise SearchError(f"Pagefind failed: {type(e).__name__}: {e}") from e
+        finally:
+            _stop(proc)
+            if proc.stderr is not None:
+                proc.stderr.close()
+        if proc.returncode:
+            said = err.decode(errors="replace").strip().splitlines()[-1:] or [
+                "no detail"
+            ]
+            raise SearchError(f"Pagefind failed: {said[0]}")
         return {
             p.relative_to(out).as_posix(): p.read_bytes()
             for p in sorted(out.rglob("*"))
@@ -162,14 +202,19 @@ def _load(cache: Path, key: str | None) -> tuple[dict[str, bytes], bytes] | None
 
 
 def _save(cache: Path, key: str, unit: dict[str, bytes], css: bytes) -> None:
+    """Swap the new build in for the cached one. Runs under the publish lock, so a
+    .search-* folder beside it is a leftover of a crash: removed first."""
     cache.parent.mkdir(parents=True, exist_ok=True)
-    new = Path(tempfile.mkdtemp(dir=cache.parent, prefix=".search-"))
+    for left in cache.parent.glob(".search-*"):
+        shutil.rmtree(left, ignore_errors=True)
+    new = cache.parent / f".search-{uuid.uuid4().hex}"
+    new.mkdir()
     for name, content in unit.items():
         (new / "unit" / name).parent.mkdir(parents=True, exist_ok=True)
         (new / "unit" / name).write_bytes(content)
     (new / "css").write_bytes(css)
     (new / "key").write_text(key)
-    old = cache.parent / f".search-old-{os.getpid()}"
+    old = cache.parent / f".search-old-{uuid.uuid4().hex}"
     if cache.exists():
         os.replace(cache, old)
     os.replace(new, cache)
@@ -205,3 +250,10 @@ def build_index(
         except OSError:  # a cache only
             pass
     return unit, css
+
+
+if (
+    __name__ == "__main__"
+):  # the build's own process (_run): records file, output folder
+    _records = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+    asyncio.run(_index([tuple(r) for r in _records], Path(sys.argv[2])))

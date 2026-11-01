@@ -48,6 +48,14 @@ def own_hosts() -> frozenset[str]:
     return frozenset(hosts)
 
 
+# Zero-width characters dropped, and full-width or ideographic dots read as ".", before
+# a text is matched (only to find a host: the text itself is not changed)
+_FOLD = str.maketrans(
+    {**dict.fromkeys(map(ord, "\u200b\u200c\u200d\u2060\ufeff\u00ad")),
+     **dict.fromkeys(map(ord, "\u3002\uff0e\uff61"), ".")}
+)  # fmt: skip
+
+
 def _named(host: str) -> re.Pattern[str]:
     """host in lower-case text, only where it is not part of a longer name: no
     letter, digit, - or . before it, and no letter, digit or - after it, nor a .
@@ -60,10 +68,13 @@ def private_text(text: str) -> str | None:
     anywhere, or one of its own hosts as a name of its own (not inside a longer
     one), compared case-insensitively.
 
+    Zero-width characters are ignored and full-width dots read as dots first, so
+    neither hides a host.
+
     >>> private_text("see /API/Blobs/abc"), private_text("plain")
     ('/api/blobs/', None)
     """
-    lower = text.lower()
+    lower = text.translate(_FOLD).lower()
     if BLOBS in lower:
         return BLOBS
     for host in sorted(own_hosts()):

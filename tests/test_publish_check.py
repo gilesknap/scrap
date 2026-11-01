@@ -272,6 +272,19 @@ def test_scrap_s_host_in_text_is_refused_only_when_it_is_set(monkeypatch):
         ok(f"<p>{text}</p>")
 
 
+def test_a_host_hidden_by_zero_width_or_full_width_dots_or_in_alt_is_refused(monkeypatch):
+    monkeypatch.setenv("SCRAP_PUBLIC_URL", "https://scrap.example.ts.net:8446")
+    for text in ("scrap\u200b.example.ts.net", "scrap.exa\u2060mple.ts.net/p/x",
+                 "scrap\u3002example\uff0ets\uff61net",
+                 "\ufeffscrap.example.ts.net:8446"):  # fmt: skip
+        assert "private address" in refused(page(f"<p>{text}</p>")), repr(text)
+    alt = f'<p><img src="scrap-blob:{SHA}" alt="from https://scrap.example.ts.net/p/x"></p>'
+    assert "private address" in refused(page(alt))
+    assert "private address" in refused(
+        page(f'<p><img src="scrap-blob:{SHA}" alt="/api/blobs/{SHA}"></p>')
+    )
+
+
 def test_site_links_and_a_neutralised_placeholder_in_text_pass():
     ok('<p><a href="/">All pages</a> <a href="/tags">Tags</a></p>')
     ok(f"<p>scrap-⁠blob:{SHA} and scrap-⁠tag:x as text</p>")
