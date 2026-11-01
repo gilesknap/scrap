@@ -468,6 +468,47 @@ test.describe("the reader's theme and width (#519)", () => {
   });
 });
 
+test("a table looks as the app's: sized to its words, shaded header, scrolling sideways (#530)", async ({
+  page,
+}) => {
+  const n = await publicOne(
+    page,
+    "Public e2e table\n\n| Tier | Hostnames | Who gets through |\n|---|---|---|\n" +
+      "| **Demo** | `argocd`, `grafana`, `argocd-monitor` | Cluster owner, plus viewers (including `diamond.ac.uk` addresses) |\n" +
+      "| **Admin** | everything else under `*.gkcluster.org` (headlamp, ssh, alertmanager, scrap UI, open-webui) | Cluster owner only, and only via a **GitHub login with 2FA** |",
+  );
+  const read = () =>
+    page.evaluate(() => {
+      const box = document.querySelector(".table") as HTMLElement;
+      const first = document.querySelector("tbody td") as HTMLElement;
+      const strong = first.querySelector("strong") as HTMLElement;
+      const th = getComputedStyle(document.querySelector("th") as HTMLElement);
+      const body = Number.parseFloat(getComputedStyle(document.body).fontSize);
+      const column = document.querySelector(".body") as HTMLElement;
+      return {
+        // "Demo" whole, on one line (it broke as "Dem/o" at 880 px)
+        oneLine: strong.getClientRects().length === 1,
+        shaded: th.backgroundColor !== "rgba(0, 0, 0, 0)",
+        smaller: Number.parseFloat(getComputedStyle(first).fontSize) < body,
+        fits: box.getBoundingClientRect().width < column.getBoundingClientRect().width,
+        scrolls: box.scrollWidth > box.clientWidth,
+        pageScrolls: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+      };
+    });
+  // a computer, the owner's 880 px column: sized to its content, not the column
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto(`${SITE}/p/${n.slug}`);
+  await page.evaluate(() => document.documentElement.style.setProperty("--column", "880px"));
+  expect(await read()).toMatchObject({ oneLine: true, shaded: true, smaller: true, fits: true });
+  // the owner's phone (308 px, 130 % text): the table scrolls in its box, the page does not
+  await page.setViewportSize({ width: 308, height: 800 });
+  await page.evaluate(() => {
+    document.documentElement.style.removeProperty("--column");
+    document.documentElement.style.fontSize = "22.1px";
+  });
+  expect(await read()).toMatchObject({ oneLine: true, scrolls: true, pageScrolls: false });
+});
+
 test("with JavaScript off a page is light, at the default width, with no switches", async ({
   page,
   browser,

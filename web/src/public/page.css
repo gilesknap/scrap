@@ -244,17 +244,39 @@ pre code {
   padding: 0;
   background: none;
 }
+/* A table, as the app's (css/page.css, #530): it scrolls sideways in its own box, never the
+   page; the box hugs the table at the start of the line, a shaded header row, the app's smaller
+   text and padding, and words kept whole (the body's overflow-wrap: anywhere broke "Dem/o") */
 .table {
+  width: fit-content;
+  max-width: 100%;
+  margin: var(--s-3) 0;
   overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
 }
 table {
   border-collapse: collapse;
+  font-size: var(--t-sm);
+  overflow-wrap: normal;
 }
-td,
-th {
-  padding: var(--s-1) var(--s-2);
-  border: 1px solid var(--line);
+:is(th, td) {
+  min-width: 4rem;
+  max-width: 20rem;
+  padding: var(--s-2) var(--s-3);
+  border-bottom: 1px solid var(--line);
   text-align: start;
+  vertical-align: top;
+}
+:is(th, td) + :is(th, td) {
+  border-inline-start: 1px solid var(--line);
+}
+th {
+  background: var(--sunk);
+  font-weight: 600;
+}
+tbody tr:last-child td {
+  border-bottom: none;
 }
 li.task {
   list-style: none;
@@ -512,6 +534,14 @@ body.site h2.site-search-label {
   }
   img {
     break-inside: avoid;
+  }
+  /* a wide table wraps or shows whole on paper, not clipped sideways (as the app's print.css) */
+  .table {
+    overflow: visible;
+  }
+  .table :is(th, td) {
+    min-width: 0;
+    overflow-wrap: anywhere;
   }
   /* on paper, both the photo and its drawing */
   .pair .tabs {

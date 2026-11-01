@@ -13,8 +13,8 @@ own (#519), and drawings published, downloadable and opened in excalidraw.com (#
 [](#amendment-reader-preferences-and-drawings) at the end.
 
 Amended 2026-11-01 (1.3.2): a drawing replaces its photo, with no photo in it (#524); an SVG
-served as exactly `image/svg+xml`, so excalidraw.com opens it (#526); and the site's icons and
-header mark, scrap's own (#527). See [](#amendment-drawings-without-the-photo-and-the-sites-icon) at the end.
+served as exactly `image/svg+xml`, so excalidraw.com opens it (#526); the site's icons and
+header mark, scrap's own (#527); and tables shown as the app shows them (#530). See [](#amendment-drawings-without-the-photo-and-the-sites-icon) at the end.
 
 ## Context
 
@@ -357,7 +357,7 @@ whiteboard page, were left out. The owner decided both on 1 Nov 2026.
   cannot be drawn fails the publish rather than going out half made.
 
 (amendment-drawings-without-the-photo-and-the-sites-icon)=
-## Amendment: drawings without the photo, and the site's icon (1.3.2, #524, #526, #527)
+## Amendment: drawings without the photo, and the site's icon (1.3.2, #524, #526, #527, #530)
 
 Date: 2026-11-01
 
@@ -404,6 +404,15 @@ Date: 2026-11-01
   site's own pages. It is `page.css` alone (a `::before` background, `img-src 'self'`), so no
   markup, check or receiver change. A long name is cut with "…" rather than wrapping under the
   switches.
+
+### Tables as the app's (#530)
+
+- A published table looked unlike the app's and broke words ("Dem/o" even at an 880 px
+  column): the site's CSS stretched it and the page's `overflow-wrap: anywhere` reached into
+  it. `page.css` now has the app's table rules: the table in its own box that scrolls sideways
+  (the page never does), sized to its content, a shaded header row, the app's smaller text and
+  padding, and words kept whole. The markup was already the app's (`<div class="table">`), so
+  nothing else changes.
 
 ### Consequences of the 1.3.2 amendment
 
