@@ -199,6 +199,17 @@ describe("what a public page holds", () => {
     expect(out.maths).toContain('<link rel="stylesheet" href="/assets/katex.css">');
   });
 
+  it("names scrap's two icons in the head, each once, as the contract's check takes (#527)", () => {
+    const icons =
+      '<link rel="icon" href="/assets/icon.svg" type="image/svg+xml">\n' +
+      '<link rel="apple-touch-icon" href="/assets/icon-192.png">';
+    expect(out.plain).toContain(icons);
+    const twice = out.plain.replace(icons, `${icons}\n${icons}`);
+    expect(check(twice, LIVE, ["scrap.example"])).toContain("in head: an icon link twice");
+    const other = out.plain.replace('href="/assets/icon.svg"', 'href="/assets/other.svg"');
+    expect(check(other, LIVE, ["scrap.example"])).toContain("in head: <link>");
+  });
+
   it("links public pages by their title when bare, private ones as their words", () => {
     const h = out.links;
     expect(h).toContain('<a href="/p/design-notes">Design notes</a>'); // bare: its title

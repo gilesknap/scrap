@@ -85,6 +85,7 @@ export function check(html: string, live: ReadonlySet<string>, own: readonly str
   for (const n of [doc, head, body])
     for (const [k] of n.attrs) if (!["lang", "dir"].includes(k)) bad.push(`${name(n)}@${k}`);
   let csp = false;
+  const icons = new Set<string>();
   for (const n of kids(head)) {
     const a = (k: string) => n.getAttribute?.(k) ?? null;
     if (name(n) === "meta" && n.attrs.length === 1 && a("charset")?.toLowerCase() === "utf-8")
@@ -116,7 +117,11 @@ export function check(html: string, live: ReadonlySet<string>, own: readonly str
       continue;
     // the site's two icons (#527), exactly so
     const attrs = JSON.stringify([...n.attrs].sort());
-    if (name(n) === "link" && ICON_LINKS.includes(attrs)) continue;
+    if (name(n) === "link" && ICON_LINKS.includes(attrs)) {
+      if (icons.has(attrs)) bad.push("in head: an icon link twice");
+      icons.add(attrs);
+      continue;
+    }
     bad.push(`in head: <${name(n)}>`);
   }
   if (!csp) bad.push("no CSP");
