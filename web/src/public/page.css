@@ -244,6 +244,16 @@ pre code {
   padding: 0;
   background: none;
 }
+/* A code block as the app's (css/page.css .md pre, #546): lines kept whole, so a text drawing
+   (a factor tree) isn't broken, scrolling sideways in its own box, never the page; the app's
+   smaller text. Only the page's text (.body.md): the reading fold's pre still wraps */
+.md pre {
+  white-space: pre;
+  font-size: var(--t-sm);
+}
+.md pre code {
+  font-size: 0.88em;
+}
 /* A table, as the app's (css/page.css, #530): it scrolls sideways in its own box, never the
    page; the box hugs the table at the start of the line, a shaded header row, the app's smaller
    text and padding, and words kept whole (the body's overflow-wrap: anywhere broke "Dem/o") */
@@ -670,6 +680,11 @@ body.site h2.site-search-label {
   .table :is(th, td) {
     min-width: 0;
     overflow-wrap: anywhere;
+  }
+  /* and a code block wraps on paper (as the app's print.css) */
+  .md pre {
+    overflow: visible;
+    white-space: pre-wrap;
   }
   [data-theme] figure.diagram img.light {
     display: inline;

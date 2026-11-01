@@ -12,7 +12,7 @@
 // excalidraw.com opens it (#526); scrap's icons in every head (#527); a Mermaid diagram (#525)
 // drawn light and dark, one shown by the theme, its words found by search, and a code block's
 // /api/ path as written (#529). The site sends nginx's headers, so a page that breaks its CSP
-// fails here. Task boxes (#539) drawn as the app's, ticked and not, light and dark. Lists (#541) indented as the app's, at 100 % and 130 % text.
+// fails here. Task boxes (#539) drawn as the app's, ticked and not, light and dark. Lists (#541) indented as the app's, at 100 % and 130 % text. A wide code block (#546) keeps its lines whole and scrolls in its box.
 import { execFileSync } from "node:child_process";
 import { readdirSync, readFileSync } from "node:fs";
 import { expect, type Page, type Route, test } from "@playwright/test";
@@ -938,4 +938,56 @@ test("lists are indented as the app's: bulleted, numbered, nested and task (#541
   await page.goto(`${SITE}/p/${n.slug}`);
   await big();
   expect(await where()).toEqual(appBig);
+});
+
+test("a wide code block keeps its lines whole and scrolls in its own box, as the app's (#546)", async ({
+  page,
+}) => {
+  // A factor tree drawn in text, as the owner's maths page: wider than the phone's column
+  const tree = [
+    "                 360 = 2 x 2 x 2 x 3 x 3 x 5 (each prime circled)",
+    "                /                \\",
+    "              2                   180 = 2 x 90 = 2 x 2 x 45",
+    "                                 /    \\",
+    "                               2       90 --> 2 x 45 --> 3 x 15 --> 3 x 5",
+  ];
+  await page.setViewportSize({ width: 308, height: 800 }); // the owner's phone
+  const n = await publicOne(page, `Public e2e code\n\n\`\`\`\n${tree.join("\n")}\n\`\`\``);
+  // Each line of the tree is one line box, and the block scrolls, not the page
+  const shape = () =>
+    page.locator(".md pre").evaluate((pre) => {
+      const tops = new Set<number>();
+      const r = document.createRange();
+      r.selectNodeContents(pre.querySelector("code")?.firstChild ?? pre); // the text's own boxes
+      for (const box of r.getClientRects()) if (box.width > 0) tops.add(Math.round(box.top));
+      const doc = document.documentElement;
+      return {
+        lines: tops.size,
+        scrolls: pre.scrollWidth > pre.clientWidth,
+        overflowX: getComputedStyle(pre).overflowX,
+        pageScrolls: doc.scrollWidth > doc.clientWidth,
+      };
+    });
+  const want = { lines: tree.length, scrolls: true, overflowX: "auto", pageScrolls: false };
+  const big = () => page.evaluate(() => (document.documentElement.style.fontSize = "22.1px"));
+  for (const where of [`/p/${n.slug}`, `${SITE}/p/${n.slug}`]) {
+    await page.goto(where);
+    await expect(page.locator(".md pre")).toBeVisible();
+    expect(await shape()).toEqual(want);
+    // At the owner's 130 % text (22.1px a rem, as the lists' test)
+    await big();
+    expect(await shape()).toEqual(want);
+  }
+  // The site's block is the app's size: the same font and padding
+  const look = () =>
+    page.locator(".md pre").evaluate((pre) => {
+      const s = getComputedStyle(pre);
+      const c = getComputedStyle(pre.querySelector("code") ?? pre);
+      return [s.fontSize, c.fontSize, s.padding, s.backgroundColor, s.whiteSpace];
+    });
+  await page.goto(`/p/${n.slug}`);
+  await expect(page.locator(".md pre")).toBeVisible();
+  const app = await look();
+  await page.goto(`${SITE}/p/${n.slug}`);
+  expect(await look()).toEqual(app);
 });
