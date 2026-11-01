@@ -4,8 +4,10 @@ tag's page and the 404 (docs/reference/public-site.md, "What scrap builds"). Bui
 only from the kept copies' meta.json, in sorted order and with no build time, so the
 same copies give the same bytes.
 
-The classes they use (site-head, site-list, chips, chip, site-search, when) are
-styled by /assets/page.css, the PWA build's."""
+The classes they use (site-head, site-list, chips, chip, site-search,
+site-search-label, when) are styled by /assets/page.css, the PWA build's. Dates show
+as the PWA's footer writes them ("1 Nov 2026"), from published_at's UTC date, inside
+<time datetime="<published_at>">."""
 
 from html import escape
 from typing import Any
@@ -20,6 +22,23 @@ SEARCH = (
     '<script src="/pagefind/pagefind-ui.js" defer></script>\n'
     '<script src="/pagefind/scrap-search.js" defer></script>\n'
 )
+
+
+MONTHS = "Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec".split()
+
+
+def shown_date(iso: str) -> str:
+    """An ISO 8601 time's date as the PWA's footer writes it: day, short month,
+    year (English, whatever the locale); the text as it is if it is not one.
+
+    >>> shown_date("2026-11-01T09:30:00Z"), shown_date("nope")
+    ('1 Nov 2026', 'nope')
+    """
+    try:
+        year, month, day = (int(x) for x in iso[:10].split("-"))
+        return f"{day} {MONTHS[month - 1]} {year}"
+    except (ValueError, IndexError):
+        return iso
 
 
 def _document(title: str, body: str, head: str = "") -> bytes:
@@ -47,7 +66,10 @@ def _chips(tags: list[str]) -> str:
 
 def _row(slug: str, meta: dict[str, Any], tags: bool = True) -> str:
     when = str(meta.get("published_at") or "")
-    date = f' <time class="when" datetime="{escape(when)}">{escape(when[:10])}</time>'
+    date = (
+        f' <time class="when" datetime="{escape(when)}">'
+        f"{escape(shown_date(when))}</time>"
+    )
     chips = _chips(list(meta.get("tags") or [])) if tags else ""
     title = escape(str(meta.get("title") or slug))
     return f'<li><a href="/p/{slug}">{title}</a>{date if when else ""}{chips}</li>\n'
@@ -62,7 +84,8 @@ def home(pages: list[tuple[str, dict[str, Any]]]) -> bytes:
     rows = "".join(_row(slug, meta) for slug, meta in pages)
     none = "" if rows else "<p>No pages are public yet.</p>\n"
     body = (
-        '<h1>Pages</h1>\n<div id="search" class="site-search"></div>\n'
+        '<h1>Pages</h1>\n<h2 class="site-search-label">Search</h2>\n'
+        '<div id="search" class="site-search"></div>\n'
         f"{_list(rows)}{none}"
     )
     return _document("Pages", body, SEARCH)

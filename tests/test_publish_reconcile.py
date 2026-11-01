@@ -302,3 +302,20 @@ def test_started_with_the_receiver_down_it_retries_soon(tmp_path, site, monkeypa
         assert {"home", "pagefind", "assets"} <= set(site.units())
     finally:
         publisher.stop()
+
+
+def test_dates_show_as_the_pwa_writes_them_and_search_has_a_label(client, app):
+    import re
+
+    from scrap.publish.templates import shown_date
+
+    p = published(client, "A\nx", "<p>alpha</p>")
+    when = kept(app).meta(p["slug"])["published_at"]  # type: ignore[index]
+    units = derived.build(kept(app), WEB / "public")
+    want = f'<time class="when" datetime="{when}">{shown_date(when)}</time>'
+    assert re.fullmatch(r"[1-9][0-9]? [A-Z][a-z]{2} [0-9]{4}", shown_date(when))
+    for html in (units["home"]["index.html"], units["home"]["tags.html"],
+                 units[f"t/{tag_key('work')}"]["index.html"]):  # fmt: skip
+        assert want in html.decode()
+    home = units["home"]["index.html"].decode()
+    assert '<h2 class="site-search-label">Search</h2>\n<div id="search"' in home
