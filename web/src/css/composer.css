@@ -118,10 +118,11 @@
   line-height: 1.2;
   white-space: nowrap;
 }
-/* Six equal keys need six times the longest word ("Number" and "Outdent" at --t-xs are about
-   3rem; 3.1rem leaves a little for another font) and 4 px between words: at 100% text, a
-   phone under about 356 px (320 px: icons alone; 360 px: words), and wider at a larger text */
-@container (width < calc(18.6rem + 24px)) {
+/* Seven equal keys need seven times the longest word ("Number" and "Outdent" at --t-xs are
+   about 3rem; 3.1rem leaves a little for another font) and 4 px between words: at 100% text, a
+   phone under about 413 px (320, 360 and 390 px: icons alone; 430 px: words), and wider at a
+   larger text */
+@container (width < calc(21.7rem + 28px)) {
   .editor > .keys button > span {
     display: none;
   }

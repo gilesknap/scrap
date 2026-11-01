@@ -146,14 +146,14 @@ test("the editor shows an embed as a token with a chip; ✕ removes it, Save kee
   expect(after.body).toContain("Kept: Chip photo");
 });
 
-test("the editor's key bar: Task, Bullet, Number, Indent, Outdent, Undo on one line at 320 px", async ({
+test("the editor's key bar: Task, Bullet, Number, Indent, Outdent, Link, Undo on one line at 320 px", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 320, height: 640 });
   await page.goto("/");
   await page.getByRole("button", { name: "Note" }).click();
   const keys = page.locator(".editor .keys button");
-  await expect(keys).toHaveText(["Task", "Bullet", "Number", "Indent", "Outdent", "Undo"]);
+  await expect(keys).toHaveText(["Task", "Bullet", "Number", "Indent", "Outdent", "Link", "Undo"]);
   // The editor is still settling when it opens (fonts, the textarea's autosize), so poll the
   // boxes until they fit rather than reading them once.
   await expect
@@ -172,7 +172,7 @@ test("the editor's key bar: Task, Bullet, Number, Indent, Outdent, Undo on one l
       },
       { message: "the keys on one line, inside 320 px, 44 px tall" },
     )
-    .toEqual({ count: 6, misfits: [] });
+    .toEqual({ count: 7, misfits: [] });
   // What they do (listedit.ts has the rules; here, that the keys apply them)
   const text = page.getByPlaceholder("Note or link");
   const key = (name: string) => page.locator(".editor .keys").getByRole("button", { name });

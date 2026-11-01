@@ -1,0 +1,88 @@
+/* The Link key's page picker (linkpick.ts): a sheet at the top of what the keyboard leaves
+   (the visual viewport, --vv-top and --vv-h, editor.ts), so its box and rows are never under
+   the keyboard; the search box and a ✕, then "Recent" or "Matching" and a page a row */
+.linkpick {
+  position: fixed;
+  inset: calc(var(--vv-top, 0px) + var(--s-2)) 0 auto;
+  width: min(32rem, calc(100% - 2 * var(--s-2)));
+  max-height: calc(var(--vv-h, 100dvh) - 2 * var(--s-2));
+  margin: 0 auto;
+  padding: var(--s-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: var(--shadow-2);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.linkpick::backdrop {
+  background: rgb(0 0 0 / 40%);
+}
+.linkpick .find {
+  display: flex;
+  align-items: center;
+  gap: var(--s-1);
+  margin-bottom: var(--s-3);
+}
+.linkpick .find .field-search {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+}
+.linkpick .find input {
+  width: 100%;
+  padding-inline-end: var(--s-2);
+}
+.linkpick .close {
+  flex: none;
+  width: var(--tap);
+  padding: 0;
+  color: var(--ink-2);
+}
+.linkpick h2.label {
+  margin: 0 0 var(--s-1);
+  padding-inline: var(--s-2);
+}
+.linkpick .rows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+/* A page: its kind's icon and its title, on up to two lines, cut with … (one line left too
+   little of a title on a narrow phone at a large text size) */
+.linkpick .rows button {
+  display: flex;
+  justify-content: flex-start;
+  width: 100%;
+  padding: var(--s-1) var(--s-2);
+  border: none;
+  border-radius: var(--r-md);
+  background: transparent;
+  text-align: start;
+  font-weight: 400;
+}
+.linkpick .rows button:hover {
+  background: var(--sunk);
+}
+.linkpick .rows .i {
+  flex: none;
+  color: var(--ink-2);
+}
+.linkpick .rows span {
+  display: -webkit-box;
+  min-width: 0;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow-wrap: anywhere;
+}
+.linkpick .note:empty {
+  display: none;
+}
+.linkpick .note {
+  margin: var(--s-2) var(--s-2) 0;
+  color: var(--ink-2);
+  font-size: var(--t-sm);
+}
