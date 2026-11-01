@@ -49,8 +49,10 @@ KEPT = frozenset(
 HAS_ID = frozenset({"h1", "h2", "h3", "h4", "h5", "h6", "a", "li"})
 SPAN_DIGITS = re.compile(r"[0-9]{1,3}")
 # A placeholder as written in the uploaded text (and swapped there): the scheme, then
-# what the publish mode writes after it (a sha, or a URL-encoded tag)
-RAW_PLACEHOLDER = re.compile(r"scrap-(?:blob|tag):[^\"'<>\s&]*")
+# what the publish mode writes after it (a sha, or a URL-encoded tag, which may hold
+# ' as encodeURIComponent leaves it), up to the double quote the publish mode closes
+# the attribute with. (One in single quotes takes the quote too, and is refused.)
+RAW_PLACEHOLDER = re.compile(r"scrap-(?:blob|tag):[^\"<>\s&]*")
 PLACEHOLDER = re.compile(r"scrap-(?:blob|tag):", re.IGNORECASE)
 # html5lib's parse errors for markup the contract refuses outright
 REFUSED_ERRORS = {

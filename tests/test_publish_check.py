@@ -68,6 +68,8 @@ ALLOWED = [
     '<pre><code class="language-mermaid">graph TD; A--&gt;B</code></pre>',
     '<p dir="rtl">שלום</p><!-- a comment -->',
     "<blockquote><p>q</p></blockquote><hr><br>",
+    # encodeURIComponent leaves ' ( ) ! * as they are
+    """<p><a class="chip" href="scrap-tag:it's(fun)!*">it's (fun)!*</a></p>""",
     '<p><a href="https://example.org/x/../y">up</a> <a href="https://e.org/apis">'
     "apis</a> <a href=\"https://e.org/x?q=/api/\">query</a></p>",
     "<p>a private link</p>",
@@ -246,6 +248,13 @@ def test_the_pwa_publish_modes_pages_pass(path):
     """web/tests/fixtures/published/*.html: what the PWA's publish mode writes (its
     vitest saves them). Its links to /p/ pages count as public here."""
     check(path.read_text(), lambda slug: True)
+
+
+def test_a_tag_with_an_apostrophe_is_collected():
+    found = ok("""<p><a href="scrap-tag:it's%20ok">it's ok</a></p>""")
+    assert found.tags == ["it's ok"]  # type: ignore[attr-defined]
+    # in single quotes the raw text takes the quote: refused, not swapped wrongly
+    assert "plainly" in refused(page("<p><a href='scrap-tag:x'>x</a></p>"))
 
 
 def test_scrap_s_host_in_text_is_refused_only_when_it_is_set(monkeypatch):

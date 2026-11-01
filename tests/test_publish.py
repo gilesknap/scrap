@@ -471,3 +471,16 @@ def test_the_reconcile_loop_runs_from_the_lifespan(tmp_path, site):
 def test_no_loop_without_publishing(tmp_path):
     with TestClient(create_app(tmp_path / "data")) as c:
         assert c.app.state.publisher._thread is None  # type: ignore[attr-defined]
+
+
+def test_a_tag_with_an_apostrophe_publishes(client, site):
+    """The publish mode writes a tag with encodeURIComponent, which leaves ' ( ) ! *
+    as they are."""
+    tag = "it's (fun)!*"
+    p = made(client, tags=(tag,))
+    r = put(client, p, f'<p><a class="chip" href="scrap-tag:it\'s%20(fun)!*">x</a></p>')
+    assert r.status_code == 200, r.text
+    index = site.file(f"p/{p['slug']}", "index.html").decode()
+    assert f'href="/t/{tag_key(tag)}"' in index and "scrap-tag" not in index
+    assert f"t/{tag_key(tag)}" in site.units()
+    assert "it&#x27;s (fun)!*" in site.file(f"t/{tag_key(tag)}", "index.html").decode()
