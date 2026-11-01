@@ -4,6 +4,7 @@ the Pagefind index and the assets."""
 
 import gzip
 import json
+import time
 from pathlib import Path
 
 import pytest
@@ -251,3 +252,26 @@ def test_a_pagefind_build_that_hangs_times_out(client, app, monkeypatch):
     units = derived.build(kept(app), WEB / "public")
     assert time.monotonic() - start < 5
     assert "pagefind" not in units and derived.pending(units)
+
+
+def test_started_with_the_receiver_down_it_retries_soon(tmp_path, site, monkeypatch):
+    """The receiver may be starting too: a failed reconcile is retried after
+    RETRY_FIRST seconds (here a moment), doubling, not after the 10 minute period."""
+    from scrap.publish import Publisher
+
+    configure(monkeypatch, tmp_path, None)  # nobody listens yet
+    publisher = Publisher(create_app(tmp_path / "data").state.publisher.store)
+    publisher.start(every=600, retry=0.2)
+    try:
+        deadline = time.monotonic() + 10
+        while publisher.last["ok"] is not False:
+            assert time.monotonic() < deadline
+            time.sleep(0.02)
+        assert "unreachable" in publisher.last["error"]
+        configure(monkeypatch, tmp_path, site)  # the receiver is up
+        while publisher.last["ok"] is not True:
+            assert time.monotonic() < deadline, publisher.last
+            time.sleep(0.02)
+        assert {"home", "pagefind", "assets"} <= set(site.units())
+    finally:
+        publisher.stop()

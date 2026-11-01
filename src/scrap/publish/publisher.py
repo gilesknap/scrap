@@ -1,7 +1,8 @@
 """Publishing (ADR 43, docs/reference/public-site.md): the Publisher holds scrap's one
 lock over every publish, unpublish and reconcile, so they never interleave, and runs
-the reconcile loop (at start and every RECONCILE_EVERY seconds) while publishing is
-on.
+the reconcile loop (at start and every RECONCILE_EVERY seconds; after a failure,
+at start too, again after RETRY_FIRST seconds, doubling up to RECONCILE_EVERY) while
+publishing is on.
 
 - publish: read the page again under the lock and refuse unless it is public, not in
   the trash, already published or confirmed, and at base_rev; check the HTML, swap
@@ -41,11 +42,24 @@ from .push import push_derived, reconcile, stale_copies
 from .rewrite import swap
 from .settings import enabled, page_url, publish_site, publish_to, static_dir, token
 
-__all__ = ["RECONCILE_EVERY", "Publisher"]
+__all__ = ["RECONCILE_EVERY", "RETRY_FIRST", "Publisher", "backoff"]
 
 RECONCILE_EVERY = 600.0  # seconds
+RETRY_FIRST = 30.0  # after a failed reconcile; doubling, up to RECONCILE_EVERY
 PENDING = "pending"
 log = logging.getLogger(__name__)
+
+
+def backoff(failures: int, every: float, retry: float) -> float:
+    """Seconds to the next reconcile after this many failures in a row: every after
+    a success, else retry, doubling, up to every.
+
+    >>> [backoff(n, 600, 30) for n in range(7)]
+    [600, 30, 60, 120, 240, 480, 600]
+    """
+    if failures == 0:
+        return every
+    return min(retry * 2 ** (failures - 1), every)
 
 
 class Publisher:
@@ -254,18 +268,22 @@ class Publisher:
         }
 
     # The reconcile loop, while publishing is on (the app's lifespan)
-    def start(self, every: float = RECONCILE_EVERY) -> None:
+    def start(self, every: float = RECONCILE_EVERY, retry: float = RETRY_FIRST) -> None:
         if self._thread is not None:
             return
         self._stop.clear()
 
         def loop() -> None:
+            failures = 0
             while not self._stop.is_set():
                 try:
                     self.reconcile()
+                    ok = bool(self.last["ok"])
                 except Exception:  # noqa: BLE001  the loop must keep going
                     log.exception("publish: reconcile failed")
-                self._stop.wait(every)
+                    ok = False
+                failures = 0 if ok else failures + 1
+                self._stop.wait(backoff(failures, every, retry))
 
         self._thread = threading.Thread(target=loop, name="publish", daemon=True)
         self._thread.start()
