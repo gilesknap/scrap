@@ -408,8 +408,8 @@ Date: 2026-11-01
 ### Tables as the app's (#530)
 
 - A published table looked unlike the app's and broke words ("Dem/o" even at an 880 px
-  column): the site's CSS stretched it and the page's `overflow-wrap: anywhere` reached into
-  it. `page.css` now has the app's table rules: the table in its own box that scrolls sideways
+  column): the page's `overflow-wrap: anywhere` reached into it, so its first column could
+  shrink to a letter while the long cells filled the column. `page.css` now has the app's table rules: the table in its own box that scrolls sideways
   (the page never does), sized to its content, a shaded header row, the app's smaller text and
   padding, and words kept whole. The markup was already the app's (`<div class="table">`), so
   nothing else changes.
