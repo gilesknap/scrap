@@ -282,6 +282,13 @@ a.chip {
 .chip::before {
   content: "#";
 }
+/* The search box's visible label (templates.py: h2.site-search-label, over #search) */
+body.site h2.site-search-label {
+  margin: 0 0 var(--s-1);
+  color: var(--ink-2);
+  font-size: var(--t-sm);
+  font-weight: 600;
+}
 .site-search {
   margin-bottom: var(--s-4);
 }
