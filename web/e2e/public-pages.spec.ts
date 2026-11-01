@@ -340,9 +340,11 @@ test.describe("the reader's theme and width (#519)", () => {
     expect(await bg(page)).toBe(DARK_BG);
 
     await page.reload();
-    expect(await page.evaluate(() => (window as unknown as { painted: string[] }).painted[0])).toBe(
-      "dark",
+    // the first frame painted after the reload (the load event can come before it)
+    const first = await page.waitForFunction(
+      () => (window as unknown as { painted: string[] }).painted[0],
     );
+    expect(await first.jsonValue()).toBe("dark");
     expect(await bg(page)).toBe(DARK_BG);
     await expect(page.getByRole("button", { name: "Dark theme" })).toHaveAttribute(
       "aria-pressed",
