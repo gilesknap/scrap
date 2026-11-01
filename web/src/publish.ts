@@ -53,10 +53,13 @@ const reEscape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 function privates(origins: readonly string[]): RegExp {
   // the rest of an address: up to a space, not its last full stop, comma or bracket
   const tail = `[^\\s<>"]*[^\\s<>".,;:!?)]`;
+  // each host as text may hide it: a zero-width character between its letters, a
+  // full-width or ideographic dot for a dot (scrap's check reads past both)
+  const zw = "[\\u200b-\\u200d\\u2060\\ufeff\\u00ad]*";
   const hosts = origins
     .map(hostOf)
     .filter((h): h is string => !!h)
-    .map(reEscape);
+    .map((h) => [...h].map((c) => (c === "." ? "[.\\u3002\\uff0e\\uff61]" : reEscape(c))).join(zw));
   const own = hosts.length
     ? `(?:[a-z][a-z0-9+.-]*://)?(?<![\\w.-])(?:${hosts.join("|")})(?![\\w-]|\\.[\\w-])\\.?(?::\\d+)?(?:[/?#]${tail})?|`
     : "";

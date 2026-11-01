@@ -197,7 +197,9 @@ export async function again(list: PublicPage[], r: Run, each?: (i: number) => vo
     if (!q.published_at && !fresh) continue;
     const ac = new AbortController();
     try {
-      if (await publishOne(offScreen(q.slug, ac.signal), r, true, fresh)) done++;
+      // confirmed only for a page never published: one published before needs no yes
+      const first = fresh && !q.published_at;
+      if (await publishOne(offScreen(q.slug, ac.signal), r, true, first)) done++;
     } catch (err) {
       if (codeOf(err) !== "not_public") failed.push(`${q.title} (${whyNot(err)})`);
     } finally {

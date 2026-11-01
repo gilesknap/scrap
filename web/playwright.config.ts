@@ -4,11 +4,10 @@ import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { defineConfig, devices } from "@playwright/test";
-import { RECEIVER as receiver, SITE as sitePort } from "./e2e/ports";
+import { BASE as port, RECEIVER as receiver, SITE as sitePort } from "./e2e/ports";
 
 // Made once: test workers load this file again, and inherit it from the runner
 const data = process.env.SCRAP_E2E_DATA || mkdtempSync(join(tmpdir(), "scrap-e2e-"));
-const port = Number(process.env.SCRAP_E2E_PORT) || 8791; // another, to run beside a run
 process.env.SCRAP_E2E_DATA = data; // whiteboard.spec.ts has e2e/draw.py add fixtures to it
 // Public pages (#497): scrap publishes to the real receiver (scrap-public/receiver.py), with
 // a throwaway site folder and token file (removed after the run: e2e/teardown.ts), and

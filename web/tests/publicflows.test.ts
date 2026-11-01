@@ -310,10 +310,11 @@ describe("Refresh all", () => {
     const out = await pub.refreshAll((i, n) => seen.push(`${i}/${n}`));
     expect(seen).toEqual(["1/3", "2/3", "3/3"]);
     expect(out).toMatchObject({ done: 2, of: 3, failed: ["C (bad_html)"] });
+    // confirmed only for b, the one never published (the owner's yes was to it)
     expect(puts().map((p) => [p.slug, p.defer, p.confirmed])).toEqual([
-      ["a", true, true],
+      ["a", true, false],
       ["b", true, true],
-      ["c", true, true],
+      ["c", true, false],
     ]);
     expect(store.get("b")?.published_at).toBeTruthy();
     expect(calls.filter((c) => c.url.endsWith("/rebuild"))).toHaveLength(1);

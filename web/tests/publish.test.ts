@@ -285,6 +285,20 @@ describe("what a public page holds", () => {
     expect(h).not.toMatch(/scrap\.example[:/]|\/api\//);
   });
 
+  it("finds scrap's host hidden by zero-width characters or full-width dots, and in alt", () => {
+    const html = article(
+      head("T", "Note", [], false),
+      '<div class="body md"><p>at scrap\u200b.example/p/x and scrap\u3002example now</p><p><img src="/api/blobs/' +
+        "a".repeat(64) +
+        '/preview?size=2048" alt="from http://scrap.example/p/x"></p></div>',
+    );
+    const { root, swaps } = view(html);
+    const h = publishHtml(root, ctx({}), swaps);
+    expect(h).toContain("<p>at a private link and a private link now</p>");
+    expect(h).toContain('alt="from a private link"');
+    expect(check(h, LIVE, ["scrap.example"])).toEqual([]);
+  });
+
   it("escapes a tag's every special character in its placeholder", () => {
     expect(out.links).toContain('<a href="scrap-tag:it%27s%20%28done%29">#it\'s (done)</a>');
   });
