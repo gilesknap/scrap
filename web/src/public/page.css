@@ -278,8 +278,20 @@ th {
 tbody tr:last-child td {
   border-bottom: none;
 }
+/* Lists as the app's (#541): css/page.css's .md lists, not the browser's 40px indent; the
+   site's own list of pages (.site-list) keeps its rows */
+:is(ul, ol) {
+  padding-inline-start: 1.4rem;
+}
+:where(:not(.site-list)) > li + li {
+  margin-top: var(--s-1);
+}
 li.task {
   list-style: none;
+}
+li + li.task,
+li.task + li {
+  margin-top: 0;
 }
 /* A task's box (#539), in the bullet's place: the app's (css/page.css), a checkbox with
    accent-color --accent, as Chrome draws it, but an empty span (publish.ts): Chrome's greys,
