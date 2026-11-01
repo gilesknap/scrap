@@ -89,6 +89,44 @@
   margin: 0 calc(-1 * var(--s-3)) calc(-1 * var(--s-2)) 0;
 }
 
+/* An image's read text, a fold of its own (#538, reading.ts readText): the line and chevron of
+   scrap's other folds (.claude-text: todos.css), closed; none above it when it comes first */
+.reading-fold .claude > .readtext:first-child {
+  border-top: 0;
+  margin-top: 0;
+}
+.reading-fold .claude > .readtext > pre {
+  margin-bottom: var(--s-3);
+}
+/* Guidance for Claude (#538, guidance.ts) at the bottom of an image's reading: as About this
+   page's in its card (writeup.css: .writeup .sub, .by, textarea and .row), over the card's own
+   last-child rules above */
+.reading-fold .claude > .guidance {
+  display: block; /* not .sub's flex row, which left the textarea short of the card */
+  border-top: 1px solid var(--line);
+  margin-top: var(--s-3);
+}
+.reading-fold .claude > .readtext + .guidance {
+  margin-top: 0; /* one rule between two folds */
+}
+.reading-fold .guidance .by {
+  margin: var(--s-1) 0 0; /* as About this page's, its last child's (todos.css) */
+  color: var(--ink-2);
+  font-size: var(--t-xs);
+  overflow-wrap: anywhere;
+}
+.reading-fold .guidance textarea {
+  box-sizing: border-box;
+  width: 100%;
+  margin-top: var(--s-2);
+  font: inherit;
+}
+.reading-fold .guidance .row {
+  display: flex;
+  justify-content: flex-end;
+  padding: var(--s-2) 0;
+}
+
 /* On paper: the page, not Claude's reading of it (as print.css leaves Claude's cards out) */
 @media print {
   .reading,

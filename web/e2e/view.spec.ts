@@ -397,7 +397,7 @@ test("embedded images are figures: no caption, the viewer names them, Generate a
   const folds = page.locator(".md .photo-panel details.reading-fold");
   await expect(folds).toHaveCount(2);
   await expect(folds.first()).not.toHaveAttribute("open", "");
-  await folds.first().locator("summary").click();
+  await folds.first().locator("> summary").click();
   await expect(folds.first()).toContainText("Claude can describe it");
   await folds.first().getByRole("button", { name: "Generate" }).click();
   expect((await ask).postDataJSON()).toEqual({ photo: expect.stringMatching(/^[0-9a-f]{64}$/) });

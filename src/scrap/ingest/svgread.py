@@ -16,6 +16,7 @@ from typing import Any
 
 from .. import svg
 from ..store import NotFoundError, Store, now, transaction
+from . import guidance
 from .jobs import put_derived
 
 PRODUCER = "scrap svg"
@@ -110,7 +111,8 @@ def blocks(markup: str, note: str = NOTE) -> list[dict[str, Any]]:
 def messages(markup: str, taken: date | None = None) -> list[dict[str, Any]]:
     """The user turn for an SVG: what it is, then its markup (cut to MAX_MARKUP), and
     the day it was added (as a photo's turn has the day it was taken)."""
-    content = blocks(markup)
+    # Its markup can't pass for the owner's guidance (#538): its tags neutralised
+    content = blocks(guidance.quoted(markup))
     if taken is not None:
         day = f"{taken.isoformat()}, a {taken.strftime('%A')}"
         content.append({"type": "text", "text": f"It was added on {day}."})

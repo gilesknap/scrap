@@ -596,8 +596,10 @@ and Open in Excalidraw and Download links), and other attached files. A link to 
 (a bare `[[slug]]` shows its title); a link to a private page is its words (a bare one, the private
 page's title). Claude's Related and Linked from keep only public pages. An address of scrap
 itself, or of its `/api/`, in the text reads *a private link*. Under each photo or PDF that
-has one, **Claude's reading** is published folded, closed, as in the app (the site's search
-finds its words). Left out: revisions, where a reading is up to, and the app's buttons. An
+has one, **Claude's reading** is published folded, closed, as in the app, a photo's read text
+in a closed fold of its own inside it (the site's search finds its words). Left out: revisions,
+where a reading is up to, the app's buttons, and your **Guidance for Claude** (the page's and
+each photo's). An
 image's alt text is published as the page has it, file names included; an image Claude drew
 has its label.
 
@@ -740,10 +742,19 @@ Under each photo:
 - **State**, only while Claude has it, as words: *Waiting for Claude*, *Claude is reading it…*,
   *Failed* with reason and **Retry**, or *Paused* with reason and **Resume** (nothing is lost).
   The page checks every 10 seconds while a photo waits.
-- **Claude's reading**, one fold, always closed when the page opens: the description and the
-  text in the photo (selectable), and at its end **Regenerate**, which sends it again; if you
-  edited its drawing it asks: **Replace mine**, or **Keep mine** (Claude's new drawing goes into
-  History). A photo never sent to Claude has **Generate** in the fold instead.
+- **Claude's reading**, one fold, always closed when the page opens: the description, the text
+  read from the photo (selectable) in a closed fold of its own, **Text read**
+  (mostly there for search), **Guidance for Claude**, and at its end **Regenerate**, which sends
+  it again; if you edited its drawing it asks: **Replace mine**, or **Keep mine** (Claude's new
+  drawing goes into History). A photo never sent to Claude has **Generate** in the fold instead.
+- **Guidance for Claude**, at the bottom of a photo's reading, is a note for Claude's next
+  reading of that photo (such as "it's a wiring diagram; 'R1' is a resistor"): the same fold as
+  About this page's. **Save** only keeps it (the fold then says *(set)*); the next **Regenerate**
+  (or **Generate**) sends it with the photo, and it steers the description, the text read and
+  Claude's drawing. A drawing you edited is still never replaced without asking. It is kept for
+  later Regenerates, until you clear it and Save. It is that photo's only: the page's own guidance
+  steers its write-up, and neither feeds the other. It is never published, nor in Share as HTML. Files (a PDF, a text
+  file) and the images Claude drew have none.
 - An image Claude drew and added (`add_svg`) has nothing under it: Claude doesn't read its own
   images. Its label is its alt text, and what search finds.
 - **The drawing** of a whiteboard or diagram, beside the photo on a wide screen or under a

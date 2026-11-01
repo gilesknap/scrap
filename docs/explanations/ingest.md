@@ -243,6 +243,14 @@ as its size) as a text block, said to be data, instead
 of an image block, with no drawing asked for. No JPEG is made, so its run has no `sent_sha256` or
 size. See [ADR 0042](decisions/0042-mcp-clients-add-svg-and-files.md).
 
+**The owner's guidance** (#538): an image with Guidance for Claude (saved in its reading's fold,
+`image_guidance`) has one more text block after the image (or the SVG's markup), the owner's note
+between `<guidance>` and `</guidance>` (any such tag in it neutralised), with a line saying it is
+the owner's, not writing in the image, to follow for what to focus on, what words mean and how to
+draw it. The run's stored request keeps it as `guidance`. The fixed prompt is the same with or
+without it, so its version is too. It is never sent with a write-up. See
+[ADR 0044](decisions/0044-claudes-reading-in-a-fold.md).
+
 The image block sets `"transformations": {"oversized_image": "error"}`, so the API never
 rescales it silently and drawing coordinates are in sent pixels. The JPEG is stored as a blob
 (`model_run.sent_sha256`) with its `image_width` and `image_height`. The PWA scales the drawing

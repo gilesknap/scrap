@@ -13,9 +13,10 @@
 // scrap-drawing:<id> and scrap-excalidraw:<id> placeholders. Under a photo or file, Claude's
 // reading of it (#521) in a fold, as the app has it, but published closed (every other fold
 // is published open): a photo's description and text, a PDF's text (publicpages.ts fetches
-// it), scrubbed as page text is. An image Claude made (add_svg) has none. Pure: publicpages.ts
-// gathers what it needs. A task's box (#539) as an empty span, ticked or not, that page.css
-// draws.
+// it), scrubbed as page text is; a photo's text in a closed fold of its own inside it (#538).
+// Never the owner's guidance for Claude. An image Claude made (add_svg) has none. Pure:
+// publicpages.ts gathers what it needs. A task's box (#539) as an empty span, ticked or not,
+// that page.css draws.
 import { type Titles, titleOf } from "./linktext";
 import { control, esc, KEEP, type N, type Swaps, textOf } from "./pagehtml";
 
@@ -49,6 +50,8 @@ const CSP =
 const PREFS = '<script src="/assets/prefs.js" defer blocking="render"></script>';
 /** The reading fold's label, as the app's (reading.ts READING). */
 const READING = "Claude's reading";
+/** The label of a photo's read text, a fold inside the reading (reading.ts READ_TEXT). */
+const READ_TEXT = "Text read";
 /** The site's icons, scrap's own (#527): the tab's and the home screen's (scrap's check allows
  * exactly these two links). */
 const ICONS =
@@ -302,7 +305,13 @@ export function publishHtml(root: N, ctx: Context, swaps: Swaps = new Map()): st
     const file = find(fold, (k) => tag(k) === "pre" && has(k, "filetext"));
     const text = file && sha ? (ctx.texts?.get(sha)?.trim() ?? "") : read;
     if (!desc && !text) return "";
-    const parts = (desc ? `<p>${words(desc)}</p>` : "") + (text ? `<pre>${words(text)}</pre>` : "");
+    // A photo's text in a closed fold of its own, as the app's (#538); a PDF's as it is
+    const pre = text && `<pre>${words(text)}</pre>`;
+    const parts =
+      (desc ? `<p>${words(desc)}</p>` : "") +
+      (pre && !file
+        ? `<details class="readtext"><summary>${READ_TEXT}</summary>${pre}</details>`
+        : pre);
     return `<details class="reading"><summary>${READING}</summary><div class="claude">${parts}</div></details>`;
   };
 

@@ -51,7 +51,7 @@ export function control(n: N): boolean {
     DROP.has(tag(n)) ||
     n.hasAttribute?.("download") === true ||
     n.hasAttribute?.("hidden") === true ||
-    / (tools|headend|bar|state|did|hint) /.test(cls)
+    / (tools|headend|bar|state|did|hint|guidance) /.test(cls) // guidance: the owner's note to Claude
   );
 }
 

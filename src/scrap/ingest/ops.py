@@ -1,9 +1,11 @@
-"""Queue operations: reprocess, status and resume."""
+"""Queue operations: reprocess, an image's guidance for its next reading, status and
+resume."""
 
 import json
 from typing import Any
 
 from ..store import ENQUEUE, NotFoundError, Store, enrich_on, now, transaction
+from ..store import guidance as image_guidance
 from .constants import FAR
 from .jobs import enabled, resume, spent_today
 
@@ -36,6 +38,17 @@ def reprocess(
             )
         count = conn.execute(f"SELECT count(*) FROM job WHERE {active}", args)
         return {"queued": added, "already": count.fetchone()[0] - added}
+
+
+def set_guidance(
+    store: Store, capture_id: str, photo: str, text: str | None, author: str
+) -> dict[str, str | None]:
+    """Keep the owner's guidance for an image's next reading (#538; empty: none):
+    {guidance}. It queues nothing: Regenerate (reprocess) sends it with the image.
+    NotFoundError or InvalidError as store.guidance.put."""
+    with store.connect() as conn, transaction(conn):
+        kept = image_guidance.put(conn, capture_id, photo, text, author, now())
+    return {"guidance": kept}
 
 
 def status(store: Store) -> dict[str, Any]:
