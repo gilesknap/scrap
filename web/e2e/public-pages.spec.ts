@@ -12,7 +12,7 @@
 // excalidraw.com opens it (#526); scrap's icons in every head (#527); a Mermaid diagram (#525)
 // drawn light and dark, one shown by the theme, its words found by search, and a code block's
 // /api/ path as written (#529). The site sends nginx's headers, so a page that breaks its CSP
-// fails here. Task boxes (#539) drawn as the app's, ticked and not, light and dark.
+// fails here. Task boxes (#539) drawn as the app's, ticked and not, light and dark. Lists (#541) indented as the app's, at 100 % and 130 % text.
 import { execFileSync } from "node:child_process";
 import { readdirSync, readFileSync } from "node:fs";
 import { expect, type Page, type Route, test } from "@playwright/test";
@@ -881,4 +881,46 @@ test("task boxes are published as the app's, ticked and not, with no [ ] or inpu
   const hit = page.locator(".pagefind-ui__result", { has: page.locator(`[href*="/p/${n.slug}"]`) });
   await expect(hit.locator(".pagefind-ui__result-excerpt")).toContainText(word);
   await expect(hit.locator(".pagefind-ui__result-excerpt")).not.toContainText(/To do|Done/);
+});
+
+test("lists are indented as the app's: bulleted, numbered, nested and task (#541)", async ({
+  page,
+}) => {
+  const n = await publicOne(
+    page,
+    "Public e2e lists\n\n- apple\n- pear\n  - nested pip\n\ntext\n\n1. one\n2. two\n\ntext\n\n- [ ] buy milk\n- [x] call home",
+  );
+  // Each item's words, from the start of the column (the first paragraph's left edge), and
+  // the gap above it: the same in the app and on the site
+  const where = () =>
+    page.locator("li").evaluateAll((els) => {
+      const text = [...document.querySelectorAll("p")].find((p) => p.textContent === "text");
+      const col = text?.getBoundingClientRect().left ?? Number.NaN;
+      return els.flatMap((li) => {
+        const words = [...li.childNodes].find((c) => c.nodeType === 3 && c.textContent?.trim());
+        const said = words?.textContent?.trim() ?? "";
+        if (!words || !/^(apple|pear|nested pip|one|two|buy milk|call home)$/.test(said)) return [];
+        const r = document.createRange();
+        r.selectNodeContents(words);
+        const prev = li.previousElementSibling?.getBoundingClientRect();
+        const gap = prev ? Math.round(li.getBoundingClientRect().top - prev.bottom) : null;
+        return [[said, Math.round(r.getBoundingClientRect().left - col), gap]];
+      });
+    });
+  await expect(page.locator(".md li.task input")).toHaveCount(2);
+  const app = await where();
+  expect(app).toHaveLength(7);
+  await page.goto(`${SITE}/p/${n.slug}`);
+  await expect(page.locator("li.task")).toHaveCount(2);
+  expect(await where()).toEqual(app);
+  // At the owner's 130 % text (22.1px a rem, as the table's test): still the app's
+  const big = () => page.evaluate(() => (document.documentElement.style.fontSize = "22.1px"));
+  await page.goto(`/p/${n.slug}`);
+  await expect(page.locator(".md li.task input")).toHaveCount(2);
+  await big();
+  const appBig = await where();
+  expect(appBig[2][1]).toBeGreaterThan(app[2][1] as number);
+  await page.goto(`${SITE}/p/${n.slug}`);
+  await big();
+  expect(await where()).toEqual(appBig);
 });

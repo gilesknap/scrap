@@ -496,6 +496,12 @@ Give the site's host (`pages.example.org`) its own Access application with a pol
 is **Bypass**, so anyone may reach it. A more specific application takes precedence over the
 wildcard.
 
+**Cloudflare's browser cache**: a zone's Browser Cache TTL (4 hours by default) rewrites the
+site's `Cache-Control: no-cache` on `/assets/*.css` and `*.js` to `max-age=14400`, so readers
+see last release's stylesheet (#534). Add a Cache Rule for the site's host with **Browser TTL:
+Respect origin TTL**, then check: `curl -sI https://pages.example.org/assets/page.css` shows
+`cache-control: no-cache`.
+
 ## Upgrades
 
 Back up first, then upgrade to the newer chart version (its image follows, unless your values set
