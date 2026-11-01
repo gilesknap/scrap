@@ -67,6 +67,7 @@
     position: static; /* after the word, as a tab's count: "Todos 2" */
     order: 1;
     border: none;
+    line-height: 20px; /* the pill's full height, now it has no border: the digit centred */
   }
 
   /* Capture: the tiles over the list, in a row, not a floating cluster at the window's foot */
