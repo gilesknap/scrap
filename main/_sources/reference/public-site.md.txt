@@ -381,6 +381,17 @@ goes. When that happens elsewhere (over MCP, by a revert, or a page trashed from
 device), the old title or link stays on the other public pages until Refresh all, or until
 each of them is next saved in the PWA. There is no stale tracking.
 
+(public-pages-and-mcp)=
+**Public pages and MCP.** MCP never publishes HTML ([ADR 43](../explanations/decisions/0043-public-pages-a-static-site-scrap-pushes-to.md)).
+A text change to a public page over MCP (`edit_page`, `write` with `append_to`, `add_svg`,
+`edit_drawing`, `revert`) reaches the public site only when the owner's app next renders the
+page: a save in the PWA once the page has been published, or Settings > Refresh all public pages. The tool descriptions say so,
+so a client tells the owner to refresh, and the result of `edit_page`, `add_svg`, `write` with
+`append_to` and a text `revert` carries `public: true` and a `public_note` for a public page
+whose change took effect (the note says if the page was never published, when only Refresh all
+sends it).
+That is a reminder, not stale tracking: scrap does not know whether the public copy is older.
+
 **Images and files**
 
 - An image: `<img src="scrap-blob:<sha>" alt="...">`. The `alt` is published as the app has

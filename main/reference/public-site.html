@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Public site &#8212; scrap 1.4.1.dev3+g72711ea4e documentation</title>
+    <title>Public site &#8212; scrap 1.4.1.dev4+g95419872f documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=1bc16119"></script>
+    <script src="../_static/documentation_options.js?v=bdf38cdd"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -1086,6 +1086,15 @@ publishes again the published pages that refer to it, so its link becomes words,
 goes. When that happens elsewhere (over MCP, by a revert, or a page trashed from another
 device), the old title or link stays on the other public pages until Refresh all, or until
 each of them is next saved in the PWA. There is no stale tracking.</p>
+<p id="public-pages-and-mcp"><strong>Public pages and MCP.</strong> MCP never publishes HTML (<a class="reference internal" href="../explanations/decisions/0043-public-pages-a-static-site-scrap-pushes-to.html"><span class="std std-doc">ADR 43</span></a>).
+A text change to a public page over MCP (<code class="docutils literal notranslate"><span class="pre">edit_page</span></code>, <code class="docutils literal notranslate"><span class="pre">write</span></code> with <code class="docutils literal notranslate"><span class="pre">append_to</span></code>, <code class="docutils literal notranslate"><span class="pre">add_svg</span></code>,
+<code class="docutils literal notranslate"><span class="pre">edit_drawing</span></code>, <code class="docutils literal notranslate"><span class="pre">revert</span></code>) reaches the public site only when the owner’s app next renders the
+page: a save in the PWA once the page has been published, or Settings &gt; Refresh all public pages. The tool descriptions say so,
+so a client tells the owner to refresh, and the result of <code class="docutils literal notranslate"><span class="pre">edit_page</span></code>, <code class="docutils literal notranslate"><span class="pre">add_svg</span></code>, <code class="docutils literal notranslate"><span class="pre">write</span></code> with
+<code class="docutils literal notranslate"><span class="pre">append_to</span></code> and a text <code class="docutils literal notranslate"><span class="pre">revert</span></code> carries <code class="docutils literal notranslate"><span class="pre">public:</span> <span class="pre">true</span></code> and a <code class="docutils literal notranslate"><span class="pre">public_note</span></code> for a public page
+whose change took effect (the note says if the page was never published, when only Refresh all
+sends it).
+That is a reminder, not stale tracking: scrap does not know whether the public copy is older.</p>
 <p><strong>Images and files</strong></p>
 <ul class="simple">
 <li><p>An image: <code class="docutils literal notranslate"><span class="pre">&lt;img</span> <span class="pre">src=&quot;scrap-blob:&lt;sha&gt;&quot;</span> <span class="pre">alt=&quot;...&quot;&gt;</span></code>. The <code class="docutils literal notranslate"><span class="pre">alt</span></code> is published as the app has
