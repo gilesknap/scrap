@@ -65,7 +65,7 @@ the tool arguments are in [](../../reference/mcp.md); the user's view is in
 | `sort:K` | Order, not a condition: `updated`, `created` (newest first), `title` (A to Z), `due` (soonest), `priority` (high first). `-sort:K` reverses; the last valid one wins. Pages with no due or priority come last |
 | `media:M`, `later:S` | A Later page's medium (`book`, `article`, `film`, `tv`, `video`, `podcast`, `music`, `game`) or what it is for (`read`, `watch`, `listen`, `play`) |
 | `group:G` | Not a condition: puts results in sections (`letter`, `tag`, `type`, `now`, `due`, `area`) on the server, so paging never splits one ([](../decisions/0031-search-orders-by-section-on-the-server.md)). Pins are saved searches and pages kept on the `pinned` page ([](../decisions/0032-pins-are-a-page-of-links.md)) |
-| Health checks | `is:orphan`, `is:untagged`, `is:stale`, `is:duplicate`, `has:dangling`, `is:outdated` (below) |
+| Health checks | `is:orphan`, `is:untagged`, `is:stale`, `is:duplicate`, `has:dangling`, `has:open-questions`, `is:outdated` (below) |
 
 "Today" is the server's local day, so set `TZ` (default UTC in the image) for `due:today`. The web app only mirrors this syntax to add and remove tokens
 (`web/src/terms.ts`, `filters.ts`); parsing and matching stay on the server.
@@ -136,6 +136,7 @@ flowchart LR
 | `is:stale` | An open todo, not due today or later, unchanged for 60 days (`STALE_DAYS`) |
 | `is:duplicate` | A file of one of its captures is also another page's |
 | `has:dangling` | A page link in its text to no page or one in the trash |
+| `has:open-questions` | A page with a Markdown heading (any level, setext too; not in code, a quote or a list item) that reads "Open questions" in any case (emphasis and links in it are ignored, a trailing colon too) and whose section is open. The section runs to the next heading of the same or a higher level, so deeper sub-sections and their boxes are part of it. A section with task boxes is decided by them alone: any unticked `- [ ]` makes it open, all ticked is done even with prose left. With no boxes it is open when it has any content (a paragraph, list, table or code); an empty one, or one with only sub-headings, is not. Topic pages are skipped (a "Contradictions and open questions" heading is not one), and the page-wide `tasks` counts are not the test |
 | `is:outdated` | A board's write-up older than its inputs or of an older prompt version, or linking a page that is in the trash or gone |
 
 Related pages and a topic's synthesis have outdated definitions in the same module, but they are
