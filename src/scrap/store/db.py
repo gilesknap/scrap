@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any
 
 from ..markdown import wiki_targets
+from ..open_questions import has_open_questions
 from ..public import public_origins
 from . import grouping
 
@@ -91,12 +92,24 @@ def wiki_links(text: str | None) -> str:
     return found
 
 
+def open_questions(text: str | None) -> int:
+    """SQL open_questions(text): 1 if the text has an Open questions section with open
+    content (open_questions.has_open_questions), for has:open-questions. A text the
+    parser fails on has none: a health check must never fail a search."""
+    try:
+        return int(has_open_questions(text))
+    except Exception:  # noqa: BLE001
+        log.exception("open_questions: can't parse a page's text")
+        return 0
+
+
 def connect(db: Path | str) -> sqlite3.Connection:
     """Open the database in autocommit mode with the per-connection pragmas, and the
     SQL function wiki_links."""
     conn = sqlite3.connect(db, isolation_level=None, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     conn.create_function("wiki_links", 1, wiki_links, deterministic=True)
+    conn.create_function("open_questions", 1, open_questions, deterministic=True)
     for name, (args, fn) in grouping.FUNCTIONS.items():
         conn.create_function(name, args, fn, deterministic=True)
     conn.execute("PRAGMA foreign_keys = ON")

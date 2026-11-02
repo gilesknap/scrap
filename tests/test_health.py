@@ -575,7 +575,7 @@ def test_health_counts_match_the_searches_and_mcp_takes_the_terms(tmp_path):
     got = client.get("/api/health").json()["checks"]
     assert [c["term"] for c in got] == [
         "is:orphan", "is:untagged", "is:stale", "is:duplicate", "has:dangling",
-        "is:outdated",
+        "has:open-questions", "is:outdated",
     ]  # fmt: skip
     for c in got:
         total = client.get("/api/search/facets", params={"q": c["term"]}).json()
@@ -593,7 +593,7 @@ def test_health_counts_match_the_searches_and_mcp_takes_the_terms(tmp_path):
 
 def test_counts_take_one_query_each_and_no_model(store):
     with closing(connect(store.db)) as conn:
-        assert [c["count"] for c in health.counts(conn, store.prompts)] == [0] * 6
+        assert [c["count"] for c in health.counts(conn, store.prompts)] == [0] * 7
     with pytest.raises(KeyError):
         health.condition("is", "nothing", {})
 
@@ -704,3 +704,91 @@ def test_the_cli_makes_outdated_write_ups(store, tmp_path, capsys, monkeypatch):
     assert "would write up 0 board pages" in capsys.readouterr().out
     with pytest.raises(SystemExit):
         main(["enrich", "--related", "--outdated", "--data-dir", data])
+
+
+# ---- has:open-questions: an Open questions section with open content
+
+
+def test_open_questions_section_rules():
+    from scrap.open_questions import has_open_questions as oq
+
+    assert oq("## Open questions\n\n- [ ] why?")
+    assert not oq("## Open questions\n\n- [x] why?\n- [X] how?")
+    assert oq("## Open questions\n\n- [x] why?\n- [ ] how?")
+    assert oq("## Open questions\n\nWhy does it hang?")  # prose only
+    assert oq("## Open questions\n\n- why?\n- how?")  # plain list
+    assert not oq("## Open questions\n\n")  # empty
+    assert not oq("## Open questions\n")
+    assert not oq("# Title\n\nno such section")
+    assert not oq("")
+    assert not oq(None)
+
+
+def test_open_questions_headings_and_levels():
+    from scrap.open_questions import has_open_questions as oq
+
+    for h in ("# Open questions", "###### OPEN QUESTIONS", "## open Questions:",
+              "## Open questions :  "):  # fmt: skip
+        assert oq(f"{h}\n\n- [ ] q"), h
+    assert oq("Open questions\n===\n\n- [ ] q")  # setext
+    assert not oq("## Contradictions and open questions\n\n- [ ] q")
+    assert not oq("## Open questions about x\n\n- [ ] q")
+    assert not oq("Open questions: why?")  # not a heading
+
+
+def test_open_questions_section_bounds():
+    from scrap.open_questions import has_open_questions as oq
+
+    # ends at the next heading of the same or a higher level
+    assert not oq("## Open questions\n\n- [x] a\n\n## Next\n\n- [ ] b")
+    assert not oq("## Open questions\n\n- [x] a\n\n# Next\n\n- [ ] b")
+    assert not oq("## Open questions\n\n## Next\n\nprose")  # empty, then a peer
+    # a deeper heading is inside it
+    assert oq("## Open questions\n\n- [x] a\n\n### Detail\n\n- [ ] b")
+    assert oq("## Open questions\n\n### Detail\n\nwhat about it?")
+    assert not oq("## Open questions\n\n### Detail\n\n## Next\n\nx")  # heading only
+    # text before the heading does not count
+    assert not oq("- [ ] before\n\n## Open questions\n\n- [x] a")
+    # a later section may be the open one
+    assert oq(
+        "## Open questions\n\n- [x] a\n\n## More\n\n### Open questions\n\n- [ ] b"
+    )
+
+
+def test_open_questions_ignores_code():
+    from scrap.open_questions import has_open_questions as oq
+
+    assert not oq("```\n## Open questions\n\n- [ ] q\n```")
+    assert not oq("    ## Open questions\n\n    - [ ] q")
+    assert not oq("## Open questions\n\n```\n- [ ] in code\n```\n\n- [x] done")
+    assert oq("## Open questions\n\n```\ncode only\n```")  # content, no boxes
+
+
+def test_has_open_questions_search(store):
+    open_ = note(store, "Open one\n\n## Open questions\n\n- [ ] why?")
+    prose = note(store, "Prose one\n\n## Open questions\n\nwhy does it hang?")
+    note(store, "Done one\n\n## Open questions\n\n- [x] why?")
+    note(store, "Empty one\n\n## Open questions\n")
+    note(store, "Other\n\n## Contradictions and open questions\n\n- [ ] x")
+    assert found(store, "has:open-questions") == {open_, prose}
+    todo_ = note(store, "Todo one\n\n## Open questions\n\n- [ ] why?", kind="todo")
+    # a page with task boxes may be a todo; the filter does not mind the kind
+    assert found(store, "has:open-questions -kind:todo") >= {prose}
+    edit(store, open_, "Open one\n\n## Open questions\n\n- [x] why?")
+    assert found(store, "has:open-questions") == {prose, todo_}
+    store.delete_page(prose)
+    assert found(store, "-has:open-questions") >= {open_}
+    with closing(connect(store.db)) as conn:
+        counts = {c["term"]: c["count"] for c in health.counts(conn, {})}
+    assert counts["has:open-questions"] == 1  # the todo; the rest done or in the trash
+
+
+def test_open_questions_skips_topic_pages(store):
+    with closing(connect(store.db)) as conn:
+        t = topics.create(conn, "Topic", "topic", "topic", "claude", now())
+        conn.execute(
+            "UPDATE page SET body = ? WHERE id = ?",
+            ("## Open questions\n\n- [ ] q", t),
+        )
+    plain = note(store, "## Open questions\n\n- [ ] q")
+    assert found(store, "has:open-questions") == {plain}

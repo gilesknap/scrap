@@ -25,13 +25,14 @@ test("Settings opens Store health, and a check lists its pages", async ({ page }
   await expect(page).toHaveURL(/\/health$/);
   await expect(page.getByRole("heading", { name: "Store health" })).toBeVisible();
   const rows = page.locator(".health .list li");
-  await expect(rows).toHaveCount(6);
+  await expect(rows).toHaveCount(7);
   await expect(rows.locator("strong")).toHaveText([
     "Orphans",
     "Untagged",
     "Stale todos",
     "Duplicates",
     "Dangling links",
+    "Open questions",
     "Outdated write-ups",
   ]);
   const row = page.getByRole("link", { name: `Dangling links: ${dangling}` });
@@ -56,4 +57,19 @@ test("Store health opens cold from its address", async ({ page }) => {
   await page.goto("/health");
   await expect(page.getByRole("heading", { name: "Store health" })).toBeVisible();
   await expect(page.getByRole("link", { name: /^Orphans: \d+$/ })).toBeVisible();
+});
+
+test("has:open-questions lists a page with an open question, not a done one", async ({ page }) => {
+  const stamp = Date.now();
+  const make = async (text: string) => {
+    const r = await page.request.post("/api/captures", { data: { id: ulid(), text } });
+    expect(r.ok()).toBe(true);
+    made.push(((await r.json()) as { page_id: string }).page_id);
+  };
+  await make(`Still asking ${stamp}\n\n## Open questions\n\n- [x] settled\n- [ ] still open`);
+  await make(`All settled ${stamp}\n\n## Open questions:\n\n- [x] settled`);
+  await page.goto(`/search?q=${encodeURIComponent(`has:open-questions ${stamp}`)}`);
+  await expect(page.locator(".hits li a strong", { hasText: "Still asking" })).toBeVisible();
+  await expect(page.locator(".hits li a strong", { hasText: "All settled" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Remove Open questions" })).toBeVisible();
 });

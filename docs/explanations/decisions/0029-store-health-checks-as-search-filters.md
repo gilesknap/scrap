@@ -20,7 +20,7 @@ to catch up without a prompt change making every page due at once.
 ## Decision
 
 - **A finding is a search filter, not a stored report.** Each check is an `is:` or `has:` term:
-  `is:orphan`, `is:untagged`, `is:stale`, `is:duplicate`, `has:dangling` and `is:outdated`. They
+  `is:orphan`, `is:untagged`, `is:stale`, `is:duplicate`, `has:dangling`, `has:open-questions` and `is:outdated`. They
   are SQL fragments in one module, `store/health.py`, used by search, so a finding is always
   current, works in the PWA's search and MCP `search`, and needs no table, migration or new MCP
   tool. `-` before one excludes, as for any filter.
@@ -36,6 +36,10 @@ to catch up without a prompt change making every page due at once.
   (models and MCP clients link pages by full address). They are found through a SQL
   function `wiki_links` registered on each connection, so a check is one pass over the pages;
   backlinks and MCP `read`'s `links` use the same parser, `markdown.wiki_targets`.
+- **Open questions are parsed from the body.** `has:open-questions` finds a page with an
+  `Open questions` section still open (rule in the search architecture page). A SQL function
+  `open_questions` (`open_questions.py`, on the Markdown parser) reads the section, and only
+  a text that says "open questions" is parsed at all; nothing is stored.
 - **A Store health screen, counts only.** Settings has **Store health**: each check with its
   count (`GET /api/health`, one `count(*)` a check), a tap running its search. Nothing is
   dismissed: a check that keeps finding a page the owner is happy with is the check to change.

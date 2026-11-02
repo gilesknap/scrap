@@ -393,6 +393,7 @@ there: a check that keeps finding a page you are happy with is the check to chan
 | `is:stale` | An open todo not edited (text, title, kind or tags) for 60 days, not due today or later |
 | `is:duplicate` | A photo or file shared with another page (not in the trash, not an Orphaned assets page; a photo whose embed you deleted from a page no longer counts for it) |
 | `has:dangling` | A `[[...]]` or Markdown link to a page's address in its text, outside code, to no page or one in the trash (including forms the app shows as plain text, such as `[[Some Title]]`; `[[slug#heading]]` links to the page `slug`) |
+| `has:open-questions` | A page with an "Open questions" heading (any level, any case, outside code) whose section, up to the next heading of the same or a higher level, still has an unticked box `- [ ]`. A section whose boxes are all ticked is done; one with no boxes counts while it has any text or list; an empty one does not. Topic pages are left out |
 | `is:outdated` | A board's write-up older than the board's photos, text, title, kind or tags, or made with an older prompt, or linking a page in the trash or gone (restore the page and it clears). Lists only board write-ups, which wait for you |
 
 Related pages and topic syntheses are not listed: the nightly and weekly passes refresh them on

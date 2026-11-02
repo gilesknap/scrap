@@ -682,7 +682,7 @@
       return json(full(p));
     }
     if (path === "/api/health" && method === "GET")
-      return json({ checks: [["is:orphan", 7], ["is:untagged", 12], ["is:stale", 2], ["is:duplicate", 0], ["has:dangling", 1], ["is:outdated", 3]].map(([term, count]) => ({ term, count })) });
+      return json({ checks: [["is:orphan", 7], ["is:untagged", 12], ["is:stale", 2], ["is:duplicate", 0], ["has:dangling", 1], ["has:open-questions", 4], ["is:outdated", 3]].map(([term, count]) => ({ term, count })) });
     if (path === "/api/trash" && method === "GET") {
       const t = pages.filter((p) => trash.has(p.id)).map((p) => ({ id: p.id, slug: p.slug, title: p.title, kind: p.kind, deleted_at: nowIso(), topic: p.kind === "topic", purge_at: "2026-11-26T00:00:00Z" }));
       const extra = window.__TRASH_EMPTY ? [] : pages.slice(0, 5).map((p, i) => ({ id: "x" + i, slug: p.slug, title: p.title, kind: p.kind, deleted_at: "2026-10-2" + i + "T10:00:00Z", topic: false, purge_at: "2026-11-2" + i + "T10:00:00Z" }));

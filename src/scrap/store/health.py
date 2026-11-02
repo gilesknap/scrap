@@ -98,6 +98,13 @@ DUPLICATE = (
 DANGLING = """EXISTS (SELECT 1 FROM json_each(wiki_links({p}.body)) l
   WHERE NOT EXISTS (SELECT 1 FROM page t WHERE t.slug = l.value
                     AND t.deleted_at IS NULL))"""
+# A page with an "Open questions" section still open (open_questions.py): not a topic
+# page, whose synthesis lives in its write-up, not its body. Parsed only for a text
+# that says "open questions" at all (instr), so most pages cost no parse.
+OPEN_QUESTIONS = (
+    f"(NOT {IS_TOPIC} AND instr(lower({{p}}.body), 'open questions') > 0"
+    " AND open_questions({p}.body))"
+)
 
 # ---- outdated: derived data older than its inputs, or of an older prompt version. Only
 # a write-up is a finding (is:outdated); the passes find the rest by the same SQL
@@ -147,6 +154,7 @@ CHECKS = [
     ("is", "stale"),
     ("is", "duplicate"),
     ("has", "dangling"),
+    ("has", "open-questions"),
     ("is", "outdated"),
 ]
 
@@ -176,6 +184,8 @@ def condition(
             return DUPLICATE.format(p="p"), []
         case "has", "dangling":
             return DANGLING.format(p="p"), []
+        case "has", "open-questions":
+            return OPEN_QUESTIONS.format(p="p"), []
         case "is", "outdated":
             # a board's write-up (writeups.OUTDATED), never a topic's synthesis or
             # related pages: their passes refresh them on their own (#291)
