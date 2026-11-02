@@ -14,8 +14,8 @@ from scrap import mcp_server
 from scrap.app import create_app
 from scrap.ingest import put_derived
 from scrap.mcp_page import page_key
-from scrap.publish import Publisher
 from scrap.mcp_tools import writing
+from scrap.publish import Publisher
 from scrap.store import Store, new_ulid, now, roles
 
 ACCEPT = {"Accept": "application/json, text/event-stream"}

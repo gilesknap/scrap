@@ -176,13 +176,14 @@ class Ctx:
     ) -> dict[str, Any]:
         diff, cut = unified(found["slug"], found["rev_before"], found["body_before"],
                             found["body"])  # fmt: skip
+        note = self.public_note(found["slug"], found["changed"] and not dry_run)
         return {
             "id": found["id"], "slug": found["slug"], "url": self.link(found["slug"]),
             "dry_run": dry_run, "changed": found["changed"],
             "rev_before": found["rev_before"], "rev": found["rev"],
             "folded": found["folded"], **extra,
             "title_before": found["title_before"], "title": found["title"],
-            "diff": diff, "diff_cut": cut, **self.public_note(found["slug"], found["changed"] and not dry_run),
+            "diff": diff, "diff_cut": cut, **note,
         }  # fmt: skip
 
     def sized(self, value: str, name: str) -> str:
