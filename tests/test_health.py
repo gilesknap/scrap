@@ -792,3 +792,45 @@ def test_open_questions_skips_topic_pages(store):
         )
     plain = note(store, "## Open questions\n\n- [ ] q")
     assert found(store, "has:open-questions") == {plain}
+
+
+def test_open_questions_heading_text_is_rendered_text():
+    from scrap.open_questions import has_open_questions as oq
+
+    for h in (
+        "## **Open questions**",
+        "## _Open_ questions",
+        "## [Open questions](https://x.example)",
+        "## Open  questions",
+        "## Open questions",
+        "## `Open questions`",
+        "## Open questions：",
+        "## Open questions ##",
+    ):
+        assert oq(f"{h}\n\n- [ ] q"), h
+    for h in ("## Open questions about x", "## Contradictions and open questions",
+              "## Open questions and answers"):  # fmt: skip
+        assert not oq(f"{h}\n\n- [ ] q"), h
+
+
+def test_open_questions_sections_and_line_endings():
+    from scrap.open_questions import has_open_questions as oq
+
+    assert oq("## Open questions\r\n\r\n- [ ] q\r\n")  # CRLF
+    assert not oq("## Open questions\r\n\r\n- [x] q\r\n\r\n## Next\r\n\r\n- [ ] z")
+    # boxes decide: all ticked is done even with prose left
+    assert not oq("## Open questions\n\nSome prose.\n\n- [x] q")
+    # two sections of the same title: one open is enough, one done alone is not
+    two = "## Open questions\n\n- [x] a\n\n# Other\n\n## Open questions\n\n- [ ] b"
+    assert oq(two)
+    assert not oq(two.replace("- [ ] b", "- [x] b"))
+
+
+def test_has_open_questions_search_headings_in_the_sql_path(store):
+    plain = note(store, "Plain\n\n## Open questions ##\n\n- [ ] q")
+    setext = note(store, "Setext\n\nOpen questions\n---\n\nwhy?")
+    emph = note(store, "Emph\n\n## **Open** _questions_\n\nwhy?")
+    note(store, "Quoted\n\n> ## Open questions\n>\n> why?")
+    note(store, "Listed\n\n- ## Open questions\n\n  why?")
+    note(store, "Fenced\n\n```\n## Open questions\n\nwhy?\n```")
+    assert found(store, "has:open-questions") == {plain, setext, emph}

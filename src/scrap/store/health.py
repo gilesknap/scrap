@@ -100,9 +100,9 @@ DANGLING = """EXISTS (SELECT 1 FROM json_each(wiki_links({p}.body)) l
                     AND t.deleted_at IS NULL))"""
 # A page with an "Open questions" section still open (open_questions.py): not a topic
 # page, whose synthesis lives in its write-up, not its body. Parsed only for a text
-# that says "open questions" at all (instr), so most pages cost no parse.
+# that says "questions" at all (instr), so most pages cost no parse.
 OPEN_QUESTIONS = (
-    f"(NOT {IS_TOPIC} AND instr(lower({{p}}.body), 'open questions') > 0"
+    f"(NOT {IS_TOPIC} AND instr(lower({{p}}.body), 'questions') > 0"
     " AND open_questions({p}.body))"
 )
 
