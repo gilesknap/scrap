@@ -85,7 +85,9 @@ def register_meta(mcp: MCPServer, ctx: Ctx) -> None:
         other kinds); the response gives the values they had (fields_was). public:
         only when the user asks; true makes one page public (refused for several:
         one_at_a_time), so anyone with its address can read it, with its tags and
-        Claude's write-up and summary, once the user's app publishes it; false makes
+        Claude's write-up and summary, once the user's app publishes it (a tag
+        change on a public page is published too, when the app next renders it:
+        MCP never publishes, so tell the owner); false makes
         pages private and takes them off the public site at once ("unpublish":
         "pending" if the site could not be reached: scrap finishes it). Nothing
         else changes: not the title, the text or when it was last updated. Each page

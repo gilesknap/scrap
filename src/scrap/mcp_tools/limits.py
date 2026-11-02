@@ -51,6 +51,13 @@ BulkLimit = Annotated[
 # what a change to a public page tells the caller (ADR 43: only the app publishes)
 PUBLIC_NOTE = (
     "This page is public. The change reaches the public site only when the owner's"
-    " app next renders it (a save in the app, or Settings > Refresh all public"
-    " pages): MCP never publishes, so tell the owner to refresh."
+    " app next renders it (a save in the app once the page has been published, or"
+    " Settings > Refresh all public pages): MCP never publishes, so tell the owner"
+    " to refresh."
+)
+PUBLIC_NOTE_UNPUBLISHED = (
+    "This page is public but not published yet. The change reaches the public site"
+    " only when the owner runs Settings > Refresh all public pages (which asks"
+    " first); a save in the app does not publish it. MCP never publishes, so tell"
+    " the owner."
 )

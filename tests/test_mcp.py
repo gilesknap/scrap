@@ -14,6 +14,7 @@ from scrap import mcp_server
 from scrap.app import create_app
 from scrap.ingest import put_derived
 from scrap.mcp_page import page_key
+from scrap.publish import Publisher
 from scrap.mcp_tools import writing
 from scrap.store import Store, new_ulid, now, roles
 
@@ -151,24 +152,66 @@ def test_append_to_a_claude_page(store):
     assert p["title"] == "Log"
 
 
-def test_a_change_to_a_public_page_says_the_app_publishes(store):
-    page = write(store, title="Pub", body="first")
+def public_page(store, body="first"):
+    page = write(store, title="Pub", body=body)
     ok(store, "edit_meta", pages=[page["slug"]], public=True)
-    p = store.page(page["id"])
+    return page
+
+
+def rev(store, page):
+    return store.page(page["id"])["rev"]
+
+
+def test_a_change_to_a_public_page_says_the_app_publishes(store, monkeypatch):
+    page = public_page(store)
     out = ok(store, "edit_page", page=page["slug"], old="first", new="second",
-             rev=p["rev"])  # fmt: skip
-    assert out["public"] is True and "Refresh all public pages" in out["public_note"]
-    assert "public" not in ok(
-        store, "edit_page", page=page["slug"], old="second", new="x", dry_run=True
-    )
+             rev=rev(store, page))  # fmt: skip
+    # never published: only Refresh all publishes it
+    assert out["public"] is True and "not published yet" in out["public_note"]
+    monkeypatch.setattr(Publisher, "published_at", lambda *a: "2026-01-01T00:00:00Z")
     out = write(store, append_to=page["slug"], body="more")
     assert out["public"] is True and "tell the owner" in out["public_note"]
+    assert "not published yet" not in out["public_note"]
     other = write(store, title="Priv", body="b")
     assert "public" not in write(store, append_to=other["slug"], body="c")
     assert "public" not in ok(
         store, "edit_page", page=other["slug"], old="b", new="d",
-        rev=store.page(other["id"])["rev"],
+        rev=rev(store, other),
     )  # fmt: skip
+
+
+def test_a_title_only_edit_of_a_public_page_has_the_note(store):
+    page = public_page(store)
+    out = ok(store, "edit_page", page=page["slug"], title="New", rev=rev(store, page))
+    assert out["changed"] and out["public"] is True
+
+
+def test_no_note_for_a_dry_run_a_no_op_or_a_retry(store):
+    page = public_page(store)
+    out = ok(store, "edit_page", page=page["slug"], old="first", new="x", dry_run=True)
+    assert "public" not in out and "public_note" not in out
+    out = ok(store, "edit_page", page=page["slug"], old="first", new="first",
+             rev=rev(store, page))  # fmt: skip
+    assert not out["changed"] and "public" not in out
+    assert write(store, append_to=page["slug"], body="x", key="k")["public"] is True
+    again = write(store, append_to=page["slug"], body="x", key="k")
+    assert again["created"] is False and "public" not in again
+
+
+def test_a_text_revert_of_a_public_page_has_the_note_but_not_its_dry_run(store):
+    page = public_page(store)
+    ok(store, "edit_page", page=page["slug"], old="first", new="second",
+       rev=rev(store, page))  # fmt: skip
+    args = {"page": page["slug"], "to_rev": 1, "rev": rev(store, page)}
+    assert "public" not in ok(store, "revert", dry_run=True, **args)
+    out = ok(store, "revert", **args)
+    assert out["public"] is True and "public_note" in out
+
+
+def test_a_trashed_page_gets_no_note(store):
+    page = public_page(store)
+    ok(store, "trash_pages", pages=[page["slug"]])
+    assert refused(store, "edit_page", page=page["slug"], old="first", new="x")
 
 
 def test_a_key_reused_for_another_page_still_writes(store):

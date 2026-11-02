@@ -378,3 +378,12 @@ def test_an_embed_put_back_within_the_window_folds_and_is_not_removed(store):
               new=f"Factorise 12.\n\n{added['embed']}")  # fmt: skip
     assert back["folded"] == gone["rev"]  # the set grows: folds into the removal
     assert added["sha256"] not in store.page(ref["slug"])["removed"]
+
+
+def test_add_svg_to_a_public_page_has_the_note(store):
+    ref = human(store, PAPER)
+    ok(store, "edit_meta", pages=[ref["slug"]], public=True)
+    dry = ok(store, "add_svg", page=ref["slug"], svg=DOT, alt="A dot", dry_run=True)
+    assert "public" not in dry
+    out = ok(store, "add_svg", page=ref["slug"], svg=DOT, alt="A dot")
+    assert out["public"] is True and "tell the owner" in out["public_note"]

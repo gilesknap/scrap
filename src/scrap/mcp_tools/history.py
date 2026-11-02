@@ -114,8 +114,9 @@ def register_history(mcp: MCPServer, ctx: Ctx) -> None:
         batch), so it can itself be reverted: nothing is lost. dry_run shows what it
         would do (a text revert: the unified diff): use it first. On a public page, a
         text revert, or a revert of tags, reaches the public site only when the
-        owner's app next renders it (a save in the app, or Settings > Refresh all
-        public pages); MCP never publishes, so tell the owner to refresh (a text
+        owner's app next renders it (a save in the app once the page has been
+        published, or Settings > Refresh all public pages); MCP never publishes, so
+        tell the owner to refresh (a text
         revert's result then has public: true and a public_note)."""
         if sum(x is not None for x in (revision, batch, to_rev)) != 1:
             raise ToolError("give exactly one of revision, batch, or page with to_rev")

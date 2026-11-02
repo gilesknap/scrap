@@ -161,8 +161,9 @@ def register_editing(mcp: MCPServer, ctx: Ctx) -> None:
         dry_run returns the unified diff and saves nothing: use it first. Removed
         text is kept in the revision before.
         On a public page the change reaches the public site only when the owner's
-        app next renders it (a save in the app, or Settings > Refresh all public
-        pages); MCP never publishes, so tell the owner to refresh (the result then
+        app next renders it (a save in the app once the page has been published,
+        or Settings > Refresh all public pages); MCP never publishes, so tell the
+        owner to refresh (the result then
         has public: true and a public_note)."""
         key = text(page_key(page), "page")
         if delete:
