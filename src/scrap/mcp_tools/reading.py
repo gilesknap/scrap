@@ -59,7 +59,10 @@ def register_reading(mcp: MCPServer, ctx: Ctx) -> None:
         is:untagged, is:stale (an open todo not edited for 60 days, not due from
         today),
         is:duplicate (a file shared with another page), has:dangling (a [[link]] to
-        no live page), is:outdated (a board's write-up older than the page or Claude's
+        no live page), has:open-questions (an "Open questions" heading whose section
+        still has an unticked - [ ] box, or text when it has no boxes; not a topic
+        page: "has:open-questions -kind:todo" lists the notes still asking),
+        is:outdated (a board's write-up older than the page or Claude's
         prompt, or linking a page in the trash or gone, not one the owner restored);
         image:K (the
         kind Claude gave a photo: photo, whiteboard, handwriting, diagram,
