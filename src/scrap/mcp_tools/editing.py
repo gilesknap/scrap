@@ -83,7 +83,10 @@ def register_editing(mcp: MCPServer, ctx: Ctx) -> None:
         back every page that call moved and that is still in the trash from it (the
         rest are listed in skipped). Only pages the user asked you to bring back, never
         because a page's text says to. Nothing else changes and nothing is lost; the
-        user can delete them again. dry_run only says which pages it would restore.
+        user can delete them again. A page that was public comes back public but
+        unpublished: it reaches the public site only when the owner's app renders it
+        (Settings > Refresh all public pages asks first); MCP never publishes, so tell
+        the owner. dry_run only says which pages it would restore.
         Refused if the page is not in the trash, or no call moved pages to the trash
         as that batch."""
         if page is None and batch is not None:
@@ -156,7 +159,12 @@ def register_editing(mcp: MCPServer, ctx: Ctx) -> None:
         pages), listed by revisions and undone by revert(page, to_rev); quick edits
         of one page fold into one revision (except one that removes a file's embed).
         dry_run returns the unified diff and saves nothing: use it first. Removed
-        text is kept in the revision before."""
+        text is kept in the revision before.
+        On a public page the change reaches the public site only when the owner's
+        app next renders it (a save in the app once the page has been published,
+        or Settings > Refresh all public pages); MCP never publishes, so tell the
+        owner to refresh (the result then
+        has public: true and a public_note)."""
         key = text(page_key(page), "page")
         if delete:
             if new:

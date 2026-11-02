@@ -16,7 +16,7 @@ from ..store import (
     NotFoundError,
     Store,
 )
-from .limits import MARK, MAX_BODY
+from .limits import MARK, MAX_BODY, PUBLIC_NOTE, PUBLIC_NOTE_UNPUBLISHED
 from .textdiff import unified
 
 
@@ -73,6 +73,23 @@ class Ctx:
         if ids and self.publisher.settle(ids):
             return {**out, "unpublish": "pending"}
         return out
+
+    def public_note(self, slug: str, changed: bool = True) -> dict[str, Any]:
+        """For a change to a public page: {"public": True, "public_note": ...}, saying
+        the public copy is the app's to render (ADR 43); {} for a private page, a
+        change that did nothing (a dry run, a no-op, a retry) or a page that cannot
+        be found."""
+        if not changed:
+            return {}
+        try:
+            page = self.store.page(slug)
+        except NotFoundError:
+            return {}
+        if not page["public"]:
+            return {}
+        fresh = self.publisher.published_at(page["id"], page["slug"]) is None
+        note = PUBLIC_NOTE_UNPUBLISHED if fresh else PUBLIC_NOTE
+        return {"public": True, "public_note": note}
 
     def link(self, slug: str) -> str:
         return f"{self.base}/p/{slug}"
@@ -159,13 +176,14 @@ class Ctx:
     ) -> dict[str, Any]:
         diff, cut = unified(found["slug"], found["rev_before"], found["body_before"],
                             found["body"])  # fmt: skip
+        note = self.public_note(found["slug"], found["changed"] and not dry_run)
         return {
             "id": found["id"], "slug": found["slug"], "url": self.link(found["slug"]),
             "dry_run": dry_run, "changed": found["changed"],
             "rev_before": found["rev_before"], "rev": found["rev"],
             "folded": found["folded"], **extra,
             "title_before": found["title_before"], "title": found["title"],
-            "diff": diff, "diff_cut": cut,
+            "diff": diff, "diff_cut": cut, **note,
         }  # fmt: skip
 
     def sized(self, value: str, name: str) -> str:

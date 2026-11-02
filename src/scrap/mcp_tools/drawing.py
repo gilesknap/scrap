@@ -146,6 +146,10 @@ def register_drawing(mcp: MCPServer, ctx: Ctx) -> None:
         Excalidraw scene elements (as drawing gives for a scene, checked as a human
         edit is: allowed types, finite numbers, colours, http(s) links, 5 MB). dry_run
         checks and says what would be saved, saving nothing: use it first.
+        On a public page the new drawing reaches the public site only when the
+        owner's app next renders the page (a save in the app once the page has been
+        published, or Settings > Refresh all public pages): MCP never publishes, so
+        tell the owner to refresh.
         Returns {version, base_version, producer, format, element_count, warnings,
         dry_run, saved}."""
         key = find(page, image)

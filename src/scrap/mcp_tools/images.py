@@ -50,7 +50,11 @@ same key with another SVG is refused, dry_run too. A new text revision (author
 claude: is:claude-edited), listed by revisions and undone by revert(page,
 to_rev), which removes the embed (with SCRAP_MCP_CONTENT_EDIT off revert
 refuses that: the user deletes the embed in the PWA's editor). dry_run returns
-the diff and saves nothing. The result has the stored file's download_url."""
+the diff and saves nothing. The result has the stored file's download_url. On a
+public page the change reaches the public site only when the owner's app next
+renders it (a save in the app once the page has been published, or Settings >
+Refresh all public pages); MCP never publishes, so tell the owner to refresh
+(the result then has public: true and a public_note)."""
 
 
 def clean_name(name: str | None) -> str:

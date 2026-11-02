@@ -84,7 +84,11 @@ def register_writing(mcp: MCPServer, ctx: Ctx) -> None:
         With append_to, add body as a new section at the end of a page written over
         MCP instead (the user's own pages cannot be changed), and set its due date or
         priority if given (a todo's; body may then be empty). Returns the page's id,
-        slug and URL."""
+        slug and URL. An append to a public page reaches the public site only when
+        the owner's app next renders it (a save in the app once the page has been
+        published, or Settings > Refresh all public pages); MCP never publishes, so
+        tell the owner to refresh (the result
+        then has public: true and a public_note)."""
         body = text(body, "body").replace("\r\n", "\n").replace("\r", "\n").strip()
         if len(body.encode()) > MAX_BODY:
             raise ToolError(f"body is over {MAX_BODY} bytes")
@@ -134,4 +138,5 @@ def register_writing(mcp: MCPServer, ctx: Ctx) -> None:
             "slug": ref["slug"],
             "url": link(ref["slug"]),
             "created": new,  # False: a retry with the same key, nothing added
+            **(ctx.public_note(ref["slug"], new) if append_to else {}),
         }
