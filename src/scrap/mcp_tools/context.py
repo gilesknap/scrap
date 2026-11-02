@@ -16,7 +16,7 @@ from ..store import (
     NotFoundError,
     Store,
 )
-from .limits import MARK, MAX_BODY
+from .limits import MARK, MAX_BODY, PUBLIC_NOTE
 from .textdiff import unified
 
 
@@ -73,6 +73,18 @@ class Ctx:
         if ids and self.publisher.settle(ids):
             return {**out, "unpublish": "pending"}
         return out
+
+    def public_note(self, slug: str, dry_run: bool = False) -> dict[str, Any]:
+        """For a change to a public page: {"public": True, "public_note": ...}, saying
+        the public copy is the app's to render (ADR 43); {} for a private page, a dry
+        run or a page that cannot be found."""
+        if dry_run:
+            return {}
+        try:
+            public = bool(self.store.page(slug)["public"])
+        except NotFoundError:
+            return {}
+        return {"public": True, "public_note": PUBLIC_NOTE} if public else {}
 
     def link(self, slug: str) -> str:
         return f"{self.base}/p/{slug}"
@@ -165,7 +177,7 @@ class Ctx:
             "rev_before": found["rev_before"], "rev": found["rev"],
             "folded": found["folded"], **extra,
             "title_before": found["title_before"], "title": found["title"],
-            "diff": diff, "diff_cut": cut,
+            "diff": diff, "diff_cut": cut, **self.public_note(found["slug"], dry_run),
         }  # fmt: skip
 
     def sized(self, value: str, name: str) -> str:

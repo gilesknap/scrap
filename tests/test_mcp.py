@@ -151,6 +151,26 @@ def test_append_to_a_claude_page(store):
     assert p["title"] == "Log"
 
 
+def test_a_change_to_a_public_page_says_the_app_publishes(store):
+    page = write(store, title="Pub", body="first")
+    ok(store, "edit_meta", pages=[page["slug"]], public=True)
+    p = store.page(page["id"])
+    out = ok(store, "edit_page", page=page["slug"], old="first", new="second",
+             rev=p["rev"])  # fmt: skip
+    assert out["public"] is True and "Refresh all public pages" in out["public_note"]
+    assert "public" not in ok(
+        store, "edit_page", page=page["slug"], old="second", new="x", dry_run=True
+    )
+    out = write(store, append_to=page["slug"], body="more")
+    assert out["public"] is True and "tell the owner" in out["public_note"]
+    other = write(store, title="Priv", body="b")
+    assert "public" not in write(store, append_to=other["slug"], body="c")
+    assert "public" not in ok(
+        store, "edit_page", page=other["slug"], old="b", new="d",
+        rev=store.page(other["id"])["rev"],
+    )  # fmt: skip
+
+
 def test_a_key_reused_for_another_page_still_writes(store):
     a = write(store, key="k1", title="A", body="a")
     b = write(store, title="B", body="b")

@@ -47,3 +47,10 @@ AllowEmpty = Annotated[
 BulkLimit = Annotated[
     int, Field(ge=1, le=MAX_BULK, description="Refuse a change to more pages")
 ]
+
+# what a change to a public page tells the caller (ADR 43: only the app publishes)
+PUBLIC_NOTE = (
+    "This page is public. The change reaches the public site only when the owner's"
+    " app next renders it (a save in the app, or Settings > Refresh all public"
+    " pages): MCP never publishes, so tell the owner to refresh."
+)
