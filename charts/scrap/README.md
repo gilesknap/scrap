@@ -71,6 +71,12 @@ that can reach the Service can send its own value. Set `networkPolicy.enabled` a
 `networkPolicy.from` (for example the operator's namespace) to restrict who in the cluster can
 connect; an empty `from` admits nobody.
 
+With ingress-nginx and an oauth2-proxy you run, `authProxy.enabled` adds the login for you:
+the Ingress asks the proxy (`authProxy.service`) about every request and admits only
+`authProxy.allowedEmails`, and a second Ingress without auth carries `/mcp` and the proxy's
+`/oauth2`, so the sign-in is on scrap's own host. `identityHeader` then defaults to
+`X-Auth-Request-Email`. Other controllers need their own annotations in `ingress.annotations`.
+
 ## Secrets and ingest
 
 The chart never creates a Secret and never takes the API key as a value. To turn on ingest, create
@@ -94,7 +100,8 @@ default `scrap-public`) that you create first, labelled Pod Security `restricted
 namespace and the token Secret in it. One pod holds nginx, which serves the site read only, and an upload receiver that scrap
 pushes the pages to. Only nginx gets an Ingress (`public.ingress`). A NetworkPolicy admits only
 scrap's pods to the receiver and `public.networkPolicy.webFrom` (empty: anyone) to nginx, and
-denies all egress. The site is an `emptyDir` (`public.sizeLimit`), empty again when the pod moves.
+denies all egress (`public.networkPolicy.enabled: false` leaves it out, where you may not create
+one). `public.namespace` may be the release namespace; then one Secret serves both pods. The site is an `emptyDir` (`public.sizeLimit`), empty again when the pod moves.
 scrap's publisher, which pushes the pages and refills the site, arrives with the scrap side of
 issue 497: until then this section runs the public side only. The contract between the two
 sides is the [public site reference](https://gilesknap.github.io/scrap/main/reference/public-site.html),

@@ -216,6 +216,7 @@ helm template scrap "$chart" -f "$chart/ci/auth-proxy-values.yaml" \
         /^---/ { end_doc(); next } { doc = doc $0 "|" } END { end_doc() }' >"$ap"
 main=$(grep '|kind: Ingress|' "$ap" | grep '|  name: scrap|' || true)
 open=$(grep '|kind: Ingress|' "$ap" | grep '|  name: scrap-open|' || true)
+# shellcheck disable=SC2016 # $host and $escaped_request_uri are nginx's, not the shell's
 if echo "$main" | grep -Fq '|    nginx.ingress.kubernetes.io/auth-url: http://oauth2-proxy.scrap-auth.svc.cluster.local:80/oauth2/auth?allowed_emails=first.last%40example.org|' &&
     echo "$main" | grep -Fq '|    nginx.ingress.kubernetes.io/auth-signin: https://$host/oauth2/start?rd=$escaped_request_uri|' &&
     echo "$main" | grep -Fq '|    nginx.ingress.kubernetes.io/auth-response-headers: X-Auth-Request-Email|' &&
