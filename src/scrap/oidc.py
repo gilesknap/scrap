@@ -48,7 +48,9 @@ HEADER = b"x-auth-request-access-token"
 EMAIL = "scrap.oidc_email"  # the scope key the verified email is kept under
 ALGORITHMS = ("RS256", "ES256")
 LEEWAY = 30  # seconds of clock skew allowed on exp, nbf and iat
-TIMEOUT = 5  # seconds for each fetch from the issuer
+TIMEOUT = 5  # seconds for each socket operation of a fetch from the issuer
+DEADLINE = 10  # seconds for a whole fetch's body to arrive, from its start
+MAX_BYTES = 2**20  # the most a discovery document or key set may be
 KEYS_LIFESPAN = 3600  # how long a fetched key set is used before it is fetched again
 COOLDOWN = 30  # the least time between refetches for a key id not in the set
 RETRY = 10  # seconds after a failed fetch before trying again (503 meanwhile)
@@ -87,10 +89,7 @@ def settings(mcp_guarded: bool) -> Settings | None:
     client_id = os.environ.get("SCRAP_OIDC_CLIENT_ID", "").strip()
     raw = os.environ.get("SCRAP_ALLOWED_EMAILS", "")
     allowed = frozenset(e.strip().lower() for e in raw.split(",") if e.strip())
-    parts = urlsplit(issuer)
-    if parts.scheme != "https" and not (
-        parts.scheme == "http" and parts.hostname in LOOPBACK
-    ):
+    if not secure(issuer):
         raise SystemExit(f"SCRAP_OIDC_ISSUER must be an https URL, not {issuer!r}")
     if not client_id:
         raise SystemExit("SCRAP_OIDC_ISSUER is set but SCRAP_OIDC_CLIENT_ID is empty")
@@ -104,10 +103,23 @@ def settings(mcp_guarded: bool) -> Settings | None:
     return Settings(issuer, client_id, allowed)
 
 
+def secure(url: str) -> bool:
+    """https, or http on loopback (a local issuer for testing)."""
+    parts = urlsplit(url)
+    return parts.scheme == "https" or (
+        parts.scheme == "http" and parts.hostname in LOOPBACK
+    )
+
+
 def fetch_json(url: str) -> Any:
-    """GET url's JSON: http(s) only, no redirects (as PyJWKClient), TIMEOUT."""
+    """GET url's JSON: http(s) only, no redirects. Each socket operation has TIMEOUT;
+    the body is read a piece at a time and given up past DEADLINE from the start, or
+    past MAX_BYTES (KeysUnavailableError), so a slow or huge answer cannot hold a
+    fetch for long. (urllib's timeout is per operation: the request and headers are
+    bounded only by it, but a fetch holds no lock and blocks no other request.)"""
     if urlsplit(url).scheme not in ("http", "https"):
         raise KeysUnavailableError(f"not an http(s) URL: {url!r}")
+    deadline = time.monotonic() + DEADLINE
 
     class NoRedirect(urllib.request.HTTPRedirectHandler):
         def redirect_request(self, *args: Any, **kwargs: Any) -> None:
@@ -117,20 +129,29 @@ def fetch_json(url: str) -> Any:
     request = urllib.request.Request(url, headers={"Accept": "application/json"})
     try:
         with opener.open(request, timeout=TIMEOUT) as response:
-            return json.load(response)
+            body = bytearray()
+            while piece := response.read1(65536):
+                body += piece
+                if len(body) > MAX_BYTES:
+                    raise KeysUnavailableError(f"{url} is over {MAX_BYTES} bytes")
+                if time.monotonic() > deadline:
+                    raise KeysUnavailableError(f"{url} took over {DEADLINE} s")
+        return json.loads(body)
     except (OSError, ValueError) as error:  # URLError, timeouts, bad JSON
         raise KeysUnavailableError(f"cannot fetch {url}: {error}") from error
 
 
 class Verifier:
     """Checks a token against Settings. The issuer's keys are found on first use (so
-    a Keycloak outage at start is a 503, not a crash loop) and kept KEYS_LIFESPAN.
+    a Keycloak outage at start is a 503, not a crash loop) and refreshed after
+    KEYS_LIFESPAN. While a refresh is in flight the old set still answers; a refresh
+    that fails drops an expired set (503 until a fetch works), since a key Keycloak
+    has removed may have been removed for a reason.
 
     scrap's own back-off bounds the fetches, whatever tokens arrive: one fetch at a
-    time, each at most TIMEOUT, never holding the lock (a request meanwhile that the
-    cached keys cannot answer gets 503 at once); after a failed fetch, none for RETRY
-    seconds (503); and a key id not in the set refetches it at most once per
-    COOLDOWN (401 meanwhile)."""
+    time, never holding the lock (a request meanwhile that the cached keys cannot
+    answer gets 503 at once); after a failed fetch, none for RETRY seconds (503); and
+    a key id not in the set refetches it at most once per COOLDOWN (401 meanwhile)."""
 
     def __init__(self, conf: Settings) -> None:
         self.conf = conf
@@ -154,8 +175,8 @@ class Verifier:
         if not isinstance(found, dict) or found.get("issuer") != self.conf.issuer:
             raise KeysUnavailableError("the discovery document is for another issuer")
         uri = found.get("jwks_uri")
-        if not isinstance(uri, str) or urlsplit(uri).scheme not in ("http", "https"):
-            raise KeysUnavailableError("the discovery document has no jwks_uri")
+        if not isinstance(uri, str) or not secure(uri):
+            raise KeysUnavailableError("the discovery document has no https jwks_uri")
         return uri
 
     def fetch_keys(self, uri: str) -> dict[str, jwt.PyJWK]:
@@ -180,10 +201,11 @@ class Verifier:
     def key(self, kid: str) -> jwt.PyJWK:
         with self.lock:
             now = self.clock()
-            keys = self.keys if now - self.fetched_at < KEYS_LIFESPAN else None
-            if keys is not None and kid in keys:
-                return keys[kid]
-            if keys is not None and now - self.tried_at < COOLDOWN:
+            keys = self.keys
+            fresh = keys is not None and now - self.fetched_at < KEYS_LIFESPAN
+            if keys is not None and kid in keys and (fresh or self.fetching):
+                return keys[kid]  # an expired set too, while its refresh is in flight
+            if fresh and now - self.tried_at < COOLDOWN:
                 raise InvalidTokenError("an unknown signing key")
             if self.fetching:
                 raise KeysUnavailableError("the issuer's keys are being fetched")
@@ -196,6 +218,8 @@ class Verifier:
         except BaseException:
             with self.lock:
                 self.fetching, self.failed_at = False, self.clock()
+                if self.clock() - self.fetched_at >= KEYS_LIFESPAN:
+                    self.keys = None  # expired, and its refresh failed
             raise
         with self.lock:
             self.fetching, self.jwks_uri = False, uri

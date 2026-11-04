@@ -45,15 +45,27 @@ own and trusted that header as sent.
   other error: `401`. An issuer without a client ID or an allow-list, or one that is not https
   (loopback aside), stops scrap starting.
 - **Keys.** Discovery runs on the first request, not at start, so a Keycloak outage is a `503`
-  rather than a crash loop. scrap keeps the key set for an hour, with its own back-off rather
-  than `PyJWKClient`'s (whose cooldown starts only after a fetch that worked, so during an
-  outage every request would fetch): one fetch at a time, never holding up other requests (one
-  the cached keys cannot answer meanwhile gets `503`); after a failed fetch none for 10 s
+  rather than a crash loop. Its `jwks_uri` must be https (http only on loopback, as for the
+  issuer). scrap refreshes the key set after an hour, with its own back-off rather than
+  `PyJWKClient`'s (whose cooldown starts only after a fetch that worked, so during an outage
+  every request would fetch): one fetch at a time, never holding up other requests (one the
+  cached keys cannot answer meanwhile gets `503`); after a failed fetch none for 10 s
   (`503`); and an unknown key ID refetches the set at most once per 30 s (`401` meanwhile).
   So, whatever tokens a pod sends, scrap makes at most one fetch per 10 s while Keycloak is
   down and one per 30 s for unknown key IDs, and a rotated key is picked up within 30 s. A
-  key set that is not JSON, not an object, or has no usable signing key is a failed fetch
-  (`503`). Fetches use the standard library (http(s) only, no redirects, a 5 s timeout).
+  key set that is not JSON, not an object, or has no usable signing key (only `use: sig` or
+  unmarked keys count) is a failed fetch (`503`).
+- **A stale key set.** While the hourly refresh is in flight the old set still answers, so
+  the refresh costs nobody a `503`. If that refresh fails, the expired set is dropped and
+  the web app answers `503` until a fetch works. Keeping it through an outage would also
+  verify (signatures still check, and `exp` bounds each token), but a key Keycloak has
+  removed may have been removed because it leaked, and scrap could not tell; an outage
+  long enough to matter also stops logins and the proxy's refreshes, so little is lost by
+  failing closed. A failed refetch for an unknown key ID before the hour is up keeps the set.
+- **Fetching.** The standard library: http(s) only, no redirects, 5 s per socket operation,
+  and the body read a piece at a time, given up past 10 s from the start or past 1 MiB
+  (`503`). The request and headers are bounded per operation only, but a slow fetch holds
+  no lock and blocks no other request.
 - **Freshness.** Keycloak's access tokens last 5 minutes by default, so the proxy refreshes its
   session every minute (`cookie_refresh`) with its refresh token. Its scopes are `openid email`
   only: no `offline_access`, so a login lasts as long as the user's Keycloak session, and then

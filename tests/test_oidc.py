@@ -2,6 +2,8 @@
 whose keys are made here, so nothing touches the network."""
 
 import base64
+import http.server
+import threading
 import time
 from typing import Any
 
@@ -37,7 +39,8 @@ def jwk(key: Any, kid: str) -> dict[str, Any]:
 
 OCT = {"kty": "oct", "kid": "oct", "use": "sig",
        "k": base64.urlsafe_b64encode(SECRET).rstrip(b"=").decode()}  # fmt: skip
-JWKS = {"keys": [jwk(RSA_KEY, "rsa1"), jwk(EC_KEY, "ec1"), OCT]}
+ENC = {**jwk(OTHER_KEY, "rsa-enc"), "use": "enc"}  # an encryption key: never used
+JWKS = {"keys": [jwk(RSA_KEY, "rsa1"), jwk(EC_KEY, "ec1"), OCT, ENC]}
 
 
 def claims(**over: Any) -> dict[str, Any]:
@@ -63,9 +66,13 @@ def issuer(monkeypatch):
             state["discovery"] += 1
             if state["down"]:
                 raise oidc.KeysUnavailableError("down")
-            return {"issuer": state.get("issuer", ISSUER), "jwks_uri": JWKS_URI}
+            uri = state.get("jwks_uri", JWKS_URI)
+            return {"issuer": state.get("issuer", ISSUER), "jwks_uri": uri}
         assert url == JWKS_URI
         state["keys"] += 1
+        if "gate" in state:  # a fetch held in flight until the test lets it go
+            state["started"].set()
+            assert state["gate"].wait(10)
         if state["down"] or state.get("keys_down"):
             raise oidc.KeysUnavailableError("down")
         return state.get("jwks", JWKS)
@@ -148,6 +155,7 @@ def test_a_forged_email_header_alone_does_nothing(gated, monkeypatch):
         pytest.param(lambda: token(email_verified="true"), id="verified-a-string"),
         pytest.param(lambda: token(typ="ID"), id="an-id-token"),
         pytest.param(lambda: token(typ=None), id="no-typ"),
+        pytest.param(lambda: token(OTHER_KEY, kid="rsa-enc"), id="an-enc-key"),
     ],
 )
 def test_a_token_that_does_not_let_in_is_401(gated, tok):
@@ -255,6 +263,132 @@ def test_a_fetch_under_way_is_not_waited_for(verifier, issuer):
     verifier.fetching = True  # another request's fetch
     assert outcome(verifier, token()) == "503"
     assert issuer["keys"] == 0
+
+
+def in_flight(verifier: oidc.Verifier, issuer: dict[str, Any]):
+    """Start a request whose key fetch is held until gate is set; its outcome."""
+    issuer["gate"], issuer["started"] = threading.Event(), threading.Event()
+    done: list[str] = []
+    first = threading.Thread(target=lambda: done.append(outcome(verifier, token())))
+    first.start()
+    assert issuer["started"].wait(10)
+    return first, done
+
+
+def test_the_first_fetch_is_made_once(verifier, issuer):
+    first, done = in_flight(verifier, issuer)
+    assert [outcome(verifier, token()) for _ in range(5)] == ["503"] * 5
+    issuer["gate"].set()
+    first.join(10)
+    assert done == ["ok"]
+    assert (issuer["discovery"], issuer["keys"]) == (1, 1)
+
+
+def test_an_expired_set_answers_while_its_refresh_is_in_flight(verifier, issuer):
+    clock: Clock = verifier.clock  # type: ignore[assignment]
+    assert outcome(verifier, token()) == "ok"
+    clock.now += oidc.KEYS_LIFESPAN
+    first, done = in_flight(verifier, issuer)
+    assert [outcome(verifier, token()) for _ in range(5)] == ["ok"] * 5
+    assert outcome(verifier, token(kid="rsa9")) == "503"  # unknown: wait for it
+    issuer["gate"].set()
+    first.join(10)
+    assert done == ["ok"]
+    assert issuer["keys"] == 2
+
+
+def test_an_expired_set_is_dropped_when_its_refresh_fails(verifier, issuer):
+    clock: Clock = verifier.clock  # type: ignore[assignment]
+    assert outcome(verifier, token()) == "ok"
+    clock.now += oidc.KEYS_LIFESPAN - 1
+    issuer["keys_down"] = True
+    assert outcome(verifier, token(kid="rsa9")) == "503"  # a refetch that fails
+    assert outcome(verifier, token()) == "ok"  # the set has not expired: kept
+    clock.now += 1
+    assert outcome(verifier, token()) == "503"  # expired, and in RETRY
+    clock.now += oidc.RETRY
+    assert outcome(verifier, token()) == "503"  # its refresh fails: dropped
+    issuer["keys_down"] = False
+    assert outcome(verifier, token()) == "503"  # in RETRY, and no set to answer
+    clock.now += oidc.RETRY
+    assert outcome(verifier, token()) == "ok"
+
+
+def test_a_rotated_key_is_picked_up_after_the_cooldown(verifier, issuer):
+    clock: Clock = verifier.clock  # type: ignore[assignment]
+    assert outcome(verifier, token()) == "ok"
+    issuer["jwks"] = {"keys": [jwk(OTHER_KEY, "rsa2")]}  # Keycloak rotates
+    new = token(OTHER_KEY, kid="rsa2")
+    assert outcome(verifier, new) == "401"  # within the first fetch's cooldown
+    clock.now += oidc.COOLDOWN
+    assert outcome(verifier, new) == "ok"
+    assert outcome(verifier, token()) == "401"  # the old key is gone
+    assert issuer["keys"] == 2
+
+
+@pytest.mark.parametrize(
+    "uri",
+    ["http://identity.example.org/certs", "file:///etc/passwd", None],
+)
+def test_a_jwks_uri_that_is_not_https_is_503(verifier, issuer, uri):
+    issuer["jwks_uri"] = uri
+    assert outcome(verifier, token()) == "503"
+    assert issuer["keys"] == 0
+
+
+@pytest.fixture
+def server():
+    """A local HTTP server; the handler's behaviour is set per test."""
+    behaviour: dict[str, Any] = {}
+
+    class Handler(http.server.BaseHTTPRequestHandler):
+        def do_GET(self) -> None:
+            body = behaviour["body"]
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            step = behaviour.get("chunk") or len(body) or 1
+            for i in range(0, len(body), step):
+                self.wfile.write(body[i : i + step])
+                self.wfile.flush()
+                time.sleep(behaviour.get("pause", 0))
+
+        def log_message(self, format: str, *args: Any) -> None:
+            pass
+
+    httpd = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    threading.Thread(target=httpd.serve_forever, daemon=True).start()
+    behaviour["url"] = f"http://127.0.0.1:{httpd.server_address[1]}/"
+    yield behaviour
+    httpd.shutdown()
+    httpd.server_close()
+
+
+def test_fetch_json_reads_json(server):
+    server["body"] = b'{"keys": []}'
+    assert oidc.fetch_json(server["url"]) == {"keys": []}
+
+
+def test_fetch_json_caps_the_size(server, monkeypatch):
+    monkeypatch.setattr(oidc, "MAX_BYTES", 1000)
+    server["body"] = b'{"k": "' + b"x" * 5000 + b'"}'
+    with pytest.raises(oidc.KeysUnavailableError, match="over 1000 bytes"):
+        oidc.fetch_json(server["url"])
+
+
+def test_fetch_json_has_an_overall_deadline(server, monkeypatch):
+    monkeypatch.setattr(oidc, "DEADLINE", 0.3)
+    server.update(body=b'{"k": "' + b"x" * 40 + b'"}', chunk=2, pause=0.05)
+    started = time.monotonic()
+    with pytest.raises(oidc.KeysUnavailableError, match="took over"):
+        oidc.fetch_json(server["url"])
+    assert time.monotonic() - started < 1  # each piece is quick: only the total
+
+
+def test_fetch_json_refuses_what_is_not_json(server):
+    server["body"] = b"<html>"
+    with pytest.raises(oidc.KeysUnavailableError):
+        oidc.fetch_json(server["url"])
 
 
 def test_discovery_for_another_issuer_is_503(gated, issuer):
