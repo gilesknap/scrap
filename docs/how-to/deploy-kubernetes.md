@@ -647,6 +647,27 @@ arguments runs any `scrap` command against the data, for example `["export", "/b
 run, so an export there is kept). To restore into a fresh volume instead, create a new claim,
 restore into it without `--force`, and point `persistence.existingClaim` at it.
 
+(k8s-restore-hostpath)=
+**Backups in a hostPath.** With `backup.persistence.hostPath`, there is no backups claim. Mount
+the directory instead, and run the pod as the release's `podSecurityContext` user, who owns the
+backups (the DLS install uses your own uid and gid; `id` shows them):
+
+```yaml
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: <uid>
+    runAsGroup: <gid>
+    fsGroup: <gid>
+    seccompProfile:
+      type: RuntimeDefault
+  ...
+  volumes:
+    - name: backups
+      hostPath:
+        path: <the backup directory>
+        type: Directory
+```
+
 (k8s-restore-schema)=
 ### Which backups restore
 

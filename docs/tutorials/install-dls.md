@@ -36,7 +36,7 @@ It:
 2. creates a Secret `scrap-secrets` holding the key and a generated `/mcp` bearer token;
 3. installs the pinned scrap release with Helm, with an Ingress for `scrap-<fedid>.diamond.ac.uk`
    on argus's `nginx` ingress, served over HTTPS by its `*.diamond.ac.uk` certificate;
-4. makes `/dls/science/users/<fedid>/scrap` (mode 700) and keeps the nightly backups there, with
+4. makes `/dls/science/users/<fedid>/scrap` (mode 700, if it is new) and keeps the nightly backups there, with
    scrap's pods running as you, so the backups are your files;
 5. prints the Service IP, your bearer token (once), and what to do next.
 
@@ -76,3 +76,5 @@ and open <http://127.0.0.1:8000/>. The phone app and `/mcp` need the DNS name.
   ```
 
 For everything the chart can do (backups, restore, upgrades), see [](../how-to/deploy-kubernetes.md).
+To restore from the backups in your directory, follow its restore steps with the changes in
+{ref}`backups in a hostPath <k8s-restore-hostpath>`, and your namespace in place of `-n scrap`.

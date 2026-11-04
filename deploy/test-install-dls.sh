@@ -49,7 +49,7 @@ check "namespace falls back to USER" grep -q -- "--namespace hgv27681" "$tmp/hel
 check "host from USER" grep -q "scrap-hgv27681.diamond.ac.uk" "$tmp/values.yaml"
 check "nginx class by default" grep -q "className: nginx" "$tmp/values.yaml"
 check "tls for the host" grep -A2 -q "tls:" "$tmp/values.yaml"
-check "ingest enabled" grep -q "enabled: true" "$tmp/values.yaml"
+check "ingest enabled" sh -c "grep -A1 '^ingest:' '$tmp/values.yaml' | grep -q 'enabled: true'"
 check "token shown" grep -q "bearer token (shown once" "$tmp/out"
 check "service ip shown" grep -q "10.1.2.3" "$tmp/out"
 check "clusterip by default" grep -q "type: ClusterIP" "$tmp/values.yaml"
@@ -73,6 +73,7 @@ check "external ip shown" grep -q "192.0.2.7" "$tmp/out"
 # Options: ingress class, namespace from kubectl context, plain http.
 (STUB_NS=work SCRAP_INGRESS_CLASS=internal SCRAP_SCHEME=http run)
 check "namespace from context" grep -q -- "--namespace work" "$tmp/helm.calls"
+check "http in the first line" sh -c "head -n1 '$tmp/out' | grep -q 'for http://scrap-'"
 check "ingress class" grep -q "className: internal" "$tmp/values.yaml"
 check "no tls over http" sh -c "! grep -q 'tls:' '$tmp/values.yaml'"
 
@@ -86,6 +87,12 @@ if (STUB_HELM_FAIL=1 run); then helm_rc=0; else helm_rc=1; fi
 check "helm failure fails the script" [ "$helm_rc" = 1 ]
 check "token shown when helm fails" grep -q "bearer token (shown once" "$tmp/out"
 
+# An existing backup directory keeps its mode.
+mkdir -p "$tmp/mine" && chmod 750 "$tmp/mine"
+(SCRAP_BACKUP_DIR=$tmp/mine run)
+check "existing backup dir keeps its mode" sh -c "[ \"\$(stat -c %a '$tmp/mine')\" = 750 ]"
+check "existing backup dir used" grep -q "hostPath: $tmp/mine" "$tmp/values.yaml"
+
 # Backups on a claim: no hostPath. A relative directory is refused.
 (SCRAP_BACKUP_DIR='' run)
 check "empty backup dir keeps the claim" sh -c "! grep -q hostPath '$tmp/values.yaml'"
@@ -95,6 +102,6 @@ check "relative backup dir refused" [ "$rel_rc" = 1 ]
 # No secret and no key: ingest off.
 rm -f "$tmp/secret" "$tmp/key"
 run
-check "ingest off without a key" grep -q "enabled: false" "$tmp/values.yaml"
+check "ingest off without a key" sh -c "grep -A1 '^ingest:' '$tmp/values.yaml' | grep -q 'enabled: false'"
 
 exit $fail

@@ -204,6 +204,16 @@ if [ "$(trash_days -f "$chart/ci/gc-dry-run-values.yaml")" = '"off"' ] &&
     ok "SCRAP_TRASH_DAYS is off while gc deletes nothing"
 else bad "SCRAP_TRASH_DAYS is not off while gc deletes nothing"; fi
 
+# Backups in a hostPath: no backups claim, and every job that uses the backups
+# (backup, backup-monthly, gc) mounts the directory instead.
+hp=$(helm template scrap "$chart" -f "$chart/ci/backup-hostpath-values.yaml")
+if ! echo "$hp" | grep -q -- '-backups$' && ! echo "$hp" | grep -q 'claimName: scrap-backups' &&
+    [ "$(echo "$hp" | grep -c '^kind: CronJob$')" = 3 ] &&
+    [ "$(echo "$hp" | grep -A1 '^              hostPath:$' |
+        grep -c 'path: "/dls/science/users/abc12345/scrap"')" = 3 ]; then
+    ok "backup.persistence.hostPath: no backups claim, all three CronJobs mount the directory"
+else bad "backup.persistence.hostPath still makes a backups claim, or a CronJob lacks the directory"; fi
+
 # By default both claims (data and backups) carry the annotations that keep them
 # through helm uninstall and an Argo CD prune.
 pvcs=$(helm template scrap "$chart" | awk '
