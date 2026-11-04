@@ -24,7 +24,7 @@ metadata:
     {{- include "scrap.labels" . | nindent 4 }}
   {{- /* ingress.annotations without any auth ones (a body size limit stays) */}}
   {{- $open := dict }}
-  {{- range $k, $v := .Values.ingress.annotations }}
+  {{- range $k, $v := include "scrap.proxyBufferAnnotations" . | fromYaml }}
   {{- if not (hasPrefix "nginx.ingress.kubernetes.io/auth-" $k) }}
   {{- $_ := set $open $k $v }}
   {{- end }}

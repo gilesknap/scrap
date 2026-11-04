@@ -104,6 +104,10 @@ expect_refused "authProxy without service" -f "$chart/ci/auth-proxy-values.yaml"
     --set authProxy.service=
 expect_refused "authProxy without allowedEmails" -f "$chart/ci/auth-proxy-values.yaml" \
     --set 'authProxy.allowedEmails=null'
+expect_refused "authProxy without an /mcp token" -f "$chart/ci/auth-proxy-values.yaml" \
+    --set mcp.tokenSecret.name=
+expect_refused "authProxy without tls" -f "$chart/ci/auth-proxy-values.yaml" \
+    --set 'ingress.tls=null'
 expect_refused "authProxy with an email that is not one" -f "$chart/ci/auth-proxy-values.yaml" \
     --set 'authProxy.allowedEmails[0]=nobody'
 expect_refused "authProxy with a service that is not a DNS name" -f "$chart/ci/auth-proxy-values.yaml" \
@@ -221,11 +225,13 @@ if echo "$main" | grep -Fq '|    nginx.ingress.kubernetes.io/auth-url: http://oa
     echo "$main" | grep -Fq '|    nginx.ingress.kubernetes.io/auth-signin: https://$host/oauth2/start?rd=$escaped_request_uri|' &&
     echo "$main" | grep -Fq '|    nginx.ingress.kubernetes.io/auth-response-headers: X-Auth-Request-Email|' &&
     echo "$main" | grep -Fq '|    nginx.ingress.kubernetes.io/proxy-body-size: 50m|' &&
+    echo "$main" | grep -Fq '|    nginx.ingress.kubernetes.io/proxy-buffer-size: 16k|' &&
     echo "$main" | grep -Fq '|          - path: /|' && ! echo "$main" | grep -q 'path: /mcp'; then
     ok "authProxy: the main Ingress asks oauth2-proxy, for the allowed email"
 else bad "authProxy: the main Ingress lacks an auth annotation or has the wrong paths"; fi
 if [ -n "$open" ] && ! echo "$open" | grep -q 'nginx.ingress.kubernetes.io/auth-' &&
     echo "$open" | grep -Fq '|    nginx.ingress.kubernetes.io/proxy-body-size: 50m|' &&
+    echo "$open" | grep -Fq '|    nginx.ingress.kubernetes.io/proxy-buffer-size: 16k|' &&
     echo "$open" | grep -Fq '|          - path: /mcp|            pathType: Prefix|            backend:|              service:|                name: scrap|' &&
     echo "$open" | grep -Fq '|          - path: /oauth2|            pathType: Prefix|            backend:|              service:|                name: scrap-oauth2|' &&
     echo "$open" | grep -Fq '|  ingressClassName: nginx|' && echo "$open" | grep -Fq '|      - scrap-abc12345.example.org|' &&
@@ -241,7 +247,12 @@ if grep -Fq '|            - name: SCRAP_IDENTITY_HEADER|              value: "X-
     grep -A1 'name: SCRAP_IDENTITY_HEADER$' | grep -q 'value: "X-Mine"'; then
     ok "authProxy: identityHeader defaults to X-Auth-Request-Email"
 else bad "authProxy: identityHeader is not X-Auth-Request-Email, or ignores identityHeader"; fi
-if helm template scrap "$chart" | grep -Eq 'ExternalName|-open$|auth-url'; then
+if [ "$(helm template scrap "$chart" -f "$chart/ci/auth-proxy-values.yaml" \
+    --set-string 'ingress.annotations.nginx\.ingress\.kubernetes\.io/proxy-buffer-size=32k' |
+    grep -c 'nginx.ingress.kubernetes.io/proxy-buffer-size: 32k$')" = 2 ]; then
+    ok "authProxy: an ingress.annotations proxy-buffer-size wins on both Ingresses"
+else bad "authProxy: ingress.annotations' proxy-buffer-size is overridden"; fi
+if helm template scrap "$chart" | grep -Eq 'ExternalName|-open$|auth-url|proxy-buffer-size'; then
     bad "authProxy renders while off"
 else ok "authProxy is off by default"; fi
 

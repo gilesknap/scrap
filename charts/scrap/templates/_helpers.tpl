@@ -270,26 +270,41 @@ capabilities:
 {{- if not .Values.authProxy.allowedEmails }}
 {{- fail "authProxy.enabled needs authProxy.allowedEmails: the logins that may use the web app" }}
 {{- end }}
+{{- if not .Values.mcp.tokenSecret.name }}
+{{- fail "authProxy.enabled needs mcp.tokenSecret.name: /mcp is on an Ingress without the login, so it needs the bearer token" }}
+{{- end }}
+{{- if not .Values.ingress.tls }}
+{{- fail "authProxy.enabled needs ingress.tls: the login's cookie is sent over https only" }}
+{{- end }}
 {{- end }}
 {{- end }}
 
 {{/* The main Ingress's annotations: ingress.annotations, plus ingress-nginx's auth
 annotations (which win) when authProxy.enabled. */}}
 {{- define "scrap.ingressAnnotations" -}}
-{{- $a := .Values.ingress.annotations | default dict }}
+{{- $a := include "scrap.proxyBufferAnnotations" . | fromYaml }}
 {{- if .Values.authProxy.enabled }}
 {{- $emails := list }}
 {{- range .Values.authProxy.allowedEmails }}
 {{- $emails = append $emails (urlquery .) }}
 {{- end }}
-{{- $scheme := ternary "https" "http" (not (empty .Values.ingress.tls)) }}
 {{- $auth := dict
   "nginx.ingress.kubernetes.io/auth-url" (printf "http://%s:%v/oauth2/auth?allowed_emails=%s" .Values.authProxy.service .Values.authProxy.port (join "," $emails))
-  "nginx.ingress.kubernetes.io/auth-signin" (printf "%s://$host/oauth2/start?rd=$escaped_request_uri" $scheme)
+  "nginx.ingress.kubernetes.io/auth-signin" "https://$host/oauth2/start?rd=$escaped_request_uri"
   "nginx.ingress.kubernetes.io/auth-response-headers" "X-Auth-Request-Email" }}
 {{- $a = merge $auth $a }}
 {{- end }}
 {{- with $a }}
 {{- toYaml . }}
 {{- end }}
+{{- end }}
+
+{{/* ingress.annotations, with a 16k proxy-buffer-size when authProxy.enabled and it
+is not set: the Keycloak login's cookies overflow nginx's 4k default. */}}
+{{- define "scrap.proxyBufferAnnotations" -}}
+{{- $a := deepCopy (.Values.ingress.annotations | default dict) }}
+{{- if .Values.authProxy.enabled }}
+{{- $a = merge $a (dict "nginx.ingress.kubernetes.io/proxy-buffer-size" "16k") }}
+{{- end }}
+{{- toYaml $a }}
 {{- end }}

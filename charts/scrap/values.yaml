@@ -216,13 +216,15 @@ ingress:
   tls: []
 
 # A login for the web app through an oauth2-proxy you run (ingress-nginx only).
-# Needs ingress.enabled. The Ingress gets ingress-nginx's auth-url, auth-signin and
+# Needs ingress.enabled, ingress.tls (the login's cookie is https only) and
+# mcp.tokenSecret. The Ingress gets ingress-nginx's auth-url, auth-signin and
 # auth-response-headers annotations, so each request is checked with the proxy and
 # only allowedEmails get in. A second Ingress (<fullname>-open, same class, hosts and
 # tls) has no auth: /mcp goes to scrap (guard it with mcp.tokenSecret) and /oauth2
 # to the proxy, through an ExternalName Service (<fullname>-oauth2), so the sign-in
 # and its cookie are on scrap's own host. identityHeader defaults to
-# X-Auth-Request-Email. The proxy needs reverse_proxy and set_xauthrequest on, and no
+# X-Auth-Request-Email. Both Ingresses get proxy-buffer-size 16k unless
+# ingress.annotations sets it (the login's cookies overflow the 4k default). The proxy needs reverse_proxy and set_xauthrequest on, and no
 # fixed redirect_url. Default off.
 authProxy:
   enabled: false
