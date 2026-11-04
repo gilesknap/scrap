@@ -24,6 +24,7 @@ from . import (
     ingest_api,
     mcp_files,
     mcp_server,
+    oidc,
     pages_api,
     photos_api,
     publish,
@@ -69,6 +70,7 @@ def create_app(data_dir: Path | str | None = None) -> FastAPI:
     store.migrate()
     store.prompts = enrich.prompt_versions()  # what is:outdated compares with
     publish.settings.check()  # bad publish settings stop the start, not a request
+    login = oidc.settings()  # the login proxy's token check (ADR 45), else None
     publisher = publish.Publisher(store)
     limit = upload_limit()
     worker = ingest.Worker(store) if ingest.enabled() else None
@@ -113,6 +115,8 @@ def create_app(data_dir: Path | str | None = None) -> FastAPI:
     )
     if bearer := mcp_server.tokens():  # added last, so outermost: before any work
         app.add_middleware(mcp_server.BearerAuth, tokens=bearer)
+    if login:  # outermost of all: no work, not even the Host check, before the token
+        app.add_middleware(oidc.OidcGate, verifier=oidc.Verifier(login))
 
     for exc, status in ERRORS.items():
 
