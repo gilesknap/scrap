@@ -1,0 +1,63 @@
+# Values for the upstream oauth2-proxy chart (https://oauth2-proxy.github.io/manifests),
+# the one central login proxy for every DLS user's scrap. install.sh deploys it as
+# release "oauth2-proxy", so its Service is oauth2-proxy.<namespace>.svc.cluster.local:80.
+#
+# It never proxies scrap itself. ingress-nginx asks it on each request
+# (nginx.ingress.kubernetes.io/auth-url .../oauth2/auth?allowed_emails=<owner>), and each
+# user's /oauth2/* reaches it through an ExternalName Service in that user's namespace,
+# so the login cookie belongs to that user's own host, never to .diamond.ac.uk.
+
+replicaCount: 2
+podDisruptionBudget:
+  enabled: true
+revisionHistoryLimit: 2
+# It never calls the Kubernetes API.
+serviceAccount:
+  automountServiceAccountToken: false
+enableServiceLinks: false
+
+config:
+  # Keys client-id, client-secret and cookie-secret, made by install.sh. Nothing secret
+  # is in this file.
+  existingSecret: oauth2-proxy-keycloak
+  configFile: |-
+    provider = "keycloak-oidc"
+    oidc_issuer_url = "https://identity.diamond.ac.uk/realms/dls"
+    scope = "openid email profile offline_access"
+    code_challenge_method = "S256"
+
+    # Any DLS login may sign in; each user's Ingress then admits only its owner
+    # (allowed_emails on the auth-url).
+    email_domains = ["diamond.ac.uk"]
+
+    # Answer nginx's auth subrequests only: no upstream.
+    upstreams = ["static://202"]
+    reverse_proxy = true
+    set_xauthrequest = true
+    skip_provider_button = true
+
+    # No redirect_url and no cookie_domains: the callback and the cookie are on the
+    # host the request came to (scrap-<fedid>.diamond.ac.uk).
+    cookie_name = "_scrap_auth"
+    cookie_secure = true
+    cookie_samesite = "lax"
+    # A week, so the phone's offline capture queue rarely meets a login page.
+    cookie_expire = "168h"
+    cookie_refresh = "1h"
+
+ingress:
+  # Reached only in the cluster: from nginx's auth subrequests and the users'
+  # ExternalName Services.
+  enabled: false
+
+service:
+  portNumber: 80
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    # argus caps a CPU limit at 10 times the request.
+    cpu: 500m
+    memory: 128Mi

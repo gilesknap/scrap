@@ -3,7 +3,13 @@
 #   module load argus
 #   curl -fsSL https://raw.githubusercontent.com/gilesknap/scrap/main/deploy/install-dls.sh | sh
 # Safe to re-run: it upgrades the release, and never overwrites the Secret that holds
-# your Claude API key and the /mcp bearer token.
+# your Claude API key, the /mcp bearer token and the public pages' upload token (it only
+# adds that last one to a Secret made before it existed).
+#
+# The web app's login is DLS Keycloak, through the central oauth2-proxy that a scrap
+# admin runs (deploy/dls/auth-proxy), and only you may use it. /mcp keeps its bearer
+# token. Public pages are on: the pages you make public are served on
+# pages-$USER.diamond.ac.uk to anyone on the DLS network.
 #
 # Settings (environment, all optional):
 #   SCRAP_VERSION          chart version to install (default: the latest release)
@@ -11,7 +17,14 @@
 #   SCRAP_NAMESPACE        namespace (default: the one `module load argus` selects, else $USER)
 #   SCRAP_HOST             hostname (default: scrap-$USER.diamond.ac.uk: one level under
 #                          diamond.ac.uk, so the ingress's *.diamond.ac.uk certificate covers it)
-#   SCRAP_SCHEME           https (default) or http: the scheme the hostname is served on
+#   SCRAP_PAGES_HOST       public pages' hostname (default: pages-$USER.diamond.ac.uk)
+#   SCRAP_SCHEME           https (default) or http: the scheme the hostnames are served on
+#                          (the login's cookie needs https)
+#   SCRAP_EMAIL            your login's email address, the only one let in (default: from
+#                          your namespace's "email" label, first.last@diamond.ac.uk)
+#   SCRAP_AUTH_NAMESPACE   the login proxy's namespace (default: scrap-auth)
+#   SCRAP_AUTH_SERVICE     the login proxy's in-cluster DNS name (default:
+#                          oauth2-proxy.$SCRAP_AUTH_NAMESPACE.svc.cluster.local)
 #   SCRAP_INGRESS_CLASS    ingressClassName for the Ingress (default: nginx, argus's ingress)
 #   SCRAP_BACKUP_DIR       where the nightly backups go (default: /dls/science/users/$USER/scrap,
 #                          made here with mode 700 if new; every argus node mounts /dls/science).
@@ -20,6 +33,20 @@
 #                          which bypasses any auth proxy: not recommended)
 #   ANTHROPIC_API_KEY      your Claude API key (default: asked for; empty answer skips ingest)
 set -eu
+
+# An Ingress's values for HOST, indented under "ingress:".
+ingress_values() {
+    echo "  enabled: true"
+    echo "  className: ${SCRAP_INGRESS_CLASS:-nginx}"
+    echo "  hosts:"
+    echo "    - $1"
+    if [ "$scheme" = https ]; then
+        # No secretName: the controller's default (wildcard) certificate serves it.
+        echo "  tls:"
+        echo "    - hosts:"
+        echo "        - $1"
+    fi
+}
 
 # All in a function that the last line runs: a download cut short runs nothing.
 main() {
@@ -37,6 +64,8 @@ main() {
     ns=${SCRAP_NAMESPACE:-$(kubectl config view --minify --output 'jsonpath={..namespace}' </dev/null 2>/dev/null || true)}
     ns=${ns:-$user}
     host=${SCRAP_HOST:-scrap-$user.diamond.ac.uk}
+    pages_host=${SCRAP_PAGES_HOST:-pages-$user.diamond.ac.uk}
+    auth_svc=${SCRAP_AUTH_SERVICE:-oauth2-proxy.${SCRAP_AUTH_NAMESPACE:-scrap-auth}.svc.cluster.local}
     scheme=${SCRAP_SCHEME:-https}
     secret=scrap-secrets
     backup_dir=${SCRAP_BACKUP_DIR-/dls/science/users/$user/scrap}
@@ -54,6 +83,29 @@ main() {
     what="the latest scrap"
     [ -z "$version" ] || what="scrap $version"
     echo "Installing $what into namespace $ns, for $scheme://$host"
+
+    # The web app lets in only this login. argus labels your namespace with your email,
+    # first.last--at--diamond.ac.uk (a label value cannot hold @).
+    email=${SCRAP_EMAIL:-}
+    if [ -z "$email" ]; then
+        email=$(kubectl get namespace "$ns" -o jsonpath='{.metadata.labels.email}' </dev/null 2>/dev/null |
+            sed 's/--at--/@/' || true)
+    fi
+    case $email in
+    "")
+        echo "Cannot find your email address: namespace $ns has no \"email\" label you can read." >&2
+        echo "Set SCRAP_EMAIL to your DLS email address (first.last@diamond.ac.uk) and re-run." >&2
+        exit 1
+        ;;
+    *[!A-Za-z0-9._+@-]* | *@*@* | @* | *@) bad_email=yes ;;
+    *@*) bad_email= ;;
+    *) bad_email=yes ;;
+    esac
+    if [ -n "$bad_email" ]; then
+        echo "Not an email address: $email. Set SCRAP_EMAIL to yours (first.last@diamond.ac.uk)." >&2
+        exit 1
+    fi
+    echo "The web app will let in only $email."
 
     if [ -n "$backup_dir" ]; then
         case $backup_dir in
@@ -79,7 +131,8 @@ main() {
         fi
     fi
 
-    # --- The Secret: API key and /mcp bearer token. Created once, never overwritten. ---
+    # --- The Secret: API key, /mcp bearer token and the public pages' upload token.
+    # Created once, never overwritten. ---
     new_token=
     if kubectl -n "$ns" get secret "$secret" </dev/null >/dev/null 2>&1; then
         if [ -z "$(kubectl -n "$ns" get secret "$secret" -o jsonpath='{.data.SCRAP_MCP_TOKEN}' </dev/null 2>/dev/null)" ]; then
@@ -89,6 +142,20 @@ main() {
             exit 1
         fi
         echo "Secret $secret already exists in $ns: keeping your API key and token."
+        # Made before public pages: add their upload token, changing nothing else.
+        if [ -z "$(kubectl -n "$ns" get secret "$secret" -o jsonpath='{.data.SCRAP_PUBLISH_TOKEN}' </dev/null 2>/dev/null)" ]; then
+            tmp=$(mktemp -d)
+            chmod 700 "$tmp"
+            {
+                printf '{"data":{"SCRAP_PUBLISH_TOKEN":"'
+                head -c 32 /dev/urandom | od -An -tx1 | tr -d ' \n' | base64 | tr -d '\n'
+                printf '"}}'
+            } >"$tmp/patch.json"
+            kubectl -n "$ns" patch secret "$secret" --type merge \
+                --patch-file "$tmp/patch.json" </dev/null >/dev/null
+            rm -rf "$tmp"
+            echo "Added the public pages' upload token to $secret."
+        fi
     else
         key=${ANTHROPIC_API_KEY:-}
         if [ -z "$key" ] && ( : </dev/tty ) 2>/dev/null; then
@@ -106,7 +173,9 @@ main() {
         tmp=$(mktemp -d)
         chmod 700 "$tmp"
         printf %s "$new_token" >"$tmp/SCRAP_MCP_TOKEN"
-        set -- --from-file=SCRAP_MCP_TOKEN="$tmp/SCRAP_MCP_TOKEN"
+        head -c 32 /dev/urandom | od -An -tx1 | tr -d ' \n' >"$tmp/SCRAP_PUBLISH_TOKEN"
+        set -- --from-file=SCRAP_MCP_TOKEN="$tmp/SCRAP_MCP_TOKEN" \
+            --from-file=SCRAP_PUBLISH_TOKEN="$tmp/SCRAP_PUBLISH_TOKEN"
         if [ -n "$key" ]; then
             printf %s "$key" >"$tmp/ANTHROPIC_API_KEY"
             set -- "$@" --from-file=ANTHROPIC_API_KEY="$tmp/ANTHROPIC_API_KEY"
@@ -154,16 +223,29 @@ main() {
         echo "service:"
         echo "  type: ${SCRAP_SERVICE_TYPE:-ClusterIP}"
         echo "ingress:"
+        ingress_values "$host"
+        # The web app's login: DLS Keycloak through the central oauth2-proxy, for you alone.
+        echo "authProxy:"
         echo "  enabled: true"
-        echo "  className: ${SCRAP_INGRESS_CLASS:-nginx}"
-        echo "  hosts:"
-        echo "    - $host"
-        if [ "$scheme" = https ]; then
-            # No secretName: the controller's default (wildcard) certificate serves it.
-            echo "  tls:"
-            echo "    - hosts:"
-            echo "        - $host"
-        fi
+        echo "  service: $auth_svc"
+        echo "  allowedEmails:"
+        echo "    - \"$email\""
+        # Public pages, in this namespace, so they share the Secret. argus lets no user
+        # make a NetworkPolicy. The pods request 10m of CPU: a limit argus accepts.
+        echo "public:"
+        echo "  enabled: true"
+        echo "  namespace: $ns"
+        echo "  site: $scheme://$pages_host"
+        echo "  tokenSecret:"
+        echo "    name: $secret"
+        echo "    key: SCRAP_PUBLISH_TOKEN"
+        echo "  ingress:"
+        ingress_values "$pages_host" | sed 's/^/  /'
+        echo "  networkPolicy:"
+        echo "    enabled: false"
+        echo "  resources:"
+        echo "    web: {limits: {cpu: 100m}}"
+        echo "    receiver: {limits: {cpu: 100m}}"
     } >"$values"
 
     # No --version: Helm picks the newest release (it skips pre-releases).
@@ -205,26 +287,40 @@ scrap ${installed:+$installed }is running in namespace $ns.
 
   External IP: ${extip:-none yet: see 'kubectl -n $ns get svc scrap'}
   Service IP (inside the cluster): ${ip:-unknown}
-  Web app:  $scheme://$host/
+  Web app:  $scheme://$host/   (DLS login; only $email)
   MCP:      $scheme://$host/mcp   (needs the bearer token)
+  Pages:    $scheme://$pages_host/   (the pages you make public; anyone on the DLS network)
 
 Next steps
 EOF
-    if getent hosts "$host" </dev/null >/dev/null 2>&1; then
-        echo "  1. $host already resolves: nothing to ask for."
+    missing=
+    for name in "$host" "$pages_host"; do
+        getent hosts "$name" </dev/null >/dev/null 2>&1 || missing="$missing $name"
+    done
+    if [ -z "$missing" ]; then
+        echo "  1. $host and $pages_host already resolve: nothing to ask for."
     else
         cat <<EOF
   1. Raise a request at
          https://jira.diamond.ac.uk/servicedesk/customer/portal/2/create/156
-     asking for $host
-     to be set up on the argus ingress for namespace $ns.
-     Until it exists, look at scrap from this shell:
+     asking for these names to be set up on the argus ingress for namespace $ns:
+EOF
+        for name in $missing; do
+            echo "         $name"
+        done
+        cat <<EOF
+     Until they exist, look at scrap from this shell:
          kubectl -n $ns port-forward svc/scrap 8000:80
-     then open http://127.0.0.1:8000/. /mcp and the phone app need the DNS name.
+     then open http://127.0.0.1:8000/. /mcp, the login and the phone app need the DNS names.
 EOF
     fi
     cat <<EOF
-  2. On your phone, join the DLS VPN, then open $scheme://$host/ and install the app.
+  2. Ask a scrap admin to add your login address
+         $scheme://$host/oauth2/callback
+     to the Keycloak client. Until it is added, logging in to the web app fails;
+     /mcp does not need it.
+  3. On your phone, join the DLS VPN, then open $scheme://$host/, log in with your DLS
+     account (the login page shows the first time), and install the app.
 EOF
     if [ -n "$new_token" ]; then
         cat <<EOF
