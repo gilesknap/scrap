@@ -63,7 +63,11 @@ main() {
             ;;
         esac
         # Made private here; a directory that already exists keeps its mode.
-        if [ -d "$backup_dir" ]; then
+        if [ -d "$backup_dir" ] && [ ! -w "$backup_dir" ]; then
+            echo "You cannot write to $backup_dir, so the backups (run as you) would fail." >&2
+            echo "Set SCRAP_BACKUP_DIR to a directory of yours, or to empty to keep them in the cluster." >&2
+            exit 1
+        elif [ -d "$backup_dir" ]; then
             echo "Backups go to $backup_dir."
         elif mkdir -p "$backup_dir" && chmod 700 "$backup_dir"; then
             echo "Backups go to $backup_dir (made, mode 700, yours)."
@@ -77,6 +81,12 @@ main() {
     # --- The Secret: API key and /mcp bearer token. Created once, never overwritten. ---
     new_token=
     if kubectl -n "$ns" get secret "$secret" </dev/null >/dev/null 2>&1; then
+        if [ -z "$(kubectl -n "$ns" get secret "$secret" -o jsonpath='{.data.SCRAP_MCP_TOKEN}' </dev/null 2>/dev/null)" ]; then
+            echo "Secret $secret in $ns has no SCRAP_MCP_TOKEN, which scrap needs. Delete it" >&2
+            echo "  kubectl -n $ns delete secret $secret" >&2
+            echo "and re-run: the installer makes a new one, asking for your API key again." >&2
+            exit 1
+        fi
         echo "Secret $secret already exists in $ns: keeping your API key and token."
     else
         key=${ANTHROPIC_API_KEY:-}

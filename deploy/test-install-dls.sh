@@ -19,6 +19,7 @@ echo "\$*" >>"$tmp/kubectl.calls"
 case "\$*" in
   *"create secret"*) touch "$tmp/secret"; exit 0 ;;
   *"get secret"*ANTHROPIC*) [ -e "$tmp/key" ] && echo eg== ; exit 0 ;;
+  *"get secret"*SCRAP_MCP_TOKEN*) [ -e "$tmp/notoken" ] || echo dA== ; exit 0 ;;
   *"get secret"*) [ -e "$tmp/secret" ]; exit \$? ;;
   *"config view"*) printf '%s' "\${STUB_NS:-}"; exit 0 ;;
   *"get svc"*loadBalancer*) printf 192.0.2.7; exit 0 ;;
@@ -100,6 +101,21 @@ mkdir -p "$tmp/mine" && chmod 750 "$tmp/mine"
 (SCRAP_BACKUP_DIR=$tmp/mine run)
 check "existing backup dir keeps its mode" sh -c "[ \"\$(stat -c %a '$tmp/mine')\" = 750 ]"
 check "existing backup dir used" grep -q "hostPath: $tmp/mine" "$tmp/values.yaml"
+
+# An existing backup directory you cannot write is refused.
+mkdir -p "$tmp/ro" && chmod 500 "$tmp/ro"
+if (SCRAP_BACKUP_DIR=$tmp/ro run); then ro_rc=0; else ro_rc=1; fi
+check "unwritable backup dir refused" [ "$ro_rc" = 1 ]
+check "unwritable backup dir explained" grep -q "cannot write to $tmp/ro" "$tmp/out"
+chmod 700 "$tmp/ro"
+
+# An existing Secret without the /mcp token stops before Helm.
+touch "$tmp/secret" "$tmp/notoken"; : >"$tmp/helm.calls"
+if run; then nt_rc=0; else nt_rc=1; fi
+check "secret without token refused" [ "$nt_rc" = 1 ]
+check "secret without token: no helm" sh -c "[ ! -s '$tmp/helm.calls' ]"
+check "secret without token explained" grep -q "has no SCRAP_MCP_TOKEN" "$tmp/out"
+rm -f "$tmp/notoken"
 
 # Backups on a claim: no hostPath. A relative directory is refused.
 (SCRAP_BACKUP_DIR='' run)
