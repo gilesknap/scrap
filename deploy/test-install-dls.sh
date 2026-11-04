@@ -92,9 +92,13 @@ check "no network policy" sh -c "! grep -q '^networkPolicy' '$tmp/values.yaml'"
 # The login: the central proxy, letting in only the email from the namespace's label.
 check "email from the namespace label" grep -q -- "get namespace abc12345" "$tmp/kubectl.calls"
 check "authProxy on" sh -c "grep -A1 '^authProxy:' '$tmp/values.yaml' | grep -q 'enabled: true'"
-check "the central proxy's service" grep -q "^  service: oauth2-proxy.scrap-auth.svc.cluster.local$" "$tmp/values.yaml"
+check "the central proxy's service" grep -q "^  service: oauth2-proxy.scrap.svc.cluster.local$" "$tmp/values.yaml"
 check "only the owner's email" sh -c "grep -A1 '^  allowedEmails:' '$tmp/values.yaml' | grep -q '^    - \"giles.knap@diamond.ac.uk\"$'"
 # Public pages: on, in this namespace, on pages-<fedid>, with a key of the one Secret.
+check "body size from maxUploadMB" sh -c "grep -qx 'maxUploadMB: 50' '$tmp/values.yaml' &&
+    grep -A2 '^ingress:' '$tmp/values.yaml' | grep -q '^  enabled: true' &&
+    sed -n '/^ingress:/,/^[a-z]/p' '$tmp/values.yaml' |
+    grep -qx '    nginx.ingress.kubernetes.io/proxy-body-size: \"50m\"'"
 check "public on" sh -c "grep -A1 '^public:' '$tmp/values.yaml' | grep -q 'enabled: true'"
 check "public in the namespace" grep -q "^  namespace: abc12345$" "$tmp/values.yaml"
 check "public site" grep -q "^  site: https://pages-abc12345.diamond.ac.uk$" "$tmp/values.yaml"
@@ -137,10 +141,11 @@ check "patch's temp files removed" sh -c "[ -z \"\$(ls -A '$tmp/installer-tmp')\
 rm -f "$tmp/nopublish"
 
 # SCRAP_EMAIL overrides the label; SCRAP_AUTH_NAMESPACE and _SERVICE move the proxy.
-(SCRAP_EMAIL=someone.else@diamond.ac.uk SCRAP_AUTH_NAMESPACE=login run)
-check "SCRAP_EMAIL" grep -q '^    - "someone.else@diamond.ac.uk"$' "$tmp/values.yaml"
+(SCRAP_EMAIL=Someone.Else@Diamond.ac.uk SCRAP_AUTH_NAMESPACE=login run)
+check "SCRAP_EMAIL, lower case" grep -q '^    - "someone.else@diamond.ac.uk"$' "$tmp/values.yaml"
 check "SCRAP_AUTH_NAMESPACE" grep -q "^  service: oauth2-proxy.login.svc.cluster.local$" "$tmp/values.yaml"
-(SCRAP_AUTH_SERVICE=proxy.elsewhere.svc.cluster.local run)
+(STUB_EMAIL_LABEL=Giles.Knap--at--Diamond.ac.uk SCRAP_AUTH_SERVICE=proxy.elsewhere.svc.cluster.local run)
+check "label email, lower case" grep -q '^    - "giles.knap@diamond.ac.uk"$' "$tmp/values.yaml"
 check "SCRAP_AUTH_SERVICE" grep -q "^  service: proxy.elsewhere.svc.cluster.local$" "$tmp/values.yaml"
 
 # No email anywhere, or a value that is not one: stop before the Secret and Helm.
@@ -160,11 +165,10 @@ check "loadbalancer opt-in" grep -q "type: LoadBalancer" "$tmp/values.yaml"
 check "external ip shown" grep -q "192.0.2.7" "$tmp/out"
 
 # Options: ingress class, namespace from kubectl context, plain http.
-(STUB_NS=work SCRAP_INGRESS_CLASS=internal SCRAP_SCHEME=http run)
+(STUB_NS=work SCRAP_INGRESS_CLASS=internal run)
 check "namespace from context" grep -q -- "--namespace work" "$tmp/helm.calls"
-check "http in the first line" sh -c "head -n1 '$tmp/out' | grep -q 'for http://scrap-'"
-check "ingress class" grep -q "className: internal" "$tmp/values.yaml"
-check "no tls over http" sh -c "! grep -q 'tls:' '$tmp/values.yaml'"
+check "https in the first line" sh -c "head -n1 '$tmp/out' | grep -q 'for https://scrap-'"
+check "ingress class" [ "$(grep -c "className: internal" "$tmp/values.yaml")" = 2 ]
 
 # Names that already resolve need no ticket.
 (SCRAP_HOST=localhost SCRAP_PAGES_HOST=localhost run)

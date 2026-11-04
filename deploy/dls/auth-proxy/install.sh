@@ -2,7 +2,7 @@
 # Install or upgrade the central login proxy for DLS scrap installs: the upstream
 # oauth2-proxy chart with values.yaml beside this script, in its own namespace.
 #   module load argus
-#   SCRAP_AUTH_NAMESPACE=scrap-auth sh deploy/dls/auth-proxy/install.sh
+#   sh deploy/dls/auth-proxy/install.sh   # SCRAP_AUTH_NAMESPACE: the namespace (default scrap)
 # The namespace must exist. The first run asks for the Keycloak client ID and secret and
 # makes a cookie secret, into the Secret oauth2-proxy-keycloak. Later runs keep that
 # Secret and only upgrade. See docs/how-to/run-the-dls-login-proxy.md.
@@ -14,7 +14,7 @@ REPO=https://oauth2-proxy.github.io/manifests
 
 main() {
     here=$(cd "$(dirname "$0")" && pwd)
-    ns=${SCRAP_AUTH_NAMESPACE:-scrap-auth}
+    ns=${SCRAP_AUTH_NAMESPACE:-scrap}
     secret=oauth2-proxy-keycloak
 
     tmp=

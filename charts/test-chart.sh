@@ -221,7 +221,7 @@ helm template scrap "$chart" -f "$chart/ci/auth-proxy-values.yaml" \
 main=$(grep '|kind: Ingress|' "$ap" | grep '|  name: scrap|' || true)
 open=$(grep '|kind: Ingress|' "$ap" | grep '|  name: scrap-open|' || true)
 # shellcheck disable=SC2016 # $host and $escaped_request_uri are nginx's, not the shell's
-if echo "$main" | grep -Fq '|    nginx.ingress.kubernetes.io/auth-url: http://oauth2-proxy.scrap-auth.svc.cluster.local:80/oauth2/auth?allowed_emails=first.last%40example.org|' &&
+if echo "$main" | grep -Fq '|    nginx.ingress.kubernetes.io/auth-url: http://oauth2-proxy.scrap.svc.cluster.local:80/oauth2/auth?allowed_emails=first.last%40example.org|' &&
     echo "$main" | grep -Fq '|    nginx.ingress.kubernetes.io/auth-signin: https://$host/oauth2/start?rd=$escaped_request_uri|' &&
     echo "$main" | grep -Fq '|    nginx.ingress.kubernetes.io/auth-response-headers: X-Auth-Request-Email|' &&
     echo "$main" | grep -Fq '|    nginx.ingress.kubernetes.io/proxy-body-size: 50m|' &&
@@ -239,7 +239,7 @@ if [ -n "$open" ] && ! echo "$open" | grep -q 'nginx.ingress.kubernetes.io/auth-
     ok "authProxy: the open Ingress has /mcp and /oauth2 only, and no auth annotations"
 else bad "authProxy: the open Ingress has auth annotations or the wrong paths"; fi
 if grep '|kind: Service|' "$ap" | grep '|  name: scrap-oauth2|' |
-    grep -Fq '|  type: ExternalName|  externalName: oauth2-proxy.scrap-auth.svc.cluster.local|'; then
+    grep -Fq '|  type: ExternalName|  externalName: oauth2-proxy.scrap.svc.cluster.local|'; then
     ok "authProxy: an ExternalName Service to the proxy"
 else bad "authProxy: no ExternalName Service to the proxy"; fi
 if grep -Fq '|            - name: SCRAP_IDENTITY_HEADER|              value: "X-Auth-Request-Email"|' "$ap" &&

@@ -12,7 +12,7 @@ ingress:
         - scrap-abc12345.example.org
 authProxy:
   enabled: true
-  service: oauth2-proxy.scrap-auth.svc.cluster.local
+  service: oauth2-proxy.scrap.svc.cluster.local
   allowedEmails:
     - first.last@example.org
 mcp:

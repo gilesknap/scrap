@@ -7,8 +7,8 @@
 # adds that last one to a Secret made before it existed).
 #
 # The web app's login is DLS Keycloak, through the central oauth2-proxy that a scrap
-# admin runs (deploy/dls/auth-proxy), and only you may use it. /mcp keeps its bearer
-# token. Public pages are on: the pages you make public are served on
+# admin runs (deploy/dls/auth-proxy), letting in only your login from the network. /mcp
+# keeps its bearer token. Public pages are on: the pages you make public are served on
 # pages-$USER.diamond.ac.uk to anyone on the DLS network.
 #
 # Settings (environment, all optional):
@@ -18,11 +18,9 @@
 #   SCRAP_HOST             hostname (default: scrap-$USER.diamond.ac.uk: one level under
 #                          diamond.ac.uk, so the ingress's *.diamond.ac.uk certificate covers it)
 #   SCRAP_PAGES_HOST       public pages' hostname (default: pages-$USER.diamond.ac.uk)
-#   SCRAP_SCHEME           https (default) or http: the scheme the hostnames are served on
-#                          (the login's cookie needs https)
 #   SCRAP_EMAIL            your login's email address, the only one let in (default: from
 #                          your namespace's "email" label, first.last@diamond.ac.uk)
-#   SCRAP_AUTH_NAMESPACE   the login proxy's namespace (default: scrap-auth)
+#   SCRAP_AUTH_NAMESPACE   the login proxy's namespace (default: scrap)
 #   SCRAP_AUTH_SERVICE     the login proxy's in-cluster DNS name (default:
 #                          oauth2-proxy.$SCRAP_AUTH_NAMESPACE.svc.cluster.local)
 #   SCRAP_INGRESS_CLASS    ingressClassName for the Ingress (default: nginx, argus's ingress)
@@ -40,12 +38,11 @@ ingress_values() {
     echo "  className: ${SCRAP_INGRESS_CLASS:-nginx}"
     echo "  hosts:"
     echo "    - $1"
-    if [ "$scheme" = https ]; then
-        # No secretName: the controller's default (wildcard) certificate serves it.
-        echo "  tls:"
-        echo "    - hosts:"
-        echo "        - $1"
-    fi
+    # No secretName: the controller's default (wildcard) certificate serves it. The
+    # login's cookie is https only.
+    echo "  tls:"
+    echo "    - hosts:"
+    echo "        - $1"
 }
 
 # All in a function that the last line runs: a download cut short runs nothing.
@@ -65,8 +62,9 @@ main() {
     ns=${ns:-$user}
     host=${SCRAP_HOST:-scrap-$user.diamond.ac.uk}
     pages_host=${SCRAP_PAGES_HOST:-pages-$user.diamond.ac.uk}
-    auth_svc=${SCRAP_AUTH_SERVICE:-oauth2-proxy.${SCRAP_AUTH_NAMESPACE:-scrap-auth}.svc.cluster.local}
-    scheme=${SCRAP_SCHEME:-https}
+    auth_svc=${SCRAP_AUTH_SERVICE:-oauth2-proxy.${SCRAP_AUTH_NAMESPACE:-scrap}.svc.cluster.local}
+    # The largest capture in MB: scrap's limit, and nginx's body size to match.
+    max_upload=50
     secret=scrap-secrets
     backup_dir=${SCRAP_BACKUP_DIR-/dls/science/users/$user/scrap}
     # scrap's pods run as you, so the backups in your directory are yours.
@@ -82,15 +80,17 @@ main() {
 
     what="the latest scrap"
     [ -z "$version" ] || what="scrap $version"
-    echo "Installing $what into namespace $ns, for $scheme://$host"
+    echo "Installing $what into namespace $ns, for https://$host"
 
     # The web app lets in only this login. argus labels your namespace with your email,
-    # first.last--at--diamond.ac.uk (a label value cannot hold @).
+    # first.last--at--diamond.ac.uk (a label value cannot hold @). Lower case: oauth2-proxy
+    # compares the allowed emails case-sensitively, and Keycloak's are lower case.
     email=${SCRAP_EMAIL:-}
     if [ -z "$email" ]; then
         email=$(kubectl get namespace "$ns" -o jsonpath='{.metadata.labels.email}' </dev/null 2>/dev/null |
             sed 's/--at--/@/' || true)
     fi
+    email=$(printf %s "$email" | tr '[:upper:]' '[:lower:]')
     case $email in
     "")
         echo "Cannot find your email address: namespace $ns has no \"email\" label you can read." >&2
@@ -105,7 +105,7 @@ main() {
         echo "Not an email address: $email. Set SCRAP_EMAIL to yours (first.last@diamond.ac.uk)." >&2
         exit 1
     fi
-    echo "The web app will let in only $email."
+    echo "The web app's login will let in only $email."
 
     if [ -n "$backup_dir" ]; then
         case $backup_dir in
@@ -203,7 +203,7 @@ main() {
         echo "    key: SCRAP_MCP_TOKEN"
         echo "extraEnv:"
         echo "  - name: SCRAP_PUBLIC_URL"
-        echo "    value: $scheme://$host"
+        echo "    value: https://$host"
         echo "podSecurityContext:"
         echo "  runAsUser: $uid"
         echo "  runAsGroup: $gid"
@@ -222,8 +222,11 @@ main() {
         done
         echo "service:"
         echo "  type: ${SCRAP_SERVICE_TYPE:-ClusterIP}"
+        echo "maxUploadMB: $max_upload"
         echo "ingress:"
         ingress_values "$host"
+        echo "  annotations:"
+        echo "    nginx.ingress.kubernetes.io/proxy-body-size: \"${max_upload}m\""
         # The web app's login: DLS Keycloak through the central oauth2-proxy, for you alone.
         echo "authProxy:"
         echo "  enabled: true"
@@ -235,7 +238,7 @@ main() {
         echo "public:"
         echo "  enabled: true"
         echo "  namespace: $ns"
-        echo "  site: $scheme://$pages_host"
+        echo "  site: https://$pages_host"
         echo "  tokenSecret:"
         echo "    name: $secret"
         echo "    key: SCRAP_PUBLISH_TOKEN"
@@ -287,9 +290,12 @@ scrap ${installed:+$installed }is running in namespace $ns.
 
   External IP: ${extip:-none yet: see 'kubectl -n $ns get svc scrap'}
   Service IP (inside the cluster): ${ip:-unknown}
-  Web app:  $scheme://$host/   (DLS login; only $email)
-  MCP:      $scheme://$host/mcp   (needs the bearer token)
-  Pages:    $scheme://$pages_host/   (the pages you make public; anyone on the DLS network)
+  Web app:  https://$host/   (DLS login, for $email only)
+  MCP:      https://$host/mcp   (needs the bearer token)
+  Pages:    https://$pages_host/   (the pages you make public; anyone on the DLS network)
+
+  The login keeps the web app from the network. scrap has no login of its own, so
+  argus users with cluster access could still reach its Service directly.
 
 Next steps
 EOF
@@ -316,10 +322,10 @@ EOF
     fi
     cat <<EOF
   2. Ask a scrap admin to add your login address
-         $scheme://$host/oauth2/callback
+         https://$host/oauth2/callback
      to the Keycloak client. Until it is added, logging in to the web app fails;
      /mcp does not need it.
-  3. On your phone, join the DLS VPN, then open $scheme://$host/, log in with your DLS
+  3. On your phone, join the DLS VPN, then open https://$host/, log in with your DLS
      account (the login page shows the first time), and install the app.
 EOF
     if [ -n "$new_token" ]; then

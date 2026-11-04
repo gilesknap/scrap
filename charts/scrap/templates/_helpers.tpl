@@ -265,7 +265,7 @@ capabilities:
 {{- fail "authProxy.enabled needs ingress.enabled: the login is ingress-nginx's auth on scrap's Ingress" }}
 {{- end }}
 {{- if not .Values.authProxy.service }}
-{{- fail "authProxy.enabled needs authProxy.service: oauth2-proxy's in-cluster DNS name, e.g. oauth2-proxy.scrap-auth.svc.cluster.local" }}
+{{- fail "authProxy.enabled needs authProxy.service: oauth2-proxy's in-cluster DNS name, e.g. oauth2-proxy.scrap.svc.cluster.local" }}
 {{- end }}
 {{- if not .Values.authProxy.allowedEmails }}
 {{- fail "authProxy.enabled needs authProxy.allowedEmails: the logins that may use the web app" }}

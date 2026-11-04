@@ -228,7 +228,7 @@ ingress:
 # fixed redirect_url. Default off.
 authProxy:
   enabled: false
-  # oauth2-proxy's in-cluster DNS name, e.g. oauth2-proxy.scrap-auth.svc.cluster.local
+  # oauth2-proxy's in-cluster DNS name, e.g. oauth2-proxy.scrap.svc.cluster.local
   service: ""
   port: 80
   # The logins (email addresses) that may use the web app. Required when enabled.
