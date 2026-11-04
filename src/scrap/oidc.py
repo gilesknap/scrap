@@ -9,6 +9,7 @@ over any copy the client sent) that:
 
 - is signed by one of the issuer's keys (its discovery document's `jwks_uri`), with
   RS256 or ES256, the algorithm the key is for (never `none` or a shared secret);
+- is an access token (`typ` Bearer, as Keycloak's are; not an ID token);
 - has `iss` the issuer exactly, and was issued to our client (`azp` is
   `$SCRAP_OIDC_CLIENT_ID`, or it is in `aud`);
 - is in date (`exp`, `nbf`, `iat`, with 30 s of leeway for clock skew);
@@ -19,8 +20,9 @@ Otherwise 401 (JSON under /api, else plain text; no redirect, the Ingress does t
 login), or 503 when the keys cannot be fetched: never let through on an error. The
 verified email is the author of a change (uploads.author). Unset: nothing changes.
 
-Fetches use the standard library, as PyJWKClient does for the keys (http(s) only, no
-redirects, a timeout), so one mechanism covers both. Below app and uploads.
+Fetches use the standard library (http(s) only, no redirects, a timeout), with
+scrap's own cache and back-off (Verifier) rather than PyJWKClient's, whose cooldown
+starts only after a fetch that worked. Below app and uploads.
 """
 
 import json
@@ -46,10 +48,10 @@ HEADER = b"x-auth-request-access-token"
 EMAIL = "scrap.oidc_email"  # the scope key the verified email is kept under
 ALGORITHMS = ("RS256", "ES256")
 LEEWAY = 30  # seconds of clock skew allowed on exp, nbf and iat
-TIMEOUT = 10  # seconds for each fetch from the issuer
+TIMEOUT = 5  # seconds for each fetch from the issuer
 KEYS_LIFESPAN = 3600  # how long a fetched key set is used before it is fetched again
 COOLDOWN = 30  # the least time between refetches for a key id not in the set
-RETRY = 10  # seconds after a failed discovery before trying again (503 meanwhile)
+RETRY = 10  # seconds after a failed fetch before trying again (503 meanwhile)
 LOOPBACK = ("localhost", "127.0.0.1", "::1")
 
 
@@ -73,10 +75,12 @@ def enabled() -> bool:
     return bool(os.environ.get("SCRAP_OIDC_ISSUER", "").strip())
 
 
-def settings() -> Settings | None:
+def settings(mcp_guarded: bool) -> Settings | None:
     """The check's settings, or None when $SCRAP_OIDC_ISSUER is unset. An issuer
     without a client id or an allow-list, or one that is not https (but on loopback),
-    stops scrap starting: a check that let everyone in would be worse than no start."""
+    stops scrap starting: a check that let everyone in would be worse than no start.
+    So does one without /mcp's bearer token (mcp_guarded false): /mcp is exempt here,
+    so it would be open to anyone who can reach scrap."""
     if not enabled():
         return None
     issuer = os.environ["SCRAP_OIDC_ISSUER"].strip()
@@ -92,6 +96,11 @@ def settings() -> Settings | None:
         raise SystemExit("SCRAP_OIDC_ISSUER is set but SCRAP_OIDC_CLIENT_ID is empty")
     if not allowed:
         raise SystemExit("SCRAP_OIDC_ISSUER is set but SCRAP_ALLOWED_EMAILS is empty")
+    if not mcp_guarded:
+        raise SystemExit(
+            "SCRAP_OIDC_ISSUER is set but /mcp has no bearer token: set SCRAP_MCP_TOKEN"
+            " or SCRAP_MCP_TOKEN_FILE, or /mcp is open to anyone who can reach scrap"
+        )
     return Settings(issuer, client_id, allowed)
 
 
@@ -114,49 +123,86 @@ def fetch_json(url: str) -> Any:
 
 
 class Verifier:
-    """Checks a token against Settings; the issuer's keys are found on first use
-    (so a Keycloak outage at start is a 503, not a crash loop) and cached."""
+    """Checks a token against Settings. The issuer's keys are found on first use (so
+    a Keycloak outage at start is a 503, not a crash loop) and kept KEYS_LIFESPAN.
+
+    scrap's own back-off bounds the fetches, whatever tokens arrive: one fetch at a
+    time, each at most TIMEOUT, never holding the lock (a request meanwhile that the
+    cached keys cannot answer gets 503 at once); after a failed fetch, none for RETRY
+    seconds (503); and a key id not in the set refetches it at most once per
+    COOLDOWN (401 meanwhile)."""
 
     def __init__(self, conf: Settings) -> None:
         self.conf = conf
-        self.lock = threading.Lock()
-        self.keys: jwt.PyJWKClient | None = None
-        self.failed_at = -float("inf")
+        self.lock = threading.Lock()  # held only to read or change the state below
+        self.clock = time.monotonic  # (a test's own clock)
+        self.jwks_uri: str | None = None
+        self.keys: dict[str, jwt.PyJWK] | None = None
+        self.fetching = False
+        self.fetched_at = -float("inf")  # the last fetch of the key set that worked
+        self.tried_at = -float("inf")  # the last fetch begun
+        self.failed_at = -float("inf")  # the last fetch that failed
 
-    def key_client(self) -> jwt.PyJWKClient:
-        """PyJWKClient on the issuer's jwks_uri, from its discovery document, whose
-        own `issuer` must be ours."""
+    def discover(self, known: str | None) -> str:
+        """The issuer's jwks_uri (known, else from its discovery document, whose own
+        `issuer` must be ours)."""
+        if known is not None:
+            return known
+        found = fetch_json(
+            self.conf.issuer.rstrip("/") + "/.well-known/openid-configuration"
+        )
+        if not isinstance(found, dict) or found.get("issuer") != self.conf.issuer:
+            raise KeysUnavailableError("the discovery document is for another issuer")
+        uri = found.get("jwks_uri")
+        if not isinstance(uri, str) or urlsplit(uri).scheme not in ("http", "https"):
+            raise KeysUnavailableError("the discovery document has no jwks_uri")
+        return uri
+
+    def fetch_keys(self, uri: str) -> dict[str, jwt.PyJWK]:
+        """The signing keys by id at uri. Anything but a key set with a usable
+        signing key (not JSON, not an object, no keys) is KeysUnavailableError."""
+        found = fetch_json(uri)
+        if not isinstance(found, dict):
+            raise KeysUnavailableError("the key set is not a JSON object")
+        try:
+            keyset = jwt.PyJWKSet.from_dict(found)
+        except jwt.PyJWTError as error:  # no usable keys, or a malformed set
+            raise KeysUnavailableError(f"the key set: {error}") from error
+        keys = {
+            k.key_id: k
+            for k in keyset.keys
+            if k.key_id and k.public_key_use in ("sig", None)
+        }
+        if not keys:
+            raise KeysUnavailableError("the key set has no signing keys")
+        return keys
+
+    def key(self, kid: str) -> jwt.PyJWK:
         with self.lock:
-            if self.keys is not None:
-                return self.keys
-            if time.monotonic() - self.failed_at < RETRY:
-                raise KeysUnavailableError("the issuer's discovery failed just now")
-            try:
-                found = fetch_json(
-                    self.conf.issuer.rstrip("/") + "/.well-known/openid-configuration"
-                )
-                if not isinstance(found, dict) or found.get("issuer") != (
-                    self.conf.issuer
-                ):
-                    raise KeysUnavailableError(
-                        "the discovery document is for another issuer"
-                    )
-                uri = found.get("jwks_uri")
-                if not isinstance(uri, str) or urlsplit(uri).scheme not in (
-                    "http",
-                    "https",
-                ):
-                    raise KeysUnavailableError("the discovery document has no jwks_uri")
-            except KeysUnavailableError:
-                self.failed_at = time.monotonic()
-                raise
-            self.keys = jwt.PyJWKClient(
-                uri,
-                lifespan=KEYS_LIFESPAN,
-                timeout=TIMEOUT,
-                cooldown_duration=COOLDOWN,
-            )
-            return self.keys
+            now = self.clock()
+            keys = self.keys if now - self.fetched_at < KEYS_LIFESPAN else None
+            if keys is not None and kid in keys:
+                return keys[kid]
+            if keys is not None and now - self.tried_at < COOLDOWN:
+                raise InvalidTokenError("an unknown signing key")
+            if self.fetching:
+                raise KeysUnavailableError("the issuer's keys are being fetched")
+            if now - self.failed_at < RETRY:
+                raise KeysUnavailableError("fetching the issuer's keys failed just now")
+            self.fetching, self.tried_at, known = True, now, self.jwks_uri
+        try:
+            uri = self.discover(known)
+            fetched = self.fetch_keys(uri)
+        except BaseException:
+            with self.lock:
+                self.fetching, self.failed_at = False, self.clock()
+            raise
+        with self.lock:
+            self.fetching, self.jwks_uri = False, uri
+            self.keys, self.fetched_at = fetched, self.clock()
+        if kid not in fetched:
+            raise InvalidTokenError("an unknown signing key")
+        return fetched[kid]
 
     def signing_key(self, token: str) -> jwt.PyJWK:
         try:
@@ -165,12 +211,7 @@ class Verifier:
             raise InvalidTokenError("not a token") from error
         if not isinstance(kid, str):
             raise InvalidTokenError("the token names no key")
-        try:
-            return self.key_client().get_signing_key(kid)
-        except (jwt.PyJWKClientConnectionError, jwt.PyJWKSetError) as error:
-            raise KeysUnavailableError(f"the issuer's keys: {error}") from error
-        except jwt.PyJWKClientError as error:  # a key id the issuer does not have
-            raise InvalidTokenError("an unknown signing key") from error
+        return self.key(kid)
 
     def verify(self, token: str) -> str:
         """The token's email, lower-cased, if it lets its holder in; else
@@ -193,6 +234,9 @@ class Verifier:
         auds = [aud] if isinstance(aud, str) else aud if isinstance(aud, list) else []
         if claims.get("azp") != self.conf.client_id and self.conf.client_id not in auds:
             raise InvalidTokenError("the token was issued to another client")
+        typ = claims.get("typ")
+        if not isinstance(typ, str) or typ.lower() != "bearer":
+            raise InvalidTokenError("not an access token")
         if claims.get("email_verified") is not True:
             raise InvalidTokenError("the token's email is not verified")
         email = claims.get("email")

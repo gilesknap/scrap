@@ -27,24 +27,31 @@ own and trusted that header as sent.
   one.
 - **What is checked**, with PyJWT: the signature, against the keys at the `jwks_uri` of the
   issuer's discovery document (whose `issuer` must match); only RS256 and ES256, and only the
-  algorithm the key is for, never `none` or a shared secret; `iss` exactly
+  algorithm the key is for, never `none` or a shared secret; `typ` `Bearer` (an access token,
+  not an ID token; compared ignoring case); `iss` exactly
   `SCRAP_OIDC_ISSUER`; issued to our client (`azp` is `SCRAP_OIDC_CLIENT_ID`, or it is in `aud`,
   since Keycloak's access tokens have `aud: account` unless a mapper adds the client); `exp`,
   `nbf` and `iat` with 30 s of leeway; `email_verified` true; and `email` (lower-cased) in
   `SCRAP_ALLOWED_EMAILS`. The allow-list repeats the Ingress's `allowed_emails`, since the token
   alone says only that someone at DLS logged in.
 - **Exempt:** `/healthz` (the kubelet's probes carry no token) and `/mcp`, `/mcp/...`, which
-  keep their own bearer token (ADR 23) on the Ingress without the login.
+  keep their own bearer token (ADR 23) on the Ingress without the login. So the issuer without
+  an `/mcp` token (`SCRAP_MCP_TOKEN` or `SCRAP_MCP_TOKEN_FILE`) stops scrap starting: `/mcp`
+  would be open to any pod.
 - **Fail closed.** No token, or one that fails a check: `401` (JSON under `/api`, plain text
   elsewhere), no redirect (the Ingress does the login). Keys that cannot be fetched: `503`. Any
   other error: `401`. An issuer without a client ID or an allow-list, or one that is not https
   (loopback aside), stops scrap starting.
 - **Keys.** Discovery runs on the first request, not at start, so a Keycloak outage is a `503`
-  rather than a crash loop; a failed discovery is retried after 10 s. `PyJWKClient` caches the
-  key set for an hour and refetches for an unknown key ID at most every 30 s, so a forged `kid`
-  cannot make scrap hammer Keycloak, and a rotated key is picked up. Fetches use the standard
-  library, as `PyJWKClient` does (http(s) only, no redirects, a 10 s timeout), so there is one
-  mechanism for both.
+  rather than a crash loop. scrap keeps the key set for an hour, with its own back-off rather
+  than `PyJWKClient`'s (whose cooldown starts only after a fetch that worked, so during an
+  outage every request would fetch): one fetch at a time, never holding up other requests (one
+  the cached keys cannot answer meanwhile gets `503`); after a failed fetch none for 10 s
+  (`503`); and an unknown key ID refetches the set at most once per 30 s (`401` meanwhile).
+  So, whatever tokens a pod sends, scrap makes at most one fetch per 10 s while Keycloak is
+  down and one per 30 s for unknown key IDs, and a rotated key is picked up within 30 s. A
+  key set that is not JSON, not an object, or has no usable signing key is a failed fetch
+  (`503`). Fetches use the standard library (http(s) only, no redirects, a 5 s timeout).
 - **Freshness.** Keycloak's access tokens last 5 minutes by default, so the proxy refreshes its
   session every minute (`cookie_refresh`) with its refresh token. Its scopes are `openid email`
   only: no `offline_access`, so a login lasts as long as the user's Keycloak session, and then

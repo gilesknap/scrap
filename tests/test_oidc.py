@@ -10,6 +10,7 @@ import pytest
 from cryptography.hazmat.primitives.asymmetric import ec, rsa
 from fastapi.testclient import TestClient
 from jwt.algorithms import ECAlgorithm, RSAAlgorithm
+from starlette.websockets import WebSocketDisconnect
 
 from scrap import oidc
 from scrap.app import create_app
@@ -20,6 +21,7 @@ JWKS_URI = ISSUER + "/protocol/openid-connect/certs"
 CLIENT = "scrap"
 OWNER = "first.last@example.org"
 HEADER = "X-Auth-Request-Access-Token"
+MCP_TOKEN = "an-mcp-bearer-token"
 
 RSA_KEY = rsa.generate_private_key(public_exponent=65537, key_size=2048)
 EC_KEY = ec.generate_private_key(ec.SECP256R1())
@@ -54,24 +56,22 @@ def token(key: Any = RSA_KEY, alg: str = "RS256", kid: str = "rsa1", **over: Any
 @pytest.fixture
 def issuer(monkeypatch):
     """The fake issuer: counts its fetches, and fails them when `down` is set."""
-    state = {"discovery": 0, "keys": 0, "down": False}
+    state: dict[str, Any] = {"discovery": 0, "keys": 0, "down": False}
 
     def fetch_json(url: str) -> Any:
-        assert url == ISSUER + "/.well-known/openid-configuration"
-        state["discovery"] += 1
-        if state["down"]:
-            raise oidc.KeysUnavailableError("down")
-        return {"issuer": state.get("issuer", ISSUER), "jwks_uri": JWKS_URI}
-
-    def fetch_data(self: jwt.PyJWKClient) -> Any:
-        assert self.uri == JWKS_URI
+        if url == ISSUER + "/.well-known/openid-configuration":
+            state["discovery"] += 1
+            if state["down"]:
+                raise oidc.KeysUnavailableError("down")
+            return {"issuer": state.get("issuer", ISSUER), "jwks_uri": JWKS_URI}
+        assert url == JWKS_URI
         state["keys"] += 1
         if state["down"] or state.get("keys_down"):
-            raise jwt.PyJWKClientConnectionError("down")
-        return JWKS
+            raise oidc.KeysUnavailableError("down")
+        return state.get("jwks", JWKS)
 
     monkeypatch.setattr(oidc, "fetch_json", fetch_json)
-    monkeypatch.setattr(jwt.PyJWKClient, "fetch_data", fetch_data)
+    monkeypatch.setenv("SCRAP_MCP_TOKEN", MCP_TOKEN)
     monkeypatch.setenv("SCRAP_OIDC_ISSUER", ISSUER)
     monkeypatch.setenv("SCRAP_OIDC_CLIENT_ID", CLIENT)
     monkeypatch.setenv("SCRAP_ALLOWED_EMAILS", f" {OWNER} ,someone@example.org")
@@ -146,11 +146,25 @@ def test_a_forged_email_header_alone_does_nothing(gated, monkeypatch):
         pytest.param(lambda: token(email_verified=False), id="unverified"),
         pytest.param(lambda: token(email_verified=None), id="verified-missing"),
         pytest.param(lambda: token(email_verified="true"), id="verified-a-string"),
+        pytest.param(lambda: token(typ="ID"), id="an-id-token"),
+        pytest.param(lambda: token(typ=None), id="no-typ"),
     ],
 )
 def test_a_token_that_does_not_let_in_is_401(gated, tok):
     assert get(gated, tok()).status_code == 401
     assert get(gated, tok(), "/").status_code == 401
+
+
+@pytest.mark.parametrize("method", ["HEAD", "OPTIONS", "POST", "DELETE"])
+def test_every_method_needs_the_token(gated, method):
+    assert gated.request(method, "/api/pages").status_code == 401
+    assert gated.request(method, "/").status_code == 401
+
+
+def test_a_websocket_is_refused(gated):
+    with pytest.raises(WebSocketDisconnect):
+        with gated.websocket_connect("/ws", headers={HEADER: token()}):
+            pass
 
 
 def test_two_tokens_are_refused(gated):
@@ -172,6 +186,75 @@ def test_keys_that_cannot_be_fetched_after_discovery_are_503(gated, issuer):
     issuer["keys_down"] = True
     assert get(gated, token()).status_code == 503
     assert issuer["discovery"] == 1
+
+
+@pytest.mark.parametrize(
+    "jwks", [["a list"], "text", None, {"keys": []}, {"keys": [{"kty": "x"}]}]
+)
+def test_a_key_set_that_is_not_one_is_503(gated, issuer, jwks):
+    issuer["jwks"] = jwks  # (fetch_json's own bad JSON is KeysUnavailableError)
+    assert get(gated, token()).status_code == 503
+
+
+class Clock:
+    def __init__(self) -> None:
+        self.now = 1000.0
+
+    def __call__(self) -> float:
+        return self.now
+
+
+@pytest.fixture
+def verifier(issuer):
+    conf = oidc.settings(mcp_guarded=True)
+    assert conf
+    v = oidc.Verifier(conf)
+    v.clock = Clock()
+    return v
+
+
+def outcome(v: oidc.Verifier, tok: str) -> str:
+    try:
+        v.verify(tok)
+    except oidc.KeysUnavailableError:
+        return "503"
+    except oidc.InvalidTokenError:
+        return "401"
+    return "ok"
+
+
+def test_an_outage_is_fetched_once_per_retry(verifier, issuer):
+    clock: Clock = verifier.clock  # type: ignore[assignment]
+    assert outcome(verifier, token()) == "ok"
+    issuer["keys_down"] = True
+    clock.now += oidc.KEYS_LIFESPAN  # the cached set expires during the outage
+    assert [outcome(verifier, token()) for _ in range(20)] == ["503"] * 20
+    assert issuer["keys"] == 2  # the first fetch, and one failed refetch
+    clock.now += oidc.RETRY
+    assert outcome(verifier, token()) == "503"
+    assert issuer["keys"] == 3
+    issuer["keys_down"] = False
+    clock.now += oidc.RETRY
+    assert outcome(verifier, token()) == "ok"
+    assert issuer["keys"] == 4
+
+
+def test_unknown_key_ids_refetch_once_per_cooldown(verifier, issuer):
+    clock: Clock = verifier.clock  # type: ignore[assignment]
+    assert outcome(verifier, token()) == "ok"
+    junk = [token(kid=f"junk{i}") for i in range(20)]
+    assert [outcome(verifier, t) for t in junk] == ["401"] * 20
+    assert issuer["keys"] == 1  # within the cooldown of the first fetch
+    clock.now += oidc.COOLDOWN
+    assert [outcome(verifier, t) for t in junk] == ["401"] * 20
+    assert issuer["keys"] == 2
+    assert outcome(verifier, token()) == "ok"  # known keys still answer
+
+
+def test_a_fetch_under_way_is_not_waited_for(verifier, issuer):
+    verifier.fetching = True  # another request's fetch
+    assert outcome(verifier, token()) == "503"
+    assert issuer["keys"] == 0
 
 
 def test_discovery_for_another_issuer_is_503(gated, issuer):
@@ -214,7 +297,7 @@ def test_other_good_tokens(gated, tok):
     assert get(gated, tok()).status_code == 200
 
 
-def test_healthz_and_mcp_need_no_token(issuer, tmp_path):
+def test_healthz_and_mcp_need_no_login_token(issuer, tmp_path):
     with TestClient(create_app(tmp_path / "data")) as gated:
         exempt(gated)
 
@@ -223,8 +306,13 @@ def exempt(gated: TestClient) -> None:
     assert get(gated, None, "/healthz").status_code == 200
     accept = {"Accept": "application/json, text/event-stream"}
     ping = {"jsonrpc": "2.0", "id": 1, "method": "ping"}
-    assert gated.post("/mcp", json=ping, headers=accept).status_code == 200
-    assert get(gated, None, "/mcp/blobs/x").status_code != 401
+    # /mcp needs its bearer token instead (ADR 23), which the start insists on
+    assert gated.post("/mcp", json=ping, headers=accept).status_code == 401
+    bearer = {**accept, "Authorization": f"Bearer {MCP_TOKEN}"}
+    assert gated.post("/mcp", json=ping, headers=bearer).status_code == 200
+    assert get(gated, None, "/mcp/blobs/x").status_code == 401
+    blob = get(gated, None, "/mcp/blobs/x", Authorization=f"Bearer {MCP_TOKEN}")
+    assert blob.status_code not in (401, 503)
     assert get(gated, None, "/mcpx").status_code == 401
     assert get(gated, None, "/healthz/x").status_code == 401
 
@@ -246,11 +334,15 @@ def test_the_root_path_is_minded(issuer, tmp_path):
         ("SCRAP_ALLOWED_EMAILS", " , ", "SCRAP_ALLOWED_EMAILS is empty"),
         ("SCRAP_OIDC_CLIENT_ID", " ", "SCRAP_OIDC_CLIENT_ID is empty"),
         ("SCRAP_OIDC_ISSUER", "http://identity.example.org", "https"),
+        ("SCRAP_MCP_TOKEN", None, "no bearer token"),
     ],
 )
 def test_a_missing_setting_stops_the_start(issuer, tmp_path, monkeypatch, name,
                                            value, said):  # fmt: skip
-    monkeypatch.setenv(name, value)
+    if value is None:
+        monkeypatch.delenv(name)
+    else:
+        monkeypatch.setenv(name, value)
     with pytest.raises(SystemExit, match=said):
         create_app(tmp_path / "data")
 
@@ -259,7 +351,7 @@ def test_a_loopback_issuer_may_be_http(monkeypatch):
     monkeypatch.setenv("SCRAP_OIDC_ISSUER", "http://localhost:8080/realms/dev")
     monkeypatch.setenv("SCRAP_OIDC_CLIENT_ID", CLIENT)
     monkeypatch.setenv("SCRAP_ALLOWED_EMAILS", "A@x.org")
-    conf = oidc.settings()
+    conf = oidc.settings(mcp_guarded=True)
     assert conf and conf.allowed == frozenset({"a@x.org"})
 
 
