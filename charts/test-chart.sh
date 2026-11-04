@@ -77,6 +77,7 @@ expect_refused "an unknown top-level key" --set replicas=2
 expect_refused "backup.keep=0" --set backup.keep=0
 expect_refused "backup.keep=-1" --set backup.keep=-1
 expect_refused "backup.monthly.keep=0" --set backup.monthly.keep=0
+expect_refused "a relative backup hostPath" --set backup.persistence.hostPath=backups
 expect_refused "a non-numeric budget" --set ingest.budgetDayUSD=lots
 expect_refused "an MCP token as a value" --set mcp.token=not-a-token
 expect_refused "an MCP token as a tokenSecret value" --set mcp.tokenSecret.value=not-a-token

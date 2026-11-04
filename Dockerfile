@@ -57,8 +57,10 @@ ENV PATH=/app/.venv/bin:$PATH
 # Backup retention, used by the Helm chart's backup CronJob (`scrap-backup prune`)
 COPY deploy/scrap-backup /usr/local/bin/scrap-backup
 
-# Run as an unprivileged user with its data on one volume at /data
+# Run as an unprivileged user with its data on one volume at /data. The home (the
+# working directory) is readable by all, for a deploy that runs scrap as another uid.
 RUN useradd --uid 10001 --user-group --create-home scrap \
+    && chmod 755 /home/scrap \
     && mkdir /data && chown scrap:scrap /data
 ENV SCRAP_DATA_DIR=/data
 VOLUME /data

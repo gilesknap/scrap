@@ -63,6 +63,18 @@ that its Jobs' names fit). A longer fullname is cut and given a short hash. */}}
 {{- .Values.backup.persistence.existingClaim | default (printf "%s-backups" (include "scrap.fullname" .)) }}
 {{- end }}
 
+{{/* The backups volume's source: backup.persistence.hostPath when set, else the claim. */}}
+{{- define "scrap.backupVolume" -}}
+{{- with .Values.backup.persistence.hostPath -}}
+hostPath:
+  path: {{ . | quote }}
+  type: Directory
+{{- else -}}
+persistentVolumeClaim:
+  claimName: {{ include "scrap.backupClaim" . }}
+{{- end }}
+{{- end }}
+
 {{/* A CronJob's name for a suffix such as "-gc": at most 52 characters, cut and
 given a short hash like scrap.backupName. Call with (dict "ctx" . "suffix" "-gc"). */}}
 {{- define "scrap.cronName" -}}

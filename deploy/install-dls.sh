@@ -8,11 +8,13 @@
 # Settings (environment, all optional):
 #   SCRAP_VERSION          chart version to install (default: the pin below)
 #   SCRAP_NAMESPACE        namespace (default: the one `module load argus` selects, else $USER)
-#   SCRAP_HOST             hostname (default: scrap.$USER.diamond.ac.uk)
+#   SCRAP_HOST             hostname (default: scrap-$USER.diamond.ac.uk: one level under
+#                          diamond.ac.uk, so the ingress's *.diamond.ac.uk certificate covers it)
 #   SCRAP_SCHEME           https (default) or http: the scheme the hostname is served on
-#   SCRAP_INGRESS_CLASS    ingressClassName for the Ingress (default: the cluster's default)
-#   SCRAP_INGRESS_NAMESPACE  namespace of the ingress controller; when set, a NetworkPolicy
-#                          admits only that namespace to scrap
+#   SCRAP_INGRESS_CLASS    ingressClassName for the Ingress (default: nginx, argus's ingress)
+#   SCRAP_BACKUP_DIR       where the nightly backups go (default: /dls/science/users/$USER/scrap,
+#                          made here with mode 700; every argus node mounts /dls/science).
+#                          Empty keeps them on a claim in the cluster instead
 #   SCRAP_SERVICE_TYPE     Service type (default ClusterIP; LoadBalancer gets an external IP,
 #                          which bypasses any auth proxy: not recommended)
 #   ANTHROPIC_API_KEY      your Claude API key (default: asked for; empty answer skips ingest)
@@ -32,11 +34,31 @@ done
 user=${USER:-$(id -un)}
 ns=${SCRAP_NAMESPACE:-$(kubectl config view --minify --output 'jsonpath={..namespace}' 2>/dev/null || true)}
 ns=${ns:-$user}
-host=${SCRAP_HOST:-scrap.$user.diamond.ac.uk}
+host=${SCRAP_HOST:-scrap-$user.diamond.ac.uk}
 scheme=${SCRAP_SCHEME:-https}
 secret=scrap-secrets
+backup_dir=${SCRAP_BACKUP_DIR-/dls/science/users/$user/scrap}
+# scrap's pods run as you, so the backups in your directory are yours.
+uid=$(id -u)
+gid=$(id -g)
 
 echo "Installing scrap $VERSION into namespace $ns, for https://$host"
+
+if [ -n "$backup_dir" ]; then
+    case $backup_dir in
+    /*) ;;
+    *)
+        echo "SCRAP_BACKUP_DIR must be an absolute path: $backup_dir" >&2
+        exit 1
+        ;;
+    esac
+    if ! mkdir -p "$backup_dir" || ! chmod 700 "$backup_dir"; then
+        echo "Cannot make $backup_dir. Set SCRAP_BACKUP_DIR to a directory of yours" >&2
+        echo "under /dls/science, or to empty to keep backups in the cluster." >&2
+        exit 1
+    fi
+    echo "Backups go to $backup_dir (mode 700, yours)."
+fi
 
 # --- The Secret: API key and /mcp bearer token. Created once, never overwritten. ---
 new_token=
@@ -88,25 +110,51 @@ trap 'rm -f "$values"' EXIT
     echo "extraEnv:"
     echo "  - name: SCRAP_PUBLIC_URL"
     echo "    value: $scheme://$host"
+    echo "podSecurityContext:"
+    echo "  runAsUser: $uid"
+    echo "  runAsGroup: $gid"
+    echo "  fsGroup: $gid"
+    # argus caps a container's CPU limit at 10 times its request, and its default
+    # limit is 1 CPU: the jobs request 50m, so give them a limit that fits.
+    echo "backup:"
+    echo "  resources: {limits: {cpu: 500m}}"
+    if [ -n "$backup_dir" ]; then
+        echo "  persistence:"
+        echo "    hostPath: $backup_dir"
+    fi
+    for job in gc enrichRelated enrichTopics; do
+        echo "$job:"
+        echo "  resources: {limits: {cpu: 500m}}"
+    done
     echo "service:"
     echo "  type: ${SCRAP_SERVICE_TYPE:-ClusterIP}"
     echo "ingress:"
     echo "  enabled: true"
-    [ -z "${SCRAP_INGRESS_CLASS:-}" ] || echo "  className: ${SCRAP_INGRESS_CLASS}"
+    echo "  className: ${SCRAP_INGRESS_CLASS:-nginx}"
     echo "  hosts:"
     echo "    - $host"
-    if [ -n "${SCRAP_INGRESS_NAMESPACE:-}" ]; then
-        echo "networkPolicy:"
-        echo "  enabled: true"
-        echo "  from:"
-        echo "    - namespaceSelector:"
-        echo "        matchLabels:"
-        echo "          kubernetes.io/metadata.name: ${SCRAP_INGRESS_NAMESPACE}"
+    if [ "$scheme" = https ]; then
+        # No secretName: the controller's default (wildcard) certificate serves it.
+        echo "  tls:"
+        echo "    - hosts:"
+        echo "        - $host"
     fi
 } >"$values"
 
-helm upgrade --install scrap "$CHART" --version "$VERSION" \
-    --namespace "$ns" -f "$values" --wait --timeout 5m
+if ! helm upgrade --install scrap "$CHART" --version "$VERSION" \
+    --namespace "$ns" -f "$values" --wait --timeout 5m; then
+    echo "Helm failed; fix the cause above and re-run this script." >&2
+    if [ -n "$new_token" ]; then
+        # The Secret is kept, so a re-run will not show this token again.
+        cat >&2 <<EOF
+
+Your MCP bearer token (shown once; keep it in a password manager):
+
+  $new_token
+EOF
+    fi
+    exit 1
+fi
 rm -f "$values"
 
 ip=$(kubectl -n "$ns" get svc scrap -o jsonpath='{.spec.clusterIP}' 2>/dev/null || true)
@@ -120,6 +168,7 @@ if [ "${SCRAP_SERVICE_TYPE:-ClusterIP}" = LoadBalancer ]; then
     done
 fi
 
+# shellcheck disable=SC2016 # quotes inside a heredoc are literal: $ns does expand
 cat <<EOF
 
 scrap is running in namespace $ns.
@@ -130,13 +179,21 @@ scrap is running in namespace $ns.
   MCP:      $scheme://$host/mcp   (needs the bearer token)
 
 Next steps
+EOF
+if getent hosts "$host" >/dev/null 2>&1; then
+    echo "  1. $host already resolves: nothing to ask for."
+else
+    cat <<EOF
   1. Open a cloud team ticket asking for the DNS name
          $host
-     to point at the argus ingress for namespace $ns.
-  2. Until it exists, look at scrap from this shell:
+     to point at the argus ingress (ingress-nginx) for namespace $ns.
+     Until it exists, look at scrap from this shell:
          kubectl -n $ns port-forward svc/scrap 8000:80
      then open http://127.0.0.1:8000/. /mcp and the phone app need the DNS name.
-  3. On your phone, join the DLS VPN, then open $scheme://$host/ and install the app.
+EOF
+fi
+cat <<EOF
+  2. On your phone, join the DLS VPN, then open $scheme://$host/ and install the app.
 EOF
 if [ -n "$new_token" ]; then
     cat <<EOF

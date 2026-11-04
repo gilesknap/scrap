@@ -97,6 +97,11 @@ backup:
     timeZone: ""
     keep: 12
   persistence:
+    # A directory on every node (an absolute path, e.g. a shared filesystem mounted
+    # on all of them) to keep the backups in, instead of a claim: no claim is made
+    # and the settings below are unused. It must exist, and the pods'
+    # podSecurityContext user must be able to write it.
+    hostPath: ""
     existingClaim: ""
     storageClass: ""
     accessModes:

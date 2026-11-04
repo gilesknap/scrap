@@ -84,8 +84,7 @@ spec:
               persistentVolumeClaim:
                 claimName: {{ include "scrap.dataClaim" . }}
             - name: backups
-              persistentVolumeClaim:
-                claimName: {{ include "scrap.backupClaim" . }}
+              {{- include "scrap.backupVolume" . | nindent 14 }}
             - name: tmp
               emptyDir: {}
 {{- end }}

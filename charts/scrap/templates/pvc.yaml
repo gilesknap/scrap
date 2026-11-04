@@ -23,7 +23,7 @@ spec:
 {{- if not .Values.persistence.existingClaim }}
 {{ include "scrap.pvc" (list . (include "scrap.dataClaim" .) .Values.persistence) }}
 {{- end }}
-{{- if and .Values.backup.enabled (not .Values.backup.persistence.existingClaim) }}
+{{- if and .Values.backup.enabled (not .Values.backup.persistence.existingClaim) (not .Values.backup.persistence.hostPath) }}
 ---
 {{ include "scrap.pvc" (list . (include "scrap.backupClaim" .) .Values.backup.persistence) }}
 {{- end }}
