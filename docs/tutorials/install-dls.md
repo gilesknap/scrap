@@ -6,8 +6,9 @@ the pages you make public on `pages-<fedid>.diamond.ac.uk`, all only from the DL
 
 Who can get in:
 
-- **The web app**: only you. It asks for your DLS login (Keycloak) and lets in only your own
-  email address.
+- **The web app**: it asks for your DLS login (Keycloak) and lets in only your own email
+  address. That keeps it from the network. scrap has no login of its own, so other argus users
+  with cluster access could still reach its Service directly.
 - **`/mcp`**: whoever has your bearer token, which the installer makes and shows you once.
 - **Your public pages**: anyone on the DLS network. Only the pages you make public are there.
 
@@ -40,7 +41,7 @@ It:
    and `pages-<fedid>.diamond.ac.uk` on argus's `nginx` ingress, served over HTTPS by its
    `*.diamond.ac.uk` certificate;
 4. puts the web app behind the DLS login, letting in only your email address, which it reads from
-   your namespace;
+   your namespace (in lower case);
 5. makes `/dls/science/users/<fedid>/scrap` (mode 700, if it is new) and keeps the nightly backups there, with
    scrap's pods running as you, so the backups are your files;
 6. prints the Service IP, your bearer token (once), and what to do next.

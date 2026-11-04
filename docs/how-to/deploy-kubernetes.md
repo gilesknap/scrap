@@ -382,7 +382,7 @@ fixed `redirect_url`), the chart wires it in:
 ```yaml
 authProxy:
   enabled: true
-  service: oauth2-proxy.scrap-auth.svc.cluster.local   # the proxy's in-cluster DNS name
+  service: oauth2-proxy.scrap.svc.cluster.local   # the proxy's in-cluster DNS name
   allowedEmails: [first.last@example.org]             # who may use the web app
 ```
 
@@ -392,8 +392,12 @@ top of `ingress.annotations`. A second Ingress, `<fullname>-open`, with the same
 `tls` and no auth, sends `/mcp` to scrap (set `mcp.tokenSecret`) and `/oauth2` to the proxy
 through an `ExternalName` Service, so the sign-in, its callback
 (`https://<host>/oauth2/callback`, which the identity provider must allow) and the cookie are
-on scrap's own host. `identityHeader` defaults to `X-Auth-Request-Email`. The install fails
-without `ingress.enabled`, `authProxy.service` or `authProxy.allowedEmails`. Other controllers
+on scrap's own host. Both Ingresses get `proxy-buffer-size: 16k` unless `ingress.annotations`
+sets it, since the login's cookies overflow nginx's 4k default. `identityHeader` defaults to
+`X-Auth-Request-Email`. The install fails without `ingress.enabled`, `ingress.tls` (the cookie is
+https only), `mcp.tokenSecret.name`, `authProxy.service` or `authProxy.allowedEmails`. The login
+guards the Ingress only: without a NetworkPolicy, any pod can reach the Service and send its own
+`X-Auth-Request-Email`. Other controllers
 need their own annotations, above. DLS runs one proxy for every user this way:
 [](run-the-dls-login-proxy.md).
 
