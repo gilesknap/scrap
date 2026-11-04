@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Deploy on Kubernetes &#8212; scrap 1.4.1.dev5+g58fb0b299 documentation</title>
+    <title>Deploy on Kubernetes &#8212; scrap 1.4.1.dev12+g5a395dada documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=275b0323"></script>
+    <script src="../_static/documentation_options.js?v=af0c64d7"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -1066,43 +1066,47 @@ inside them is silently ignored. The main ones:</p>
 <td><p><code class="docutils literal notranslate"><span class="pre">20Gi</span></code>, default class, none</p></td>
 <td><p>The backups volume. Each run is a full copy: allow about <code class="docutils literal notranslate"><span class="pre">keep</span> <span class="pre">+</span> <span class="pre">monthly.keep</span> <span class="pre">+</span> <span class="pre">1</span></code> times the data (or lower <code class="docutils literal notranslate"><span class="pre">keep</span></code> and <code class="docutils literal notranslate"><span class="pre">monthly.keep</span></code>).</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">resources.limits.memory</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">backup.persistence.hostPath</span></code></p></td>
+<td><p>none</p></td>
+<td><p>An absolute directory on every node (a shared filesystem) to keep the backups in, instead of a claim. It must exist and be writable by the <code class="docutils literal notranslate"><span class="pre">podSecurityContext</span></code> user. A namespace that enforces the <code class="docutils literal notranslate"><span class="pre">baseline</span></code> or <code class="docutils literal notranslate"><span class="pre">restricted</span></code> Pod Security Standard rejects hostPath volumes, so the backup jobs never start there: use the claim.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">resources.limits.memory</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">1Gi</span></code></p></td>
 <td><p>scrap’s photo decoding is budgeted for a 1 GB container; a lower limit risks the pod being OOM-killed on large photos.</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">ingress.*</span></code>, <code class="docutils literal notranslate"><span class="pre">service.annotations</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">ingress.*</span></code>, <code class="docutils literal notranslate"><span class="pre">service.annotations</span></code></p></td>
 <td><p>off</p></td>
 <td><p>Exposure, below.</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">service.type</span></code>, <code class="docutils literal notranslate"><span class="pre">service.port</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">service.type</span></code>, <code class="docutils literal notranslate"><span class="pre">service.port</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">ClusterIP</span></code>, <code class="docutils literal notranslate"><span class="pre">80</span></code></p></td>
 <td><p>The Service.</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">networkPolicy.enabled</span></code>, <code class="docutils literal notranslate"><span class="pre">.from</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">networkPolicy.enabled</span></code>, <code class="docutils literal notranslate"><span class="pre">.from</span></code></p></td>
 <td><p>off</p></td>
 <td><p>Who may connect, below.</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">mcp.tokenSecret.name</span></code>, <code class="docutils literal notranslate"><span class="pre">.key</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">mcp.tokenSecret.name</span></code>, <code class="docutils literal notranslate"><span class="pre">.key</span></code></p></td>
 <td><p>none, <code class="docutils literal notranslate"><span class="pre">SCRAP_MCP_TOKEN</span></code></p></td>
 <td><p>An existing Secret and the key in it holding the bearer token(s) <code class="docutils literal notranslate"><span class="pre">/mcp</span></code> requires (<code class="docutils literal notranslate"><span class="pre">SCRAP_MCP_TOKEN</span></code>, comma separated for several). Never a token as a value; the chart creates no Secret. Empty name: no token needed. See <a class="reference internal" href="#k8s-mcp-token"><span class="std std-ref">Bearer token on /mcp</span></a>.</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">identityHeader</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">identityHeader</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Tailscale-User-Login</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">SCRAP_IDENTITY_HEADER</span></code>: the header recorded as the author, e.g. <code class="docutils literal notranslate"><span class="pre">X-Auth-Request-User</span></code> behind oauth2-proxy.</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">extraEnv</span></code>, <code class="docutils literal notranslate"><span class="pre">extraEnvFrom</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">extraEnv</span></code>, <code class="docutils literal notranslate"><span class="pre">extraEnvFrom</span></code></p></td>
 <td><p>none</p></td>
 <td><p>Anything else for the container, such as <code class="docutils literal notranslate"><span class="pre">SCRAP_PUBLIC_URL</span></code> (see <a class="reference internal" href="#k8s-mcp"><span class="std std-ref">Claude Code (MCP)</span></a>) or <code class="docutils literal notranslate"><span class="pre">SCRAP_ENRICH</span></code>.</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">public.enabled</span></code>, <code class="docutils literal notranslate"><span class="pre">.site</span></code>, <code class="docutils literal notranslate"><span class="pre">.tokenSecret.*</span></code>, <code class="docutils literal notranslate"><span class="pre">.ingress.*</span></code>, <code class="docutils literal notranslate"><span class="pre">.networkPolicy.webFrom</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">public.enabled</span></code>, <code class="docutils literal notranslate"><span class="pre">.site</span></code>, <code class="docutils literal notranslate"><span class="pre">.tokenSecret.*</span></code>, <code class="docutils literal notranslate"><span class="pre">.ingress.*</span></code>, <code class="docutils literal notranslate"><span class="pre">.networkPolicy.webFrom</span></code></p></td>
 <td><p>off</p></td>
 <td><p>Public pages: the public site and its upload receiver in their own namespace (<a class="reference internal" href="#k8s-public-pages"><span class="std std-ref">Public pages</span></a>).</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">nodeSelector</span></code>, <code class="docutils literal notranslate"><span class="pre">tolerations</span></code>, <code class="docutils literal notranslate"><span class="pre">affinity</span></code>, <code class="docutils literal notranslate"><span class="pre">podAnnotations</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">nodeSelector</span></code>, <code class="docutils literal notranslate"><span class="pre">tolerations</span></code>, <code class="docutils literal notranslate"><span class="pre">affinity</span></code>, <code class="docutils literal notranslate"><span class="pre">podAnnotations</span></code></p></td>
 <td><p>none</p></td>
 <td><p>Scheduling and annotations.</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">nameOverride</span></code>, <code class="docutils literal notranslate"><span class="pre">fullnameOverride</span></code>, <code class="docutils literal notranslate"><span class="pre">serviceAccount.*</span></code>, <code class="docutils literal notranslate"><span class="pre">terminationGracePeriodSeconds</span></code>, <code class="docutils literal notranslate"><span class="pre">backup.resources</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">nameOverride</span></code>, <code class="docutils literal notranslate"><span class="pre">fullnameOverride</span></code>, <code class="docutils literal notranslate"><span class="pre">serviceAccount.*</span></code>, <code class="docutils literal notranslate"><span class="pre">terminationGracePeriodSeconds</span></code>, <code class="docutils literal notranslate"><span class="pre">backup.resources</span></code></p></td>
 <td><p>see <code class="docutils literal notranslate"><span class="pre">values.yaml</span></code></p></td>
 <td><p>Naming, the ServiceAccount, the stop timeout (<code class="docutils literal notranslate"><span class="pre">30</span></code>) and the backup job’s resources.</p></td>
 </tr>
@@ -1521,6 +1525,24 @@ arguments runs any <code class="docutils literal notranslate"><span class="pre">
 (which does need the claim writable; pruning only ever deletes directories named like a backup
 run, so an export there is kept). To restore into a fresh volume instead, create a new claim,
 restore into it without <code class="docutils literal notranslate"><span class="pre">--force</span></code>, and point <code class="docutils literal notranslate"><span class="pre">persistence.existingClaim</span></code> at it.</p>
+<p id="k8s-restore-hostpath"><strong>Backups in a hostPath.</strong> With <code class="docutils literal notranslate"><span class="pre">backup.persistence.hostPath</span></code>, there is no backups claim. Mount
+the directory instead, and run the pod as the release’s <code class="docutils literal notranslate"><span class="pre">podSecurityContext</span></code> user, who owns the
+backups (the DLS install uses your own uid and gid; <code class="docutils literal notranslate"><span class="pre">id</span></code> shows them):</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="w">  </span><span class="nt">securityContext</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">runAsNonRoot</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<span class="w">    </span><span class="nt">runAsUser</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">&lt;uid&gt;</span>
+<span class="w">    </span><span class="nt">runAsGroup</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">&lt;gid&gt;</span>
+<span class="w">    </span><span class="nt">fsGroup</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">&lt;gid&gt;</span>
+<span class="w">    </span><span class="nt">seccompProfile</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">RuntimeDefault</span>
+<span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">...</span>
+<span class="w">  </span><span class="nt">volumes</span><span class="p">:</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">backups</span>
+<span class="w">      </span><span class="nt">hostPath</span><span class="p">:</span>
+<span class="w">        </span><span class="nt">path</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">&lt;the backup directory&gt;</span>
+<span class="w">        </span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Directory</span>
+</pre></div>
+</div>
 <section id="which-backups-restore">
 <span id="k8s-restore-schema"></span><h3>Which backups restore<a class="headerlink" href="#which-backups-restore" title="Link to this heading">#</a></h3>
 <p>What <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">restore</span></code> accepts depends on the schema of the backup (the database version, named
