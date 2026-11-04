@@ -34,15 +34,23 @@ while [ \$# -gt 0 ]; do [ "\$1" = -f ] && cp "\$2" "$tmp/values.yaml"; shift; do
 STUB
 chmod +x "$tmp/bin/"*
 
+# A key in the developer's shell must not reach the cases that run without one.
+unset ANTHROPIC_API_KEY
+# Detached from any terminal, so the key prompt cannot open /dev/tty and wait.
+detached() {
+    if setsid -w true 2>/dev/null; then setsid -w "$@"; else "$@"; fi
+}
 run() {
+    mkdir -p "$tmp/installer-tmp"
     PATH="$tmp/bin:$PATH" USER=hgv27681 SCRAP_BACKUP_DIR="${SCRAP_BACKUP_DIR-$tmp/science/scrap}" \
-        "$here/install-dls.sh" </dev/null >"$tmp/out" 2>&1
+        TMPDIR="$tmp/installer-tmp" detached "$here/install-dls.sh" </dev/null >"$tmp/out" 2>&1
 }
 
 # First run: key from the environment, token generated and shown once.
 : >"$tmp/kubectl.calls"; touch "$tmp/key"
 (ANTHROPIC_API_KEY=sk-test run)
 check "creates the secret" grep -q "create secret generic scrap-secrets" "$tmp/kubectl.calls"
+check "key's temp files removed" sh -c "[ -z \"\$(ls -A '$tmp/installer-tmp')\" ]"
 check "key never on a command line" sh -c "! grep -q sk-test '$tmp/kubectl.calls' '$tmp/helm.calls'"
 check "installs pinned version" grep -q -- "--version 1.4.0" "$tmp/helm.calls"
 check "namespace falls back to USER" grep -q -- "--namespace hgv27681" "$tmp/helm.calls"

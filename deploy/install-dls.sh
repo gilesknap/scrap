@@ -49,6 +49,8 @@ main() {
     tmp=
     values=
     trap 'rm -rf "$tmp" "$values"' EXIT
+    # dash skips the EXIT trap when a signal kills it: exit, so the cleanup runs.
+    trap 'exit 130' INT TERM HUP
 
     echo "Installing scrap $VERSION into namespace $ns, for $scheme://$host"
 
@@ -81,11 +83,11 @@ main() {
         if [ -z "$key" ] && ( : </dev/tty ) 2>/dev/null; then
             printf 'Claude API key for ingest (input hidden; Enter to skip): ' >/dev/tty
             # Ctrl-C at the prompt turns echo back on (the EXIT trap still cleans up).
-            trap 'stty echo </dev/tty 2>/dev/null; echo >/dev/tty; exit 130' INT TERM
+            trap 'stty echo </dev/tty 2>/dev/null; echo >/dev/tty; exit 130' INT TERM HUP
             stty -echo </dev/tty 2>/dev/null || true
             read -r key </dev/tty || key=
             stty echo </dev/tty 2>/dev/null || true
-            trap - INT TERM
+            trap 'exit 130' INT TERM HUP
             echo >/dev/tty
         fi
         new_token=$(head -c 32 /dev/urandom | od -An -tx1 | tr -d ' \n')
