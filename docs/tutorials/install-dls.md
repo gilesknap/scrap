@@ -80,12 +80,56 @@ installer. To restore from them, see [below](#install-dls-restore).
 - **Phone:** to use scrap from your phone, you must first add the phone to the DLS VPN; follow DLS
   IT's VPN instructions for that. Then, on the VPN, open `https://scrap-<fedid>.diamond.ac.uk/` and
   install the app.
-- **Claude Code**, on a DLS machine:
+- **Browser:** on a DLS machine, open `https://scrap-<fedid>.diamond.ac.uk/`.
 
-  ```
-  claude mcp add --transport http scrap https://scrap-<fedid>.diamond.ac.uk/mcp \
-      --header "Authorization: Bearer <your token>"
-  ```
+## 5. Connect Claude Code
+
+Claude Code reaches scrap at `/mcp` with your bearer token. Claude Code runs a small helper
+script each time it connects, and the helper reads the token from a private file. Do this once,
+on a DLS machine, after `module load argus`.
+
+**1. Save the token** in `~/.config/terminal-config/.env`, readable only by you:
+
+```sh
+mkdir -p ~/.config/terminal-config
+printf 'SCRAP_MCP_TOKEN=%s\n' \
+  "$(kubectl get secret scrap-secrets -o jsonpath='{.data.SCRAP_MCP_TOKEN}' | base64 -d)" \
+  >> ~/.config/terminal-config/.env
+chmod 600 ~/.config/terminal-config/.env
+```
+
+**2. Make the helper** `~/.claude/scrap-headers.sh`:
+
+```sh
+mkdir -p ~/.claude
+cat > ~/.claude/scrap-headers.sh <<'EOF'
+#!/bin/sh
+# Headers for scrap's /mcp: the bearer token
+set -a; . ~/.config/terminal-config/.env; set +a
+printf '{"Authorization":"Bearer %s"}\n' "$SCRAP_MCP_TOKEN"
+EOF
+chmod 700 ~/.claude/scrap-headers.sh
+```
+
+**3. Add scrap to Claude Code**, for all your projects:
+
+```sh
+claude mcp add-json --scope user scrap \
+  "{\"type\":\"http\",\"url\":\"https://scrap-$USER.diamond.ac.uk/mcp\",\"headersHelper\":\"$HOME/.claude/scrap-headers.sh\"}"
+```
+
+**4. Check it.** `claude mcp list` shows `scrap` as connected. Ask Claude to search your pages.
+
+In claude-sandbox, the helper reads the same file at `/user-terminal-config/.env`: change the path
+on its `set -a` line to that. To install the `sc` commands and skills, see
+[](../how-to/connect-claude-code.md).
+
+```{note}
+Only Claude Code on the DLS network can use it. Claude.ai's hosted connectors and cloud sessions
+cannot reach a DLS-internal address.
+```
+
+## More
 
 For everything the chart can do (backups, restore, upgrades), see [](../how-to/deploy-kubernetes.md).
 

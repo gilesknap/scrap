@@ -227,8 +227,8 @@ Your MCP bearer token (shown once; keep it in a password manager):
 
   $new_token
 
-Claude Code: claude mcp add --transport http scrap $scheme://$host/mcp \\
-    --header "Authorization: Bearer <the token above>"
+To connect Claude Code, follow "Connect Claude Code" in the tutorial:
+  https://gilesknap.github.io/scrap/main/tutorials/install-dls.html
 EOF
     else
         cat <<EOF
