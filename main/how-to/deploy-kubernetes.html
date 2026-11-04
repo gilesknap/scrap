@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Deploy on Kubernetes &#8212; scrap 1.5.1.dev4+g06afddcc4 documentation</title>
+    <title>Deploy on Kubernetes &#8212; scrap 1.5.2.dev14+g48d60109b documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=b8c5f71c"></script>
+    <script src="../_static/documentation_options.js?v=19e714e7"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -791,6 +791,7 @@ window.runMermaid = runMermaid;</script>
 <li class="toctree-l1"><a class="reference internal" href="keep-an-index.html">Keep an index of your pages</a></li>
 <li class="toctree-l1"><a class="reference internal" href="make-your-own-lists.html">Make your own lists: a contacts directory</a></li>
 <li class="toctree-l1"><a class="reference internal" href="publish-pages.html">Publish pages</a></li>
+<li class="toctree-l1"><a class="reference internal" href="run-the-dls-login-proxy.html">Run the DLS login proxy</a></li>
 <li class="toctree-l1"><a class="reference internal" href="use-scrap-on-your-phone.html">Use scrap on your phone over Tailscale</a></li>
 <li class="toctree-l1"><a class="reference internal" href="use-the-pwa.html">Capture from your phone (the PWA)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="work-with-claude.html">Work on scrap with Claude</a></li>
@@ -1092,7 +1093,15 @@ inside them is silently ignored. The main ones:</p>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">identityHeader</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Tailscale-User-Login</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">SCRAP_IDENTITY_HEADER</span></code>: the header recorded as the author, e.g. <code class="docutils literal notranslate"><span class="pre">X-Auth-Request-User</span></code> behind oauth2-proxy.</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">SCRAP_IDENTITY_HEADER</span></code>: the header recorded as the author, e.g. <code class="docutils literal notranslate"><span class="pre">X-Auth-Request-User</span></code> behind oauth2-proxy. Not read with <code class="docutils literal notranslate"><span class="pre">authProxy.enabled</span></code>, where the author is the token’s email.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">authProxy.enabled</span></code>, <code class="docutils literal notranslate"><span class="pre">.service</span></code>, <code class="docutils literal notranslate"><span class="pre">.port</span></code>, <code class="docutils literal notranslate"><span class="pre">.allowedEmails</span></code></p></td>
+<td><p>off, none, <code class="docutils literal notranslate"><span class="pre">80</span></code>, none</p></td>
+<td><p>A login for the web app through an oauth2-proxy you run, with ingress-nginx only (<a class="reference internal" href="#k8s-auth-proxy"><span class="std std-ref">A central oauth2-proxy with ingress-nginx</span></a>).</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">authProxy.oidc.issuer</span></code>, <code class="docutils literal notranslate"><span class="pre">.clientId</span></code></p></td>
+<td><p>none</p></td>
+<td><p>Required with <code class="docutils literal notranslate"><span class="pre">authProxy.enabled</span></code>: the identity provider’s issuer URL (https) and the proxy’s client ID, whose access tokens scrap checks on every request (<code class="docutils literal notranslate"><span class="pre">SCRAP_OIDC_ISSUER</span></code>, <code class="docutils literal notranslate"><span class="pre">SCRAP_OIDC_CLIENT_ID</span></code>; <a class="reference internal" href="#k8s-auth-proxy"><span class="std std-ref">A central oauth2-proxy with ingress-nginx</span></a>).</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">extraEnv</span></code>, <code class="docutils literal notranslate"><span class="pre">extraEnvFrom</span></code></p></td>
 <td><p>none</p></td>
@@ -1101,6 +1110,14 @@ inside them is silently ignored. The main ones:</p>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">public.enabled</span></code>, <code class="docutils literal notranslate"><span class="pre">.site</span></code>, <code class="docutils literal notranslate"><span class="pre">.tokenSecret.*</span></code>, <code class="docutils literal notranslate"><span class="pre">.ingress.*</span></code>, <code class="docutils literal notranslate"><span class="pre">.networkPolicy.webFrom</span></code></p></td>
 <td><p>off</p></td>
 <td><p>Public pages: the public site and its upload receiver in their own namespace (<a class="reference internal" href="#k8s-public-pages"><span class="std std-ref">Public pages</span></a>).</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">public.namespace</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">scrap-public</span></code></p></td>
+<td><p>The public side’s namespace. It may be the release namespace; then one Secret serves both sides.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">public.networkPolicy.enabled</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">true</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">false</span></code>: no NetworkPolicy for the public side, where you may not create one. The receiver still needs its token.</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">nodeSelector</span></code>, <code class="docutils literal notranslate"><span class="pre">tolerations</span></code>, <code class="docutils literal notranslate"><span class="pre">affinity</span></code>, <code class="docutils literal notranslate"><span class="pre">podAnnotations</span></code></p></td>
 <td><p>none</p></td>
@@ -1246,15 +1263,16 @@ anything unattended) no access unless you grant it:</p>
 <p>scrap has no login, so put an authenticating proxy in front: for example
 <a class="reference external" href="https://oauth2-proxy.github.io/oauth2-proxy/">oauth2-proxy</a> through your controller’s external
 auth annotations, or your SSO’s forward-auth middleware. Raise the controller’s request body
-limit to at least <code class="docutils literal notranslate"><span class="pre">maxUploadMB</span></code>.</p>
+limit a little above <code class="docutils literal notranslate"><span class="pre">maxUploadMB</span></code>, so an upload just over it gets scrap’s error rather
+than the controller’s.</p>
 <div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">ingress</span><span class="p">:</span>
 <span class="w">  </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
 <span class="w">  </span><span class="nt">className</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">&lt;your-ingress-class&gt;</span>
 <span class="w">  </span><span class="nt">annotations</span><span class="p">:</span>
 <span class="w">    </span><span class="c1"># Your controller's annotations for external authentication and for a</span>
-<span class="w">    </span><span class="c1"># request body limit of at least maxUploadMB; see its documentation.</span>
+<span class="w">    </span><span class="c1"># request body limit a little above maxUploadMB; see its documentation.</span>
 <span class="w">    </span><span class="nt">&lt;auth-annotation&gt;</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">&lt;auth-service-url&gt;</span>
-<span class="w">    </span><span class="nt">&lt;body-size-annotation&gt;</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">50m</span>
+<span class="w">    </span><span class="nt">&lt;body-size-annotation&gt;</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">51m</span>
 <span class="w">  </span><span class="nt">hosts</span><span class="p">:</span>
 <span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">scrap.example.com</span>
 <span class="w">  </span><span class="nt">tls</span><span class="p">:</span>
@@ -1280,6 +1298,41 @@ ingress controller, give <code class="docutils literal notranslate"><span class=
 host that skips the login proxy, and guard it another way: a Cloudflare Access service token in
 front, and scrap’s own bearer token behind it (below), so a leaked service token alone does not
 open scrap. Keep the PWA and API on the login-proxied host.</p>
+</section>
+<section id="a-central-oauth2-proxy-with-ingress-nginx">
+<span id="k8s-auth-proxy"></span><h3>A central oauth2-proxy with ingress-nginx<a class="headerlink" href="#a-central-oauth2-proxy-with-ingress-nginx" title="Link to this heading">#</a></h3>
+<p>If you run oauth2-proxy in the cluster (with <code class="docutils literal notranslate"><span class="pre">reverse_proxy</span></code> and <code class="docutils literal notranslate"><span class="pre">set_xauthrequest</span></code> on, and no
+fixed <code class="docutils literal notranslate"><span class="pre">redirect_url</span></code>), the chart wires it in:</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">authProxy</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<span class="w">  </span><span class="nt">service</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">oauth2-proxy.scrap.svc.cluster.local</span><span class="w">   </span><span class="c1"># the proxy's in-cluster DNS name</span>
+<span class="w">  </span><span class="nt">allowedEmails</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">first.last@example.org</span><span class="p p-Indicator">]</span><span class="w">             </span><span class="c1"># who may use the web app</span>
+<span class="w">  </span><span class="nt">oidc</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">issuer</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">https://identity.example.org/realms/main</span><span class="w">  </span><span class="c1"># the realm, as in its tokens' iss</span>
+<span class="w">    </span><span class="nt">clientId</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">scrap</span><span class="w">                                   </span><span class="c1"># the proxy's client</span>
+</pre></div>
+</div>
+<p>The Ingress then gets ingress-nginx’s <code class="docutils literal notranslate"><span class="pre">auth-url</span></code> (the proxy’s <code class="docutils literal notranslate"><span class="pre">/oauth2/auth</span></code>, with no
+<code class="docutils literal notranslate"><span class="pre">allowed_emails</span></code> query, which some ingress-nginx annotation validation refuses), <code class="docutils literal notranslate"><span class="pre">auth-signin</span></code> and <code class="docutils literal notranslate"><span class="pre">auth-response-headers:</span> <span class="pre">X-Auth-Request-Email,X-Auth-Request-Access-Token</span></code>
+annotations, on top of <code class="docutils literal notranslate"><span class="pre">ingress.annotations</span></code>. A second Ingress, <code class="docutils literal notranslate"><span class="pre">&lt;fullname&gt;-open</span></code>, with the same class, hosts and
+<code class="docutils literal notranslate"><span class="pre">tls</span></code> and no auth, sends <code class="docutils literal notranslate"><span class="pre">/mcp</span></code> to scrap (set <code class="docutils literal notranslate"><span class="pre">mcp.tokenSecret</span></code>) and <code class="docutils literal notranslate"><span class="pre">/oauth2</span></code> to the proxy
+through an <code class="docutils literal notranslate"><span class="pre">ExternalName</span></code> Service, so the sign-in, its callback
+(<code class="docutils literal notranslate"><span class="pre">https://&lt;host&gt;/oauth2/callback</span></code>, which the identity provider must allow) and the cookie are
+on scrap’s own host. Both Ingresses get <code class="docutils literal notranslate"><span class="pre">proxy-buffer-size:</span> <span class="pre">16k</span></code> unless <code class="docutils literal notranslate"><span class="pre">ingress.annotations</span></code>
+sets it, since the login’s cookies overflow nginx’s 4k default. The author of a change is
+the verified email in the proxy’s token, so <code class="docutils literal notranslate"><span class="pre">identityHeader</span></code> is not read. The install fails without <code class="docutils literal notranslate"><span class="pre">ingress.enabled</span></code>, <code class="docutils literal notranslate"><span class="pre">ingress.tls</span></code> (the cookie is
+https only), <code class="docutils literal notranslate"><span class="pre">mcp.tokenSecret.name</span></code>, <code class="docutils literal notranslate"><span class="pre">authProxy.service</span></code>, <code class="docutils literal notranslate"><span class="pre">authProxy.allowedEmails</span></code>,
+<code class="docutils literal notranslate"><span class="pre">authProxy.oidc.issuer</span></code> or <code class="docutils literal notranslate"><span class="pre">authProxy.oidc.clientId</span></code>.</p>
+<p>The login alone guards the Ingress only: without a NetworkPolicy, any pod can reach the Service
+and send its own <code class="docutils literal notranslate"><span class="pre">X-Auth-Request-Email</span></code>. So scrap checks the proxy’s access token itself
+(<a class="reference internal" href="../explanations/decisions/0045-scrap-verifies-the-login-proxys-keycloak-token.html"><span class="std std-doc">ADR 45</span></a>): the
+Deployment gets <code class="docutils literal notranslate"><span class="pre">SCRAP_OIDC_ISSUER</span></code>, <code class="docutils literal notranslate"><span class="pre">SCRAP_OIDC_CLIENT_ID</span></code> and <code class="docutils literal notranslate"><span class="pre">SCRAP_ALLOWED_EMAILS</span></code>, and every
+request but <code class="docutils literal notranslate"><span class="pre">/healthz</span></code> and <code class="docutils literal notranslate"><span class="pre">/mcp</span></code> needs a valid token for an allowed email (<code class="docutils literal notranslate"><span class="pre">401</span></code> without).
+This is also the only owner check: anyone the proxy lets log in passes the Ingress. Run
+the proxy with <code class="docutils literal notranslate"><span class="pre">pass_access_token</span> <span class="pre">=</span> <span class="pre">true</span></code>, and a <code class="docutils literal notranslate"><span class="pre">cookie_refresh</span></code> shorter than the access tokens’
+life. Other controllers
+need their own annotations, above. DLS runs one proxy for every user this way:
+<a class="reference internal" href="run-the-dls-login-proxy.html"><span class="std std-doc">Run the DLS login proxy</span></a>.</p>
 </section>
 <section id="bearer-token-on-mcp">
 <span id="k8s-mcp-token"></span><h3>Bearer token on /mcp<a class="headerlink" href="#bearer-token-on-mcp" title="Link to this heading">#</a></h3>
@@ -2027,6 +2080,7 @@ sessions (<a class="reference internal" href="connect-claude-code.html"><span cl
 </ul>
 </li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#any-other-ingress-controller">Any other ingress controller</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#a-central-oauth2-proxy-with-ingress-nginx">A central oauth2-proxy with ingress-nginx</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#bearer-token-on-mcp">Bearer token on /mcp</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#claude-code-mcp">Claude Code (MCP)</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#port-forward">Port-forward</a></li>

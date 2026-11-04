@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Install scrap at DLS &#8212; scrap 1.5.1.dev4+g06afddcc4 documentation</title>
+    <title>Install scrap at DLS &#8212; scrap 1.5.2.dev14+g48d60109b documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=b8c5f71c"></script>
+    <script src="../_static/documentation_options.js?v=19e714e7"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -490,14 +490,18 @@
   <section id="install-scrap-at-dls">
 <h1>Install scrap at DLS<a class="headerlink" href="#install-scrap-at-dls" title="Link to this heading">#</a></h1>
 <p>In this tutorial you run scrap in your own namespace on the DLS argus Kubernetes cluster, with one
-script. At the end the web app and the MCP endpoint answer on <code class="docutils literal notranslate"><span class="pre">scrap-&lt;fedid&gt;.diamond.ac.uk</span></code>, only
-from the DLS network, and <code class="docutils literal notranslate"><span class="pre">/mcp</span></code> also needs a bearer token.</p>
-<div class="admonition warning">
-<p class="admonition-title">Warning</p>
-<p>scrap has <strong>no login of its own</strong>. Here the network is the gate for the web app: the hostname is
-reachable only on the DLS LAN, and from your phone only once it is on the DLS VPN. <code class="docutils literal notranslate"><span class="pre">/mcp</span></code> has a second lock,
-a bearer token. Do not publish the hostname anywhere wider.</p>
-</div>
+script. At the end the web app and the MCP endpoint answer on <code class="docutils literal notranslate"><span class="pre">scrap-&lt;fedid&gt;.diamond.ac.uk</span></code>, and
+the pages you make public on <code class="docutils literal notranslate"><span class="pre">pages-&lt;fedid&gt;.diamond.ac.uk</span></code>, all only from the DLS network.</p>
+<p>Who can get in:</p>
+<ul class="simple">
+<li><p><strong>The web app</strong>: it asks for your DLS login (Keycloak), and scrap lets in only your own email
+address: another DLS user who logs in gets <code class="docutils literal notranslate"><span class="pre">401</span></code>. That keeps it from the network. Pods in the cluster can reach its Service directly,
+but scrap checks the login’s token itself, so without a valid DLS login token for you they get
+<code class="docutils literal notranslate"><span class="pre">401</span></code>. You stay logged in as long as your DLS Keycloak session lasts; when it ends, the web app
+and the phone app take you to the DLS login again.</p></li>
+<li><p><strong><code class="docutils literal notranslate"><span class="pre">/mcp</span></code></strong>: whoever has your bearer token, which the installer makes and shows you once.</p></li>
+<li><p><strong>Your public pages</strong>: anyone on the DLS network. Only the pages you make public are there.</p></li>
+</ul>
 <section id="what-you-need">
 <h2>What you need<a class="headerlink" href="#what-you-need" title="Link to this heading">#</a></h2>
 <ul class="simple">
@@ -521,34 +525,49 @@ nothing more happens.</p></li>
 <p>It:</p>
 <ol class="arabic simple">
 <li><p>asks for your Claude API key (input hidden; Enter skips ingest);</p></li>
-<li><p>creates a Secret <code class="docutils literal notranslate"><span class="pre">scrap-secrets</span></code> holding the key and a generated <code class="docutils literal notranslate"><span class="pre">/mcp</span></code> bearer token;</p></li>
-<li><p>installs the pinned scrap release with Helm, with an Ingress for <code class="docutils literal notranslate"><span class="pre">scrap-&lt;fedid&gt;.diamond.ac.uk</span></code>
-on argus’s <code class="docutils literal notranslate"><span class="pre">nginx</span></code> ingress, served over HTTPS by its <code class="docutils literal notranslate"><span class="pre">*.diamond.ac.uk</span></code> certificate;</p></li>
+<li><p>creates a Secret <code class="docutils literal notranslate"><span class="pre">scrap-secrets</span></code> holding the key, a generated <code class="docutils literal notranslate"><span class="pre">/mcp</span></code> bearer token and a
+generated upload token for your public pages;</p></li>
+<li><p>installs the latest scrap release with Helm, with Ingresses for <code class="docutils literal notranslate"><span class="pre">scrap-&lt;fedid&gt;.diamond.ac.uk</span></code>
+and <code class="docutils literal notranslate"><span class="pre">pages-&lt;fedid&gt;.diamond.ac.uk</span></code> on argus’s <code class="docutils literal notranslate"><span class="pre">nginx</span></code> ingress, served over HTTPS by its
+<code class="docutils literal notranslate"><span class="pre">*.diamond.ac.uk</span></code> certificate;</p></li>
+<li><p>puts the web app behind the DLS login, letting in only your email address, which it reads from
+your namespace (in lower case);</p></li>
 <li><p>makes <code class="docutils literal notranslate"><span class="pre">/dls/science/users/&lt;fedid&gt;/scrap</span></code> (mode 700, if it is new) and keeps the nightly backups there, with
 scrap’s pods running as you, so the backups are your files;</p></li>
 <li><p>prints the Service IP, your bearer token (once), and what to do next.</p></li>
 </ol>
-<p>It installs the latest scrap release, and is safe to re-run: a re-run upgrades to the latest
-release and never overwrites the Secret. Set <code class="docutils literal notranslate"><span class="pre">SCRAP_VERSION</span></code> to install a particular release.
-<code class="docutils literal notranslate"><span class="pre">SCRAP_BACKUP_DIR</span></code> moves the backups (empty keeps them on a volume in the cluster). <code class="docutils literal notranslate"><span class="pre">SCRAP_HOST</span></code>
-and <code class="docutils literal notranslate"><span class="pre">SCRAP_INGRESS_CLASS</span></code> adjust the ingress; the header of the script lists every setting. Keep the hostname one level under
-<code class="docutils literal notranslate"><span class="pre">diamond.ac.uk</span></code>, or the certificate does not cover it.</p>
+<p>It is safe to re-run: a re-run upgrades to the latest release and never overwrites the Secret. A
+Secret made by an older installer gets only the upload token added. Set <code class="docutils literal notranslate"><span class="pre">SCRAP_VERSION</span></code> to install a particular release.
+<code class="docutils literal notranslate"><span class="pre">SCRAP_BACKUP_DIR</span></code> moves the backups (empty keeps them on a volume in the cluster). If the
+installer stops with “Cannot find your email address”, set <code class="docutils literal notranslate"><span class="pre">SCRAP_EMAIL</span></code> to your DLS email
+address (<code class="docutils literal notranslate"><span class="pre">first.last&#64;diamond.ac.uk</span></code>) and run it again. The header of the script lists every
+setting.</p>
 <p>Keep the token in a password manager. To see it again:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">kubectl</span> <span class="n">get</span> <span class="n">secret</span> <span class="n">scrap</span><span class="o">-</span><span class="n">secrets</span> <span class="o">-</span><span class="n">o</span> <span class="n">jsonpath</span><span class="o">=</span><span class="s1">'{.data.SCRAP_MCP_TOKEN}'</span> <span class="o">|</span> <span class="n">base64</span> <span class="o">-</span><span class="n">d</span><span class="p">;</span> <span class="n">echo</span>
 </pre></div>
 </div>
 </section>
-<section id="ask-for-the-dns-name">
-<h2>3. Ask for the DNS name<a class="headerlink" href="#ask-for-the-dns-name" title="Link to this heading">#</a></h2>
+<section id="ask-for-the-dns-names">
+<h2>3. Ask for the DNS names<a class="headerlink" href="#ask-for-the-dns-names" title="Link to this heading">#</a></h2>
 <p>Names under <code class="docutils literal notranslate"><span class="pre">diamond.ac.uk</span></code> are not made for you: raise a request at
 <a class="reference external" href="https://jira.diamond.ac.uk/servicedesk/customer/portal/2/create/156">https://jira.diamond.ac.uk/servicedesk/customer/portal/2/create/156</a> asking for
-<code class="docutils literal notranslate"><span class="pre">scrap-&lt;fedid&gt;.diamond.ac.uk</span></code> to be set up on the argus ingress for your namespace.
-The installer skips this step if the name already resolves. Until it exists, look at scrap with a
-port-forward:</p>
+<code class="docutils literal notranslate"><span class="pre">scrap-&lt;fedid&gt;.diamond.ac.uk</span></code> and <code class="docutils literal notranslate"><span class="pre">pages-&lt;fedid&gt;.diamond.ac.uk</span></code> to be set up on the argus ingress
+for your namespace. The installer lists only the names that do not resolve yet. Until they exist,
+check scrap is up with a port-forward:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">kubectl</span> <span class="n">port</span><span class="o">-</span><span class="n">forward</span> <span class="n">svc</span><span class="o">/</span><span class="n">scrap</span> <span class="mi">8000</span><span class="p">:</span><span class="mi">80</span>
 </pre></div>
 </div>
-<p>and open <a class="reference external" href="http://127.0.0.1:8000/">http://127.0.0.1:8000/</a>. The phone app and <code class="docutils literal notranslate"><span class="pre">/mcp</span></code> need the DNS name.</p>
+<p>and open <a class="reference external" href="http://127.0.0.1:8000/healthz">http://127.0.0.1:8000/healthz</a>. The web app answers only with your login’s token, which
+comes through the Ingress, so it and the phone app need the DNS names.</p>
+</section>
+<section id="ask-for-your-login-address">
+<h2>4. Ask for your login address<a class="headerlink" href="#ask-for-your-login-address" title="Link to this heading">#</a></h2>
+<p>Ask a scrap admin to add your login address to the Keycloak client:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">scrap</span><span class="o">-&lt;</span><span class="n">fedid</span><span class="o">&gt;.</span><span class="n">diamond</span><span class="o">.</span><span class="n">ac</span><span class="o">.</span><span class="n">uk</span><span class="o">/</span><span class="n">oauth2</span><span class="o">/</span><span class="n">callback</span>
+</pre></div>
+</div>
+<p>Until it is added, logging in to the web app fails with an invalid redirect error. <code class="docutils literal notranslate"><span class="pre">/mcp</span></code> does not
+need it. Admins: see <a class="reference internal" href="../how-to/run-the-dls-login-proxy.html"><span class="std std-doc">Run the DLS login proxy</span></a>.</p>
 </section>
 <section id="your-backups">
 <h2>Your backups<a class="headerlink" href="#your-backups" title="Link to this heading">#</a></h2>
@@ -560,16 +579,17 @@ the backups are your files. To put them elsewhere, set <code class="docutils lit
 installer. To restore from them, see <a class="reference internal" href="#install-dls-restore">below</a>.</p>
 </section>
 <section id="use-it">
-<h2>4. Use it<a class="headerlink" href="#use-it" title="Link to this heading">#</a></h2>
+<h2>5. Use it<a class="headerlink" href="#use-it" title="Link to this heading">#</a></h2>
 <ul class="simple">
 <li><p><strong>Phone:</strong> to use scrap from your phone, you must first add the phone to the DLS VPN; follow DLS
-IT’s VPN instructions for that. Then, on the VPN, open <code class="docutils literal notranslate"><span class="pre">https://scrap-&lt;fedid&gt;.diamond.ac.uk/</span></code> and
-install the app.</p></li>
-<li><p><strong>Browser:</strong> on a DLS machine, open <code class="docutils literal notranslate"><span class="pre">https://scrap-&lt;fedid&gt;.diamond.ac.uk/</span></code>.</p></li>
+IT’s VPN instructions for that. Then, on the VPN, open <code class="docutils literal notranslate"><span class="pre">https://scrap-&lt;fedid&gt;.diamond.ac.uk/</span></code>,
+log in with your DLS account on the login page that shows the first time, and install the app.</p></li>
+<li><p><strong>Browser:</strong> on a DLS machine, open <code class="docutils literal notranslate"><span class="pre">https://scrap-&lt;fedid&gt;.diamond.ac.uk/</span></code> and log in with your
+DLS account.</p></li>
 </ul>
 </section>
 <section id="connect-claude-code">
-<h2>5. Connect Claude Code<a class="headerlink" href="#connect-claude-code" title="Link to this heading">#</a></h2>
+<h2>6. Connect Claude Code<a class="headerlink" href="#connect-claude-code" title="Link to this heading">#</a></h2>
 <p>Claude Code reaches scrap at <code class="docutils literal notranslate"><span class="pre">/mcp</span></code> with your bearer token. Claude Code runs a small helper
 script each time it connects, and the helper reads the token from a private file. Do this once,
 on a DLS machine, after <code class="docutils literal notranslate"><span class="pre">module</span> <span class="pre">load</span> <span class="pre">argus</span></code>.</p>
@@ -612,6 +632,13 @@ commands and skills, see <a class="reference internal" href="../how-to/connect-c
 <p>Only Claude Code on the DLS network can reach scrap’s <code class="docutils literal notranslate"><span class="pre">/mcp</span></code>. Claude.ai’s hosted connectors and
 cloud sessions cannot reach a DLS-internal address.</p>
 </div>
+</section>
+<section id="publish-pages">
+<h2>Publish pages<a class="headerlink" href="#publish-pages" title="Link to this heading">#</a></h2>
+<p>A page you make public is copied to your own static site, <code class="docutils literal notranslate"><span class="pre">https://pages-&lt;fedid&gt;.diamond.ac.uk/</span></code>,
+where anyone on the DLS network can read it without logging in. scrap itself stays private. In the
+app, open a page’s <strong>Share</strong> menu and choose <strong>Make public…</strong>. To take a page down, make it private
+again (<strong>Make private</strong> in the Share menu). What goes public with a page is in <a class="reference internal" href="../how-to/publish-pages.html"><span class="std std-doc">Publish pages</span></a>.</p>
 </section>
 <section id="more">
 <h2>More<a class="headerlink" href="#more" title="Link to this heading">#</a></h2>
@@ -671,10 +698,12 @@ cloud sessions cannot reach a DLS-internal address.</p>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#what-you-need">What you need</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#load-argus">1. Load argus</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#run-the-installer">2. Run the installer</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#ask-for-the-dns-name">3. Ask for the DNS name</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#ask-for-the-dns-names">3. Ask for the DNS names</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#ask-for-your-login-address">4. Ask for your login address</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#your-backups">Your backups</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#use-it">4. Use it</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#connect-claude-code">5. Connect Claude Code</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#use-it">5. Use it</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#connect-claude-code">6. Connect Claude Code</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#publish-pages">Publish pages</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#more">More</a></li>
 </ul>
   </nav></div>
