@@ -9,5 +9,6 @@ to run it. They are ordered from the quickest to the most involved.
 tutorials/install-lan
 tutorials/install-server
 tutorials/install-kubernetes
+tutorials/install-dls
 tutorials/ingest-with-claude-seat
 ```

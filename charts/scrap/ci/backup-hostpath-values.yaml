@@ -1,0 +1,8 @@
+# Backups in a directory every node mounts, written as the owner's uid
+backup:
+  persistence:
+    hostPath: /dls/science/users/abc12345/scrap
+podSecurityContext:
+  runAsUser: 1200288
+  runAsGroup: 1200288
+  fsGroup: 1200288

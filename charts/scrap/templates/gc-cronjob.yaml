@@ -121,8 +121,7 @@ spec:
                 claimName: {{ include "scrap.dataClaim" . }}
             {{- if .Values.backup.enabled }}
             - name: backups
-              persistentVolumeClaim:
-                claimName: {{ include "scrap.backupClaim" . }}
+              {{- include "scrap.backupVolume" . | nindent 14 }}
             {{- end }}
             - name: tmp
               emptyDir: {}

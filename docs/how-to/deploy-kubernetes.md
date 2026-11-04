@@ -161,6 +161,7 @@ inside them is silently ignored. The main ones:
 | `enrichTopics.enabled`, `.schedule`, `.timeZone` | `true`, `11 4 * * 0`, the cluster's default | The topics CronJob (Sundays). It exists only while `ingest.enabled` is true. |
 | `backup.monthly.enabled`, `.schedule`, `.timeZone`, `.keep` | `true`, `50 3 1 * *`, the cluster's default, `12` | The monthly copy CronJob (needs `backup.enabled`; see Backup and restore). |
 | `backup.persistence.size`, `.storageClass`, `.existingClaim` | `20Gi`, default class, none | The backups volume. Each run is a full copy: allow about `keep + monthly.keep + 1` times the data (or lower `keep` and `monthly.keep`). |
+| `backup.persistence.hostPath` | none | An absolute directory on every node (a shared filesystem) to keep the backups in, instead of a claim. It must exist and be writable by the `podSecurityContext` user. A namespace that enforces the `baseline` or `restricted` Pod Security Standard rejects hostPath volumes, so the backup jobs never start there: use the claim. |
 | `resources.limits.memory` | `1Gi` | scrap's photo decoding is budgeted for a 1 GB container; a lower limit risks the pod being OOM-killed on large photos. |
 | `ingress.*`, `service.annotations` | off | Exposure, below. |
 | `service.type`, `service.port` | `ClusterIP`, `80` | The Service. |
@@ -645,6 +646,27 @@ arguments runs any `scrap` command against the data, for example `["export", "/b
 (which does need the claim writable; pruning only ever deletes directories named like a backup
 run, so an export there is kept). To restore into a fresh volume instead, create a new claim,
 restore into it without `--force`, and point `persistence.existingClaim` at it.
+
+(k8s-restore-hostpath)=
+**Backups in a hostPath.** With `backup.persistence.hostPath`, there is no backups claim. Mount
+the directory instead, and run the pod as the release's `podSecurityContext` user, who owns the
+backups (the DLS install uses your own uid and gid; `id` shows them):
+
+```yaml
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: <uid>
+    runAsGroup: <gid>
+    fsGroup: <gid>
+    seccompProfile:
+      type: RuntimeDefault
+  ...
+  volumes:
+    - name: backups
+      hostPath:
+        path: <the backup directory>
+        type: Directory
+```
 
 (k8s-restore-schema)=
 ### Which backups restore

@@ -119,8 +119,9 @@ with the Bypass action: a wildcard application covers every subdomain. See the g
   [scheduled jobs table](https://gilesknap.github.io/scrap/main/reference/scheduled-jobs.html)
   has each one's schedule, what it does, its Claude budget and its values.
 - The backup CronJob runs at `30 3 * * *` by default, keeps the newest 7 runs on a 20Gi claim and
-  is a local copy only: copy it off the cluster as well. A monthly CronJob (`backup.monthly.*`,
-  `50 3 1 * *`) adds a full copy on the 1st into the claim's `monthly/` folder and keeps the newest
+  is a local copy only: copy it off the cluster as well. `backup.persistence.hostPath` keeps them in
+  a directory every node mounts instead of the claim. A monthly CronJob (`backup.monthly.*`,
+  `50 3 1 * *`) adds a full copy on the 1st into the backups' `monthly/` folder and keeps the newest
   12, so a destructive change noticed after a week can still be undone.
 - The gc CronJob purges a page that has been in the trash for more than `gc.trashDays` (default
   30), topic pages aside, with its captures and everything on them; its files then go as unused
