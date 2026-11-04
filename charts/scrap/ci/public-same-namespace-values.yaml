@@ -1,0 +1,16 @@
+# Public pages in the release namespace with no NetworkPolicy (as the DLS installer
+# sets them): one Secret serves scrap and the receiver.
+public:
+  enabled: true
+  namespace: scrap
+  site: https://pages-abc12345.example.org
+  tokenSecret:
+    name: scrap-secrets
+    key: SCRAP_PUBLISH_TOKEN
+  ingress:
+    className: nginx
+    hosts: [pages-abc12345.example.org]
+    tls:
+      - hosts: [pages-abc12345.example.org]
+  networkPolicy:
+    enabled: false

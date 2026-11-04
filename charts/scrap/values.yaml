@@ -41,8 +41,9 @@ ingest:
   budgetDayUSD: ""
 
 # SCRAP_IDENTITY_HEADER: the request header recorded as the author of a change.
-# Empty uses the app's default, Tailscale-User-Login. Behind an authenticating
-# proxy set the header it adds, e.g. X-Auth-Request-User. Only this header is read.
+# Empty uses the app's default, Tailscale-User-Login (X-Auth-Request-Email with
+# authProxy.enabled). Behind an authenticating proxy set the header it adds, e.g.
+# X-Auth-Request-User. Only this header is read.
 identityHeader: ""
 
 mcp:
@@ -214,6 +215,23 @@ ingress:
   # the MagicDNS name: [{hosts: [scrap]}].
   tls: []
 
+# A login for the web app through an oauth2-proxy you run (ingress-nginx only).
+# Needs ingress.enabled. The Ingress gets ingress-nginx's auth-url, auth-signin and
+# auth-response-headers annotations, so each request is checked with the proxy and
+# only allowedEmails get in. A second Ingress (<fullname>-open, same class, hosts and
+# tls) has no auth: /mcp goes to scrap (guard it with mcp.tokenSecret) and /oauth2
+# to the proxy, through an ExternalName Service (<fullname>-oauth2), so the sign-in
+# and its cookie are on scrap's own host. identityHeader defaults to
+# X-Auth-Request-Email. The proxy needs reverse_proxy and set_xauthrequest on, and no
+# fixed redirect_url. Default off.
+authProxy:
+  enabled: false
+  # oauth2-proxy's in-cluster DNS name, e.g. oauth2-proxy.scrap-auth.svc.cluster.local
+  service: ""
+  port: 80
+  # The logins (email addresses) that may use the web app. Required when enabled.
+  allowedEmails: []
+
 # Default off. When on, only the peers in `from` may connect to scrap (an empty
 # list admits nobody). Egress is not restricted.
 networkPolicy:
@@ -230,7 +248,8 @@ networkPolicy:
 # and nothing in the namespace may connect out. Off by default.
 public:
   enabled: false
-  # The namespace the public side runs in. Create it first, labelled Pod Security
+  # The namespace the public side runs in; it may be the release namespace (then
+  # one Secret serves both sides, and createNamespace stays false). Create it first, labelled Pod Security
   # "restricted", with the token Secret in it (docs/how-to/deploy-kubernetes.md).
   namespace: scrap-public
   # true: the chart creates the namespace, with those labels. Then helm uninstall
@@ -266,6 +285,9 @@ public:
     hosts: []
     tls: []
   networkPolicy:
+    # false: no NetworkPolicy for the public side, e.g. where you may not create one.
+    # The receiver is then open to any pod that can reach it (it still needs the token).
+    enabled: true
     # Who may reach nginx (NetworkPolicy peers, e.g. your ingress controller's
     # namespace). Empty: anyone, since nginx serves only public files. The
     # receiver is always open to scrap's pods alone, and egress is always denied.

@@ -116,7 +116,7 @@ scrap command which calls Claude (enrich --related, --topics) needs the same. */
 # trashDays when it deletes, else off (nothing purges the trash)
 - name: SCRAP_TRASH_DAYS
   value: {{ include "scrap.trashDays" . | quote }}
-{{- with .Values.identityHeader }}
+{{- with .Values.identityHeader | default (ternary "X-Auth-Request-Email" "" .Values.authProxy.enabled) }}
 - name: SCRAP_IDENTITY_HEADER
   value: {{ . | quote }}
 {{- end }}
@@ -233,6 +233,9 @@ app.kubernetes.io/managed-by: {{ .Release.Service }}
 {{- if not .Values.public.site }}
 {{- fail "public.enabled needs public.site: the site's public base URL, e.g. https://pages.example.org" }}
 {{- end }}
+{{- if and .Values.public.createNamespace (eq .Values.public.namespace .Release.Namespace) }}
+{{- fail "public.createNamespace with public.namespace the release namespace: that namespace exists already" }}
+{{- end }}
 {{- end }}
 {{- end }}
 
@@ -243,4 +246,50 @@ runAsNonRoot: true
 capabilities:
   drop:
     - ALL
+{{- end }}
+
+{{/* authProxy (oauth2-proxy behind ingress-nginx): the ExternalName Service for
+/oauth2 and the open Ingress, each at most 63 characters. */}}
+{{- define "scrap.oauth2Name" -}}
+{{- printf "%s-oauth2" (include "scrap.fullname" . | trunc 56 | trimSuffix "-") }}
+{{- end }}
+
+{{- define "scrap.openIngressName" -}}
+{{- printf "%s-open" (include "scrap.fullname" . | trunc 58 | trimSuffix "-") }}
+{{- end }}
+
+{{/* Fails unless authProxy.enabled has what it needs; empty otherwise. */}}
+{{- define "scrap.authProxyChecks" -}}
+{{- if .Values.authProxy.enabled }}
+{{- if not .Values.ingress.enabled }}
+{{- fail "authProxy.enabled needs ingress.enabled: the login is ingress-nginx's auth on scrap's Ingress" }}
+{{- end }}
+{{- if not .Values.authProxy.service }}
+{{- fail "authProxy.enabled needs authProxy.service: oauth2-proxy's in-cluster DNS name, e.g. oauth2-proxy.scrap-auth.svc.cluster.local" }}
+{{- end }}
+{{- if not .Values.authProxy.allowedEmails }}
+{{- fail "authProxy.enabled needs authProxy.allowedEmails: the logins that may use the web app" }}
+{{- end }}
+{{- end }}
+{{- end }}
+
+{{/* The main Ingress's annotations: ingress.annotations, plus ingress-nginx's auth
+annotations (which win) when authProxy.enabled. */}}
+{{- define "scrap.ingressAnnotations" -}}
+{{- $a := .Values.ingress.annotations | default dict }}
+{{- if .Values.authProxy.enabled }}
+{{- $emails := list }}
+{{- range .Values.authProxy.allowedEmails }}
+{{- $emails = append $emails (urlquery .) }}
+{{- end }}
+{{- $scheme := ternary "https" "http" (not (empty .Values.ingress.tls)) }}
+{{- $auth := dict
+  "nginx.ingress.kubernetes.io/auth-url" (printf "http://%s:%v/oauth2/auth?allowed_emails=%s" .Values.authProxy.service .Values.authProxy.port (join "," $emails))
+  "nginx.ingress.kubernetes.io/auth-signin" (printf "%s://$host/oauth2/start?rd=$escaped_request_uri" $scheme)
+  "nginx.ingress.kubernetes.io/auth-response-headers" "X-Auth-Request-Email" }}
+{{- $a = merge $auth $a }}
+{{- end }}
+{{- with $a }}
+{{- toYaml . }}
+{{- end }}
 {{- end }}

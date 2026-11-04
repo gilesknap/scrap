@@ -1,0 +1,66 @@
+{{- if .Values.authProxy.enabled }}
+# authProxy (ingress-nginx only): the main Ingress asks oauth2-proxy about every
+# request (its auth-url). This Ingress, with no auth, carries what must not meet a
+# login page: /mcp (scrap's bearer token guards it) and oauth2-proxy's own /oauth2
+# (sign-in and callback), on the same hosts, so the login cookie is this host's.
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "scrap.oauth2Name" . }}
+  labels:
+    {{- include "scrap.labels" . | nindent 4 }}
+spec:
+  type: ExternalName
+  externalName: {{ .Values.authProxy.service }}
+  ports:
+    - name: http
+      port: {{ .Values.authProxy.port }}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "scrap.openIngressName" . }}
+  labels:
+    {{- include "scrap.labels" . | nindent 4 }}
+  {{- /* ingress.annotations without any auth ones (a body size limit stays) */}}
+  {{- $open := dict }}
+  {{- range $k, $v := .Values.ingress.annotations }}
+  {{- if not (hasPrefix "nginx.ingress.kubernetes.io/auth-" $k) }}
+  {{- $_ := set $open $k $v }}
+  {{- end }}
+  {{- end }}
+  {{- with $open }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- with .Values.ingress.className }}
+  ingressClassName: {{ . }}
+  {{- end }}
+  {{- with .Values.ingress.tls }}
+  tls:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  rules:
+    {{- range (.Values.ingress.hosts | default (list "")) }}
+    - {{- with . }}
+      host: {{ . | quote }}
+      {{- end }}
+      http:
+        paths:
+          - path: /mcp
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "scrap.fullname" $ }}
+                port:
+                  name: http
+          - path: /oauth2
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "scrap.oauth2Name" $ }}
+                port:
+                  number: {{ $.Values.authProxy.port }}
+    {{- end }}
+{{- end }}

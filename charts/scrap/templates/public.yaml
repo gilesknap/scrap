@@ -169,6 +169,7 @@ spec:
     - name: receiver
       port: 8081
       targetPort: receiver
+{{- if .Values.public.networkPolicy.enabled }}
 ---
 # The receiver's port only from scrap's pods in the release namespace; nginx's
 # from public.networkPolicy.webFrom (empty: anyone); no egress at all.
@@ -203,6 +204,7 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
   egress: []
+{{- end }}
 {{- if .Values.public.ingress.enabled }}
 ---
 apiVersion: networking.k8s.io/v1
