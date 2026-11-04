@@ -6,8 +6,8 @@ the pages you make public on `pages-<fedid>.diamond.ac.uk`, all only from the DL
 
 Who can get in:
 
-- **The web app**: it asks for your DLS login (Keycloak) and lets in only your own email
-  address. That keeps it from the network. Pods in the cluster can reach its Service directly,
+- **The web app**: it asks for your DLS login (Keycloak), and scrap lets in only your own email
+  address: another DLS user who logs in gets `401`. That keeps it from the network. Pods in the cluster can reach its Service directly,
   but scrap checks the login's token itself, so without a valid DLS login token for you they get
   `401`. You stay logged in as long as your DLS Keycloak session lasts; when it ends, the web app
   and the phone app take you to the DLS login again.

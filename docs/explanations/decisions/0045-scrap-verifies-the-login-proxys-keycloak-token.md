@@ -32,8 +32,10 @@ own and trusted that header as sent.
   `SCRAP_OIDC_ISSUER`; issued to our client (`azp` is `SCRAP_OIDC_CLIENT_ID`, or it is in `aud`,
   since Keycloak's access tokens have `aud: account` unless a mapper adds the client); `exp`,
   `nbf` and `iat` with 30 s of leeway; `email_verified` true; and `email` (lower-cased) in
-  `SCRAP_ALLOWED_EMAILS`. The allow-list repeats the Ingress's `allowed_emails`, since the token
-  alone says only that someone at DLS logged in.
+  `SCRAP_ALLOWED_EMAILS`. This allow-list is the only owner check: the token alone says only
+  that someone at DLS logged in, and the Ingress's `auth-url` carries no `allowed_emails`
+  (DLS's ingress-nginx refuses an `@` or `%` in it), so any DLS login passes the proxy, and
+  another user gets scrap's `401`.
 - **Exempt:** `/healthz` (the kubelet's probes carry no token) and `/mcp`, `/mcp/...`, which
   keep their own bearer token (ADR 23) on the Ingress without the login. So the issuer without
   an `/mcp` token (`SCRAP_MCP_TOKEN` or `SCRAP_MCP_TOKEN_FILE`) stops scrap starting: `/mcp`

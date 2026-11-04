@@ -300,16 +300,14 @@ not enough. Only the Deployment serves HTTP, so the CronJobs do without. */}}
 {{- end }}
 
 {{/* The main Ingress's annotations: ingress.annotations, plus ingress-nginx's auth
-annotations (which win) when authProxy.enabled. */}}
+annotations (which win) when authProxy.enabled. The auth-url has no allowed_emails
+query: some ingress-nginx annotation validation refuses an @ or % in it (DLS's does),
+so the owner check is scrap's own token check (scrap.oidcEnv, ADR 45). */}}
 {{- define "scrap.ingressAnnotations" -}}
 {{- $a := include "scrap.proxyBufferAnnotations" . | fromYaml }}
 {{- if .Values.authProxy.enabled }}
-{{- $emails := list }}
-{{- range .Values.authProxy.allowedEmails }}
-{{- $emails = append $emails (urlquery (lower .)) }}
-{{- end }}
 {{- $auth := dict
-  "nginx.ingress.kubernetes.io/auth-url" (printf "http://%s:%v/oauth2/auth?allowed_emails=%s" .Values.authProxy.service .Values.authProxy.port (join "," $emails))
+  "nginx.ingress.kubernetes.io/auth-url" (printf "http://%s:%v/oauth2/auth" .Values.authProxy.service .Values.authProxy.port)
   "nginx.ingress.kubernetes.io/auth-signin" "https://$host/oauth2/start?rd=$escaped_request_uri"
   "nginx.ingress.kubernetes.io/auth-response-headers" "X-Auth-Request-Email,X-Auth-Request-Access-Token" }}
 {{- $a = merge $auth $a }}

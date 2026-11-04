@@ -218,8 +218,8 @@ ingress:
 # A login for the web app through an oauth2-proxy you run (ingress-nginx only).
 # Needs ingress.enabled, ingress.tls (the login's cookie is https only) and
 # mcp.tokenSecret. The Ingress gets ingress-nginx's auth-url, auth-signin and
-# auth-response-headers annotations, so each request is checked with the proxy and
-# only allowedEmails get in. A second Ingress (<fullname>-open, same class, hosts and
+# auth-response-headers annotations, so each request needs a login at the proxy, and
+# scrap itself lets in only allowedEmails (oidc, below). A second Ingress (<fullname>-open, same class, hosts and
 # tls) has no auth: /mcp goes to scrap (guard it with mcp.tokenSecret) and /oauth2
 # to the proxy, through an ExternalName Service (<fullname>-oauth2), so the sign-in
 # and its cookie are on scrap's own host. identityHeader defaults to
@@ -231,9 +231,9 @@ authProxy:
   # oauth2-proxy's in-cluster DNS name, e.g. oauth2-proxy.scrap.svc.cluster.local
   service: ""
   port: 80
-  # The logins (email addresses) that may use the web app. Required when enabled.
-  # They are lower-cased, as Keycloak's emails are: oauth2-proxy compares them
-  # case-sensitively.
+  # The logins (email addresses) that may use the web app: scrap checks them in the
+  # proxy's token (anyone else the proxy lets log in gets 401). Required when
+  # enabled; lower-cased, as Keycloak's emails are.
   allowedEmails: []
   # scrap checks the Keycloak access token the proxy passes on (ADR 45), so a pod
   # that calls scrap's Service directly cannot get in. Both required when enabled.

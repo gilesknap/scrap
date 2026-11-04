@@ -391,8 +391,8 @@ authProxy:
     clientId: scrap                                   # the proxy's client
 ```
 
-The Ingress then gets ingress-nginx's `auth-url` (the proxy's `/oauth2/auth`, admitting only
-`allowedEmails`), `auth-signin` and `auth-response-headers: X-Auth-Request-Email,X-Auth-Request-Access-Token`
+The Ingress then gets ingress-nginx's `auth-url` (the proxy's `/oauth2/auth`, with no
+`allowed_emails` query, which some ingress-nginx annotation validation refuses), `auth-signin` and `auth-response-headers: X-Auth-Request-Email,X-Auth-Request-Access-Token`
 annotations, on top of `ingress.annotations`. A second Ingress, `<fullname>-open`, with the same class, hosts and
 `tls` and no auth, sends `/mcp` to scrap (set `mcp.tokenSecret`) and `/oauth2` to the proxy
 through an `ExternalName` Service, so the sign-in, its callback
@@ -407,7 +407,8 @@ The login alone guards the Ingress only: without a NetworkPolicy, any pod can re
 and send its own `X-Auth-Request-Email`. So scrap checks the proxy's access token itself
 ([ADR 45](../explanations/decisions/0045-scrap-verifies-the-login-proxys-keycloak-token.md)): the
 Deployment gets `SCRAP_OIDC_ISSUER`, `SCRAP_OIDC_CLIENT_ID` and `SCRAP_ALLOWED_EMAILS`, and every
-request but `/healthz` and `/mcp` needs a valid token for an allowed email (`401` without). Run
+request but `/healthz` and `/mcp` needs a valid token for an allowed email (`401` without).
+This is also the only owner check: anyone the proxy lets log in passes the Ingress. Run
 the proxy with `pass_access_token = true`, and a `cookie_refresh` shorter than the access tokens'
 life. Other controllers
 need their own annotations, above. DLS runs one proxy for every user this way:

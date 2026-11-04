@@ -10,13 +10,15 @@ sets it up and keeps it running.
 - The proxy runs in its own namespace, `scrap` by default. Only that namespace holds the
   Keycloak client secret and the proxy's cookie secret; users never see them.
 - Each user's scrap has two Ingresses on `scrap-<fedid>.diamond.ac.uk`. The main one sends every
-  request to the proxy first (ingress-nginx's `auth-url`), which lets in only that user's email
-  address. The other has no login and carries `/mcp` (scrap's bearer token guards it) and
+  request to the proxy first (ingress-nginx's `auth-url`), which needs a DLS login; scrap then
+  lets in only that user's email address, from the token the proxy passes on. The other has no login and carries `/mcp` (scrap's bearer token guards it) and
   `/oauth2`, which reaches the proxy through an `ExternalName` Service in the user's namespace.
 - The proxy has no fixed callback address and no cookie domain, so each user's login and cookie
   belong to that user's host alone. That is why Keycloak needs one exact redirect URI per user.
-- Any DLS login may sign in at the proxy, but each user's Ingress admits only its owner: anyone
-  else gets `403`.
+- Any DLS login passes the proxy, on any user's host: the `auth-url` carries no
+  `allowed_emails`, because DLS's ingress-nginx refuses an `@` or `%` in it. Each user's scrap
+  admits only its owner, by the email in the access token: another DLS user who logs in there
+  gets scrap's `401`.
 - The proxy passes the user's Keycloak access token on (`pass_access_token`), and scrap checks
   it on every request ([](../explanations/decisions/0045-scrap-verifies-the-login-proxys-keycloak-token.md)).
   argus users cannot make NetworkPolicies, so a pod in the cluster can reach a user's scrap

@@ -3,7 +3,8 @@
 # release "oauth2-proxy", so its Service is oauth2-proxy.<namespace>.svc.cluster.local:80.
 #
 # It never proxies scrap itself. ingress-nginx asks it on each request
-# (nginx.ingress.kubernetes.io/auth-url .../oauth2/auth?allowed_emails=<owner>), and each
+# (nginx.ingress.kubernetes.io/auth-url .../oauth2/auth, with no query: DLS's ingress
+# refuses an @ or % there), and each
 # user's /oauth2/* reaches it through an ExternalName Service in that user's namespace,
 # so the login cookie belongs to that user's own host, never to .diamond.ac.uk.
 
@@ -28,8 +29,8 @@ config:
     scope = "openid email"
     code_challenge_method = "S256"
 
-    # Any DLS login may sign in; each user's Ingress then admits only its owner
-    # (allowed_emails on the auth-url).
+    # Any DLS login passes the proxy; each user's scrap then admits only its owner,
+    # checking the access token passed on (ADR 45). Anyone else gets scrap's 401.
     email_domains = ["diamond.ac.uk"]
 
     # Answer nginx's auth subrequests only: no upstream.

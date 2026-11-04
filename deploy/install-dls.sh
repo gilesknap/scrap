@@ -89,9 +89,9 @@ main() {
     [ -z "$version" ] || what="scrap $version"
     echo "Installing $what into namespace $ns, for https://$host"
 
-    # The web app lets in only this login. argus labels your namespace with your email,
-    # first.last--at--diamond.ac.uk (a label value cannot hold @). Lower case: oauth2-proxy
-    # compares the allowed emails case-sensitively, and Keycloak's are lower case.
+    # The web app lets in only this login (scrap checks it in the login's token). argus
+    # labels your namespace with your email, first.last--at--diamond.ac.uk (a label value
+    # cannot hold @). Lower case, as Keycloak's are.
     email=${SCRAP_EMAIL:-}
     if [ -z "$email" ]; then
         email=$(kubectl get namespace "$ns" -o jsonpath='{.metadata.labels.email}' </dev/null 2>/dev/null |

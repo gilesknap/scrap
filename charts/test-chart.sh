@@ -104,6 +104,8 @@ expect_refused "authProxy without service" -f "$chart/ci/auth-proxy-values.yaml"
     --set authProxy.service=
 expect_refused "authProxy without allowedEmails" -f "$chart/ci/auth-proxy-values.yaml" \
     --set 'authProxy.allowedEmails=null'
+expect_refused "authProxy with an empty allowedEmails" -f "$chart/ci/auth-proxy-values.yaml" \
+    --set 'authProxy.allowedEmails={}'
 expect_refused "authProxy without an /mcp token" -f "$chart/ci/auth-proxy-values.yaml" \
     --set mcp.tokenSecret.name=
 expect_refused "authProxy without tls" -f "$chart/ci/auth-proxy-values.yaml" \
@@ -229,7 +231,7 @@ helm template scrap "$chart" -f "$chart/ci/auth-proxy-values.yaml" \
 main=$(grep '|kind: Ingress|' "$ap" | grep '|  name: scrap|' || true)
 open=$(grep '|kind: Ingress|' "$ap" | grep '|  name: scrap-open|' || true)
 # shellcheck disable=SC2016 # $host and $escaped_request_uri are nginx's, not the shell's
-if echo "$main" | grep -Fq '|    nginx.ingress.kubernetes.io/auth-url: http://oauth2-proxy.scrap.svc.cluster.local:80/oauth2/auth?allowed_emails=first.last%40example.org|' &&
+if echo "$main" | grep -Fq '|    nginx.ingress.kubernetes.io/auth-url: http://oauth2-proxy.scrap.svc.cluster.local:80/oauth2/auth|' &&
     echo "$main" | grep -Fq '|    nginx.ingress.kubernetes.io/auth-signin: https://$host/oauth2/start?rd=$escaped_request_uri|' &&
     echo "$main" | grep -Fq '|    nginx.ingress.kubernetes.io/auth-response-headers: X-Auth-Request-Email,X-Auth-Request-Access-Token|' &&
     echo "$main" | grep -Fq '|    nginx.ingress.kubernetes.io/proxy-body-size: 50m|' &&
@@ -271,11 +273,11 @@ if [ "$(helm template scrap "$chart" -f "$chart/ci/auth-proxy-values.yaml" \
     grep -c 'nginx.ingress.kubernetes.io/proxy-buffer-size: 32k$')" = 2 ]; then
     ok "authProxy: an ingress.annotations proxy-buffer-size wins on both Ingresses"
 else bad "authProxy: ingress.annotations' proxy-buffer-size is overridden"; fi
-if helm template scrap "$chart" -f "$chart/ci/auth-proxy-values.yaml" \
-    --set 'authProxy.allowedEmails[0]=First.Last@Example.org' --set 'authProxy.allowedEmails[1]=b@x.org' |
-    grep -Fq 'auth?allowed_emails=first.last%40example.org,b%40x.org'; then
-    ok "authProxy: allowedEmails are lower-cased (oauth2-proxy compares them exactly)"
-else bad "authProxy: allowedEmails are not lower-cased"; fi
+# ingress-nginx's annotation validation (DLS's) refuses an @ or % in the auth-url, so
+# it has no query: the owner check is scrap's token check (SCRAP_ALLOWED_EMAILS).
+if grep -o 'nginx.ingress.kubernetes.io/auth-url: [^|]*' "$ap" | grep -q '[?@%]'; then
+    bad "authProxy: the auth-url has a query, an @ or a %"
+else ok "authProxy: the auth-url has no query, @ or %"; fi
 if helm template scrap "$chart" | grep -Eq 'ExternalName|-open$|auth-url|proxy-buffer-size|SCRAP_OIDC|SCRAP_ALLOWED_EMAILS'; then
     bad "authProxy renders while off"
 else ok "authProxy is off by default"; fi
