@@ -232,6 +232,8 @@ authProxy:
   service: ""
   port: 80
   # The logins (email addresses) that may use the web app. Required when enabled.
+  # They are lower-cased, as Keycloak's emails are: oauth2-proxy compares them
+  # case-sensitively.
   allowedEmails: []
 
 # Default off. When on, only the peers in `from` may connect to scrap (an empty

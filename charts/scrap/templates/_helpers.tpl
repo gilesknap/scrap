@@ -286,7 +286,7 @@ annotations (which win) when authProxy.enabled. */}}
 {{- if .Values.authProxy.enabled }}
 {{- $emails := list }}
 {{- range .Values.authProxy.allowedEmails }}
-{{- $emails = append $emails (urlquery .) }}
+{{- $emails = append $emails (urlquery (lower .)) }}
 {{- end }}
 {{- $auth := dict
   "nginx.ingress.kubernetes.io/auth-url" (printf "http://%s:%v/oauth2/auth?allowed_emails=%s" .Values.authProxy.service .Values.authProxy.port (join "," $emails))

@@ -252,6 +252,11 @@ if [ "$(helm template scrap "$chart" -f "$chart/ci/auth-proxy-values.yaml" \
     grep -c 'nginx.ingress.kubernetes.io/proxy-buffer-size: 32k$')" = 2 ]; then
     ok "authProxy: an ingress.annotations proxy-buffer-size wins on both Ingresses"
 else bad "authProxy: ingress.annotations' proxy-buffer-size is overridden"; fi
+if helm template scrap "$chart" -f "$chart/ci/auth-proxy-values.yaml" \
+    --set 'authProxy.allowedEmails[0]=First.Last@Example.org' --set 'authProxy.allowedEmails[1]=b@x.org' |
+    grep -Fq 'auth?allowed_emails=first.last%40example.org,b%40x.org'; then
+    ok "authProxy: allowedEmails are lower-cased (oauth2-proxy compares them exactly)"
+else bad "authProxy: allowedEmails are not lower-cased"; fi
 if helm template scrap "$chart" | grep -Eq 'ExternalName|-open$|auth-url|proxy-buffer-size'; then
     bad "authProxy renders while off"
 else ok "authProxy is off by default"; fi

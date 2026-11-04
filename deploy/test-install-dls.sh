@@ -95,10 +95,10 @@ check "authProxy on" sh -c "grep -A1 '^authProxy:' '$tmp/values.yaml' | grep -q 
 check "the central proxy's service" grep -q "^  service: oauth2-proxy.scrap.svc.cluster.local$" "$tmp/values.yaml"
 check "only the owner's email" sh -c "grep -A1 '^  allowedEmails:' '$tmp/values.yaml' | grep -q '^    - \"giles.knap@diamond.ac.uk\"$'"
 # Public pages: on, in this namespace, on pages-<fedid>, with a key of the one Secret.
-check "body size from maxUploadMB" sh -c "grep -qx 'maxUploadMB: 50' '$tmp/values.yaml' &&
+check "body size: maxUploadMB plus a margin" sh -c "grep -qx 'maxUploadMB: 50' '$tmp/values.yaml' &&
     grep -A2 '^ingress:' '$tmp/values.yaml' | grep -q '^  enabled: true' &&
     sed -n '/^ingress:/,/^[a-z]/p' '$tmp/values.yaml' |
-    grep -qx '    nginx.ingress.kubernetes.io/proxy-body-size: \"50m\"'"
+    grep -qx '    nginx.ingress.kubernetes.io/proxy-body-size: \"51m\"'"
 check "public on" sh -c "grep -A1 '^public:' '$tmp/values.yaml' | grep -q 'enabled: true'"
 check "public in the namespace" grep -q "^  namespace: abc12345$" "$tmp/values.yaml"
 check "public site" grep -q "^  site: https://pages-abc12345.diamond.ac.uk$" "$tmp/values.yaml"
@@ -164,7 +164,7 @@ touch "$tmp/secret"
 check "loadbalancer opt-in" grep -q "type: LoadBalancer" "$tmp/values.yaml"
 check "external ip shown" grep -q "192.0.2.7" "$tmp/out"
 
-# Options: ingress class, namespace from kubectl context, plain http.
+# Options: ingress class, namespace from kubectl context; always https.
 (STUB_NS=work SCRAP_INGRESS_CLASS=internal run)
 check "namespace from context" grep -q -- "--namespace work" "$tmp/helm.calls"
 check "https in the first line" sh -c "head -n1 '$tmp/out' | grep -q 'for https://scrap-'"

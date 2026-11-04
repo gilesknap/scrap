@@ -63,7 +63,8 @@ main() {
     host=${SCRAP_HOST:-scrap-$user.diamond.ac.uk}
     pages_host=${SCRAP_PAGES_HOST:-pages-$user.diamond.ac.uk}
     auth_svc=${SCRAP_AUTH_SERVICE:-oauth2-proxy.${SCRAP_AUTH_NAMESPACE:-scrap}.svc.cluster.local}
-    # The largest capture in MB: scrap's limit, and nginx's body size to match.
+    # The largest capture in MB: scrap's limit. nginx's body size is 1 MiB more, so a
+    # file just over scrap's limit gets scrap's own error, not nginx's HTML 413.
     max_upload=50
     secret=scrap-secrets
     backup_dir=${SCRAP_BACKUP_DIR-/dls/science/users/$user/scrap}
@@ -226,7 +227,7 @@ main() {
         echo "ingress:"
         ingress_values "$host"
         echo "  annotations:"
-        echo "    nginx.ingress.kubernetes.io/proxy-body-size: \"${max_upload}m\""
+        echo "    nginx.ingress.kubernetes.io/proxy-body-size: \"$((max_upload + 1))m\""
         # The web app's login: DLS Keycloak through the central oauth2-proxy, for you alone.
         echo "authProxy:"
         echo "  enabled: true"

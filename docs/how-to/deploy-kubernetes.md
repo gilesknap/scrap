@@ -333,7 +333,8 @@ anything unattended) no access unless you grant it:
 scrap has no login, so put an authenticating proxy in front: for example
 [oauth2-proxy](https://oauth2-proxy.github.io/oauth2-proxy/) through your controller's external
 auth annotations, or your SSO's forward-auth middleware. Raise the controller's request body
-limit to at least `maxUploadMB`.
+limit a little above `maxUploadMB`, so an upload just over it gets scrap's error rather
+than the controller's.
 
 ```yaml
 ingress:
@@ -341,9 +342,9 @@ ingress:
   className: <your-ingress-class>
   annotations:
     # Your controller's annotations for external authentication and for a
-    # request body limit of at least maxUploadMB; see its documentation.
+    # request body limit a little above maxUploadMB; see its documentation.
     <auth-annotation>: <auth-service-url>
-    <body-size-annotation>: 50m
+    <body-size-annotation>: 51m
   hosts:
     - scrap.example.com
   tls:
