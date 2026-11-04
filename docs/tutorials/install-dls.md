@@ -40,10 +40,10 @@ It:
    scrap's pods running as you, so the backups are your files;
 5. prints the Service IP, your bearer token (once), and what to do next.
 
-It is safe to re-run: it upgrades scrap and never overwrites the Secret. The release is pinned in
-the script; set `SCRAP_VERSION` to choose another. `SCRAP_BACKUP_DIR` moves the backups (empty keeps
-them on a volume in the cluster). `SCRAP_HOST` and `SCRAP_INGRESS_CLASS` adjust
-the ingress; the header of the script lists every setting. Keep the hostname one level under
+It installs the latest scrap release, and is safe to re-run: a re-run upgrades to the latest
+release and never overwrites the Secret. Set `SCRAP_VERSION` to install a particular release.
+`SCRAP_BACKUP_DIR` moves the backups (empty keeps them on a volume in the cluster). `SCRAP_HOST`
+and `SCRAP_INGRESS_CLASS` adjust the ingress; the header of the script lists every setting. Keep the hostname one level under
 `diamond.ac.uk`, or the certificate does not cover it.
 
 Keep the token in a password manager. To see it again:

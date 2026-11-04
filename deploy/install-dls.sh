@@ -6,7 +6,7 @@
 # your Claude API key and the /mcp bearer token.
 #
 # Settings (environment, all optional):
-#   SCRAP_VERSION          chart version to install (default: the pin below)
+#   SCRAP_VERSION          chart version to install (default: the latest release)
 #   SCRAP_CHART            chart to install (default: scrap's chart on ghcr.io)
 #   SCRAP_NAMESPACE        namespace (default: the one `module load argus` selects, else $USER)
 #   SCRAP_HOST             hostname (default: scrap-$USER.diamond.ac.uk: one level under
@@ -23,8 +23,7 @@ set -eu
 
 # All in a function that the last line runs: a download cut short runs nothing.
 main() {
-    # The pinned release. Bump it when a new scrap release should reach DLS users.
-    VERSION=${SCRAP_VERSION:-1.4.0}
+    version=${SCRAP_VERSION:-}
     CHART=${SCRAP_CHART:-oci://ghcr.io/gilesknap/charts/scrap}
 
     for tool in kubectl helm; do
@@ -52,7 +51,9 @@ main() {
     # dash skips the EXIT trap when a signal kills it: exit, so the cleanup runs.
     trap 'exit 130' INT TERM HUP
 
-    echo "Installing scrap $VERSION into namespace $ns, for $scheme://$host"
+    what="the latest scrap"
+    [ -z "$version" ] || what="scrap $version"
+    echo "Installing $what into namespace $ns, for $scheme://$host"
 
     if [ -n "$backup_dir" ]; then
         case $backup_dir in
@@ -165,7 +166,8 @@ main() {
         fi
     } >"$values"
 
-    if ! helm upgrade --install scrap "$CHART" --version "$VERSION" \
+    # No --version: Helm picks the newest release (it skips pre-releases).
+    if ! helm upgrade --install scrap "$CHART" ${version:+--version "$version"} \
         --namespace "$ns" -f "$values" --wait --timeout 5m </dev/null; then
         echo "Helm failed; fix the cause above and re-run this script." >&2
         if [ -n "$new_token" ]; then
@@ -181,6 +183,10 @@ EOF
     fi
     rm -f "$values"
 
+    # The version Helm installed, as "scrap-1.5.0" in its one-line JSON; empty if not found.
+    installed=$(helm -n "$ns" list --filter '^scrap$' -o json </dev/null 2>/dev/null |
+        sed -n 's/.*"chart":"scrap-\([^"]*\)".*/\1/p' || true)
+
     ip=$(kubectl -n "$ns" get svc scrap -o jsonpath='{.spec.clusterIP}' </dev/null 2>/dev/null || true)
     extip=
     if [ "${SCRAP_SERVICE_TYPE:-ClusterIP}" = LoadBalancer ]; then
@@ -195,7 +201,7 @@ EOF
     # shellcheck disable=SC2016 # quotes inside a heredoc are literal: $ns does expand
     cat <<EOF
 
-scrap is running in namespace $ns.
+scrap ${installed:+$installed }is running in namespace $ns.
 
   External IP: ${extip:-none yet: see 'kubectl -n $ns get svc scrap'}
   Service IP (inside the cluster): ${ip:-unknown}
