@@ -40,10 +40,10 @@ It:
    scrap's pods running as you, so the backups are your files;
 5. prints the Service IP, your bearer token (once), and what to do next.
 
-It is safe to re-run: it upgrades scrap and never overwrites the Secret. The release is pinned in
-the script; set `SCRAP_VERSION` to choose another. `SCRAP_BACKUP_DIR` moves the backups (empty keeps
-them on a volume in the cluster). `SCRAP_HOST` and `SCRAP_INGRESS_CLASS` adjust
-the ingress; the header of the script lists every setting. Keep the hostname one level under
+It installs the latest scrap release, and is safe to re-run: a re-run upgrades to the latest
+release and never overwrites the Secret. Set `SCRAP_VERSION` to install a particular release.
+`SCRAP_BACKUP_DIR` moves the backups (empty keeps them on a volume in the cluster). `SCRAP_HOST`
+and `SCRAP_INGRESS_CLASS` adjust the ingress; the header of the script lists every setting. Keep the hostname one level under
 `diamond.ac.uk`, or the certificate does not cover it.
 
 Keep the token in a password manager. To see it again:
@@ -80,12 +80,63 @@ installer. To restore from them, see [below](#install-dls-restore).
 - **Phone:** to use scrap from your phone, you must first add the phone to the DLS VPN; follow DLS
   IT's VPN instructions for that. Then, on the VPN, open `https://scrap-<fedid>.diamond.ac.uk/` and
   install the app.
-- **Claude Code**, on a DLS machine:
+- **Browser:** on a DLS machine, open `https://scrap-<fedid>.diamond.ac.uk/`.
 
-  ```
-  claude mcp add --transport http scrap https://scrap-<fedid>.diamond.ac.uk/mcp \
-      --header "Authorization: Bearer <your token>"
-  ```
+## 5. Connect Claude Code
+
+Claude Code reaches scrap at `/mcp` with your bearer token. Claude Code runs a small helper
+script each time it connects, and the helper reads the token from a private file. Do this once,
+on a DLS machine, after `module load argus`.
+
+**1. Save the token** in `~/.config/terminal-config/.env`, readable only by you:
+
+```sh
+mkdir -p ~/.config/terminal-config
+touch ~/.config/terminal-config/.env
+chmod 600 ~/.config/terminal-config/.env
+token=$(kubectl get secret scrap-secrets -o jsonpath='{.data.SCRAP_MCP_TOKEN}' | base64 -d)
+if [ -n "$token" ]; then
+  printf 'SCRAP_MCP_TOKEN=%s\n' "$token" >> ~/.config/terminal-config/.env
+else
+  echo "No token: check kubectl get secret scrap-secrets"
+fi
+unset token
+```
+
+The file is private before the token goes in, and nothing is written if `kubectl` fails.
+
+**2. Make the helper** `~/.claude/scrap-headers.sh`:
+
+```sh
+mkdir -p ~/.claude
+cat > ~/.claude/scrap-headers.sh <<'EOF'
+#!/bin/sh
+# Headers for scrap's /mcp: the bearer token
+set -a; . ~/.config/terminal-config/.env; set +a
+printf '{"Authorization":"Bearer %s"}\n' "$SCRAP_MCP_TOKEN"
+EOF
+chmod 700 ~/.claude/scrap-headers.sh
+```
+
+**3. Add scrap to Claude Code**, for all your projects:
+
+```sh
+claude mcp add-json --scope user scrap \
+  "{\"type\":\"http\",\"url\":\"https://scrap-$USER.diamond.ac.uk/mcp\",\"headersHelper\":\"$HOME/.claude/scrap-headers.sh\"}"
+```
+
+**4. Check it.** `claude mcp list` shows `scrap` as connected. Ask Claude to search your pages.
+
+In claude-sandbox, do steps 2 to 4 inside the container, and in the helper's `set -a` line use
+`/user-terminal-config/.env`, where claude-sandbox mounts the same file. To install the `sc`
+commands and skills, see [](../how-to/connect-claude-code.md).
+
+```{note}
+Only Claude Code on the DLS network can reach scrap's `/mcp`. Claude.ai's hosted connectors and
+cloud sessions cannot reach a DLS-internal address.
+```
+
+## More
 
 For everything the chart can do (backups, restore, upgrades), see [](../how-to/deploy-kubernetes.md).
 

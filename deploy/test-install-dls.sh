@@ -30,6 +30,9 @@ STUB
 cat >"$tmp/bin/helm" <<STUB
 #!/bin/sh
 echo "\$*" >>"$tmp/helm.calls"
+case "\$*" in
+  *" list "*) echo '[{"name":"scrap","chart":"scrap-9.8.7","app_version":"9.8.7"}]'; exit 0 ;;
+esac
 while [ \$# -gt 0 ]; do [ "\$1" = -f ] && cp "\$2" "$tmp/values.yaml"; shift; done
 [ -z "\${STUB_HELM_FAIL:-}" ]
 STUB
@@ -53,7 +56,9 @@ run() {
 check "creates the secret" grep -q "create secret generic scrap-secrets" "$tmp/kubectl.calls"
 check "key's temp files removed" sh -c "[ -z \"\$(ls -A '$tmp/installer-tmp')\" ]"
 check "key never on a command line" sh -c "! grep -q sk-test '$tmp/kubectl.calls' '$tmp/helm.calls'"
-check "installs pinned version" grep -q -- "--version 1.4.0" "$tmp/helm.calls"
+check "latest release by default" sh -c "! grep -q -- '--version' '$tmp/helm.calls'"
+check "says it installs the latest" sh -c "head -n1 '$tmp/out' | grep -q 'Installing the latest scrap'"
+check "prints the installed version" grep -q "scrap 9.8.7 is running" "$tmp/out"
 check "namespace falls back to USER" grep -q -- "--namespace hgv27681" "$tmp/helm.calls"
 check "host from USER" grep -q "scrap-hgv27681.diamond.ac.uk" "$tmp/values.yaml"
 check "nginx class by default" grep -q "className: nginx" "$tmp/values.yaml"
@@ -68,6 +73,12 @@ check "backups on the host path" grep -q "hostPath: $tmp/science/scrap" "$tmp/va
 check "job cpu limits fit argus" [ "$(grep -c 'limits: {cpu: 500m}' "$tmp/values.yaml")" = 4 ]
 check "runs as the user" grep -q "runAsUser: $(id -u)" "$tmp/values.yaml"
 check "no network policy" sh -c "! grep -q networkPolicy '$tmp/values.yaml'"
+
+# SCRAP_VERSION picks the release.
+: >"$tmp/helm.calls"
+(SCRAP_VERSION=1.5.0 run)
+check "SCRAP_VERSION passed to helm" grep -q -- "--version 1.5.0" "$tmp/helm.calls"
+check "says which version" sh -c "head -n1 '$tmp/out' | grep -q 'Installing scrap 1.5.0 into'"
 
 # Re-run: the secret exists, so no create and no token printed.
 : >"$tmp/kubectl.calls"
