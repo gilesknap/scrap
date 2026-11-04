@@ -19,8 +19,9 @@ bad() {
 for values in "$chart"/ci/*-values.yaml; do
     name=$(basename "$values" -values.yaml)
     release=scrap
-    # public's names gain suffixes, so it is rendered with the longest name too
-    if [ "$name" = long-names ] || [ "$name" = public ]; then
+    # public's and authProxy's names gain suffixes, so they are rendered with the
+    # longest name too
+    if [ "$name" = long-names ] || [ "$name" = public ] || [ "$name" = auth-proxy ]; then
         release=a-release-name-of-fifty-three-characters-the-maximum
     fi
     if ! helm lint --strict --quiet "$chart" -f "$values" >"$out/lint" 2>&1; then
@@ -95,6 +96,32 @@ expect_refused "public.enabled without site" --set public.enabled=true \
 expect_refused "a public token as a value" --set public.token=not-a-token
 expect_refused "a public site that is not a URL" --set public.site=pages.example.org
 expect_refused "an unknown public key" --set public.replicas=2
+expect_refused "public.createNamespace in the release namespace" --namespace scrap \
+    -f "$chart/ci/public-same-namespace-values.yaml" --set public.createNamespace=true
+expect_refused "authProxy without ingress" -f "$chart/ci/auth-proxy-values.yaml" \
+    --set ingress.enabled=false
+expect_refused "authProxy without service" -f "$chart/ci/auth-proxy-values.yaml" \
+    --set authProxy.service=
+expect_refused "authProxy without allowedEmails" -f "$chart/ci/auth-proxy-values.yaml" \
+    --set 'authProxy.allowedEmails=null'
+expect_refused "authProxy with an empty allowedEmails" -f "$chart/ci/auth-proxy-values.yaml" \
+    --set 'authProxy.allowedEmails={}'
+expect_refused "authProxy without an /mcp token" -f "$chart/ci/auth-proxy-values.yaml" \
+    --set mcp.tokenSecret.name=
+expect_refused "authProxy without tls" -f "$chart/ci/auth-proxy-values.yaml" \
+    --set 'ingress.tls=null'
+expect_refused "authProxy with an email that is not one" -f "$chart/ci/auth-proxy-values.yaml" \
+    --set 'authProxy.allowedEmails[0]=nobody'
+expect_refused "authProxy with a service that is not a DNS name" -f "$chart/ci/auth-proxy-values.yaml" \
+    --set 'authProxy.service=http://proxy'
+expect_refused "authProxy without oidc.issuer" -f "$chart/ci/auth-proxy-values.yaml" \
+    --set authProxy.oidc.issuer=
+expect_refused "authProxy without oidc.clientId" -f "$chart/ci/auth-proxy-values.yaml" \
+    --set authProxy.oidc.clientId=
+expect_refused "authProxy with an http oidc.issuer" -f "$chart/ci/auth-proxy-values.yaml" \
+    --set authProxy.oidc.issuer=http://identity.example.org/realms/dls
+expect_refused "an unknown authProxy.oidc key" -f "$chart/ci/auth-proxy-values.yaml" \
+    --set authProxy.oidc.clientSecret=x
 
 # Public pages (issue 497). Off by default: nothing of it renders, and scrap gets no
 # SCRAP_PUBLISH_* settings.
@@ -184,6 +211,77 @@ if grep -A1 'name: SCRAP_PUBLISH_TO$' "$pub" | grep -q 'value: "http://scrap-rec
     echo "$scrap_dep" | grep -q 'secretName: scrap-publish|'; then
     ok "scrap gets SCRAP_PUBLISH_TO, _SITE and the token as a mounted file"
 else bad "scrap lacks SCRAP_PUBLISH_TO or _SITE, or its token is not a mounted file"; fi
+# Public pages in the release namespace with networkPolicy off: no NetworkPolicy, and
+# names that do not clash with scrap's own.
+same=$(helm template scrap "$chart" --namespace scrap -f "$chart/ci/public-same-namespace-values.yaml")
+names=$(echo "$same" | awk '/^kind: /{k=$2} /^  name: /{print k, $2}' | sort)
+if ! echo "$same" | grep -q '^kind: NetworkPolicy$' &&
+    [ -z "$(echo "$names" | uniq -d)" ] &&
+    echo "$same" | grep -A1 'name: SCRAP_PUBLISH_TO$' | grep -q 'value: "http://scrap-receiver.scrap.svc:8081"'; then
+    ok "public in the release namespace: no NetworkPolicy, no clashing names, the receiver's URL"
+else bad "public in the release namespace: a NetworkPolicy, a clashing name or the wrong receiver URL"; fi
+
+# authProxy: the main Ingress has the three auth annotations (with ingress.annotations),
+# the open Ingress /mcp to scrap and /oauth2 to the ExternalName Service, without auth.
+ap="$out/auth-proxy-checks"
+helm template scrap "$chart" -f "$chart/ci/auth-proxy-values.yaml" \
+    --set-string 'ingress.annotations.nginx\.ingress\.kubernetes\.io/auth-snippet=x' |
+    awk 'function end_doc() { if (doc != "") print doc; doc = "" }
+        /^---/ { end_doc(); next } { doc = doc $0 "|" } END { end_doc() }' >"$ap"
+main=$(grep '|kind: Ingress|' "$ap" | grep '|  name: scrap|' || true)
+open=$(grep '|kind: Ingress|' "$ap" | grep '|  name: scrap-open|' || true)
+# shellcheck disable=SC2016 # $host and $escaped_request_uri are nginx's, not the shell's
+if echo "$main" | grep -Fq '|    nginx.ingress.kubernetes.io/auth-url: http://oauth2-proxy.scrap.svc.cluster.local:80/oauth2/auth|' &&
+    echo "$main" | grep -Fq '|    nginx.ingress.kubernetes.io/auth-signin: https://$host/oauth2/start?rd=$escaped_request_uri|' &&
+    echo "$main" | grep -Fq '|    nginx.ingress.kubernetes.io/auth-response-headers: X-Auth-Request-Email,X-Auth-Request-Access-Token|' &&
+    echo "$main" | grep -Fq '|    nginx.ingress.kubernetes.io/proxy-body-size: 50m|' &&
+    echo "$main" | grep -Fq '|    nginx.ingress.kubernetes.io/proxy-buffer-size: 16k|' &&
+    echo "$main" | grep -Fq '|          - path: /|' && ! echo "$main" | grep -q 'path: /mcp'; then
+    ok "authProxy: the main Ingress asks oauth2-proxy, for the allowed email"
+else bad "authProxy: the main Ingress lacks an auth annotation or has the wrong paths"; fi
+if [ -n "$open" ] && ! echo "$open" | grep -q 'nginx.ingress.kubernetes.io/auth-' &&
+    echo "$open" | grep -Fq '|    nginx.ingress.kubernetes.io/proxy-body-size: 50m|' &&
+    echo "$open" | grep -Fq '|    nginx.ingress.kubernetes.io/proxy-buffer-size: 16k|' &&
+    echo "$open" | grep -Fq '|          - path: /mcp|            pathType: Prefix|            backend:|              service:|                name: scrap|' &&
+    echo "$open" | grep -Fq '|          - path: /oauth2|            pathType: Prefix|            backend:|              service:|                name: scrap-oauth2|' &&
+    echo "$open" | grep -Fq '|  ingressClassName: nginx|' && echo "$open" | grep -Fq '|      - scrap-abc12345.example.org|' &&
+    [ "$(echo "$open" | grep -o '            pathType' | wc -l)" = 2 ]; then
+    ok "authProxy: the open Ingress has /mcp and /oauth2 only, and no auth annotations"
+else bad "authProxy: the open Ingress has auth annotations or the wrong paths"; fi
+if grep '|kind: Service|' "$ap" | grep '|  name: scrap-oauth2|' |
+    grep -Fq '|  type: ExternalName|  externalName: oauth2-proxy.scrap.svc.cluster.local|'; then
+    ok "authProxy: an ExternalName Service to the proxy"
+else bad "authProxy: no ExternalName Service to the proxy"; fi
+if grep -Fq '|            - name: SCRAP_IDENTITY_HEADER|              value: "X-Auth-Request-Email"|' "$ap" &&
+    helm template scrap "$chart" -f "$chart/ci/auth-proxy-values.yaml" --set identityHeader=X-Mine |
+    grep -A1 'name: SCRAP_IDENTITY_HEADER$' | grep -q 'value: "X-Mine"'; then
+    ok "authProxy: identityHeader defaults to X-Auth-Request-Email"
+else bad "authProxy: identityHeader is not X-Auth-Request-Email, or ignores identityHeader"; fi
+# scrap checks the proxy's token itself (ADR 45): the Deployment has the issuer, the
+# client and the lower-cased emails; the CronJobs (no HTTP) do not.
+deploy=$(grep '|kind: Deployment|' "$ap" | grep '|  name: scrap|' || true)
+oidc_env='|            - name: SCRAP_OIDC_ISSUER|              value: "https://identity.example.org/realms/dls"|            - name: SCRAP_OIDC_CLIENT_ID|              value: "scrap"|            - name: SCRAP_ALLOWED_EMAILS|              value: "first.last@example.org"|'
+if echo "$deploy" | grep -Fq "$oidc_env" &&
+    [ "$(grep -c 'SCRAP_OIDC_ISSUER' "$ap")" = 1 ] &&
+    helm template scrap "$chart" -f "$chart/ci/auth-proxy-values.yaml" \
+        --set 'authProxy.allowedEmails[0]=First.Last@Example.org' --set 'authProxy.allowedEmails[1]=b@x.org' |
+    grep -A1 'name: SCRAP_ALLOWED_EMAILS$' | grep -Fq 'value: "first.last@example.org,b@x.org"'; then
+    ok "authProxy: the Deployment checks the proxy's token, for the lower-cased emails"
+else bad "authProxy: the Deployment lacks SCRAP_OIDC_* or SCRAP_ALLOWED_EMAILS, or a CronJob has them"; fi
+if [ "$(helm template scrap "$chart" -f "$chart/ci/auth-proxy-values.yaml" \
+    --set-string 'ingress.annotations.nginx\.ingress\.kubernetes\.io/proxy-buffer-size=32k' |
+    grep -c 'nginx.ingress.kubernetes.io/proxy-buffer-size: 32k$')" = 2 ]; then
+    ok "authProxy: an ingress.annotations proxy-buffer-size wins on both Ingresses"
+else bad "authProxy: ingress.annotations' proxy-buffer-size is overridden"; fi
+# ingress-nginx's annotation validation (DLS's) refuses an @ or % in the auth-url, so
+# it has no query: the owner check is scrap's token check (SCRAP_ALLOWED_EMAILS).
+if grep -o 'nginx.ingress.kubernetes.io/auth-url: [^|]*' "$ap" | grep -q '[?@%]'; then
+    bad "authProxy: the auth-url has a query, an @ or a %"
+else ok "authProxy: the auth-url has no query, @ or %"; fi
+if helm template scrap "$chart" | grep -Eq 'ExternalName|-open$|auth-url|proxy-buffer-size|SCRAP_OIDC|SCRAP_ALLOWED_EMAILS'; then
+    bad "authProxy renders while off"
+else ok "authProxy is off by default"; fi
+
 # An upgrade with backups off (gc.enabled unset) renders, with no gc CronJob.
 if helm template scrap "$chart" --set backup.enabled=false | grep -q -- '-gc$'; then
     bad "backup off still renders a gc CronJob"

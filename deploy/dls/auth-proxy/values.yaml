@@ -1,0 +1,72 @@
+# Values for the upstream oauth2-proxy chart (https://oauth2-proxy.github.io/manifests),
+# the one central login proxy for every DLS user's scrap. install.sh deploys it as
+# release "oauth2-proxy", so its Service is oauth2-proxy.<namespace>.svc.cluster.local:80.
+#
+# It never proxies scrap itself. ingress-nginx asks it on each request
+# (nginx.ingress.kubernetes.io/auth-url .../oauth2/auth, with no query: DLS's ingress
+# refuses an @ or % there), and each
+# user's /oauth2/* reaches it through an ExternalName Service in that user's namespace,
+# so the login cookie belongs to that user's own host, never to .diamond.ac.uk.
+
+replicaCount: 2
+podDisruptionBudget:
+  enabled: true
+revisionHistoryLimit: 2
+# It never calls the Kubernetes API.
+serviceAccount:
+  automountServiceAccountToken: false
+enableServiceLinks: false
+
+config:
+  # Keys client-id, client-secret and cookie-secret, made by install.sh. Nothing secret
+  # is in this file.
+  existingSecret: oauth2-proxy-keycloak
+  configFile: |-
+    provider = "keycloak-oidc"
+    oidc_issuer_url = "https://identity.diamond.ac.uk/realms/dls"
+    # The email scope puts email and email_verified in the access token, which scrap
+    # checks. No offline_access: a login lasts as long as the DLS Keycloak session.
+    scope = "openid email"
+    code_challenge_method = "S256"
+
+    # Any DLS login passes the proxy; each user's scrap then admits only its owner,
+    # checking the access token passed on (ADR 45). Anyone else gets scrap's 401.
+    email_domains = ["diamond.ac.uk"]
+
+    # Answer nginx's auth subrequests only: no upstream.
+    upstreams = ["static://202"]
+    reverse_proxy = true
+    set_xauthrequest = true
+    # And X-Auth-Request-Access-Token: the user's Keycloak access token, which each
+    # scrap checks itself (ADR 45), since any pod can reach scrap's Service directly.
+    pass_access_token = true
+    skip_provider_button = true
+
+    # No redirect_url and no cookie_domains: the callback and the cookie are on the
+    # host the request came to (scrap-<fedid>.diamond.ac.uk).
+    cookie_name = "_scrap_auth"
+    cookie_secure = true
+    cookie_samesite = "lax"
+    # A week at most; in practice the Keycloak session ends it first, when the refresh
+    # below fails and the user logs in again.
+    cookie_expire = "168h"
+    # Keycloak's access tokens last 5 minutes and scrap refuses an expired one, so the
+    # session is refreshed (with its refresh token) well inside that.
+    cookie_refresh = "1m"
+
+ingress:
+  # Reached only in the cluster: from nginx's auth subrequests and the users'
+  # ExternalName Services.
+  enabled: false
+
+service:
+  portNumber: 80
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    # argus caps a CPU limit at 10 times the request.
+    cpu: 500m
+    memory: 128Mi

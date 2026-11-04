@@ -118,6 +118,24 @@
         "tls": {"type": "array"}
       }
     },
+    "authProxy": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {"type": "boolean"},
+        "service": {"type": "string", "pattern": "^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*)?$"},
+        "port": {"type": "integer", "minimum": 1, "maximum": 65535},
+        "allowedEmails": {"type": "array", "items": {"type": "string", "pattern": "^[^@\\s,]+@[^@\\s,]+$"}},
+        "oidc": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "issuer": {"type": "string", "pattern": "^(https://[^\\s,]+)?$"},
+            "clientId": {"type": "string", "pattern": "^[^\\s,]*$"}
+          }
+        }
+      }
+    },
     "networkPolicy": {"type": "object"},
     "public": {
       "type": "object",
@@ -160,6 +178,7 @@
           "type": "object",
           "additionalProperties": false,
           "properties": {
+            "enabled": {"type": "boolean"},
             "webFrom": {"type": "array"}
           }
         },

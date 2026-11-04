@@ -84,7 +84,9 @@ NetworkPolicy is what keeps other pods off the API. See [](../../how-to/deploy-k
 
 ## Identity is attribution, not the gate
 
-- `author` is the request header named by `SCRAP_IDENTITY_HEADER` (default `Tailscale-User-Login`).
+- `author` is the request header named by `SCRAP_IDENTITY_HEADER` (default `Tailscale-User-Login`),
+  or, with `SCRAP_OIDC_ISSUER` set, the verified email of the login proxy's token
+  ([ADR 45](../decisions/0045-scrap-verifies-the-login-proxys-keycloak-token.md)).
   Without it the author is `tagged`: tagged tailnet devices send none.
 - Only the configured header is trusted. A proxy that sets another one (for example
   `X-Auth-Request-User`) is named in that variable.

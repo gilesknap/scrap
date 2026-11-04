@@ -22,6 +22,13 @@ def no_mcp_token(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def no_login_check(monkeypatch):
+    """The login token check (oidc) set in the developer's shell must not gate tests."""
+    for name in ("SCRAP_OIDC_ISSUER", "SCRAP_OIDC_CLIENT_ID", "SCRAP_ALLOWED_EMAILS"):
+        monkeypatch.delenv(name, raising=False)
+
+
+@pytest.fixture(autouse=True)
 def no_publishing(monkeypatch):
     """Publishing settings in the developer's shell must not reach a real site."""
     for name in (

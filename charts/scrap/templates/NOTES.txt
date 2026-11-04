@@ -1,7 +1,15 @@
 scrap {{ include "scrap.image" . }} is installed as {{ include "scrap.fullname" . }} (one replica: SQLite has a single writer).
-
+{{ if .Values.authProxy.enabled }}
+The web app's login is oauth2-proxy ({{ .Values.authProxy.service }}), through ingress-nginx's auth on
+Ingress {{ include "scrap.fullname" . }}; scrap lets in only {{ join ", " .Values.authProxy.allowedEmails }}.
+scrap checks the proxy's access token from {{ .Values.authProxy.oidc.issuer }} on every request
+but /healthz and /mcp, so a direct call to the Service gets 401.
+Ingress {{ include "scrap.openIngressName" . }} has no login: /mcp (its bearer token) and /oauth2.
+The proxy must accept each host's https://<host>/oauth2/callback as a redirect URI.
+{{- else }}
 scrap has NO login of its own: anyone who can reach it can read and change everything.
 Keep it on a private network or behind an authenticating proxy.
+{{- end }}
 
 Try it without exposing it:
   kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "scrap.fullname" . }} 8000:{{ .Values.service.port }}

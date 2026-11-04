@@ -1,3 +1,4 @@
+{{- include "scrap.authProxyChecks" . }}
 {{- if .Values.ingress.enabled }}
 apiVersion: networking.k8s.io/v1
 kind: Ingress
@@ -5,9 +6,9 @@ metadata:
   name: {{ include "scrap.fullname" . }}
   labels:
     {{- include "scrap.labels" . | nindent 4 }}
-  {{- with .Values.ingress.annotations }}
+  {{- with include "scrap.ingressAnnotations" . }}
   annotations:
-    {{- toYaml . | nindent 4 }}
+    {{- . | nindent 4 }}
   {{- end }}
 spec:
   {{- with .Values.ingress.className }}

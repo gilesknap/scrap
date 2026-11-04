@@ -1,0 +1,24 @@
+# The web app behind a central oauth2-proxy through ingress-nginx's auth: a second,
+# open Ingress for /mcp and /oauth2, and an ExternalName Service to the proxy.
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: 50m
+  hosts:
+    - scrap-abc12345.example.org
+  tls:
+    - hosts:
+        - scrap-abc12345.example.org
+authProxy:
+  enabled: true
+  service: oauth2-proxy.scrap.svc.cluster.local
+  allowedEmails:
+    - first.last@example.org
+  oidc:
+    issuer: https://identity.example.org/realms/dls
+    clientId: scrap
+mcp:
+  tokenSecret:
+    name: scrap-secrets
+    key: SCRAP_MCP_TOKEN
