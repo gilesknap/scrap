@@ -42,6 +42,9 @@ spec:
               containerPort: 8000
           env:
             {{- include "scrap.appEnv" . | nindent 12 }}
+            {{- with include "scrap.oidcEnv" . }}
+            {{- . | nindent 12 }}
+            {{- end }}
             {{- if .Values.public.enabled }}
             # Public pages: the receiver scrap pushes them to, the site's address,
             # and the upload token as a mounted file (from the same-named Secret in

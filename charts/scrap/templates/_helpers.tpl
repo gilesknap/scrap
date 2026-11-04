@@ -276,6 +276,26 @@ capabilities:
 {{- if not .Values.ingress.tls }}
 {{- fail "authProxy.enabled needs ingress.tls: the login's cookie is sent over https only" }}
 {{- end }}
+{{- if not .Values.authProxy.oidc.issuer }}
+{{- fail "authProxy.enabled needs authProxy.oidc.issuer: the Keycloak realm whose tokens scrap checks, e.g. https://identity.example.org/realms/dls" }}
+{{- end }}
+{{- if not .Values.authProxy.oidc.clientId }}
+{{- fail "authProxy.enabled needs authProxy.oidc.clientId: the oauth2-proxy's Keycloak client, e.g. scrap" }}
+{{- end }}
+{{- end }}
+{{- end }}
+
+{{/* With authProxy.enabled, scrap checks the proxy's Keycloak token on each request
+(ADR 45): the Service is open to any pod in the cluster, so the Ingress's login is
+not enough. Only the Deployment serves HTTP, so the CronJobs do without. */}}
+{{- define "scrap.oidcEnv" -}}
+{{- if .Values.authProxy.enabled }}
+- name: SCRAP_OIDC_ISSUER
+  value: {{ .Values.authProxy.oidc.issuer | quote }}
+- name: SCRAP_OIDC_CLIENT_ID
+  value: {{ .Values.authProxy.oidc.clientId | quote }}
+- name: SCRAP_ALLOWED_EMAILS
+  value: {{ join "," .Values.authProxy.allowedEmails | lower | quote }}
 {{- end }}
 {{- end }}
 
@@ -291,7 +311,7 @@ annotations (which win) when authProxy.enabled. */}}
 {{- $auth := dict
   "nginx.ingress.kubernetes.io/auth-url" (printf "http://%s:%v/oauth2/auth?allowed_emails=%s" .Values.authProxy.service .Values.authProxy.port (join "," $emails))
   "nginx.ingress.kubernetes.io/auth-signin" "https://$host/oauth2/start?rd=$escaped_request_uri"
-  "nginx.ingress.kubernetes.io/auth-response-headers" "X-Auth-Request-Email" }}
+  "nginx.ingress.kubernetes.io/auth-response-headers" "X-Auth-Request-Email,X-Auth-Request-Access-Token" }}
 {{- $a = merge $auth $a }}
 {{- end }}
 {{- with $a }}

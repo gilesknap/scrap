@@ -169,6 +169,7 @@ inside them is silently ignored. The main ones:
 | `mcp.tokenSecret.name`, `.key` | none, `SCRAP_MCP_TOKEN` | An existing Secret and the key in it holding the bearer token(s) `/mcp` requires (`SCRAP_MCP_TOKEN`, comma separated for several). Never a token as a value; the chart creates no Secret. Empty name: no token needed. See {ref}`k8s-mcp-token`. |
 | `identityHeader` | `Tailscale-User-Login` (`X-Auth-Request-Email` with `authProxy.enabled`) | `SCRAP_IDENTITY_HEADER`: the header recorded as the author, e.g. `X-Auth-Request-User` behind oauth2-proxy. |
 | `authProxy.enabled`, `.service`, `.port`, `.allowedEmails` | off, none, `80`, none | A login for the web app through an oauth2-proxy you run, with ingress-nginx only ({ref}`k8s-auth-proxy`). |
+| `authProxy.oidc.issuer`, `.clientId` | none | Required with `authProxy.enabled`: the identity provider's issuer URL (https) and the proxy's client ID, whose access tokens scrap checks on every request (`SCRAP_OIDC_ISSUER`, `SCRAP_OIDC_CLIENT_ID`; {ref}`k8s-auth-proxy`). |
 | `extraEnv`, `extraEnvFrom` | none | Anything else for the container, such as `SCRAP_PUBLIC_URL` (see {ref}`k8s-mcp`) or `SCRAP_ENRICH`. |
 | `public.enabled`, `.site`, `.tokenSecret.*`, `.ingress.*`, `.networkPolicy.webFrom` | off | Public pages: the public site and its upload receiver in their own namespace ({ref}`k8s-public-pages`). |
 | `public.namespace` | `scrap-public` | The public side's namespace. It may be the release namespace; then one Secret serves both sides. |
@@ -385,20 +386,30 @@ authProxy:
   enabled: true
   service: oauth2-proxy.scrap.svc.cluster.local   # the proxy's in-cluster DNS name
   allowedEmails: [first.last@example.org]             # who may use the web app
+  oidc:
+    issuer: https://identity.example.org/realms/main  # the realm, as in its tokens' iss
+    clientId: scrap                                   # the proxy's client
 ```
 
 The Ingress then gets ingress-nginx's `auth-url` (the proxy's `/oauth2/auth`, admitting only
-`allowedEmails`), `auth-signin` and `auth-response-headers: X-Auth-Request-Email` annotations, on
-top of `ingress.annotations`. A second Ingress, `<fullname>-open`, with the same class, hosts and
+`allowedEmails`), `auth-signin` and `auth-response-headers: X-Auth-Request-Email,X-Auth-Request-Access-Token`
+annotations, on top of `ingress.annotations`. A second Ingress, `<fullname>-open`, with the same class, hosts and
 `tls` and no auth, sends `/mcp` to scrap (set `mcp.tokenSecret`) and `/oauth2` to the proxy
 through an `ExternalName` Service, so the sign-in, its callback
 (`https://<host>/oauth2/callback`, which the identity provider must allow) and the cookie are
 on scrap's own host. Both Ingresses get `proxy-buffer-size: 16k` unless `ingress.annotations`
 sets it, since the login's cookies overflow nginx's 4k default. `identityHeader` defaults to
 `X-Auth-Request-Email`. The install fails without `ingress.enabled`, `ingress.tls` (the cookie is
-https only), `mcp.tokenSecret.name`, `authProxy.service` or `authProxy.allowedEmails`. The login
-guards the Ingress only: without a NetworkPolicy, any pod can reach the Service and send its own
-`X-Auth-Request-Email`. Other controllers
+https only), `mcp.tokenSecret.name`, `authProxy.service`, `authProxy.allowedEmails`,
+`authProxy.oidc.issuer` or `authProxy.oidc.clientId`.
+
+The login alone guards the Ingress only: without a NetworkPolicy, any pod can reach the Service
+and send its own `X-Auth-Request-Email`. So scrap checks the proxy's access token itself
+([ADR 45](../explanations/decisions/0045-scrap-verifies-the-login-proxys-keycloak-token.md)): the
+Deployment gets `SCRAP_OIDC_ISSUER`, `SCRAP_OIDC_CLIENT_ID` and `SCRAP_ALLOWED_EMAILS`, and every
+request but `/healthz` and `/mcp` needs a valid token for an allowed email (`401` without). Run
+the proxy with `pass_access_token = true`, and a `cookie_refresh` shorter than the access tokens'
+life. Other controllers
 need their own annotations, above. DLS runs one proxy for every user this way:
 [](run-the-dls-login-proxy.md).
 

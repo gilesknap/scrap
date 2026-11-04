@@ -17,8 +17,13 @@ sets it up and keeps it running.
   belong to that user's host alone. That is why Keycloak needs one exact redirect URI per user.
 - Any DLS login may sign in at the proxy, but each user's Ingress admits only its owner: anyone
   else gets `403`.
-- The login guards the Ingress only. scrap has no login of its own, and argus users cannot make
-  NetworkPolicies, so a pod in the cluster could still reach a user's scrap Service directly.
+- The proxy passes the user's Keycloak access token on (`pass_access_token`), and scrap checks
+  it on every request ([](../explanations/decisions/0045-scrap-verifies-the-login-proxys-keycloak-token.md)).
+  argus users cannot make NetworkPolicies, so a pod in the cluster can reach a user's scrap
+  Service directly, but without a valid Keycloak token for that user it gets `401`; `/mcp` needs
+  its bearer token. The proxy refreshes the session every minute, inside the access token's
+  5 minutes. Without `offline_access`, a user stays logged in only as long as their DLS
+  Keycloak session; when it ends, the next refresh fails and they log in again.
 
 The chart side is `authProxy` ({ref}`k8s-auth-proxy`). The proxy is the upstream oauth2-proxy
 chart, pinned in `deploy/dls/auth-proxy/install.sh`, with `deploy/dls/auth-proxy/values.yaml`.
@@ -30,11 +35,14 @@ Ask the DLS Keycloak team for one client in the `dls` realm
 
 - **Confidential** (client authentication on), **standard flow** only, with **PKCE** method
   `S256`.
-- Client scopes `openid`, `email`, `profile` and `offline_access`.
+- Client scopes `openid` and `email` only (no `profile`, no `offline_access`).
 - An **audience mapper** that adds the client's own ID to the access token's audience: oauth2-proxy
   checks it.
 - **Valid redirect URIs**: one exact entry per user, `https://scrap-<fedid>.diamond.ac.uk/oauth2/callback`.
   No wildcards. Start with your own.
+- **Access tokens that carry `email` and `email_verified`**: scrap reads them from the access
+  token, not the ID token. Keycloak's default `email` client scope maps both into the access
+  token; check it has not been changed to the ID token only.
 - Confirmation that emails in the `dls` realm are **verified** (`email_verified` true).
   oauth2-proxy refuses a login with an unverified email; do not set
   `insecure_oidc_allow_unverified_email` to get round it.

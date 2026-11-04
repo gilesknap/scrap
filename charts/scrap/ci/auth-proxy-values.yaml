@@ -15,6 +15,9 @@ authProxy:
   service: oauth2-proxy.scrap.svc.cluster.local
   allowedEmails:
     - first.last@example.org
+  oidc:
+    issuer: https://identity.example.org/realms/dls
+    clientId: scrap
 mcp:
   tokenSecret:
     name: scrap-secrets

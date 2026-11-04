@@ -36,7 +36,9 @@ read from `Tailscale-User-Login` only, which says nothing useful behind another 
   one header read as the author, else `tagged`. A proxy that sets another header (oauth2-proxy's
   `X-Auth-Request-User`) is named there, and a forged copy of the default is then ignored. Proxies
   that do not strip client headers mean the proxy and NetworkPolicy must be the only way in; a
-  forged value only changes the recorded author. A `SCRAP_ALLOWED_USER` check is left for later.
+  forged value only changes the recorded author. A `SCRAP_ALLOWED_USER` check is left for later
+  (since taken up as the login proxy's token check,
+  [](0045-scrap-verifies-the-login-proxys-keycloak-token.md)).
 - **Helm.** `mcp.tokenSecret.{name,key}` names an existing Secret and key, wired to
   `SCRAP_MCP_TOKEN` by `secretKeyRef`; `identityHeader` sets the header. The chart never takes
   a token as a value (the schema rejects it), and its tests check no secret renders as a value.

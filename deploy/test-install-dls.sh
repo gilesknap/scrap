@@ -94,6 +94,9 @@ check "email from the namespace label" grep -q -- "get namespace abc12345" "$tmp
 check "authProxy on" sh -c "grep -A1 '^authProxy:' '$tmp/values.yaml' | grep -q 'enabled: true'"
 check "the central proxy's service" grep -q "^  service: oauth2-proxy.scrap.svc.cluster.local$" "$tmp/values.yaml"
 check "only the owner's email" sh -c "grep -A1 '^  allowedEmails:' '$tmp/values.yaml' | grep -q '^    - \"giles.knap@diamond.ac.uk\"$'"
+check "scrap checks DLS Keycloak's token" sh -c "grep -A2 '^  oidc:' '$tmp/values.yaml' | tr -d '\n' |
+    grep -q 'issuer: \"https://identity.diamond.ac.uk/realms/dls\" *clientId: \"scrap\"'"
+check "says a direct call gets 401" grep -q "directly without your login gets 401" "$tmp/out"
 # Public pages: on, in this namespace, on pages-<fedid>, with a key of the one Secret.
 check "body size: maxUploadMB plus a margin" sh -c "grep -qx 'maxUploadMB: 50' '$tmp/values.yaml' &&
     grep -A2 '^ingress:' '$tmp/values.yaml' | grep -q '^  enabled: true' &&
@@ -144,6 +147,9 @@ rm -f "$tmp/nopublish"
 (SCRAP_EMAIL=Someone.Else@Diamond.ac.uk SCRAP_AUTH_NAMESPACE=login run)
 check "SCRAP_EMAIL, lower case" grep -q '^    - "someone.else@diamond.ac.uk"$' "$tmp/values.yaml"
 check "SCRAP_AUTH_NAMESPACE" grep -q "^  service: oauth2-proxy.login.svc.cluster.local$" "$tmp/values.yaml"
+(SCRAP_OIDC_ISSUER=https://kc.example.org/realms/x SCRAP_OIDC_CLIENT_ID=mine run)
+check "SCRAP_OIDC_ISSUER and _CLIENT_ID" sh -c "grep -A2 '^  oidc:' '$tmp/values.yaml' | tr -d '\n' |
+    grep -q 'issuer: \"https://kc.example.org/realms/x\" *clientId: \"mine\"'"
 (STUB_EMAIL_LABEL=Giles.Knap--at--Diamond.ac.uk SCRAP_AUTH_SERVICE=proxy.elsewhere.svc.cluster.local run)
 check "label email, lower case" grep -q '^    - "giles.knap@diamond.ac.uk"$' "$tmp/values.yaml"
 check "SCRAP_AUTH_SERVICE" grep -q "^  service: proxy.elsewhere.svc.cluster.local$" "$tmp/values.yaml"

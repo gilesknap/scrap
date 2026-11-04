@@ -23,7 +23,9 @@ config:
   configFile: |-
     provider = "keycloak-oidc"
     oidc_issuer_url = "https://identity.diamond.ac.uk/realms/dls"
-    scope = "openid email profile offline_access"
+    # The email scope puts email and email_verified in the access token, which scrap
+    # checks. No offline_access: a login lasts as long as the DLS Keycloak session.
+    scope = "openid email"
     code_challenge_method = "S256"
 
     # Any DLS login may sign in; each user's Ingress then admits only its owner
@@ -34,6 +36,9 @@ config:
     upstreams = ["static://202"]
     reverse_proxy = true
     set_xauthrequest = true
+    # And X-Auth-Request-Access-Token: the user's Keycloak access token, which each
+    # scrap checks itself (ADR 45), since any pod can reach scrap's Service directly.
+    pass_access_token = true
     skip_provider_button = true
 
     # No redirect_url and no cookie_domains: the callback and the cookie are on the
@@ -41,9 +46,12 @@ config:
     cookie_name = "_scrap_auth"
     cookie_secure = true
     cookie_samesite = "lax"
-    # A week, so the phone's offline capture queue rarely meets a login page.
+    # A week at most; in practice the Keycloak session ends it first, when the refresh
+    # below fails and the user logs in again.
     cookie_expire = "168h"
-    cookie_refresh = "1h"
+    # Keycloak's access tokens last 5 minutes and scrap refuses an expired one, so the
+    # session is refreshed (with its refresh token) well inside that.
+    cookie_refresh = "1m"
 
 ingress:
   # Reached only in the cluster: from nginx's auth subrequests and the users'

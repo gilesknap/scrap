@@ -7,7 +7,8 @@
 # adds that last one to a Secret made before it existed).
 #
 # The web app's login is DLS Keycloak, through the central oauth2-proxy that a scrap
-# admin runs (deploy/dls/auth-proxy), letting in only your login from the network. /mcp
+# admin runs (deploy/dls/auth-proxy), letting in only your login; scrap checks the
+# login's token itself, so a pod that calls its Service directly gets nowhere. /mcp
 # keeps its bearer token. Public pages are on: the pages you make public are served on
 # pages-$USER.diamond.ac.uk to anyone on the DLS network.
 #
@@ -23,6 +24,9 @@
 #   SCRAP_AUTH_NAMESPACE   the login proxy's namespace (default: scrap)
 #   SCRAP_AUTH_SERVICE     the login proxy's in-cluster DNS name (default:
 #                          oauth2-proxy.$SCRAP_AUTH_NAMESPACE.svc.cluster.local)
+#   SCRAP_OIDC_ISSUER      the Keycloak realm whose login tokens scrap checks (default:
+#                          https://identity.diamond.ac.uk/realms/dls)
+#   SCRAP_OIDC_CLIENT_ID   the login proxy's Keycloak client (default: scrap)
 #   SCRAP_INGRESS_CLASS    ingressClassName for the Ingress (default: nginx, argus's ingress)
 #   SCRAP_BACKUP_DIR       where the nightly backups go (default: /dls/science/users/$USER/scrap,
 #                          made here with mode 700 if new; every argus node mounts /dls/science).
@@ -63,6 +67,8 @@ main() {
     host=${SCRAP_HOST:-scrap-$user.diamond.ac.uk}
     pages_host=${SCRAP_PAGES_HOST:-pages-$user.diamond.ac.uk}
     auth_svc=${SCRAP_AUTH_SERVICE:-oauth2-proxy.${SCRAP_AUTH_NAMESPACE:-scrap}.svc.cluster.local}
+    oidc_issuer=${SCRAP_OIDC_ISSUER:-https://identity.diamond.ac.uk/realms/dls}
+    oidc_client=${SCRAP_OIDC_CLIENT_ID:-scrap}
     # The largest capture in MB: scrap's limit. nginx's body size is 1 MiB more, so a
     # file just over scrap's limit gets scrap's own error, not nginx's HTML 413.
     max_upload=50
@@ -234,6 +240,11 @@ main() {
         echo "  service: $auth_svc"
         echo "  allowedEmails:"
         echo "    - \"$email\""
+        # scrap checks the proxy's Keycloak token on each request: from this realm, for
+        # this client, for your email.
+        echo "  oidc:"
+        echo "    issuer: \"$oidc_issuer\""
+        echo "    clientId: \"$oidc_client\""
         # Public pages, in this namespace, so they share the Secret. argus lets no user
         # make a NetworkPolicy. The pods request 10m of CPU: a limit argus accepts.
         echo "public:"
@@ -295,8 +306,9 @@ scrap ${installed:+$installed }is running in namespace $ns.
   MCP:      https://$host/mcp   (needs the bearer token)
   Pages:    https://$pages_host/   (the pages you make public; anyone on the DLS network)
 
-  The login keeps the web app from the network. scrap has no login of its own, so
-  argus users with cluster access could still reach its Service directly.
+  The login keeps the web app from the network, and scrap checks the login's token
+  itself: a pod that calls its Service directly without your login gets 401 (and
+  /mcp needs the bearer token).
 
 Next steps
 EOF
@@ -316,9 +328,10 @@ EOF
             echo "         $name"
         done
         cat <<EOF
-     Until they exist, look at scrap from this shell:
+     Until they exist, check scrap is up from this shell:
          kubectl -n $ns port-forward svc/scrap 8000:80
-     then open http://127.0.0.1:8000/. /mcp, the login and the phone app need the DNS names.
+     then open http://127.0.0.1:8000/healthz. The web app needs the login, so it and
+     the phone app wait for the DNS names.
 EOF
     fi
     cat <<EOF

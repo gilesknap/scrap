@@ -1,0 +1,69 @@
+# 45. scrap verifies the login proxy's Keycloak token
+
+Date: 2026-11-04
+
+## Status
+
+Accepted. Takes up the `SCRAP_ALLOWED_USER` check that
+[](0023-bearer-token-on-mcp-and-an-identity-header-setting.md) left for later.
+
+## Context
+
+At DLS each user's scrap sits behind one central oauth2-proxy, through ingress-nginx's external
+auth (`authProxy` in the chart, [](../../how-to/run-the-dls-login-proxy.md)). That guards the
+Ingress only. argus users cannot make NetworkPolicies, so any pod in the cluster can call a
+user's scrap Service directly, and send its own `X-Auth-Request-Email`: scrap had no login of its
+own and trusted that header as sent.
+
+## Decision
+
+- **scrap checks a Keycloak access token on every request**, when `SCRAP_OIDC_ISSUER` is set.
+  Unset, nothing changes. The check is `src/scrap/oidc.py`: ASGI middleware outside all the
+  others, so nothing (not the Host check, not a body read) runs before it.
+- **Where the token comes from.** oauth2-proxy runs with `pass_access_token`, so its
+  `/oauth2/auth` answer carries `X-Auth-Request-Access-Token`; the chart adds that header to
+  ingress-nginx's `auth-response-headers`, which sets it on the request to scrap over any copy
+  the client sent. A pod calling the Service has no such token for the owner, and cannot make
+  one.
+- **What is checked**, with PyJWT: the signature, against the keys at the `jwks_uri` of the
+  issuer's discovery document (whose `issuer` must match); only RS256 and ES256, and only the
+  algorithm the key is for, never `none` or a shared secret; `iss` exactly
+  `SCRAP_OIDC_ISSUER`; issued to our client (`azp` is `SCRAP_OIDC_CLIENT_ID`, or it is in `aud`,
+  since Keycloak's access tokens have `aud: account` unless a mapper adds the client); `exp`,
+  `nbf` and `iat` with 30 s of leeway; `email_verified` true; and `email` (lower-cased) in
+  `SCRAP_ALLOWED_EMAILS`. The allow-list repeats the Ingress's `allowed_emails`, since the token
+  alone says only that someone at DLS logged in.
+- **Exempt:** `/healthz` (the kubelet's probes carry no token) and `/mcp`, `/mcp/...`, which
+  keep their own bearer token (ADR 23) on the Ingress without the login.
+- **Fail closed.** No token, or one that fails a check: `401` (JSON under `/api`, plain text
+  elsewhere), no redirect (the Ingress does the login). Keys that cannot be fetched: `503`. Any
+  other error: `401`. An issuer without a client ID or an allow-list, or one that is not https
+  (loopback aside), stops scrap starting.
+- **Keys.** Discovery runs on the first request, not at start, so a Keycloak outage is a `503`
+  rather than a crash loop; a failed discovery is retried after 10 s. `PyJWKClient` caches the
+  key set for an hour and refetches for an unknown key ID at most every 30 s, so a forged `kid`
+  cannot make scrap hammer Keycloak, and a rotated key is picked up. Fetches use the standard
+  library, as `PyJWKClient` does (http(s) only, no redirects, a 10 s timeout), so there is one
+  mechanism for both.
+- **Freshness.** Keycloak's access tokens last 5 minutes by default, so the proxy refreshes its
+  session every minute (`cookie_refresh`) with its refresh token. Its scopes are `openid email`
+  only: no `offline_access`, so a login lasts as long as the user's Keycloak session, and then
+  the refresh fails and they log in again.
+- **The author** of a change is the token's verified email, and no identity header is read
+  (`SCRAP_IDENTITY_HEADER` is ignored while the check is on). `/mcp` changes stay Claude's.
+- **Helm.** `authProxy.oidc.issuer` and `.clientId` are required with `authProxy.enabled`; the
+  Deployment gets `SCRAP_OIDC_ISSUER`, `SCRAP_OIDC_CLIENT_ID` and `SCRAP_ALLOWED_EMAILS`
+  (the lower-cased `allowedEmails`). The CronJobs serve no HTTP and do not.
+
+## Consequences
+
+- A pod that reaches the Service gets `401` on everything but `/healthz` and `/mcp`, and `/mcp`
+  needs the bearer token. `/healthz` still answers anyone, as before.
+- Keycloak's access tokens must carry `email` and `email_verified` (its default `email` scope
+  maps both into the access token) and name the client in `azp`.
+- A token taken from the owner's browser is good for its few remaining minutes, as the login
+  cookie is for longer: the check stops forgery, not theft.
+- `kubectl port-forward` to the Service reaches `/healthz` and `/mcp` only; the web app needs
+  the Ingress.
+- The web app is unusable while Keycloak's keys cannot be had (after the cached hour), which is
+  also when nobody can log in.

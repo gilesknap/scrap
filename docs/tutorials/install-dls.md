@@ -7,8 +7,10 @@ the pages you make public on `pages-<fedid>.diamond.ac.uk`, all only from the DL
 Who can get in:
 
 - **The web app**: it asks for your DLS login (Keycloak) and lets in only your own email
-  address. That keeps it from the network. scrap has no login of its own, so other argus users
-  with cluster access could still reach its Service directly.
+  address. That keeps it from the network. Pods in the cluster can reach its Service directly,
+  but scrap checks the login's token itself, so without a valid DLS login token for you they get
+  `401`. You stay logged in as long as your DLS Keycloak session lasts; when it ends, the web app
+  and the phone app take you to the DLS login again.
 - **`/mcp`**: whoever has your bearer token, which the installer makes and shows you once.
 - **Your public pages**: anyone on the DLS network. Only the pages you make public are there.
 
@@ -65,13 +67,14 @@ Names under `diamond.ac.uk` are not made for you: raise a request at
 <https://jira.diamond.ac.uk/servicedesk/customer/portal/2/create/156> asking for
 `scrap-<fedid>.diamond.ac.uk` and `pages-<fedid>.diamond.ac.uk` to be set up on the argus ingress
 for your namespace. The installer lists only the names that do not resolve yet. Until they exist,
-look at scrap with a port-forward:
+check scrap is up with a port-forward:
 
 ```
 kubectl port-forward svc/scrap 8000:80
 ```
 
-and open <http://127.0.0.1:8000/>. The login, the phone app and `/mcp` need the DNS names.
+and open <http://127.0.0.1:8000/healthz>. The web app answers only with your login's token, which
+comes through the Ingress, so it and the phone app need the DNS names.
 
 ## 4. Ask for your login address
 

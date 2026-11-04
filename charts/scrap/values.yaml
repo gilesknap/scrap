@@ -235,6 +235,13 @@ authProxy:
   # They are lower-cased, as Keycloak's emails are: oauth2-proxy compares them
   # case-sensitively.
   allowedEmails: []
+  # scrap checks the Keycloak access token the proxy passes on (ADR 45), so a pod
+  # that calls scrap's Service directly cannot get in. Both required when enabled.
+  oidc:
+    # The realm's issuer URL, exactly as in its tokens' iss.
+    issuer: ""
+    # The proxy's Keycloak client: a token must be issued to it (azp or aud).
+    clientId: ""
 
 # Default off. When on, only the peers in `from` may connect to scrap (an empty
 # list admits nobody). Egress is not restricted.

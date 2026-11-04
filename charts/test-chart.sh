@@ -112,6 +112,14 @@ expect_refused "authProxy with an email that is not one" -f "$chart/ci/auth-prox
     --set 'authProxy.allowedEmails[0]=nobody'
 expect_refused "authProxy with a service that is not a DNS name" -f "$chart/ci/auth-proxy-values.yaml" \
     --set 'authProxy.service=http://proxy'
+expect_refused "authProxy without oidc.issuer" -f "$chart/ci/auth-proxy-values.yaml" \
+    --set authProxy.oidc.issuer=
+expect_refused "authProxy without oidc.clientId" -f "$chart/ci/auth-proxy-values.yaml" \
+    --set authProxy.oidc.clientId=
+expect_refused "authProxy with an http oidc.issuer" -f "$chart/ci/auth-proxy-values.yaml" \
+    --set authProxy.oidc.issuer=http://identity.example.org/realms/dls
+expect_refused "an unknown authProxy.oidc key" -f "$chart/ci/auth-proxy-values.yaml" \
+    --set authProxy.oidc.clientSecret=x
 
 # Public pages (issue 497). Off by default: nothing of it renders, and scrap gets no
 # SCRAP_PUBLISH_* settings.
@@ -223,7 +231,7 @@ open=$(grep '|kind: Ingress|' "$ap" | grep '|  name: scrap-open|' || true)
 # shellcheck disable=SC2016 # $host and $escaped_request_uri are nginx's, not the shell's
 if echo "$main" | grep -Fq '|    nginx.ingress.kubernetes.io/auth-url: http://oauth2-proxy.scrap.svc.cluster.local:80/oauth2/auth?allowed_emails=first.last%40example.org|' &&
     echo "$main" | grep -Fq '|    nginx.ingress.kubernetes.io/auth-signin: https://$host/oauth2/start?rd=$escaped_request_uri|' &&
-    echo "$main" | grep -Fq '|    nginx.ingress.kubernetes.io/auth-response-headers: X-Auth-Request-Email|' &&
+    echo "$main" | grep -Fq '|    nginx.ingress.kubernetes.io/auth-response-headers: X-Auth-Request-Email,X-Auth-Request-Access-Token|' &&
     echo "$main" | grep -Fq '|    nginx.ingress.kubernetes.io/proxy-body-size: 50m|' &&
     echo "$main" | grep -Fq '|    nginx.ingress.kubernetes.io/proxy-buffer-size: 16k|' &&
     echo "$main" | grep -Fq '|          - path: /|' && ! echo "$main" | grep -q 'path: /mcp'; then
@@ -247,6 +255,17 @@ if grep -Fq '|            - name: SCRAP_IDENTITY_HEADER|              value: "X-
     grep -A1 'name: SCRAP_IDENTITY_HEADER$' | grep -q 'value: "X-Mine"'; then
     ok "authProxy: identityHeader defaults to X-Auth-Request-Email"
 else bad "authProxy: identityHeader is not X-Auth-Request-Email, or ignores identityHeader"; fi
+# scrap checks the proxy's token itself (ADR 45): the Deployment has the issuer, the
+# client and the lower-cased emails; the CronJobs (no HTTP) do not.
+deploy=$(grep '|kind: Deployment|' "$ap" | grep '|  name: scrap|' || true)
+oidc_env='|            - name: SCRAP_OIDC_ISSUER|              value: "https://identity.example.org/realms/dls"|            - name: SCRAP_OIDC_CLIENT_ID|              value: "scrap"|            - name: SCRAP_ALLOWED_EMAILS|              value: "first.last@example.org"|'
+if echo "$deploy" | grep -Fq "$oidc_env" &&
+    [ "$(grep -c 'SCRAP_OIDC_ISSUER' "$ap")" = 1 ] &&
+    helm template scrap "$chart" -f "$chart/ci/auth-proxy-values.yaml" \
+        --set 'authProxy.allowedEmails[0]=First.Last@Example.org' --set 'authProxy.allowedEmails[1]=b@x.org' |
+    grep -A1 'name: SCRAP_ALLOWED_EMAILS$' | grep -Fq 'value: "first.last@example.org,b@x.org"'; then
+    ok "authProxy: the Deployment checks the proxy's token, for the lower-cased emails"
+else bad "authProxy: the Deployment lacks SCRAP_OIDC_* or SCRAP_ALLOWED_EMAILS, or a CronJob has them"; fi
 if [ "$(helm template scrap "$chart" -f "$chart/ci/auth-proxy-values.yaml" \
     --set-string 'ingress.annotations.nginx\.ingress\.kubernetes\.io/proxy-buffer-size=32k' |
     grep -c 'nginx.ingress.kubernetes.io/proxy-buffer-size: 32k$')" = 2 ]; then
@@ -257,7 +276,7 @@ if helm template scrap "$chart" -f "$chart/ci/auth-proxy-values.yaml" \
     grep -Fq 'auth?allowed_emails=first.last%40example.org,b%40x.org'; then
     ok "authProxy: allowedEmails are lower-cased (oauth2-proxy compares them exactly)"
 else bad "authProxy: allowedEmails are not lower-cased"; fi
-if helm template scrap "$chart" | grep -Eq 'ExternalName|-open$|auth-url|proxy-buffer-size'; then
+if helm template scrap "$chart" | grep -Eq 'ExternalName|-open$|auth-url|proxy-buffer-size|SCRAP_OIDC|SCRAP_ALLOWED_EMAILS'; then
     bad "authProxy renders while off"
 else ok "authProxy is off by default"; fi
 
