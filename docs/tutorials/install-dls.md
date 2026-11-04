@@ -6,7 +6,7 @@ from the DLS network, and `/mcp` also needs a bearer token.
 
 ```{warning}
 scrap has **no login of its own**. Here the network is the gate for the web app: the hostname is
-reachable only on the DLS LAN, and from your phone only over the DLS VPN. `/mcp` has a second lock,
+reachable only on the DLS LAN, and from your phone only once it is on the DLS VPN. `/mcp` has a second lock,
 a bearer token. Do not publish the hostname anywhere wider.
 ```
 
@@ -54,8 +54,9 @@ kubectl get secret scrap-secrets -o jsonpath='{.data.SCRAP_MCP_TOKEN}' | base64 
 
 ## 3. Ask for the DNS name
 
-Names under `diamond.ac.uk` are not made for you: open a cloud team ticket asking for
-`scrap-<fedid>.diamond.ac.uk` to point at the argus ingress (ingress-nginx) for your namespace.
+Names under `diamond.ac.uk` are not made for you: raise a request at
+<https://jira.diamond.ac.uk/servicedesk/customer/portal/2/create/156> asking for
+`scrap-<fedid>.diamond.ac.uk` to be set up on the argus ingress for your namespace.
 The installer skips this step if the name already resolves. Until it exists, look at scrap with a
 port-forward:
 
@@ -65,9 +66,20 @@ kubectl port-forward svc/scrap 8000:80
 
 and open <http://127.0.0.1:8000/>. The phone app and `/mcp` need the DNS name.
 
+## Your backups
+
+scrap backs up every night at 03:30 (UTC) to `/dls/science/users/<fedid>/scrap` on the DLS
+filesystem, one folder per run, named for its time (like `20261104T033000Z`). It keeps the last 7
+daily runs, and on the 1st of each month a copy in the `monthly/` folder, keeping the last 12 of
+those. The folder is yours (mode 700 when the installer makes it) and the backup pods run as you, so
+the backups are your files. To put them elsewhere, set `SCRAP_BACKUP_DIR` before you run the
+installer. To restore from them, see [below](#install-dls-restore).
+
 ## 4. Use it
 
-- **Phone:** join the DLS VPN, open `https://scrap-<fedid>.diamond.ac.uk/` and install the app.
+- **Phone:** to use scrap from your phone, you must first add the phone to the DLS VPN; follow DLS
+  IT's VPN instructions for that. Then, on the VPN, open `https://scrap-<fedid>.diamond.ac.uk/` and
+  install the app.
 - **Claude Code**, on a DLS machine:
 
   ```
@@ -76,5 +88,7 @@ and open <http://127.0.0.1:8000/>. The phone app and `/mcp` need the DNS name.
   ```
 
 For everything the chart can do (backups, restore, upgrades), see [](../how-to/deploy-kubernetes.md).
+
+(install-dls-restore)=
 To restore from the backups in your directory, follow its restore steps with the changes in
 {ref}`backups in a hostPath <k8s-restore-hostpath>`, and your namespace in place of `-n scrap`.

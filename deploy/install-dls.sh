@@ -198,9 +198,10 @@ EOF
         echo "  1. $host already resolves: nothing to ask for."
     else
         cat <<EOF
-  1. Open a cloud team ticket asking for the DNS name
-         $host
-     to point at the argus ingress (ingress-nginx) for namespace $ns.
+  1. Raise a request at
+         https://jira.diamond.ac.uk/servicedesk/customer/portal/2/create/156
+     asking for $host
+     to be set up on the argus ingress for namespace $ns.
      Until it exists, look at scrap from this shell:
          kubectl -n $ns port-forward svc/scrap 8000:80
      then open http://127.0.0.1:8000/. /mcp and the phone app need the DNS name.
