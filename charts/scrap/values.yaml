@@ -41,9 +41,10 @@ ingest:
   budgetDayUSD: ""
 
 # SCRAP_IDENTITY_HEADER: the request header recorded as the author of a change.
-# Empty uses the app's default, Tailscale-User-Login (X-Auth-Request-Email with
-# authProxy.enabled). Behind an authenticating proxy set the header it adds, e.g.
-# X-Auth-Request-User. Only this header is read.
+# Empty uses the app's default, Tailscale-User-Login. Behind your own authenticating
+# proxy set the header it adds, e.g. X-Auth-Request-User. Only this header is read.
+# With authProxy.enabled it is not read at all: the author is the verified email in
+# the proxy's token (ADR 45).
 identityHeader: ""
 
 mcp:

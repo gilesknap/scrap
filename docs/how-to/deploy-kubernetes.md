@@ -167,7 +167,7 @@ inside them is silently ignored. The main ones:
 | `service.type`, `service.port` | `ClusterIP`, `80` | The Service. |
 | `networkPolicy.enabled`, `.from` | off | Who may connect, below. |
 | `mcp.tokenSecret.name`, `.key` | none, `SCRAP_MCP_TOKEN` | An existing Secret and the key in it holding the bearer token(s) `/mcp` requires (`SCRAP_MCP_TOKEN`, comma separated for several). Never a token as a value; the chart creates no Secret. Empty name: no token needed. See {ref}`k8s-mcp-token`. |
-| `identityHeader` | `Tailscale-User-Login` (`X-Auth-Request-Email` with `authProxy.enabled`) | `SCRAP_IDENTITY_HEADER`: the header recorded as the author, e.g. `X-Auth-Request-User` behind oauth2-proxy. |
+| `identityHeader` | `Tailscale-User-Login` | `SCRAP_IDENTITY_HEADER`: the header recorded as the author, e.g. `X-Auth-Request-User` behind oauth2-proxy. Not read with `authProxy.enabled`, where the author is the token's email. |
 | `authProxy.enabled`, `.service`, `.port`, `.allowedEmails` | off, none, `80`, none | A login for the web app through an oauth2-proxy you run, with ingress-nginx only ({ref}`k8s-auth-proxy`). |
 | `authProxy.oidc.issuer`, `.clientId` | none | Required with `authProxy.enabled`: the identity provider's issuer URL (https) and the proxy's client ID, whose access tokens scrap checks on every request (`SCRAP_OIDC_ISSUER`, `SCRAP_OIDC_CLIENT_ID`; {ref}`k8s-auth-proxy`). |
 | `extraEnv`, `extraEnvFrom` | none | Anything else for the container, such as `SCRAP_PUBLIC_URL` (see {ref}`k8s-mcp`) or `SCRAP_ENRICH`. |
@@ -398,8 +398,8 @@ annotations, on top of `ingress.annotations`. A second Ingress, `<fullname>-open
 through an `ExternalName` Service, so the sign-in, its callback
 (`https://<host>/oauth2/callback`, which the identity provider must allow) and the cookie are
 on scrap's own host. Both Ingresses get `proxy-buffer-size: 16k` unless `ingress.annotations`
-sets it, since the login's cookies overflow nginx's 4k default. `identityHeader` defaults to
-`X-Auth-Request-Email`. The install fails without `ingress.enabled`, `ingress.tls` (the cookie is
+sets it, since the login's cookies overflow nginx's 4k default. The author of a change is
+the verified email in the proxy's token, so `identityHeader` is not read. The install fails without `ingress.enabled`, `ingress.tls` (the cookie is
 https only), `mcp.tokenSecret.name`, `authProxy.service`, `authProxy.allowedEmails`,
 `authProxy.oidc.issuer` or `authProxy.oidc.clientId`.
 
