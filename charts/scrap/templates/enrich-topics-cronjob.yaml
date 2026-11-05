@@ -1,5 +1,5 @@
 {{- /* The weekly topics pass needs Claude, so it exists only with ingest on. */ -}}
-{{- if and .Values.enrichTopics.enabled .Values.ingest.enabled }}
+{{- if and .Values.enrichTopics.enabled .Values.ingest.enabled (not .Values.litestream.enabled) }}
 {{- $suffix := "-enrich-topics" }}
 apiVersion: batch/v1
 kind: CronJob

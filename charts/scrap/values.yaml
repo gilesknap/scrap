@@ -199,6 +199,51 @@ enrichTopics:
     limits:
       memory: 1Gi
 
+# The database on an emptyDir (the node's disk), replicated continuously by Litestream to
+# /data/litestream on the data volume, for a data volume on NFS or another network
+# filesystem, where SQLite's WAL is not safe (ADR 46, docs/how-to/deploy-kubernetes.md).
+# files/ stays on the data volume. Off: the database stays at /data/scrap.db.
+# On: the last moments of writes (about a second) are lost if the node dies. An init
+# container restores the database, brings an existing /data/scrap.db across once, or
+# refuses to start; backups work from a restore of the replica; and gc and the Claude
+# passes run in a "jobs" container in the scrap pod, not as CronJobs. Needs Kubernetes 1.29.
+litestream:
+  enabled: false
+  image:
+    repository: litestream/litestream
+    # An exact version, chosen in ADR 46. Moving it is a decision: read the release notes.
+    tag: "0.5.18"
+    digest: sha256:513bff62a88fc0c86c73d27333c41c54c89fe890a7c32a551600adff9309b11b
+    pullPolicy: IfNotPresent
+  # The emptyDir's limit. Past it the kubelet evicts the pod, so leave room for the WAL.
+  sizeLimit: 2Gi
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      memory: 256Mi
+  init:
+    # true starts scrap although the replica is missing or the install has history, or
+    # lets the replica win over a changed /data/scrap.db (db-init's log says which). For
+    # after a person has looked. Set it back to false afterwards.
+    override: false
+    resources:
+      requests:
+        cpu: 50m
+        memory: 128Mi
+      limits:
+        memory: 1Gi
+  # The jobs container: gc and, with ingest on, the Claude passes, with their usual
+  # schedules (gc.schedule and so on), and the heartbeat the backup jobs check.
+  jobs:
+    resources:
+      requests:
+        cpu: 50m
+        memory: 256Mi
+      limits:
+        memory: 1Gi
+
 service:
   type: ClusterIP
   port: 80

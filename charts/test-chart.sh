@@ -120,6 +120,11 @@ expect_refused "authProxy without oidc.clientId" -f "$chart/ci/auth-proxy-values
     --set authProxy.oidc.clientId=
 expect_refused "authProxy with an http oidc.issuer" -f "$chart/ci/auth-proxy-values.yaml" \
     --set authProxy.oidc.issuer=http://identity.example.org/realms/dls
+expect_refused "an unknown litestream key" --set litestream.replicas=2
+expect_refused "a litestream digest that is not one" --set litestream.image.digest=latest
+expect_refused "litestream without native sidecars" --set litestream.enabled=true --kube-version 1.28.0
+expect_refused "litestream with gc but no backups" --set litestream.enabled=true \
+    --set backup.enabled=false --set gc.enabled=true
 expect_refused "an unknown authProxy.oidc key" -f "$chart/ci/auth-proxy-values.yaml" \
     --set authProxy.oidc.clientSecret=x
 
@@ -312,6 +317,62 @@ if ! echo "$hp" | grep -q -- '-backups$' && ! echo "$hp" | grep -q 'claimName: s
     ok "backup.persistence.hostPath: no backups claim, all three CronJobs mount the directory"
 else bad "backup.persistence.hostPath still makes a backups claim, or a CronJob lacks the directory"; fi
 
+# Litestream (ADR 46). Off, nothing of it renders. On: the database on an emptyDir (the
+# node's disk, not memory), the init order, Litestream a native sidecar, gc and the Claude
+# passes in the pod not CronJobs, the backup jobs from the replica with the claim read only.
+if helm template scrap "$chart" | grep -Eiq 'litestream|SCRAP_DB_PATH|SCRAP_SCHEDULE|name: db-init|name: jobs'; then
+    bad "litestream renders while off"
+else ok "litestream is off by default"; fi
+ls_out=$(helm template scrap "$chart" -f "$chart/ci/litestream-values.yaml")
+ls_docs="$out/litestream-docs"
+echo "$ls_out" | awk 'function end_doc() { if (doc != "") print doc; doc = "" }
+    /^---/ { end_doc(); next } { doc = doc $0 "|" } END { end_doc() }' >"$ls_docs"
+ls_dep=$(grep '|kind: Deployment|' "$ls_docs")
+ls_order=$(echo "$ls_out" | awk '/^kind: Deployment$/{d=1} /^---/{d=0} d && /^      volumes:$/{d=0} d && /^        - name: /{print $3}' | tr '\n' ' ')
+if [ "$ls_order" = "litestream-tool db-init litestream scrap jobs " ]; then
+    ok "litestream: the tool, db-init, Litestream, then scrap and jobs"
+else bad "litestream: the containers are in the wrong order: $ls_order"; fi
+if echo "$ls_dep" | grep -q '|          restartPolicy: Always|' &&
+    [ "$(echo "$ls_dep" | grep -o 'restartPolicy: Always' | wc -l)" = 1 ]; then
+    ok "litestream: a native sidecar, stopped after scrap"
+else bad "litestream: not a native sidecar"; fi
+if echo "$ls_dep" | grep -Fq '|        - name: db|          emptyDir:|            sizeLimit: 2Gi|' &&
+    ! echo "$ls_dep" | grep -q 'medium:'; then
+    ok "litestream: the database on a disk emptyDir"
+else bad "litestream: the database is not on a disk emptyDir"; fi
+if echo "$ls_dep" | grep -q 'terminationGracePeriodSeconds: 60|'; then
+    ok "litestream: time for the last sync on shutdown"
+else bad "litestream: no extra terminationGracePeriodSeconds"; fi
+if echo "$ls_out" | grep -Eq 'image: litestream/litestream:[0-9]+\.[0-9]+\.[0-9]+@sha256:[0-9a-f]{64}$'; then
+    ok "litestream: an exact version and digest"
+else bad "litestream: the image is not pinned"; fi
+ls_crons=$(echo "$ls_out" | grep -A3 '^kind: CronJob$' | grep '^  name: ' | tr -s ' ' | tr '\n' ' ')
+if [ "$ls_crons" = " name: scrap-backup  name: scrap-backup-monthly " ]; then
+    ok "litestream: gc and the Claude passes are not CronJobs"
+else bad "litestream: CronJobs are not just the backups: $ls_crons"; fi
+ls_sched=$(echo "$ls_out" | grep -A1 'name: SCRAP_SCHEDULE$' | grep 'value:')
+if echo "$ls_sched" | grep -Fq '\"name\":\"gc\"' && echo "$ls_sched" | grep -q 'enrich-related' &&
+    echo "$ls_sched" | grep -q 'enrich-topics' && echo "$ls_sched" | grep -Fq '30 4 * * *' &&
+    echo "$ls_sched" | grep -Fq '41 3 * * *' && echo "$ls_sched" | grep -Fq '11 4 * * 0' &&
+    echo "$ls_sched" | grep -Fq 'name COMPLETE -mmin -1560' && echo "$ls_sched" | grep -Fq 'counting only'; then
+    ok "litestream: gc and the Claude passes on their schedules, gc still checking for a backup"
+else bad "litestream: SCRAP_SCHEDULE lacks a job, a schedule or gc's backup check"; fi
+if [ "$(echo "$ls_out" | grep -c -- '--from-replica "$SCRAP_LITESTREAM_REPLICA"')" = 2 ] &&
+    ! grep '|kind: CronJob|' "$ls_docs" | grep -q 'SCRAP_DB_PATH' &&
+    [ "$(grep '|kind: CronJob|' "$ls_docs" | grep -c '|                  mountPath: /data|                  readOnly: true|')" = 2 ] &&
+    [ "$(grep '|kind: CronJob|' "$ls_docs" | grep -c 'podAffinity:')" = 2 ]; then
+    ok "litestream: both backups from the replica, read only, on the scrap pod's node"
+else bad "litestream: a backup job is not from the replica, read only and beside the pod"; fi
+lhp=$(helm template scrap "$chart" -f "$chart/ci/litestream-hostpath-values.yaml")
+if [ "$(echo "$lhp" | grep -A1 '^ *hostPath:$' | grep -c 'path: "/dls/science/users/abc12345/scrap"')" = 3 ]; then
+    ok "litestream: the scrap pod and both backups mount a hostPath's backups"
+else bad "litestream: something lacks the backups hostPath"; fi
+if helm template scrap "$chart" -f "$chart/ci/litestream-values.yaml" --set litestream.init.override=true |
+    grep -A1 'name: SCRAP_DB_INIT_OVERRIDE$' | grep -q 'value: "on"' &&
+    ! echo "$ls_out" | grep -q SCRAP_DB_INIT_OVERRIDE; then
+    ok "litestream: the init's override is off unless set"
+else bad "litestream: the init's override is wrong"; fi
+
 # By default both claims (data and backups) carry the annotations that keep them
 # through helm uninstall and an Argo CD prune.
 pvcs=$(helm template scrap "$chart" | awk '
@@ -332,6 +393,7 @@ docs=$repo/docs/reference/api.md
     helm template scrap "$chart" -f "$chart/ci/ingest-values.yaml"
     helm template scrap "$chart" -f "$chart/ci/mcp-auth-values.yaml"
     helm template scrap "$chart" -f "$chart/ci/public-values.yaml"
+    helm template scrap "$chart" -f "$chart/ci/litestream-values.yaml" --set litestream.init.override=true
 } |
     grep -oE 'name: (SCRAP|ANTHROPIC)_[A-Z_]+' | sed 's/name: //' | sort -u >"$out/env"
 while read -r var; do

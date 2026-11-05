@@ -1,0 +1,8 @@
+# The database on an emptyDir, replicated by Litestream to the data volume; the Claude
+# passes and gc in the scrap pod (ADR 46).
+litestream:
+  enabled: true
+ingest:
+  enabled: true
+  existingSecret: scrap-secrets
+  notifyUrlKey: SCRAP_NOTIFY_URL

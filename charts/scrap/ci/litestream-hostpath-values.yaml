@@ -1,0 +1,13 @@
+# The DLS shape: Litestream, with backups in a directory every node mounts.
+litestream:
+  enabled: true
+  resources: {limits: {cpu: 500m}}
+  init: {resources: {limits: {cpu: 500m}}}
+  jobs: {resources: {limits: {cpu: 500m}}}
+backup:
+  persistence:
+    hostPath: /dls/science/users/abc12345/scrap
+podSecurityContext:
+  runAsUser: 1200288
+  runAsGroup: 1200288
+  fsGroup: 1200288

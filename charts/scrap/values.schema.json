@@ -106,6 +106,38 @@
         "resources": {"type": "object"}
       }
     },
+    "litestream": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "image": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "repository": { "type": "string", "minLength": 1 },
+            "tag": { "type": "string", "minLength": 1 },
+            "digest": { "type": "string", "pattern": "^(sha256:[0-9a-f]{64})?$" },
+            "pullPolicy": { "type": "string", "enum": ["Always", "IfNotPresent", "Never"] }
+          }
+        },
+        "sizeLimit": { "type": "string", "minLength": 1 },
+        "resources": { "type": "object" },
+        "init": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "override": { "type": "boolean" },
+            "resources": { "type": "object" }
+          }
+        },
+        "jobs": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": { "resources": { "type": "object" } }
+        }
+      }
+    },
     "service": {"type": "object"},
     "ingress": {
       "type": "object",

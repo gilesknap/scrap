@@ -14,8 +14,9 @@ behind an authenticating proxy.
 ## Requirements
 
 - Kubernetes 1.27 or newer, and Helm 3 or 4.
-- A StorageClass that provides `ReadWriteOnce` volumes on a local or block filesystem. Do not use
-  NFS or another network filesystem: SQLite's WAL mode needs reliable shared memory and locking.
+- A StorageClass that provides `ReadWriteOnce` volumes on a local or block filesystem. Do not put
+  the database on NFS or another network filesystem: SQLite's WAL mode needs reliable shared memory
+  and locking. If NFS is all there is, set `litestream.enabled` (below).
 - A private way in. The [Tailscale Kubernetes
   operator](https://tailscale.com/kb/1236/kubernetes-operator) is the recommended one.
 - For photo ingest, a Claude API key in a Secret that you create (see below).
@@ -137,6 +138,13 @@ with the Bypass action: a wildcard application covers every subdomain. See the g
   `gc.jobDays` (default 30). The scrap pod shows each trashed page's purge date from
   `gc.trashDays` (`SCRAP_TRASH_DAYS`, `off` while gc does not delete). `kubectl -n scrap exec
   deploy/scrap -- scrap gc --report` prints what the store holds, by size.
+- `litestream.enabled` (default off; Kubernetes 1.29 or newer) puts the database on an emptyDir on
+  the node's disk, replicated continuously by Litestream to the data volume, for a volume on NFS. If
+  the node dies the last moments of writes are lost. An init container restores it, brings an existing
+  `/data/scrap.db` across once, or refuses to start. Backups work from a restore of the replica
+  (still beside the scrap pod, for the `ReadWriteOnce` claim); gc and the Claude passes run in a `jobs`
+  container in the pod, not as CronJobs; and restoring a backup takes `scrap restore --stage`. See
+  [its section of the guide](https://gilesknap.github.io/scrap/main/how-to/deploy-kubernetes.html#k8s-litestream).
 - Database migrations are forward only, so rolling back to an older version also needs a restore
   of the database.
 

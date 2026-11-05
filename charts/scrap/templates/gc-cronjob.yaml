@@ -2,10 +2,9 @@
 {{- if and .Values.gc.requireBackup (not .Values.backup.enabled) }}
 {{- fail "gc.enabled=true needs backup.enabled (gc deletes only after a recent backup); leave gc.enabled unset or false, or gc.requireBackup=false to delete without one" }}
 {{- end }}
+{{- /* With Litestream the job runs in the scrap pod instead: scrap.scheduledJobs. */ -}}
+{{- if not .Values.litestream.enabled }}
 {{- $suffix := "-gc" }}
-{{- /* Deleting is on only with a grace period: with none, a file an upload is still
-writing could be deleted. Otherwise the job only counts. */ -}}
-{{- $delete := and .Values.gc.delete (gt (float64 .Values.gc.graceHours) 0.0) }}
 apiVersion: batch/v1
 kind: CronJob
 metadata:
@@ -56,36 +55,7 @@ spec:
                 - /bin/sh
                 - -ec
                 - |
-                  {{- if .Values.backup.enabled }}
-                  # Not during a backup run (the backup job takes the same lock).
-                  exec 9>"$SCRAP_BACKUPS/.lock"
-                  flock 9
-                  {{- end }}
-                  {{- if $delete }}
-                  {{- if .Values.gc.requireBackup }}
-                  recent=$(find "$SCRAP_BACKUPS" -mindepth 2 -maxdepth 2 -type f -name COMPLETE -mmin -1560 \
-                      -path '*/[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]T[0-9][0-9][0-9][0-9][0-9][0-9]Z/COMPLETE' |
-                      head -n 1)
-                  {{- else }}
-                  recent=unchecked
-                  {{- end }}
-                  mode=--delete
-                  if [ -z "$recent" ]; then
-                      echo "No backup in the last 26 hours: counting only, deleting nothing." >&2
-                      mode=--dry-run
-                  fi
-                  scrap gc "$mode" --grace-hours {{ .Values.gc.graceHours | toString | quote }} \
-                      --run-days {{ .Values.gc.runDays | toString | quote }} \
-                      --trash-days {{ .Values.gc.trashDays | toString | quote }} \
-                      --job-days {{ .Values.gc.jobDays | toString | quote }}
-                  [ -n "$recent" ] || exit 1
-                  {{- else }}
-                  # Counting only (gc.delete is off, or gc.graceHours is 0): see values.yaml.
-                  scrap gc --dry-run --grace-hours {{ .Values.gc.graceHours | toString | quote }} \
-                      --run-days {{ .Values.gc.runDays | toString | quote }} \
-                      --trash-days {{ .Values.gc.trashDays | toString | quote }} \
-                      --job-days {{ .Values.gc.jobDays | toString | quote }}
-                  {{- end }}
+                  {{- include "scrap.gcScript" . | trim | nindent 18 }}
               env:
                 - name: SCRAP_DATA_DIR
                   value: /data
@@ -125,4 +95,5 @@ spec:
             {{- end }}
             - name: tmp
               emptyDir: {}
+{{- end }}
 {{- end }}

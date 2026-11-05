@@ -31,7 +31,14 @@ spec:
       affinity:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      {{- if .Values.litestream.enabled }}
+      # 30s more for Litestream's last sync: it stops after the containers below.
+      terminationGracePeriodSeconds: {{ add .Values.terminationGracePeriodSeconds 30 }}
+      initContainers:
+        {{- include "scrap.litestreamInit" . | nindent 8 }}
+      {{- else }}
       terminationGracePeriodSeconds: {{ .Values.terminationGracePeriodSeconds }}
+      {{- end }}
       containers:
         - name: scrap
           image: {{ include "scrap.image" . }}
@@ -95,6 +102,13 @@ spec:
               mountPath: /run/secrets/scrap-publish
               readOnly: true
             {{- end }}
+            {{- if .Values.litestream.enabled }}
+            - name: db
+              mountPath: /db
+            {{- end }}
+        {{- if .Values.litestream.enabled }}
+        {{- include "scrap.jobsContainer" . | nindent 8 }}
+        {{- end }}
       volumes:
         - name: data
           persistentVolumeClaim:
@@ -102,6 +116,20 @@ spec:
         - name: tmp
           emptyDir:
             sizeLimit: 1Gi
+        {{- if .Values.litestream.enabled }}
+        # The database: on the node's disk, gone when the pod goes (the replica on the
+        # data volume brings it back).
+        - name: db
+          emptyDir:
+            sizeLimit: {{ .Values.litestream.sizeLimit }}
+        - name: tools
+          emptyDir:
+            sizeLimit: 128Mi
+        {{- if .Values.backup.enabled }}
+        - name: backups
+          {{- include "scrap.backupVolume" . | nindent 10 }}
+        {{- end }}
+        {{- end }}
         {{- if .Values.public.enabled }}
         - name: publish-token
           secret:
