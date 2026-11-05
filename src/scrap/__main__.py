@@ -24,6 +24,12 @@ def main(args: Sequence[str] | None = None) -> None:
     common.add_argument(
         "--data-dir", type=Path, help="Data folder (default $SCRAP_DATA_DIR or ./data)"
     )
+    common.add_argument(
+        "--db-path",
+        type=Path,
+        help="The database, if not in the data folder (default $SCRAP_DB_PATH; a"
+        " --data-dir on its own means the database in that folder)",
+    )
     subparsers = parser.add_subparsers(dest="command")
     serve = subparsers.add_parser(
         "serve", parents=[common], help="Run the scrap web service"
@@ -44,7 +50,27 @@ def main(args: Sequence[str] | None = None) -> None:
     ]:
         sub = subparsers.add_parser(name, parents=[common], help=text)
         sub.add_argument("dir", type=Path)
+        if name == "backup":
+            sub.add_argument(
+                "--from-replica",
+                type=Path,
+                help="Back up a restore of this Litestream replica, with the data"
+                " folder's files, instead of the live database (ADR 46)",
+            )
+            sub.add_argument(
+                "--max-replica-age-hours",
+                type=float,
+                default=3.0,
+                help="With --from-replica: refuse a replica whose heartbeat is older"
+                " than this (0: do not check; default 3)",
+            )
         if name == "restore":
+            sub.add_argument(
+                "--stage",
+                action="store_true",
+                help="With Litestream (ADR 46): leave the backup in the data folder for"
+                " the next pod start to take up, in place of the replica",
+            )
             sub.add_argument(
                 "--force",
                 action="store_true",
@@ -77,6 +103,17 @@ def main(args: Sequence[str] | None = None) -> None:
         help="Queue the new pages' photos for Claude to read, on the vision model"
         " (the dearer part; off: none, Reprocess on a page sends them later)",
     )
+    subparsers.add_parser(
+        "db-init",
+        help="Before scrap starts with Litestream: put the database in place, or fail"
+        " (the init container; ADR 46). Settings from the environment",
+    )
+    sched = subparsers.add_parser(
+        "schedule",
+        help="Run the jobs in $SCRAP_SCHEDULE on their schedules, beside the service"
+        " (the pod's jobs container, with Litestream; ADR 46)",
+    )
+    sched.add_argument("--run", metavar="JOB", help="Run this job once, now, and stop")
     gc = subparsers.add_parser(
         "gc",
         parents=[common],
@@ -201,6 +238,9 @@ def main(args: Sequence[str] | None = None) -> None:
             parser.error("serve: --uds listens on a socket only; drop --host/--port")
         if parsed.data_dir:
             os.environ["SCRAP_DATA_DIR"] = str(parsed.data_dir)
+        db = db_path(parsed)
+        if db:
+            os.environ["SCRAP_DB_PATH"] = str(db)
         if parsed.uds is None:
             uvicorn.run(
                 "scrap.app:create_app",
@@ -219,11 +259,22 @@ def main(args: Sequence[str] | None = None) -> None:
         # left behind on stop and replaced by the next start.
         config = uvicorn.Config("scrap.app:create_app", factory=True)
         uvicorn.Server(config).run(sockets=[sock])
+    elif parsed.command == "db-init":
+        from .dbinit import from_env
+
+        print(f"scrap db-init: {from_env()}")
+    elif parsed.command == "schedule":
+        from .schedule import from_env as schedule
+
+        schedule(parsed.run)
     elif parsed.command:
         from . import backup, export
         from .store import Store
 
-        store = Store(parsed.data_dir or os.environ.get("SCRAP_DATA_DIR", "data"))
+        store = Store(
+            parsed.data_dir or os.environ.get("SCRAP_DATA_DIR", "data"),
+            db_path(parsed),
+        )
         if parsed.command == "gc":
             gc_command(store, parsed)
         elif parsed.command == "import":
@@ -286,13 +337,35 @@ def main(args: Sequence[str] | None = None) -> None:
                 verb = "would queue" if parsed.dry_run else "queued"
                 print(f"{verb} {n} untagged pages for Claude")
         elif parsed.command == "backup":
-            backup.backup(store, parsed.dir)
+            if parsed.from_replica:
+                from .replica import backup_from_replica
+
+                backup_from_replica(
+                    store.dir, parsed.from_replica, parsed.dir,
+                    parsed.max_replica_age_hours,
+                )  # fmt: skip
+            else:
+                backup.backup(store, parsed.dir)
         elif parsed.command == "restore":
+            from .dbinit import check_restore, staged
+
+            if parsed.stage:
+                store = staged(store.dir)
+            else:
+                check_restore()
             backup.restore(parsed.dir, store, parsed.force)
         else:
             print(f"exported {export.export(store, parsed.dir)} pages to {parsed.dir}")
     else:
         parser.print_help()
+
+
+def db_path(parsed: Any) -> Path | None:
+    """The database a command was told to use: --db-path, or with --data-dir alone the
+    one in that folder (not $SCRAP_DB_PATH's); None leaves it to the Store."""
+    if parsed.db_path:
+        return parsed.db_path
+    return parsed.data_dir / "scrap.db" if parsed.data_dir else None
 
 
 def trash_days(value: str) -> float | None:

@@ -114,7 +114,9 @@ def restore(src: Path, store: Store, force: bool = False) -> None:
         raise SystemExit(f"{store.dir} is not empty; stop scrap and use --force")
     created = not store.dir.exists()
     store.dir.mkdir(parents=True, exist_ok=True)
-    part = store.dir / "scrap.db.restore"
+    store.db.parent.mkdir(parents=True, exist_ok=True)
+    # Beside the database, not the files: the swap below is a rename (ADR 46)
+    part = store.db.with_name("scrap.db.restore")
     try:
         _restore_into(src, store, part)
     except BaseException:  # a refusal or Ctrl-C: leave no backup-sized leftover

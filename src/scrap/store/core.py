@@ -22,9 +22,11 @@ class Core:
         # The methods the mixins call on one another live on the assembled Store.
         def __getattr__(self, name: str) -> Any: ...
 
-    def __init__(self, data_dir: Path | str):
+    def __init__(self, data_dir: Path | str, db: Path | str | None = None):
         self.dir = Path(data_dir)
-        self.db = self.dir / "scrap.db"
+        # db, else $SCRAP_DB_PATH (ADR 46: the database off a network data folder), else
+        # beside the files. The lock, WAL and restore's copy all go beside it.
+        self.db = Path(db or os.environ.get("SCRAP_DB_PATH") or self.dir / "scrap.db")
         self.files = self.dir / "files"
         self.window = revision_window()  # seconds: see _record_meta
         # The current prompt versions (writeup), set by whoever makes the Store
@@ -43,6 +45,7 @@ class Core:
     def migrate(self) -> None:
         """Create the data folder and bring the schema up to date."""
         self.files.mkdir(parents=True, exist_ok=True)
+        self.db.parent.mkdir(parents=True, exist_ok=True)
         migrate(self.db)
 
     def blob_path(self, sha: str) -> Path:
