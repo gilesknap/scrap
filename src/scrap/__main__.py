@@ -1,12 +1,13 @@
 """Interface for ``python -m scrap``."""
 
 import os
+import sys
 from argparse import ArgumentParser, ArgumentTypeError
 from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
 
-from . import __version__
+from . import __version__, litestream_cli
 
 __all__ = ["main"]
 
@@ -103,17 +104,7 @@ def main(args: Sequence[str] | None = None) -> None:
         help="Queue the new pages' photos for Claude to read, on the vision model"
         " (the dearer part; off: none, Reprocess on a page sends them later)",
     )
-    subparsers.add_parser(
-        "db-init",
-        help="Before scrap starts with Litestream: put the database in place, or fail"
-        " (the init container; ADR 46). Settings from the environment",
-    )
-    sched = subparsers.add_parser(
-        "schedule",
-        help="Run the jobs in $SCRAP_SCHEDULE on their schedules, beside the service"
-        " (the pod's jobs container, with Litestream; ADR 46)",
-    )
-    sched.add_argument("--run", metavar="JOB", help="Run this job once, now, and stop")
+    litestream_cli.add_parsers(subparsers, common)
     gc = subparsers.add_parser(
         "gc",
         parents=[common],
@@ -164,6 +155,12 @@ def main(args: Sequence[str] | None = None) -> None:
         help="Delete the finished (done or dead) ingest and enrich job records last"
         " changed more than this many days ago (1 to 36500), but the latest of each"
         " photo and of each page (default 30)",
+    )
+    gc.add_argument(
+        "--allow-large",
+        action="store_true",
+        help="On a Litestream install: delete although a safety limit says to count"
+        " only (ADR 46). After a person has looked",
     )
     gc.add_argument(
         "--report",
@@ -259,16 +256,10 @@ def main(args: Sequence[str] | None = None) -> None:
         # left behind on stop and replaced by the next start.
         config = uvicorn.Config("scrap.app:create_app", factory=True)
         uvicorn.Server(config).run(sockets=[sock])
-    elif parsed.command == "db-init":
-        from .dbinit import from_env
-
-        print(f"scrap db-init: {from_env()}")
-    elif parsed.command == "schedule":
-        from .schedule import from_env as schedule
-
-        schedule(parsed.run)
+    elif litestream_cli.run(parsed):
+        pass
     elif parsed.command:
-        from . import backup, export
+        from . import backup, dbstate, export
         from .store import Store
 
         store = Store(
@@ -354,6 +345,8 @@ def main(args: Sequence[str] | None = None) -> None:
             else:
                 check_restore()
             backup.restore(parsed.dir, store, parsed.force)
+            if not parsed.stage:
+                dbstate.forget_if_here(store.db, store.dir)
         else:
             print(f"exported {export.export(store, parsed.dir)} pages to {parsed.dir}")
     else:
@@ -382,7 +375,9 @@ def gc_command(store: Any, parsed: Any) -> None:
     """scrap gc: the run (a dry run unless --delete), or with --report the sizes."""
     import sqlite3
 
-    from .gc import GcError, collect
+    from .dbstate import StateError, refuse_old_database
+    from .gc import GcError
+    from .gc_guard import guarded
 
     try:
         if parsed.report:
@@ -401,17 +396,23 @@ def gc_command(store: Any, parsed: Any) -> None:
             except sqlite3.Error as error:
                 raise GcError(f"cannot read the database: {error}") from None
             return
-        report = collect(
+        refuse_old_database(store.db, store.dir)
+        report, hold = guarded(
             store,
             parsed.delete and not parsed.dry_run,
+            parsed.allow_large,
             parsed.grace_hours,
             parsed.run_days,
             trash_days=parsed.trash_days,
             job_days=parsed.job_days,
         )
-    except GcError as error:
+    except (GcError, StateError) as error:
         raise SystemExit(f"scrap gc: {error}") from None
     print(report.text())
+    if hold:
+        print(f"scrap gc: deleted nothing: {hold.why}", file=sys.stderr)
+        if hold.fails:
+            raise SystemExit(1)
 
 
 def import_command(store: Any, parsed: Any) -> None:

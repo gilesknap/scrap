@@ -2,16 +2,22 @@
 
 import json
 import os
+import shutil
 import sqlite3
 import stat
+import subprocess
+import time
 from contextlib import closing
+from pathlib import Path
 
 import pytest
+import yaml
 
-from scrap import dbinit
+from scrap import dbinit, dbstate
 from scrap.__main__ import main
 from scrap.dbinit import InitError, Paths, put_in_place
 from scrap.replica import ReplicaError, has_replica
+from scrap.schedule import load
 from scrap.store import Store, connect, migrate
 
 FAKE = """#!/bin/sh
@@ -88,6 +94,14 @@ def test_a_kept_database_even_with_a_broken_replica(paths):
     assert "kept" in put_in_place(paths)
 
 
+def test_a_kept_database_gets_its_state_if_the_first_start_died(paths):
+    paths.db.parent.mkdir()
+    make_db(paths.db, "live")
+    assert not (paths.data / dbinit.STATE).exists()
+    put_in_place(paths)
+    assert json.loads((paths.data / dbinit.STATE).read_text())["how"] == "kept"
+
+
 # Rule 2 (the brief's): a replica is restored, and failure is failure
 
 
@@ -144,6 +158,7 @@ def test_after_a_failed_restore_a_retry_can_work(paths):
 
 def test_empty_replica_folders_are_not_a_replica(paths):
     (paths.replica / "ltx" / "0").mkdir(parents=True)
+    (paths.replica / "ltx" / "0" / "half.ltx.tmp").touch()  # never finished
     assert not has_replica(paths.replica)
     assert not has_replica(paths.data / "none")
 
@@ -220,6 +235,17 @@ def test_a_lost_replica_never_brings_a_stale_legacy_database_back(paths):
     assert not paths.db.exists()
 
 
+def test_the_changed_legacy_message_says_the_replica_may_be_newer(paths):
+    with_legacy(paths)
+    put_in_place(paths)
+    paths.db.unlink()
+    with_replica(paths)
+    make_db(paths.data / "other.db", "x")
+    (paths.data / "other.db").replace(paths.data / "scrap.db")
+    with pytest.raises(InitError, match="may well be the newer copy"):
+        put_in_place(paths)
+
+
 def test_a_changed_legacy_database_is_not_overwritten_by_the_replica(paths):
     """A plain scrap restore into /data, by the old steps: the replica must not win."""
     with_legacy(paths)
@@ -252,6 +278,26 @@ def test_a_database_written_there_on_a_new_install_counts_as_changed(paths):
 
 
 # Rule 4: new, only if nothing says otherwise
+
+
+def test_an_empty_legacy_file_is_no_stand_in_when_there_is_history(paths):
+    Store(paths.data, paths.data / "scrap.db").migrate()  # made, no pages
+    (paths.data / "files" / "ab").mkdir(parents=True)
+    with pytest.raises(InitError, match="has been used"):
+        put_in_place(paths)
+    assert not paths.db.exists()
+
+
+def test_a_zero_byte_legacy_file_is_no_stand_in(paths):
+    (paths.data / "scrap.db").touch()
+    (paths.backups / "20261104T033000Z").mkdir(parents=True)
+    with pytest.raises(InitError, match="backup runs"):
+        put_in_place(paths)
+
+
+def test_an_empty_legacy_file_with_no_history_is_new(paths):
+    Store(paths.data, paths.data / "scrap.db").migrate()
+    assert "new" in put_in_place(paths)
 
 
 def test_a_new_database(paths):
@@ -302,19 +348,30 @@ def test_the_state_file_without_a_replica_fails_closed(paths):
 
 def test_a_damaged_state_file_fails_closed(paths):
     (paths.data / dbinit.STATE).write_text("{")
-    with pytest.raises(InitError, match="not readable"):
+    with pytest.raises(dbstate.StateError, match="not readable"):
         put_in_place(paths)
 
 
-def test_the_override_gets_past_each_refusal(paths):
+def test_the_override_gets_past_each_refusal_and_is_remembered(paths):
     paths.override = True
     (paths.data / "files" / "ab").mkdir(parents=True)
-    assert "new" in put_in_place(paths)  # history
+    said = put_in_place(paths)  # history
+    assert "new" in said and "db-hold --clear" in said
+    state = json.loads((paths.data / dbinit.STATE).read_text())
+    assert state["override_at"] and "has been used" in state["override_why"]
     paths.db.unlink()
+    paths.overridden.clear()
     assert "new" in put_in_place(paths)  # the state, no replica
     paths.db.unlink()
+    paths.overridden.clear()
     with_legacy(paths)
     assert "brought" in put_in_place(paths)  # the state, no replica, so the old file
+
+
+def test_the_override_with_nothing_to_override_records_nothing(paths):
+    paths.override = True
+    assert "WARNING" not in put_in_place(paths)
+    assert "override_at" not in json.loads((paths.data / dbinit.STATE).read_text())
 
 
 def test_leftovers_of_a_failed_start_are_cleared(paths):
@@ -379,6 +436,180 @@ def test_the_replica_after_a_staged_restore_is_used_again(paths):
     with_replica(paths, "made since the restore")
     assert "restored" in put_in_place(paths)
     assert titles(paths.db) == ["made since the restore"]
+
+
+def test_a_staged_restore_older_than_the_replicas_writes_is_refused(paths):
+    staged_store(paths)
+    with_replica(paths)
+    now = time.time()
+    os.utime(paths.data / dbinit.STAGED, (now - 600, now - 600))
+    os.utime(paths.replica / "fake.db", (now, now))
+    with pytest.raises(InitError, match="went on running") as refused:
+        put_in_place(paths)
+    assert "touch" in str(refused.value)
+    assert paths.replica.is_dir() and not paths.db.exists()
+    os.utime(paths.data / dbinit.STAGED, (now + 5, now + 5))  # the way through it names
+    assert "staged" in put_in_place(paths)
+
+
+def test_a_staged_restore_starts_gc_holding(paths):
+    staged_store(paths)
+    put_in_place(paths)
+    state = json.loads((paths.data / dbinit.STATE).read_text())
+    assert state["restored_at"]
+
+
+def test_restore_stage_refuses_beside_a_live_database(paths, tmp_path, monkeypatch):
+    paths.db.parent.mkdir()
+    paths.db.touch()
+    monkeypatch.setenv("SCRAP_DB_PATH", str(paths.db))
+    with_replica(paths)
+    args = ["restore", str(tmp_path), "--stage", "--data-dir", str(paths.data)]
+    with pytest.raises(SystemExit, match="scrap is running here"):
+        main(args)
+
+
+def test_restore_stage_without_litestream_says_so(tmp_path):
+    with pytest.raises(SystemExit, match="no sign of one"):
+        main(["restore", str(tmp_path), "--stage", "--data-dir", str(tmp_path / "d")])
+
+
+# How far behind the replica is
+
+
+def stamped(paths, behind):
+    now = int(time.time() // 60)
+    with_replica(paths)
+    with closing(sqlite3.connect(paths.replica / "fake.db")) as conn:
+        conn.execute(f"PRAGMA application_id = {now - behind}")
+    dbstate.record_stamp(paths.data, now)
+
+
+def test_a_replica_level_with_the_last_stamp_is_quiet(paths):
+    stamped(paths, 0)
+    said = put_in_place(paths)
+    assert (
+        "restored" in said and "stamp 0 minutes old" in said and "WARNING" not in said
+    )
+    assert not (paths.data / dbstate.HEALTH).exists()  # begins again
+
+
+def test_a_replica_a_little_behind_warns(paths):
+    stamped(paths, 15)
+    said = put_in_place(paths)
+    assert "restored" in said and "WARNING" in said and "15 minutes behind" in said
+
+
+def test_a_replica_far_behind_refuses(paths):
+    stamped(paths, 120)
+    with pytest.raises(InitError, match="stalled"):
+        put_in_place(paths)
+    assert not paths.db.exists()
+    assert dbstate.last_stamp(paths.data)  # still there for the next look
+    paths.db.with_name("scrap.db.restoring").is_dir()
+
+
+def test_the_override_goes_on_from_a_replica_far_behind_and_holds_gc(paths):
+    stamped(paths, 120)
+    paths.override = True
+    assert "restored" in put_in_place(paths)
+    assert json.loads((paths.data / dbinit.STATE).read_text())["override_at"]
+
+
+def test_a_replica_with_no_stamp_though_one_was_written_refuses(paths):
+    with_replica(paths)
+    dbstate.record_stamp(paths.data, int(time.time() // 60))
+    with pytest.raises(InitError, match="behind what was last written"):
+        put_in_place(paths)
+
+
+# Too big for the emptyDir
+
+
+def test_a_legacy_file_over_half_the_emptydir_is_refused(paths):
+    with_legacy(paths)
+    paths.size_limit = (paths.data / "scrap.db").stat().st_size
+    with pytest.raises(InitError, match="raise litestream.sizeLimit"):
+        put_in_place(paths)
+    assert not paths.db.exists()
+
+
+def test_a_replica_over_half_the_emptydir_is_refused_even_with_the_override(paths):
+    with_replica(paths)
+    paths.size_limit = 1000
+    paths.override = True
+    with pytest.raises(InitError, match="raise litestream.sizeLimit"):
+        put_in_place(paths)
+
+
+def test_the_size_limit_comes_from_the_environment(paths, monkeypatch):
+    monkeypatch.setenv("SCRAP_DB_PATH", str(paths.db))
+    monkeypatch.setenv("SCRAP_DATA_DIR", str(paths.data))
+    monkeypatch.setenv("SCRAP_LITESTREAM_REPLICA", str(paths.replica))
+    monkeypatch.setenv("SCRAP_DB_SIZE_LIMIT", "1Ki")
+    with_legacy(paths)
+    with pytest.raises(SystemExit, match="raise litestream.sizeLimit"):
+        main(["db-init"])
+
+
+# The bad schedule that must stop the rollout
+
+
+@pytest.mark.parametrize(
+    "item",
+    [
+        {"schedule": "nope"},
+        {"schedule": "@every 1h"},
+        {"schedule": "* * * * 7"},
+        {"schedule": "* * * * *", "timeZone": "No/Where"},
+    ],
+)
+def test_db_init_refuses_a_bad_schedule(paths, monkeypatch, item):
+    monkeypatch.setenv("SCRAP_DB_PATH", str(paths.db))
+    monkeypatch.setenv("SCRAP_DATA_DIR", str(paths.data))
+    monkeypatch.setenv("SCRAP_LITESTREAM_REPLICA", str(paths.replica))
+    job = {"name": "gc", "timeoutSeconds": 1, "command": ["x"], **item}
+    monkeypatch.setenv("SCRAP_SCHEDULE", json.dumps([job]))
+    with pytest.raises(SystemExit, match="job gc"):
+        main(["db-init"])
+    assert not paths.db.exists()
+
+
+def test_the_rendered_schedule_survives_helm_and_loads(paths):
+    """The chart's own JSON, with its escaping, through load."""
+    helm = shutil.which("helm")
+    if not helm:
+        pytest.skip("no helm")
+    root = Path(__file__).parent.parent / "charts" / "scrap"
+    out = subprocess.run(
+        [
+            helm,
+            "template",
+            "scrap",
+            str(root),
+            "-f",
+            str(root / "ci/litestream-values.yaml"),
+        ],
+        capture_output=True,
+        text=True,
+        check=True,
+        env={**os.environ, "KUBECONFIG": os.devnull},
+    ).stdout
+    found = []
+    for doc in yaml.safe_load_all(out):
+        if doc and doc["kind"] == "Deployment":
+            spec = doc["spec"]["template"]["spec"]
+            for c in spec["initContainers"] + spec["containers"]:
+                for e in c.get("env", []):
+                    if e["name"] == "SCRAP_SCHEDULE":
+                        found.append(e["value"])
+    assert len(found) == 2 and found[0] == found[1]
+    jobs = load(found[0], strict=True)
+    assert [j.name for j in jobs] == ["gc", "enrich-related", "enrich-topics"]
+    gc = jobs[0]
+    assert gc.command[:2] == ["/bin/sh", "-ec"]
+    assert "COMPLETE" in gc.command[2] and "\\\n" in gc.command[2]
+    assert not gc.pausable and jobs[1].pausable and jobs[2].pausable
 
 
 # The commands

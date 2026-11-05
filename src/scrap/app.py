@@ -16,6 +16,7 @@ from . import (
     __version__,
     blobs_api,
     captures_api,
+    dbstate,
     drawing,
     enrich,
     health_api,
@@ -67,6 +68,7 @@ ERRORS = {
 def create_app(data_dir: Path | str | None = None) -> FastAPI:
     """Build the app on a data folder (default $SCRAP_DATA_DIR, else ./data)."""
     store = Store(data_dir or os.environ.get("SCRAP_DATA_DIR", "data"))
+    dbstate.refuse_old_database(store.db, store.dir)  # before anything touches it
     store.migrate()
     store.prompts = enrich.prompt_versions()  # what is:outdated compares with
     publish.settings.check()  # bad publish settings stop the start, not a request

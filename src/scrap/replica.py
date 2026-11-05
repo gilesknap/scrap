@@ -22,8 +22,10 @@ __all__ = [
     "beat",
     "binary",
     "check_db",
+    "read_stamp",
     "has_replica",
     "heartbeat_age_hours",
+    "newest_file",
     "restore_replica",
 ]
 
@@ -39,18 +41,35 @@ def binary() -> str:
 
 def has_replica(replica: Path) -> bool:
     """True if the replica holds any file. Directories alone are not a replica:
-    Litestream makes those before its first write. An error reading it is raised, never
-    "none"."""
+    Litestream makes those before its first write, and a *.tmp is a write that never
+    finished. An error reading it is raised, never "none"."""
+    return newest_file(replica) is not None
+
+
+def newest_file(replica: Path) -> float | None:
+    """The newest modified time of the replica's files, None if it has none. Litestream
+    gives a compacted file its source's time, so only new writes make it newer."""
 
     def onerror(error: OSError) -> None:
         if not isinstance(error, FileNotFoundError):
             raise error
 
-    return any(names for _, _, names in os.walk(replica, onerror=onerror))
+    newest = None
+    for folder, _, names in os.walk(replica, onerror=onerror):
+        for name in names:
+            if name.endswith(".tmp"):
+                continue
+            try:
+                at = os.stat(Path(folder) / name).st_mtime
+            except FileNotFoundError:  # compacted away just now
+                continue
+            newest = at if newest is None else max(newest, at)
+    return newest
 
 
 def check_db(db: Path) -> None:
-    """Refuse a database SQLite finds damaged, or from a newer scrap (read-only)."""
+    """Refuse a database SQLite finds damaged, or from a newer scrap. Only for a copy:
+    the schema check opens it as an ordinary connection."""
     uri = f"{db.resolve().as_uri()}?immutable=1"
     try:
         with closing(sqlite3.connect(uri, uri=True)) as conn:
@@ -67,7 +86,8 @@ def restore_replica(replica: Path, out: Path) -> None:
     -if-replica-exists: a replica that cannot be restored is a failure, never "empty".
     """
     done = subprocess.run(
-        [binary(), "restore", "-o", str(out), f"file://{replica}"], check=False
+        [binary(), "restore", "-o", str(out), f"file://{replica.resolve()}"],
+        check=False,
     )
     if done.returncode:
         raise ReplicaError(
@@ -78,31 +98,39 @@ def restore_replica(replica: Path, out: Path) -> None:
     check_db(out)
 
 
-def beat(db: Path) -> None:
+def beat(db: Path) -> int:
     """Stamp the database with the time, in minutes. The stamp is a write like any
     other, so a restore of the replica shows when replication last worked, even if
     nothing else was written since. The header's application_id holds it: nothing else
-    uses that, and it needs no schema change."""
+    uses that, and it needs no schema change. Returns the stamp."""
+    stamp = int(time.time() // 60)
     with closing(connect(db)) as conn:
-        conn.execute(f"PRAGMA application_id = {int(time.time() // 60)}")
+        conn.execute(f"PRAGMA application_id = {stamp}")
+    return stamp
+
+
+def read_stamp(db: Path) -> int | None:
+    """The stamp in db (a closed copy), None if it has none."""
+    uri = f"{db.resolve().as_uri()}?immutable=1"
+    with closing(sqlite3.connect(uri, uri=True)) as conn:
+        return conn.execute("PRAGMA application_id").fetchone()[0] or None
 
 
 def heartbeat_age_hours(db: Path) -> float | None:
     """Hours since the stamp in db (a closed copy), None if it has none."""
-    uri = f"{db.resolve().as_uri()}?immutable=1"
-    with closing(sqlite3.connect(uri, uri=True)) as conn:
-        stamp = conn.execute("PRAGMA application_id").fetchone()[0]
+    stamp = read_stamp(db)
     return (time.time() / 60 - stamp) / 60 if stamp else None
 
 
 def backup_from_replica(
     data_dir: Path, replica: Path, dest: Path, max_age_hours: float = 3.0
 ) -> None:
-    """scrap backup, of a restore of the replica rather than the live database, with
-    the data folder's files. The restore is at or behind the live database, and blobs
-    are written before the transaction that records them, so the files it names are
-    there; only a gc in the second or so of lag could differ, and gc and backups share a
-    lock and run an hour apart. A stale replica is refused: gc trusts a COMPLETE run."""
+    """scrap backup, of a restore of the replica rather than the live database, with the
+    data folder's files. The restore is at or behind the live database, by up to
+    max_age_hours: older is refused, as gc trusts a COMPLETE run. Blobs are written
+    before the transaction that records them, so the files it names are there, unless a
+    gc deleted one inside that lag; gc and backups share a lock and run an hour
+    apart."""
     try:
         if not has_replica(replica):
             raise ReplicaError(f"no replica at {replica}")

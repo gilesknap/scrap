@@ -1,5 +1,6 @@
 """SCRAP_DB_PATH and --db-path: the database apart from the data folder (ADR 46)."""
 
+import os
 import subprocess
 import sys
 
@@ -95,13 +96,12 @@ def test_cli_serve_passes_the_database_on(tmp_path, monkeypatch):
     monkeypatch.setattr("uvicorn.run", lambda *a, **kw: None)
     monkeypatch.setenv("SCRAP_DB_PATH", "")
     main(["serve", "--db-path", str(tmp_path / "x.db")])
-    import os
-
     assert os.environ["SCRAP_DB_PATH"] == str(tmp_path / "x.db")
 
 
 def test_cli_backup_uses_the_setting(tmp_path):
     env = {
+        **os.environ,
         "SCRAP_DATA_DIR": str(tmp_path / "data"),
         "SCRAP_DB_PATH": str(tmp_path / "d" / "s.db"),
     }
@@ -124,3 +124,7 @@ def test_nothing_in_scrap_fights_litestream_for_checkpoints():
         assert "wal_checkpoint" not in text, path
         assert "wal_autocheckpoint" not in text, path
         assert "locking_mode" not in text, path
+        assert "pragma synchronous" not in text, path
+    # and Litestream's docs ask for a busy timeout, which every connection sets
+    db = (root / "store" / "db.py").read_text()
+    assert "PRAGMA busy_timeout = 5000" in db
