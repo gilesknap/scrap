@@ -3,6 +3,19 @@
   "description": "Unknown keys are rejected, so a mistyped key (or an API key passed as a value) fails instead of being ignored.",
   "type": "object",
   "additionalProperties": false,
+  "if": {
+    "properties": {
+      "litestream": { "properties": { "enabled": { "const": true } }, "required": ["enabled"] }
+    },
+    "required": ["litestream"]
+  },
+  "then": {
+    "properties": {
+      "gc": { "properties": { "schedule": { "pattern": "^(@(yearly|annually|monthly|weekly|daily|midnight|hourly)|[^@ ]+( +[^ ]+){4})$" } } },
+      "enrichRelated": { "properties": { "schedule": { "pattern": "^(@(yearly|annually|monthly|weekly|daily|midnight|hourly)|[^@ ]+( +[^ ]+){4})$" } } },
+      "enrichTopics": { "properties": { "schedule": { "pattern": "^(@(yearly|annually|monthly|weekly|daily|midnight|hourly)|[^@ ]+( +[^ ]+){4})$" } } }
+    }
+  },
   "properties": {
     "global": {"type": "object"},
     "image": {
@@ -121,7 +134,7 @@
             "pullPolicy": { "type": "string", "enum": ["Always", "IfNotPresent", "Never"] }
           }
         },
-        "sizeLimit": { "type": "string", "minLength": 1 },
+        "sizeLimit": { "type": "string", "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|K|M|G|T)?$" },
         "resources": { "type": "object" },
         "init": {
           "type": "object",

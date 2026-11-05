@@ -73,7 +73,7 @@ spec:
                 # live database (on the scrap pod's emptyDir), and its volume is
                 # read only.
                 - name: SCRAP_LITESTREAM_REPLICA
-                  value: /data/litestream
+                  value: {{ include "scrap.litestreamReplica" . }}
                 - name: SCRAP_LITESTREAM_BIN
                   value: /tools/litestream
                 {{- end }}

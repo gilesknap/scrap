@@ -1,4 +1,13 @@
 {{/* litestream.* (ADR 46): the database on an emptyDir, replicated to the data volume. */}}
+{{/* Where the database is, and its replica on the data volume. Nowhere else. */}}
+{{- define "scrap.litestreamDb" -}}
+/db/scrap.db
+{{- end }}
+
+{{- define "scrap.litestreamReplica" -}}
+/data/litestream
+{{- end }}
+
 {{- define "scrap.litestreamImage" -}}
 {{ .Values.litestream.image.repository }}:{{ .Values.litestream.image.tag }}{{ with .Values.litestream.image.digest }}@{{ . }}{{ end }}
 {{- end }}
@@ -35,11 +44,16 @@ after it. */}}
     - name: SCRAP_DATA_DIR
       value: /data
     - name: SCRAP_DB_PATH
-      value: /db/scrap.db
+      value: {{ include "scrap.litestreamDb" . }}
     - name: SCRAP_LITESTREAM_REPLICA
-      value: /data/litestream
+      value: {{ include "scrap.litestreamReplica" . }}
     - name: SCRAP_LITESTREAM_BIN
       value: /tools/litestream
+    - name: SCRAP_DB_SIZE_LIMIT
+      value: {{ .Values.litestream.sizeLimit | quote }}
+    # Checked here, so a bad schedule stops the rollout.
+    - name: SCRAP_SCHEDULE
+      value: {{ include "scrap.scheduledJobs" . | quote }}
     {{- if .Values.backup.enabled }}
     - name: SCRAP_BACKUPS
       value: /backups
@@ -59,7 +73,7 @@ after it. */}}
       mountPath: /db
     - name: tools
       mountPath: /tools
-    - name: tmp
+    - name: jobs-tmp
       mountPath: /tmp
     {{- if .Values.backup.enabled }}
     - name: backups
@@ -83,10 +97,10 @@ after it. */}}
       # Within the pod's extra 30s of terminationGracePeriodSeconds.
       shutdown-sync-timeout: 25s
       dbs:
-        - path: /db/scrap.db
+        - path: {{ include "scrap.litestreamDb" . }}
           replica:
             type: file
-            path: /data/litestream
+            path: {{ include "scrap.litestreamReplica" . }}
       EOF
       exec litestream replicate -config /tools/litestream.yml
   securityContext:
@@ -145,16 +159,13 @@ exist, and with their deadlines. */}}
 {{- define "scrap.scheduledJobs" -}}
 {{- $jobs := list }}
 {{- if include "scrap.gcEnabled" . }}
-{{- if and .Values.gc.requireBackup (not .Values.backup.enabled) }}
-{{- fail "gc.enabled=true needs backup.enabled (gc deletes only after a recent backup); leave gc.enabled unset or false, or gc.requireBackup=false to delete without one" }}
-{{- end }}
 {{- $jobs = append $jobs (dict "name" "gc" "schedule" .Values.gc.schedule "timeZone" .Values.gc.timeZone "timeoutSeconds" 3600 "command" (list "/bin/sh" "-ec" (include "scrap.gcScript" . | trim))) }}
 {{- end }}
 {{- if and .Values.enrichRelated.enabled .Values.ingest.enabled }}
-{{- $jobs = append $jobs (dict "name" "enrich-related" "schedule" .Values.enrichRelated.schedule "timeZone" .Values.enrichRelated.timeZone "timeoutSeconds" 14400 "command" (list "scrap" "enrich" "--related")) }}
+{{- $jobs = append $jobs (dict "name" "enrich-related" "schedule" .Values.enrichRelated.schedule "timeZone" .Values.enrichRelated.timeZone "timeoutSeconds" 14400 "pausable" true "command" (list "scrap" "enrich" "--related")) }}
 {{- end }}
 {{- if and .Values.enrichTopics.enabled .Values.ingest.enabled }}
-{{- $jobs = append $jobs (dict "name" "enrich-topics" "schedule" .Values.enrichTopics.schedule "timeZone" .Values.enrichTopics.timeZone "timeoutSeconds" 3600 "command" (list "scrap" "enrich" "--topics")) }}
+{{- $jobs = append $jobs (dict "name" "enrich-topics" "schedule" .Values.enrichTopics.schedule "timeZone" .Values.enrichTopics.timeZone "timeoutSeconds" 3600 "pausable" true "command" (list "scrap" "enrich" "--topics")) }}
 {{- end }}
 {{- $jobs | toJson }}
 {{- end }}
@@ -170,12 +181,26 @@ exist, and with their deadlines. */}}
     - name: SCRAP_BACKUPS
       value: /backups
     {{- end }}
+    - name: SCRAP_DB_SIZE_LIMIT
+      value: {{ .Values.litestream.sizeLimit | quote }}
     - name: SCRAP_SCHEDULE
       value: {{ include "scrap.scheduledJobs" . | quote }}
   {{- with .Values.extraEnvFrom }}
   envFrom:
     {{- toYaml . | nindent 4 }}
   {{- end }}
+  # scrap schedule keeps this file young while the replica takes writes, and removes it
+  # when it does not: the pod then leaves its Service, so scrap stops taking writes it
+  # cannot protect (ADR 46).
+  readinessProbe:
+    exec:
+      command:
+        - /bin/sh
+        - -c
+        - test -n "$(find {{ dir (include "scrap.litestreamDb" .) }}/.replication-ok -mmin -5 2>/dev/null)"
+    periodSeconds: 30
+    timeoutSeconds: 5
+    failureThreshold: 2
   securityContext:
     {{- toYaml .Values.securityContext | nindent 4 }}
   resources:
@@ -185,7 +210,8 @@ exist, and with their deadlines. */}}
       mountPath: /data
     - name: db
       mountPath: /db
-    - name: tmp
+    # Its own, as the jobs must not fill scrap's; db-init uses it first.
+    - name: jobs-tmp
       mountPath: /tmp
     {{- if .Values.backup.enabled }}
     # Read-write only for the lock file; gc reads the COMPLETE markers here.

@@ -141,7 +141,7 @@ with the Bypass action: a wildcard application covers every subdomain. See the g
 - `litestream.enabled` (default off; Kubernetes 1.29 or newer) puts the database on an emptyDir on
   the node's disk, replicated continuously by Litestream to the data volume, for a volume on NFS. If
   the node dies the last moments of writes are lost. An init container restores it, brings an existing
-  `/data/scrap.db` across once, or refuses to start. Backups work from a restore of the replica
+  `/data/scrap.db` across once, or refuses to start. If replication stalls, the pod leaves its Service. Backups work from a restore of the replica
   (still beside the scrap pod, for the `ReadWriteOnce` claim); gc and the Claude passes run in a `jobs`
   container in the pod, not as CronJobs; and restoring a backup takes `scrap restore --stage`. See
   [its section of the guide](https://gilesknap.github.io/scrap/main/how-to/deploy-kubernetes.html#k8s-litestream).

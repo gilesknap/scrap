@@ -121,6 +121,9 @@ expect_refused "authProxy without oidc.clientId" -f "$chart/ci/auth-proxy-values
 expect_refused "authProxy with an http oidc.issuer" -f "$chart/ci/auth-proxy-values.yaml" \
     --set authProxy.oidc.issuer=http://identity.example.org/realms/dls
 expect_refused "an unknown litestream key" --set litestream.replicas=2
+expect_refused "a litestream sizeLimit that is not one" --set litestream.sizeLimit=lots
+expect_refused "@every with Litestream" --set litestream.enabled=true --set-string 'gc.schedule=@every 1h'
+expect_refused "a four-field schedule with Litestream" --set litestream.enabled=true --set-string 'gc.schedule=1 2 3 4'
 expect_refused "a litestream digest that is not one" --set litestream.image.digest=latest
 expect_refused "litestream without native sidecars" --set litestream.enabled=true --kube-version 1.28.0
 expect_refused "litestream with gc but no backups" --set litestream.enabled=true \
@@ -368,6 +371,14 @@ lhp=$(helm template scrap "$chart" -f "$chart/ci/litestream-hostpath-values.yaml
 if [ "$(echo "$lhp" | grep -A1 '^ *hostPath:$' | grep -c 'path: "/dls/science/users/abc12345/scrap"')" = 3 ]; then
     ok "litestream: the scrap pod and both backups mount a hostPath's backups"
 else bad "litestream: something lacks the backups hostPath"; fi
+if echo "$ls_dep" | grep -Fq '.replication-ok -mmin -5' &&
+    echo "$ls_dep" | grep -Fq '|            - name: jobs-tmp|              mountPath: /tmp|'; then
+    ok "litestream: jobs has a readiness probe on replication, and its own /tmp"
+else bad "litestream: jobs lacks the replication probe or its own /tmp"; fi
+if [ "$(echo "$ls_out" | grep -c 'name: SCRAP_DB_SIZE_LIMIT$')" = 2 ] &&
+    [ "$(echo "$ls_out" | grep -c 'name: SCRAP_SCHEDULE$')" = 2 ]; then
+    ok "litestream: db-init and jobs get the size limit and the schedule"
+else bad "litestream: db-init or jobs lacks the size limit or the schedule"; fi
 if helm template scrap "$chart" -f "$chart/ci/litestream-values.yaml" --set litestream.init.override=true |
     grep -A1 'name: SCRAP_DB_INIT_OVERRIDE$' | grep -q 'value: "on"' &&
     ! echo "$ls_out" | grep -q SCRAP_DB_INIT_OVERRIDE; then

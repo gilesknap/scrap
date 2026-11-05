@@ -104,7 +104,8 @@ backup:
     # and the settings below are unused. It must exist, and the pods'
     # podSecurityContext user must be able to write it. A namespace that enforces
     # the baseline or restricted Pod Security Standard rejects hostPath volumes,
-    # so there the backup jobs never start: use the claim.
+    # so there the backup jobs never start (and with litestream.enabled, nor does
+    # the scrap pod, which mounts the backups too): use the claim.
     hostPath: ""
     existingClaim: ""
     storageClass: ""
@@ -130,7 +131,8 @@ backup:
 # (with its COMPLETE marker) less than 26 hours old; otherwise it only counts and the Job fails, so a missing backup
 # shows. It runs an hour after the backup (and takes the backup's lock, so never
 # during one), so it needs backup.enabled. It runs beside the scrap pod (the data
-# claim is ReadWriteOnce).
+# claim is ReadWriteOnce). With litestream.enabled it is not a CronJob: it runs in the
+# scrap pod's jobs container, see litestream below.
 gc:
   # null: follow backup.enabled (so a release with backups off renders as before).
   # true with backup.enabled false and requireBackup true is refused; false: off.
@@ -171,7 +173,8 @@ gc:
 # scrap-enrich-related timer): picks related pages for every page changed since its
 # last picks. It calls Claude, so it is created only when ingest.enabled is on; it gets
 # the same key and settings as the scrap pod and shares its daily budget. It runs
-# beside the scrap pod (the data claim is ReadWriteOnce).
+# beside the scrap pod (the data claim is ReadWriteOnce). With litestream.enabled it is
+# in the scrap pod's jobs container instead, and its resources here are not used.
 enrichRelated:
   enabled: true
   schedule: "41 3 * * *"
@@ -187,7 +190,9 @@ enrichRelated:
 # scrap-enrich-topics timer), weekly: one Claude call finds topics (new topic pages and
 # their sources), then each topic's synthesis that is due is queued for the scrap
 # pod's worker. Created only when ingest.enabled is on; same key, settings and daily
-# budget as the scrap pod; runs beside it (the data claim is ReadWriteOnce).
+# budget as the scrap pod; runs beside it (the data claim is ReadWriteOnce). With
+# litestream.enabled it is in the scrap pod's jobs container instead, and its resources
+# here are not used.
 enrichTopics:
   enabled: true
   schedule: "11 4 * * 0"
@@ -206,7 +211,8 @@ enrichTopics:
 # On: the last moments of writes (about a second) are lost if the node dies. An init
 # container restores the database, brings an existing /data/scrap.db across once, or
 # refuses to start; backups work from a restore of the replica; and gc and the Claude
-# passes run in a "jobs" container in the scrap pod, not as CronJobs. Needs Kubernetes 1.29.
+# passes run in a "jobs" container in the scrap pod, not as CronJobs. If replication
+# stalls the pod leaves its Service, so scrap stops taking writes. Needs Kubernetes 1.29.
 litestream:
   enabled: false
   image:
@@ -215,7 +221,9 @@ litestream:
     tag: "0.5.18"
     digest: sha256:513bff62a88fc0c86c73d27333c41c54c89fe890a7c32a551600adff9309b11b
     pullPolicy: IfNotPresent
-  # The emptyDir's limit. Past it the kubelet evicts the pod, so leave room for the WAL.
+  # The emptyDir's limit. Past it the kubelet evicts the pod. The WAL and Litestream's own
+  # LTX share it, so a database over half of this is refused at start, and warned of in
+  # the jobs container's log. A Kubernetes quantity such as 2Gi.
   sizeLimit: 2Gi
   resources:
     requests:
@@ -226,7 +234,9 @@ litestream:
   init:
     # true starts scrap although the replica is missing or the install has history, or
     # lets the replica win over a changed /data/scrap.db (db-init's log says which). For
-    # after a person has looked. Set it back to false afterwards.
+    # after a person has looked. Set it back to false straight afterwards: while it is on,
+    # a later loss of the replica would also start. Each use makes gc count only, until
+    # you run scrap db-hold --clear in the jobs container.
     override: false
     resources:
       requests:
@@ -235,14 +245,16 @@ litestream:
       limits:
         memory: 1Gi
   # The jobs container: gc and, with ingest on, the Claude passes, with their usual
-  # schedules (gc.schedule and so on), and the heartbeat the backup jobs check.
+  # schedules (gc.schedule and so on; an empty timeZone is UTC here, not the cluster
+  # controller's zone), and the heartbeat the backup jobs check. These resources are for
+  # all of them, which can overlap: gc.resources and enrich*.resources are not used.
   jobs:
     resources:
       requests:
         cpu: 50m
         memory: 256Mi
       limits:
-        memory: 1Gi
+        memory: 2Gi
 
 service:
   type: ClusterIP

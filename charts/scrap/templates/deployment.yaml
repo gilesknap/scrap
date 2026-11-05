@@ -125,6 +125,9 @@ spec:
         - name: tools
           emptyDir:
             sizeLimit: 128Mi
+        - name: jobs-tmp
+          emptyDir:
+            sizeLimit: 1Gi
         {{- if .Values.backup.enabled }}
         - name: backups
           {{- include "scrap.backupVolume" . | nindent 10 }}

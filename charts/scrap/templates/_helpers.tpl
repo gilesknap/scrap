@@ -110,9 +110,9 @@ scrap command which calls Claude (enrich --related, --topics) needs the same. */
   value: /data
 {{- if .Values.litestream.enabled }}
 - name: SCRAP_DB_PATH
-  value: /db/scrap.db
+  value: {{ include "scrap.litestreamDb" . }}
 - name: SCRAP_LITESTREAM_REPLICA
-  value: /data/litestream
+  value: {{ include "scrap.litestreamReplica" . }}
 {{- end }}
 - name: SCRAP_MAX_UPLOAD_MB
   value: {{ .Values.maxUploadMB | quote }}
