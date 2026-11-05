@@ -46,7 +46,7 @@ on the NetworkPolicy (below) if other workloads share the cluster.
 | Object | Notes |
 | --- | --- |
 | Deployment | Exactly **one replica**, strategy `Recreate`. scrap keeps everything in one SQLite database with a single writer, so the chart has no `replicas` value: the old pod always stops before the new one starts. |
-| PersistentVolumeClaim | `/data`: the database, files and the preview cache. Kept on `helm uninstall`. |
+| PersistentVolumeClaim | `/data`: the database, files and the preview cache. Kept on `helm uninstall`. With `litestream.enabled` the database is on an emptyDir instead: {ref}`k8s-litestream`. |
 | Service | `ClusterIP`, port 80. |
 | ServiceAccount | No API token mounted; scrap never talks to the Kubernetes API. |
 | CronJobs + PVC (on by default) | Nightly `scrap backup` to a second claim, keeping the newest 7 runs, and a monthly copy in its `monthly/` folder, keeping 12. |
@@ -154,6 +154,7 @@ inside them is silently ignored. The main ones:
 | `ingest.enabled` | `false` | `SCRAP_INGEST`: send photos to Claude (see {ref}`k8s-ingest`). |
 | `ingest.visionModel`, `ingest.budgetDayUSD` | app default, `3` | `SCRAP_VISION_MODEL`, `SCRAP_BUDGET_DAY_USD` (US dollars per UTC day). Like `ingest.notifyUrlKey`, they take effect only while `ingest.enabled` is true. |
 | `persistence.size`, `.storageClass`, `.existingClaim` | `5Gi`, default class, none | The data volume. |
+| `litestream.enabled` | `false` | The database on an emptyDir, replicated to the data volume, for a data volume on NFS: {ref}`k8s-litestream`. |
 | `backup.enabled`, `.schedule`, `.timeZone`, `.keep` | `true`, `30 3 * * *`, the cluster's default (usually UTC), `7` | The backup CronJob. |
 | `gc.enabled`, `.schedule`, `.timeZone` | unset (follows `backup.enabled`), `30 4 * * *`, the cluster's default | The `scrap gc` CronJob (see {ref}`k8s-gc`). |
 | `gc.delete`, `gc.graceHours`, `gc.runDays`, `gc.requireBackup` | `true`, `24`, `30`, `true` | `delete: false`, or `graceHours: 0`, makes the job only count (a dry run in its log). Keep files younger than this many hours; keep model and enrich run records younger than this many days (at least 1); delete only after a backup less than 26 hours old. |
@@ -691,6 +692,28 @@ arguments runs any `scrap` command against the data, for example `["export", "/b
 run, so an export there is kept). To restore into a fresh volume instead, create a new claim,
 restore into it without `--force`, and point `persistence.existingClaim` at it.
 
+(k8s-restore-litestream)=
+**With `litestream.enabled`.** Do not restore over the database: a plain restore would be undone,
+because the next start restores the replica. Follow the same steps, with `--stage` in the pod's
+arguments:
+
+```yaml
+      args: ["restore", "/backups/<run>", "--stage", "--force"]
+```
+
+`--force` is needed unless `files/` is empty: files are only ever added. This checks and migrates
+the backup and leaves it at `/data/scrap.db.restored`. The next start takes it up in place of the
+replica, and renames the old replica `/data/litestream.retired-<time>`; Litestream starts a new one.
+Pages written since the backup are gone from the database, as with `--force` above, but still in the
+retired replica. See what happened with `kubectl -n scrap logs deploy/scrap -c db-init`, then make a
+backup. Once you are happy, delete the retired folder with the one-off pod (`["sh", "-c", "rm -rf
+/data/litestream.retired-*"]` with `command:` in place of `args:`), as it takes up room on the volume.
+
+If you forget `--stage` the pod stops in Init, saying `/data/scrap.db has changed`: it will not
+let the replica overwrite your restore. Rename that file to `scrap.db.restored` to keep it, or away
+if not. `kubectl exec` of `scrap restore` in the running pod is refused. If the pod was not scaled to
+0, the next start stops, saying a restore is staged: scale it to 0 and back.
+
 (k8s-restore-hostpath)=
 **Backups in a hostPath.** With `backup.persistence.hostPath`, there is no backups claim. Mount
 the directory instead, and run the pod as the release's `podSecurityContext` user, who owns the
@@ -996,13 +1019,53 @@ purge date from `trashDays` (`SCRAP_TRASH_DAYS`, `off` while the job does not de
 - **Turn one off** with `gc.enabled: false`, `enrichRelated.enabled: false` or
   `enrichTopics.enabled: false` (or `ingest.enabled: false` for both Claude jobs).
 - **Change when** with its `.schedule` and `.timeZone`.
-- **Check them** with `kubectl -n scrap get cronjobs,jobs` and a Job's log.
+- **Check them** with `kubectl -n scrap get cronjobs,jobs` and a Job's log. (With
+  `litestream.enabled`, gc and the Claude passes are not CronJobs: {ref}`k8s-litestream`.)
 - **Run one now:**
 
 ```
 kubectl -n scrap create job --from=cronjob/scrap-gc scrap-gc-now
 kubectl -n scrap logs -f job/scrap-gc-now
 ```
+
+(k8s-litestream)=
+## The database on an emptyDir, with Litestream
+
+`litestream.enabled: true` is for a data volume on NFS or another network filesystem, where
+SQLite's write-ahead log is not safe. The DLS installer sets it. Why, and the choices behind it:
+[ADR 46](../explanations/decisions/0046-database-on-an-emptydir-replicated-with-litestream.md). It
+needs Kubernetes 1.29 and the `litestream/litestream` image, pinned in `litestream.image`.
+
+- **Where things are.** The database is at `/db/scrap.db` on an emptyDir on the node's disk, limited
+  by `litestream.sizeLimit` (2 Gi); a Litestream sidecar copies each change to `/data/litestream` on
+  the data volume. Files and the preview cache stay on the data volume.
+- **What can be lost.** Replication follows the write by about a second: if the node dies, those
+  last moments are lost. A clean stop or upgrade loses nothing: Litestream stops after scrap, with
+  its last sync (`terminationGracePeriodSeconds` grows by 30 s). Backups remain the protection
+  against everything else, including a mistake that replicates faithfully.
+- **Each start.** The `db-init` init container keeps a database already on the emptyDir, restores the
+  replica, or on the first start after turning this on brings `/data/scrap.db` across once and leaves
+  it there. That is all a plain `helm upgrade` needs. You can delete the old file once you are happy.
+  A new database is made only if nothing says there should be one.
+- **When a pod stays in `Init`.** `kubectl -n scrap logs deploy/scrap -c db-init` says why. It fails
+  on purpose rather than start empty: a restore failed (a damaged replica, a database from a newer
+  scrap), or the replica is missing though the state file `/data/.scrap-db-state.json` says there was
+  one, or there are files or backup runs but no database or replica, or `/data/scrap.db` changed.
+  Usually the answer is {ref}`to restore a backup <k8s-restore-litestream>`. If you are sure,
+  `litestream.init.override: true` carries on from what is there (a start with a missing replica and
+  no old file is empty), or with a changed `/data/scrap.db` lets the replica win. Set it back after.
+- **Backups** stay CronJobs: they restore the replica to a temporary file and back that up with
+  `files/`, with the same integrity check and `COMPLETE` marker. They never touch the live database,
+  but they **still run beside the scrap pod**, for the `ReadWriteOnce` data volume, so they
+  wait while scrap is scaled to zero. A replica whose heartbeat is over 3 hours old is refused, and
+  the job fails: look at `kubectl -n scrap logs deploy/scrap -c litestream`.
+- **gc and the Claude passes** need the live database, so they run in a `jobs` container in the scrap
+  pod, not as CronJobs, with the same values for their schedules. Run one now with `kubectl -n scrap
+  exec deploy/scrap -c jobs -- scrap schedule --run gc` (or `enrich-related`, `enrich-topics`). A
+  failure is in `kubectl -n scrap logs deploy/scrap -c jobs` and, if set, `SCRAP_NOTIFY_URL`, not a
+  failed Job. gc still deletes only with a recent `COMPLETE` backup, otherwise only counts.
+- **Turning it off** does not bring the database back: `/data/scrap.db` is the old one. Take a
+  backup, set `litestream.enabled: false` with scrap scaled to 0, and restore the backup with `--force`.
 
 (k8s-storage)=
 ## k3s and storage notes
@@ -1012,9 +1075,9 @@ kubectl -n scrap logs -f job/scrap-gc-now
   the data with a backup and restore.
 - `local-path` does not apply `fsGroup`; its directories are world-writable, so uid 10001 can
   still write. On other storage the chart's `fsGroup: 10001` makes the volume writable.
-- Do **not** put the data on NFS or another network filesystem: SQLite's WAL mode needs shared
+- Do **not** put the database on NFS or another network filesystem: SQLite's WAL mode needs shared
   memory and locking that network filesystems do not provide reliably. Block storage (Longhorn,
-  a cloud disk) is fine. `ReadWriteOncePod` volumes would keep the backup job out; use
+  a cloud disk) is fine. If NFS is all there is, use {ref}`k8s-litestream`. `ReadWriteOncePod` volumes would keep the backup job out; use
   `ReadWriteOnce`.
 - Mixed arm64 and amd64 nodes (e.g. ARM boards and an x86 mini PC) need no settings: the image is
   multi-arch. Use `nodeSelector` only to choose where the data lives.
