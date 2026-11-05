@@ -15,6 +15,9 @@ on NFS: WAL needs shared memory and locking a network filesystem does not provid
 owner decided that the database moves off NFS rather than testing whether it copes there. This
 ADR does not claim to explain any past hang: none was traced to NFS.
 
+Block storage, which the storage notes recommend, is not an option here: the argus admins removed
+it a while back for security reasons, and `netapp` is the only dynamic class, so it was not pursued.
+
 ## Decision
 
 **The shape.** The database is at `/db/scrap.db` (`SCRAP_DB_PATH`) on an emptyDir on the node's
