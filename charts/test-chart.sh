@@ -357,6 +357,7 @@ if echo "$ls_sched" | grep -Fq '\"name\":\"gc\"' && echo "$ls_sched" | grep -q '
     echo "$ls_sched" | grep -Fq 'name COMPLETE -mmin -1560' && echo "$ls_sched" | grep -Fq 'counting only'; then
     ok "litestream: gc and the Claude passes on their schedules, gc still checking for a backup"
 else bad "litestream: SCRAP_SCHEDULE lacks a job, a schedule or gc's backup check"; fi
+# shellcheck disable=SC2016 # $SCRAP_LITESTREAM_REPLICA is the job's, not this shell's
 if [ "$(echo "$ls_out" | grep -c -- '--from-replica "$SCRAP_LITESTREAM_REPLICA"')" = 2 ] &&
     ! grep '|kind: CronJob|' "$ls_docs" | grep -q 'SCRAP_DB_PATH' &&
     [ "$(grep '|kind: CronJob|' "$ls_docs" | grep -c '|                  mountPath: /data|                  readOnly: true|')" = 2 ] &&

@@ -141,5 +141,7 @@ once; both backup jobs made `COMPLETE` runs; a staged restore of one came up wit
 the later write; a plain restore was caught; a stale stamp failed a backup; gc ran in the pod, by
 hand and on its schedule, and refused to delete with no backup. Not tried there: the Claude passes
 doing real work (no API key: only that `scrap enrich --related` runs in the container), a real node
-death, the backups on a `hostPath`, `install-dls.sh` itself, and a database of real size. The
-override and rule 1 have only unit tests.
+death, the backups on a `hostPath`, `install-dls.sh` itself, and a database of real size. The rule
+that keeps a database on the emptyDir has only unit tests: a killed container does not rerun the
+init container, and a pod restarting on its node with its emptyDir could not be forced. The override
+was tried, starting a fresh database past a refusal.
