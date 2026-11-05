@@ -56,18 +56,27 @@ It:
    with Litestream copying each change to that volume ({ref}`k8s-litestream`);
 7. prints the Service IP, your bearer token (once), and what to do next.
 
-**What can be lost.** The copy follows each write by about a second, so if the node dies, the last
-moments of writes are lost. A normal restart or upgrade loses nothing: the new pod restores the
-database first. An install from before this moves over by itself when you re-run the installer,
+**What can be lost.** While it is working, the copy follows each write by about a second, so if the
+node dies, the last moments of writes are lost. A normal restart or upgrade loses nothing: the new
+pod restores the database first. If the copy stops working (it noticed by itself within about 20
+minutes), scrap leaves the network until it works again, so the app shows it as unreachable; writes
+in those minutes are at risk, and a later restart refuses to start without someone looking. An install from before this moves over by itself when you re-run the installer,
 leaving the old `/data/scrap.db` in place. If a pod ever stays in `Init`, it is refusing to start
 without your data rather than starting empty: `kubectl logs deploy/scrap -c db-init` says why.
 
 It is safe to re-run: a re-run upgrades to the latest release and never overwrites the Secret. A
-Secret made by an older installer gets only the upload token added. Set `SCRAP_VERSION` to install a particular release.
+Secret made by an older installer gets only the upload token added. Set `SCRAP_VERSION` to install a particular release;
+the script and chart go together, so an older release needs that version's script.
 `SCRAP_BACKUP_DIR` moves the backups (empty keeps them on a volume in the cluster). If the
 installer stops with "Cannot find your email address", set `SCRAP_EMAIL` to your DLS email
 address (`first.last@diamond.ac.uk`) and run it again. The header of the script lists every
 setting.
+
+Keep the token in a password manager. To see it again:
+
+```
+kubectl get secret scrap-secrets -o jsonpath='{.data.SCRAP_MCP_TOKEN}' | base64 -d; echo
+```
 
 (install-dls-no-login)=
 ### Without a login, for testing
@@ -90,13 +99,8 @@ public pages and the database. The installer warns you up front and again in its
 exactly `off` does this: anything but `on` or `off` stops the installer before it touches anything.
 
 **To turn the login on**, re-run the installer without it. Your Secret and your data are kept. Then
-ask for your login address (step 4).
-
-Keep the token in a password manager. To see it again:
-
-```
-kubectl get secret scrap-secrets -o jsonpath='{.data.SCRAP_MCP_TOKEN}' | base64 -d; echo
-```
+ask for your login address (step 4). If that run fails, nothing has been turned on: the web app still
+has no login until it succeeds.
 
 ## 3. Ask for the DNS names
 

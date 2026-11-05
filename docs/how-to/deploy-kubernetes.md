@@ -154,7 +154,7 @@ inside them is silently ignored. The main ones:
 | `ingest.enabled` | `false` | `SCRAP_INGEST`: send photos to Claude (see {ref}`k8s-ingest`). |
 | `ingest.visionModel`, `ingest.budgetDayUSD` | app default, `3` | `SCRAP_VISION_MODEL`, `SCRAP_BUDGET_DAY_USD` (US dollars per UTC day). Like `ingest.notifyUrlKey`, they take effect only while `ingest.enabled` is true. |
 | `persistence.size`, `.storageClass`, `.existingClaim` | `5Gi`, default class, none | The data volume. |
-| `litestream.enabled` | `false` | The database on an emptyDir, replicated to the data volume, for a data volume on NFS: {ref}`k8s-litestream`. |
+| `litestream.enabled` | `false` | The database on an emptyDir, replicated to the data volume, for a data volume on NFS: {ref}`k8s-litestream`. Under the restricted or baseline Pod Security Standard a `backup.persistence.hostPath` then also stops the scrap pod starting, as it mounts the backups. |
 | `backup.enabled`, `.schedule`, `.timeZone`, `.keep` | `true`, `30 3 * * *`, the cluster's default (usually UTC), `7` | The backup CronJob. |
 | `gc.enabled`, `.schedule`, `.timeZone` | unset (follows `backup.enabled`), `30 4 * * *`, the cluster's default | The `scrap gc` CronJob (see {ref}`k8s-gc`). |
 | `gc.delete`, `gc.graceHours`, `gc.runDays`, `gc.requireBackup` | `true`, `24`, `30`, `true` | `delete: false`, or `graceHours: 0`, makes the job only count (a dry run in its log). Keep files younger than this many hours; keep model and enrich run records younger than this many days (at least 1); delete only after a backup less than 26 hours old. |
@@ -704,15 +704,24 @@ arguments:
 `--force` is needed unless `files/` is empty: files are only ever added. This checks and migrates
 the backup and leaves it at `/data/scrap.db.restored`. The next start takes it up in place of the
 replica, and renames the old replica `/data/litestream.retired-<time>`; Litestream starts a new one.
-Pages written since the backup are gone from the database, as with `--force` above, but still in the
-retired replica. See what happened with `kubectl -n scrap logs deploy/scrap -c db-init`, then make a
-backup. Once you are happy, delete the retired folder with the one-off pod (`["sh", "-c", "rm -rf
-/data/litestream.retired-*"]` with `command:` in place of `args:`), as it takes up room on the volume.
+Pages written since the backup are gone from the database, as with `--force` above. The retired
+replica holds their database rows, but you can only get them back by hand, restoring it to a
+scratch copy (`litestream restore -o <file> file:///data/litestream.retired-<time>`); it does not
+hold files. **Files added since the backup are in `files/`, but nothing refers to them now**, so gc
+would delete them: for 14 days after a restore gc only counts, to give you time to go through them.
+`scrap db-hold --clear` ends that sooner. See what happened with `kubectl -n scrap logs deploy/scrap
+-c db-init`, then make a backup. Once you are happy, delete the retired folder with the one-off pod
+(`["sh", "-c", "rm -rf /data/litestream.retired-*"]` with `command:` in place of `args:`), as it
+takes up room on the volume.
 
 If you forget `--stage` the pod stops in Init, saying `/data/scrap.db has changed`: it will not
-let the replica overwrite your restore. Rename that file to `scrap.db.restored` to keep it, or away
-if not. `kubectl exec` of `scrap restore` in the running pod is refused. If the pod was not scaled to
-0, the next start stops, saying a restore is staged: scale it to 0 and back.
+choose between that file and the replica, either of which may be newer. Rename the file away to keep
+the replica, or to `scrap.db.restored` to keep the file and retire the replica. `scrap restore` in
+the running pod is refused, with or without `--stage`. If scrap is not scaled to 0 when you stage a
+restore from a one-off pod, it goes on taking writes, and nothing stops it: the restore waits for the
+next start. That start refuses if the pod has kept its database, or if the replica has anything newer
+than the staged file, and says how to choose: delete the staged file to keep those writes, or `touch`
+it with scrap at 0 to restore anyway.
 
 (k8s-restore-hostpath)=
 **Backups in a hostPath.** With `backup.persistence.hostPath`, there is no backups claim. Mount
@@ -1037,35 +1046,76 @@ SQLite's write-ahead log is not safe. The DLS installer sets it. Why, and the ch
 needs Kubernetes 1.29 and the `litestream/litestream` image, pinned in `litestream.image`.
 
 - **Where things are.** The database is at `/db/scrap.db` on an emptyDir on the node's disk, limited
-  by `litestream.sizeLimit` (2 Gi); a Litestream sidecar copies each change to `/data/litestream` on
-  the data volume. Files and the preview cache stay on the data volume.
-- **What can be lost.** Replication follows the write by about a second: if the node dies, those
-  last moments are lost. A clean stop or upgrade loses nothing: Litestream stops after scrap, with
-  its last sync (`terminationGracePeriodSeconds` grows by 30 s). Backups remain the protection
-  against everything else, including a mistake that replicates faithfully.
+  by `litestream.sizeLimit` (2 Gi), which the WAL and Litestream's own files share: a database over
+  half of it is refused at start and warned of in the `jobs` log. A Litestream sidecar copies each
+  change to `/data/litestream` on the data volume. Files and the preview cache stay on the data volume.
+- **What can be lost.** While Litestream is healthy, a copy follows each write by about a second: if
+  the node dies, those last moments are lost. A clean stop or upgrade loses nothing: Litestream stops
+  after scrap, with its last sync (`terminationGracePeriodSeconds` grows by 30 s). Backups remain the
+  protection against everything else, including a mistake that replicates faithfully.
+- **If replication stalls** (Litestream stays up, logging `monitor error`, if it cannot write),
+  "about a second" no longer holds. The `jobs` container stamps the database every 15 minutes and
+  looks each minute for a new file in the replica. With none for 20 minutes it logs `REPLICATION
+  STALLED`, pushes to `SCRAP_NOTIFY_URL` if set, and fails its readiness probe, so the pod leaves its
+  Service and scrap takes no more writes from outside. It comes back by itself. Writes made in those
+  20 minutes are not in the replica until it recovers, and are lost if the pod goes first: the next
+  start then compares the replica with the last stamp noted on the volume, warns if it is behind,
+  and refuses if over 30 minutes behind. This cannot see a whole volume failing, where the note cannot
+  be written either: that shows as the same stall, and in scrap's file errors.
 - **Each start.** The `db-init` init container keeps a database already on the emptyDir, restores the
   replica, or on the first start after turning this on brings `/data/scrap.db` across once and leaves
-  it there. That is all a plain `helm upgrade` needs. You can delete the old file once you are happy.
-  A new database is made only if nothing says there should be one.
+  it there (a file with no pages does not count). That is all a plain `helm upgrade` needs. You can
+  delete the old file once you are happy. A new database is made only if nothing says there should
+  be one. A bad schedule or time zone also stops it here.
 - **When a pod stays in `Init`.** `kubectl -n scrap logs deploy/scrap -c db-init` says why. It fails
   on purpose rather than start empty: a restore failed (a damaged replica, a database from a newer
   scrap), or the replica is missing though the state file `/data/.scrap-db-state.json` says there was
-  one, or there are files or backup runs but no database or replica, or `/data/scrap.db` changed.
-  Usually the answer is {ref}`to restore a backup <k8s-restore-litestream>`. If you are sure,
-  `litestream.init.override: true` carries on from what is there (a start with a missing replica and
-  no old file is empty), or with a changed `/data/scrap.db` lets the replica win. Set it back after.
+  one, or there are files or backup runs but no database or replica, or `/data/scrap.db` changed, or
+  the replica is far behind. Usually the answer is {ref}`to restore a backup <k8s-restore-litestream>`.
+  If you are sure, `litestream.init.override: true` goes on from what is there. Set it back at once:
+  while it is on a later loss of the replica would also start. Each use is recorded, and **gc then
+  only counts, and its run fails, until you run** `kubectl -n scrap exec deploy/scrap -c jobs -- scrap
+  db-hold --clear`, since what came back may be older than the files.
+- **gc's safety limit.** gc deletes files nothing refers to, so a database older than the files makes
+  the newest look unused: the one loss a restore cannot undo. So on these installs `gc --delete` only
+  counts, and fails, when the database has no captures but `files/` has content, or when the files to
+  go are over 10 % of them and at least 5. After a look, `kubectl -n scrap exec deploy/scrap -c jobs
+  -- scrap gc --delete --allow-large` goes ahead once.
 - **Backups** stay CronJobs: they restore the replica to a temporary file and back that up with
   `files/`, with the same integrity check and `COMPLETE` marker. They never touch the live database,
   but they **still run beside the scrap pod**, for the `ReadWriteOnce` data volume, so they
   wait while scrap is scaled to zero. A replica whose heartbeat is over 3 hours old is refused, and
   the job fails: look at `kubectl -n scrap logs deploy/scrap -c litestream`.
 - **gc and the Claude passes** need the live database, so they run in a `jobs` container in the scrap
-  pod, not as CronJobs, with the same values for their schedules. Run one now with `kubectl -n scrap
-  exec deploy/scrap -c jobs -- scrap schedule --run gc` (or `enrich-related`, `enrich-topics`). A
-  failure is in `kubectl -n scrap logs deploy/scrap -c jobs` and, if set, `SCRAP_NOTIFY_URL`, not a
-  failed Job. gc still deletes only with a recent `COMPLETE` backup, otherwise only counts.
-- **Turning it off** does not bring the database back: `/data/scrap.db` is the old one. Take a
-  backup, set `litestream.enabled: false` with scrap scaled to 0, and restore the backup with `--force`.
+  pod, not as CronJobs, with the same values for their schedules, read as a CronJob reads them but
+  for `@every`, which is refused. An empty `timeZone` is UTC here, not the controller's zone. All of
+  them share `litestream.jobs.resources`: `gc.resources` and `enrich*.resources` are not used. Run
+  one now with `kubectl -n scrap exec deploy/scrap -c jobs -- scrap schedule --run gc` (or
+  `enrich-related`, `enrich-topics`). A failure is in `kubectl -n scrap logs deploy/scrap -c jobs`
+  and, if set, `SCRAP_NOTIFY_URL`, not a failed Job; a Claude pass stopping at a queue pause or a
+  spent budget is logged, and is not a failure. gc still deletes only with a recent `COMPLETE`
+  backup, otherwise only counts. **A time missed while the pod is restarting is not made up, and a
+  rollout stops a running pass**: the next run carries on, so a rollout around 04:30 skips that
+  night's gc, and one on a Sunday around 04:11 that week's topics.
+- **A `jobs` container that keeps crashing** takes scrap out of its Service, as Litestream's does:
+  nothing would then be watching replication.
+- **Turning it off**, or `helm rollback` to a release with it off, does not bring the database back:
+  `/data/scrap.db` is the old one. So scrap and gc refuse to start on it while the state file is
+  there. Rolling back to a chart from before this existed cannot be guarded: **that version serves the
+  old file, and its gc deletes the files only the newer database uses. Do not.** The way off, with
+  Argo CD's auto-sync paused:
+
+  1. Take a backup, and find its run: `kubectl -n scrap create job --from=cronjob/scrap-backup
+     scrap-backup-off`, then `kubectl -n scrap logs -f job/scrap-backup-off`.
+  2. `kubectl -n scrap scale deploy/scrap --replicas=0`, and suspend the backup CronJobs. The chart
+     is still the Litestream one, and nothing starts while it is at 0.
+  3. Restore that run with the pod from {ref}`the restore steps <k8s-restore-litestream>`, with
+     `args: ["restore", "/backups/<run>", "--force"]`: this is the one time without `--stage`. It
+     writes `/data/scrap.db` and removes the state file.
+  4. `helm upgrade` with `litestream.enabled: false`. It sets `replicas: 1`, so scrap starts, on the
+     restored file. If you do this before step 3 it refuses to start instead, and does no harm.
+  5. Remove `/data/litestream*` with the same pod once you are happy (they take up room, and would
+     stop a later turn back on). The CronJobs of gc and the Claude passes return by themselves.
 
 (k8s-storage)=
 ## k3s and storage notes
