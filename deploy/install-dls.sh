@@ -12,14 +12,24 @@
 # keeps its bearer token. Public pages are on: the pages you make public are served on
 # pages-$USER.diamond.ac.uk to anyone on the DLS network.
 #
-# Settings (environment, all optional):
+# scrap's database is on the pod's own disk, replicated continuously by Litestream to its
+# volume, which is NFS here (ADR 46). An install from before that moves over by itself on
+# upgrade, leaving the old file in place. If the node dies the last moments of writes are
+# lost.
+#
+# Settings (environment, all optional; in a pipe they go after it: curl ... | SCRAP_LOGIN=off sh):
+#   SCRAP_LOGIN            on (default), or off FOR TESTING ONLY: no login on the web app, so
+#                          anyone on the DLS network, and any pod in the cluster, can read and
+#                          change your pages. /mcp keeps its bearer token. Test data only.
+#                          Re-run without it to turn the login on. Anything else is refused.
 #   SCRAP_VERSION          chart version to install (default: the latest release)
 #   SCRAP_CHART            chart to install (default: scrap's chart on ghcr.io)
 #   SCRAP_NAMESPACE        namespace (default: the one `module load argus` selects, else $USER)
 #   SCRAP_HOST             hostname (default: scrap-$USER.diamond.ac.uk: one level under
 #                          diamond.ac.uk, so the ingress's *.diamond.ac.uk certificate covers it)
 #   SCRAP_PAGES_HOST       public pages' hostname (default: pages-$USER.diamond.ac.uk)
-#   SCRAP_EMAIL            your login's email address, the only one let in (default: from
+#   SCRAP_EMAIL            your login's email address, the only one let in (not used with
+#                          SCRAP_LOGIN=off; default: from
 #                          your namespace's "email" label, first.last@diamond.ac.uk)
 #   SCRAP_AUTH_NAMESPACE   the login proxy's namespace (default: scrap)
 #   SCRAP_AUTH_SERVICE     the login proxy's in-cluster DNS name (default:
@@ -49,8 +59,28 @@ ingress_values() {
     echo "        - $1"
 }
 
+# What SCRAP_LOGIN=off means, up front and again in the summary.
+login_off_warning() {
+    cat <<EOF
+
+WARNING: SCRAP_LOGIN=off: the web app has NO LOGIN. Anyone on the DLS network can read and
+change the pages at https://$host/, and so can any pod in the cluster. Test data only.
+To turn the login on, re-run this script without SCRAP_LOGIN=off.
+
+EOF
+}
+
 # All in a function that the last line runs: a download cut short runs nothing.
 main() {
+    # First, before anything is touched: a typo must never open an install.
+    case ${SCRAP_LOGIN:-on} in
+    on) login=on ;;
+    off) login=off ;;
+    *)
+        echo "SCRAP_LOGIN must be on or off, not '$SCRAP_LOGIN'. Nothing was changed." >&2
+        exit 1
+        ;;
+    esac
     version=${SCRAP_VERSION:-}
     CHART=${SCRAP_CHART:-oci://ghcr.io/gilesknap/charts/scrap}
 
@@ -89,30 +119,34 @@ main() {
     [ -z "$version" ] || what="scrap $version"
     echo "Installing $what into namespace $ns, for https://$host"
 
-    # The web app lets in only this login (scrap checks it in the login's token). argus
-    # labels your namespace with your email, first.last--at--diamond.ac.uk (a label value
-    # cannot hold @). Lower case, as Keycloak's are.
-    email=${SCRAP_EMAIL:-}
-    if [ -z "$email" ]; then
-        email=$(kubectl get namespace "$ns" -o jsonpath='{.metadata.labels.email}' </dev/null 2>/dev/null |
-            sed 's/--at--/@/' || true)
+    if [ "$login" = off ]; then
+        login_off_warning
+    else
+        # The web app lets in only this login (scrap checks it in the login's token). argus
+        # labels your namespace with your email, first.last--at--diamond.ac.uk (a label value
+        # cannot hold @). Lower case, as Keycloak's are.
+        email=${SCRAP_EMAIL:-}
+        if [ -z "$email" ]; then
+            email=$(kubectl get namespace "$ns" -o jsonpath='{.metadata.labels.email}' </dev/null 2>/dev/null |
+                sed 's/--at--/@/' || true)
+        fi
+        email=$(printf %s "$email" | tr '[:upper:]' '[:lower:]')
+        case $email in
+        "")
+            echo "Cannot find your email address: namespace $ns has no \"email\" label you can read." >&2
+            echo "Set SCRAP_EMAIL to your DLS email address (first.last@diamond.ac.uk) and re-run." >&2
+            exit 1
+            ;;
+        *[!A-Za-z0-9._+@-]* | *@*@* | @* | *@) bad_email=yes ;;
+        *@*) bad_email= ;;
+        *) bad_email=yes ;;
+        esac
+        if [ -n "$bad_email" ]; then
+            echo "Not an email address: $email. Set SCRAP_EMAIL to yours (first.last@diamond.ac.uk)." >&2
+            exit 1
+        fi
+        echo "The web app's login will let in only $email."
     fi
-    email=$(printf %s "$email" | tr '[:upper:]' '[:lower:]')
-    case $email in
-    "")
-        echo "Cannot find your email address: namespace $ns has no \"email\" label you can read." >&2
-        echo "Set SCRAP_EMAIL to your DLS email address (first.last@diamond.ac.uk) and re-run." >&2
-        exit 1
-        ;;
-    *[!A-Za-z0-9._+@-]* | *@*@* | @* | *@) bad_email=yes ;;
-    *@*) bad_email= ;;
-    *) bad_email=yes ;;
-    esac
-    if [ -n "$bad_email" ]; then
-        echo "Not an email address: $email. Set SCRAP_EMAIL to yours (first.last@diamond.ac.uk)." >&2
-        exit 1
-    fi
-    echo "The web app's login will let in only $email."
 
     if [ -n "$backup_dir" ]; then
         case $backup_dir in
@@ -217,16 +251,21 @@ main() {
         echo "  fsGroup: $gid"
         # argus caps a container's CPU limit at 10 times its request, and its default
         # limit is 1 CPU: the jobs request 50m, so give them a limit that fits.
+        # The backup jobs restore the database to their own disk first: argus's largest
+        # (and its default is 1Gi).
         echo "backup:"
-        echo "  resources: {limits: {cpu: 500m}}"
+        echo "  resources: {limits: {cpu: 500m, ephemeral-storage: 2Gi}}"
         if [ -n "$backup_dir" ]; then
             echo "  persistence:"
             echo "    hostPath: $backup_dir"
         fi
-        for job in gc enrichRelated enrichTopics; do
-            echo "$job:"
-            echo "  resources: {limits: {cpu: 500m}}"
-        done
+        # The database off NFS, onto the pod's disk, replicated to the volume (ADR 46). gc
+        # and the Claude passes then run in the pod. An existing /data/scrap.db comes across.
+        echo "litestream:"
+        echo "  enabled: true"
+        echo "  resources: {limits: {cpu: 500m}}"
+        echo "  init: {resources: {limits: {cpu: 500m}}}"
+        echo "  jobs: {resources: {limits: {cpu: 500m}}}"
         echo "service:"
         echo "  type: ${SCRAP_SERVICE_TYPE:-ClusterIP}"
         echo "maxUploadMB: $max_upload"
@@ -234,17 +273,19 @@ main() {
         ingress_values "$host"
         echo "  annotations:"
         echo "    nginx.ingress.kubernetes.io/proxy-body-size: \"$((max_upload + 1))m\""
-        # The web app's login: DLS Keycloak through the central oauth2-proxy, for you alone.
-        echo "authProxy:"
-        echo "  enabled: true"
-        echo "  service: $auth_svc"
-        echo "  allowedEmails:"
-        echo "    - \"$email\""
-        # scrap checks the proxy's Keycloak token on each request: from this realm, for
-        # this client, for your email.
-        echo "  oidc:"
-        echo "    issuer: \"$oidc_issuer\""
-        echo "    clientId: \"$oidc_client\""
+        if [ "$login" = on ]; then
+            # The web app's login: DLS Keycloak through the central oauth2-proxy, for you alone.
+            echo "authProxy:"
+            echo "  enabled: true"
+            echo "  service: $auth_svc"
+            echo "  allowedEmails:"
+            echo "    - \"$email\""
+            # scrap checks the proxy's Keycloak token on each request: from this realm, for
+            # this client, for your email.
+            echo "  oidc:"
+            echo "    issuer: \"$oidc_issuer\""
+            echo "    clientId: \"$oidc_client\""
+        fi
         # Public pages, in this namespace, so they share the Secret. argus lets no user
         # make a NetworkPolicy. The pods request 10m of CPU: a limit argus accepts.
         echo "public:"
@@ -267,6 +308,8 @@ main() {
     if ! helm upgrade --install scrap "$CHART" ${version:+--version "$version"} \
         --namespace "$ns" -f "$values" --wait --timeout 5m </dev/null; then
         echo "Helm failed; fix the cause above and re-run this script." >&2
+        echo "If the scrap pod is stuck in Init, its database is the question:" >&2
+        echo "  kubectl -n $ns logs deploy/scrap -c db-init" >&2
         if [ -n "$new_token" ]; then
             # The Secret is kept, so a re-run will not show this token again.
             cat >&2 <<EOF
@@ -295,6 +338,11 @@ EOF
         done
     fi
 
+    if [ "$login" = on ]; then
+        who="DLS login, for $email only"
+    else
+        who="NO LOGIN: anyone on the DLS network"
+    fi
     # shellcheck disable=SC2016 # quotes inside a heredoc are literal: $ns does expand
     cat <<EOF
 
@@ -302,13 +350,24 @@ scrap ${installed:+$installed }is running in namespace $ns.
 
   External IP: ${extip:-none yet: see 'kubectl -n $ns get svc scrap'}
   Service IP (inside the cluster): ${ip:-unknown}
-  Web app:  https://$host/   (DLS login, for $email only)
+  Web app:  https://$host/   ($who)
   MCP:      https://$host/mcp   (needs the bearer token)
   Pages:    https://$pages_host/   (the pages you make public; anyone on the DLS network)
 
+EOF
+    if [ "$login" = on ]; then
+        cat <<EOF
   The login keeps the web app from the network, and scrap checks the login's token
   itself: a pod that calls its Service directly without your login gets 401 (and
   /mcp needs the bearer token).
+
+EOF
+    else
+        login_off_warning
+    fi
+    cat <<EOF
+  The database is on the pod's own disk, replicated continuously by Litestream to your
+  volume. If the node dies, the last moments of writes are lost.
 
 Next steps
 EOF
@@ -334,7 +393,8 @@ EOF
      the phone app wait for the DNS names.
 EOF
     fi
-    cat <<EOF
+    if [ "$login" = on ]; then
+        cat <<EOF
   2. Ask a scrap admin to add your login address
          https://$host/oauth2/callback
      to the Keycloak client. Until it is added, logging in to the web app fails;
@@ -342,6 +402,11 @@ EOF
   3. On your phone, join the DLS VPN, then open https://$host/, log in with your DLS
      account (the login page shows the first time), and install the app.
 EOF
+    else
+        cat <<EOF
+  2. On your phone, join the DLS VPN, then open https://$host/ and install the app.
+EOF
+    fi
     if [ -n "$new_token" ]; then
         cat <<EOF
 
