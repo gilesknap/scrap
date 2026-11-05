@@ -162,6 +162,7 @@ check "SCRAP_AUTH_SERVICE" grep -q "^  service: proxy.elsewhere.svc.cluster.loca
 if (STUB_EMAIL_LABEL='' run); then ne_rc=0; else ne_rc=1; fi
 check "no email refused" [ "$ne_rc" = 1 ]
 check "no email explained" grep -q "Set SCRAP_EMAIL" "$tmp/out"
+check "no email: says the login is as it was" grep -q "if it had no login (SCRAP_LOGIN=off), it still has none" "$tmp/out"
 check "no email: no Secret, no helm" sh -c "! grep -q 'create secret' '$tmp/kubectl.calls' && [ ! -s '$tmp/helm.calls' ]"
 if (SCRAP_EMAIL='a b@diamond.ac.uk' run); then be_rc=0; else be_rc=1; fi
 check "a bad email refused" [ "$be_rc" = 1 ]
@@ -191,6 +192,9 @@ rm -f "$tmp/secret"
 if (STUB_HELM_FAIL=1 run); then helm_rc=0; else helm_rc=1; fi
 check "helm failure fails the script" [ "$helm_rc" = 1 ]
 check "token shown when helm fails" grep -q "bearer token (shown once" "$tmp/out"
+check "helm failure: says the login is as it was" grep -q "if it had no login (SCRAP_LOGIN=off), it still has none" "$tmp/out"
+check "helm failure: where to look if stuck in Init" grep -q "logs deploy/scrap -c db-init" "$tmp/out"
+check "helm failure: an older chart explained" grep -q "additional properties 'litestream' not allowed" "$tmp/out"
 
 # An existing backup directory keeps its mode.
 mkdir -p "$tmp/mine" && chmod 750 "$tmp/mine"

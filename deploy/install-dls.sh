@@ -17,6 +17,9 @@
 # upgrade, leaving the old file in place. If the node dies the last moments of writes are
 # lost.
 #
+# Goes with the chart of the same release: an older SCRAP_VERSION needs that version's
+# script, and this one before its release finds a chart without "litestream".
+#
 # Settings (environment, all optional; in a pipe they go after it: curl ... | SCRAP_LOGIN=off sh):
 #   SCRAP_LOGIN            on (default), or off FOR TESTING ONLY: no login on the web app, so
 #                          anyone on the DLS network, and any pod in the cluster, can read and
@@ -68,6 +71,12 @@ change the pages at https://$host/, and so can any pod in the cluster. Test data
 To turn the login on, re-run this script without SCRAP_LOGIN=off.
 
 EOF
+}
+
+# A failure leaves the web app's login as it was; turning it on has not happened yet.
+login_unchanged() {
+    echo "The web app stays as it was: if it had no login (SCRAP_LOGIN=off), it still has none," >&2
+    echo "and anyone on the DLS network can read and change its pages." >&2
 }
 
 # All in a function that the last line runs: a download cut short runs nothing.
@@ -135,6 +144,7 @@ main() {
         "")
             echo "Cannot find your email address: namespace $ns has no \"email\" label you can read." >&2
             echo "Set SCRAP_EMAIL to your DLS email address (first.last@diamond.ac.uk) and re-run." >&2
+            login_unchanged
             exit 1
             ;;
         *[!A-Za-z0-9._+@-]* | *@*@* | @* | *@) bad_email=yes ;;
@@ -143,6 +153,7 @@ main() {
         esac
         if [ -n "$bad_email" ]; then
             echo "Not an email address: $email. Set SCRAP_EMAIL to yours (first.last@diamond.ac.uk)." >&2
+            login_unchanged
             exit 1
         fi
         echo "The web app's login will let in only $email."
@@ -265,7 +276,8 @@ main() {
         echo "  enabled: true"
         echo "  resources: {limits: {cpu: 500m}}"
         echo "  init: {resources: {limits: {cpu: 500m}}}"
-        echo "  jobs: {resources: {limits: {cpu: 500m}}}"
+        # gc and the Claude passes, which restore nothing but share the pod's disk.
+        echo "  jobs: {resources: {limits: {cpu: 500m, ephemeral-storage: 2Gi}}}"
         echo "service:"
         echo "  type: ${SCRAP_SERVICE_TYPE:-ClusterIP}"
         echo "maxUploadMB: $max_upload"
@@ -310,6 +322,9 @@ main() {
         echo "Helm failed; fix the cause above and re-run this script." >&2
         echo "If the scrap pod is stuck in Init, its database is the question:" >&2
         echo "  kubectl -n $ns logs deploy/scrap -c db-init" >&2
+        echo "If it said additional properties 'litestream' not allowed, that chart is older" >&2
+        echo "than this script: use the script from that version (SCRAP_VERSION), or its release." >&2
+        login_unchanged
         if [ -n "$new_token" ]; then
             # The Secret is kept, so a re-run will not show this token again.
             cat >&2 <<EOF
