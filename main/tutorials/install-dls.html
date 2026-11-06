@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Install scrap at DLS &#8212; scrap 1.7.0b2.dev5+g338225bce documentation</title>
+    <title>Install scrap at DLS &#8212; scrap 1.7.0 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=b5061c93"></script>
+    <script src="../_static/documentation_options.js?v=030dc6f6"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -50,7 +50,7 @@
     <script>
         DOCUMENTATION_OPTIONS.theme_version = '0.23.0';
         DOCUMENTATION_OPTIONS.theme_switcher_json_url = 'https://gilesknap.github.io/scrap/switcher.json';
-        DOCUMENTATION_OPTIONS.theme_switcher_version_match = 'main';
+        DOCUMENTATION_OPTIONS.theme_switcher_version_match = '1.7.0';
         DOCUMENTATION_OPTIONS.show_version_warning_banner =
             false;
         </script>
@@ -63,7 +63,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="color-scheme" content="light dark"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="main" />
+  <meta name="docsearch:version" content="1.7.0" />
   
     
     <script src="../_static/searchtools.js"></script>
@@ -494,8 +494,8 @@ script. At the end the web app and the MCP endpoint answer on <code class="docut
 the pages you make public on <code class="docutils literal notranslate"><span class="pre">pages-&lt;fedid&gt;.diamond.ac.uk</span></code>, all only from the DLS network.</p>
 <p>Who can get in:</p>
 <ul class="simple">
-<li><p><strong>The web app</strong>: it asks for your DLS login (Keycloak), and scrap lets in only your own email
-address: another DLS user who logs in gets <code class="docutils literal notranslate"><span class="pre">401</span></code>. That keeps it from the network. Pods in the cluster can reach its Service directly,
+<li><p><strong>The web app</strong>: it asks for your DLS login (Keycloak), and scrap lets in only your own
+fedid: another DLS user who logs in gets <code class="docutils literal notranslate"><span class="pre">401</span></code>. That keeps it from the network. Pods in the cluster can reach its Service directly,
 but scrap checks the login’s token itself, so without a valid DLS login token for you they get
 <code class="docutils literal notranslate"><span class="pre">401</span></code>. You stay logged in as long as your DLS Keycloak session lasts; when it ends, the web app
 and the phone app take you to the DLS login again.</p></li>
@@ -536,8 +536,8 @@ generated upload token for your public pages;</p></li>
 <li><p>installs the latest scrap release with Helm, with Ingresses for <code class="docutils literal notranslate"><span class="pre">scrap-&lt;fedid&gt;.diamond.ac.uk</span></code>
 and <code class="docutils literal notranslate"><span class="pre">pages-&lt;fedid&gt;.diamond.ac.uk</span></code> on argus’s <code class="docutils literal notranslate"><span class="pre">nginx</span></code> ingress, served over HTTPS by its
 <code class="docutils literal notranslate"><span class="pre">*.diamond.ac.uk</span></code> certificate;</p></li>
-<li><p>puts the web app behind the DLS login, letting in only your email address, which it reads from
-your namespace (in lower case);</p></li>
+<li><p>puts the web app behind the DLS login, letting in only your fedid, which is your namespace’s
+name (in lower case);</p></li>
 <li><p>makes <code class="docutils literal notranslate"><span class="pre">/dls/science/users/&lt;fedid&gt;/scrap</span></code> (mode 700, if it is new) and keeps the nightly backups there, with
 scrap’s pods running as you, so the backups are your files;</p></li>
 <li><p>puts scrap’s database on the pod’s own disk, not on your NFS volume, where SQLite is not safe,
@@ -554,10 +554,9 @@ without your data rather than starting empty: <code class="docutils literal notr
 <p>It is safe to re-run: a re-run upgrades to the latest release and never overwrites the Secret. A
 Secret made by an older installer gets only the upload token added. Set <code class="docutils literal notranslate"><span class="pre">SCRAP_VERSION</span></code> to install a particular release;
 the script and chart go together, so an older release needs that version’s script.
-<code class="docutils literal notranslate"><span class="pre">SCRAP_BACKUP_DIR</span></code> moves the backups (empty keeps them on a volume in the cluster). If the
-installer stops with “Cannot find your email address”, set <code class="docutils literal notranslate"><span class="pre">SCRAP_EMAIL</span></code> to your DLS email
-address (<code class="docutils literal notranslate"><span class="pre">first.last&#64;diamond.ac.uk</span></code>) and run it again. The header of the script lists every
-setting.</p>
+<code class="docutils literal notranslate"><span class="pre">SCRAP_BACKUP_DIR</span></code> moves the backups (empty keeps them on a volume in the cluster). If you
+install into a namespace not named after your fedid, set <code class="docutils literal notranslate"><span class="pre">SCRAP_USER</span></code> to your fedid. The
+header of the script lists every setting.</p>
 <p>Keep the token in a password manager. To see it again:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">kubectl</span> <span class="n">get</span> <span class="n">secret</span> <span class="n">scrap</span><span class="o">-</span><span class="n">secrets</span> <span class="o">-</span><span class="n">o</span> <span class="n">jsonpath</span><span class="o">=</span><span class="s1">'{.data.SCRAP_MCP_TOKEN}'</span> <span class="o">|</span> <span class="n">base64</span> <span class="o">-</span><span class="n">d</span><span class="p">;</span> <span class="n">echo</span>
 </pre></div>
@@ -575,7 +574,7 @@ In a pipe, the variable goes after it:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">curl</span> <span class="o">-</span><span class="n">fsSL</span> <span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">raw</span><span class="o">.</span><span class="n">githubusercontent</span><span class="o">.</span><span class="n">com</span><span class="o">/</span><span class="n">gilesknap</span><span class="o">/</span><span class="n">scrap</span><span class="o">/</span><span class="n">main</span><span class="o">/</span><span class="n">deploy</span><span class="o">/</span><span class="n">install</span><span class="o">-</span><span class="n">dls</span><span class="o">.</span><span class="n">sh</span> <span class="o">|</span> <span class="n">SCRAP_LOGIN</span><span class="o">=</span><span class="n">off</span> <span class="n">sh</span>
 </pre></div>
 </div>
-<p>It needs no email address, and everything else is as normal: the bearer token on <code class="docutils literal notranslate"><span class="pre">/mcp</span></code>, backups,
+<p>It checks no fedid (<code class="docutils literal notranslate"><span class="pre">SCRAP_USER</span></code> is not used), and everything else is as normal: the bearer token on <code class="docutils literal notranslate"><span class="pre">/mcp</span></code>, backups,
 public pages and the database. The installer warns you up front and again in its summary. Only
 exactly <code class="docutils literal notranslate"><span class="pre">off</span></code> does this: anything but <code class="docutils literal notranslate"><span class="pre">on</span></code> or <code class="docutils literal notranslate"><span class="pre">off</span></code> stops the installer before it touches anything.</p>
 <p><strong>To turn the login on</strong>, re-run the installer without it. Your Secret and your data are kept. Then
@@ -753,7 +752,7 @@ and your namespace in place of <code class="docutils literal notranslate"><span 
 
   
   <div class="tocsection editthispage">
-    <a href="https://github.com/gilesknap/scrap/edit/main/docs/tutorials/install-dls.md">
+    <a href="https://github.com/gilesknap/scrap/edit/1.7.0/docs/tutorials/install-dls.md">
       <i class="fa-solid fa-pencil"></i>
       
       

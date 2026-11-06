@@ -7,6 +7,10 @@ Date: 2026-11-04
 Accepted. Takes up the `SCRAP_ALLOWED_USER` check that
 [](0023-bearer-token-on-mcp-and-an-identity-header-setting.md) left for later.
 
+Amended 2026-11-06: the owner is checked by Keycloak username (the DLS fedid), not by email,
+since DLS Keycloak does not verify emails. See [](#amendment-the-owner-is-the-fedid) at the
+end.
+
 ## Context
 
 At DLS each user's scrap sits behind one central oauth2-proxy, through ingress-nginx's external
@@ -31,8 +35,10 @@ own and trusted that header as sent.
   not an ID token; compared ignoring case); `iss` exactly
   `SCRAP_OIDC_ISSUER`; issued to our client (`azp` is `SCRAP_OIDC_CLIENT_ID`, or it is in `aud`,
   since Keycloak's access tokens have `aud: account` unless a mapper adds the client); `exp`,
-  `nbf` and `iat` with 30 s of leeway; `email_verified` true; and `email` (lower-cased) in
-  `SCRAP_ALLOWED_EMAILS`. This allow-list is the only owner check: the token alone says only
+  `nbf` and `iat` with 30 s of leeway; and `preferred_username` (the Keycloak username, at
+  DLS the fedid) in `SCRAP_ALLOWED_USERS` (lower-cased when read). The claim must be
+  lower-case ASCII and match exactly, never folded; a token without it, or with any other
+  spelling, gets `401`. This allow-list is the only owner check: the token alone says only
   that someone at DLS logged in, and the Ingress's `auth-url` carries no `allowed_emails`
   (DLS's ingress-nginx refuses an `@` or `%` in it), so any DLS login passes the proxy, and
   another user gets scrap's `401`.
@@ -67,24 +73,51 @@ own and trusted that header as sent.
   (`503`). The request and headers are bounded per operation only, but a slow fetch holds
   no lock and blocks no other request.
 - **Freshness.** Keycloak's access tokens last 5 minutes by default, so the proxy refreshes its
-  session every minute (`cookie_refresh`) with its refresh token. Its scopes are `openid email`
-  only: no `offline_access`, so a login lasts as long as the user's Keycloak session, and then
+  session every minute (`cookie_refresh`) with its refresh token. Its scopes are `openid email
+  profile` only: no `offline_access`, so a login lasts as long as the user's Keycloak session, and then
   the refresh fails and they log in again.
-- **The author** of a change is the token's verified email, and no identity header is read
-  (`SCRAP_IDENTITY_HEADER` is ignored while the check is on). `/mcp` changes stay Claude's.
+- **The author** of a change is the token's username (the fedid), the identity the check
+  admitted, and no identity header is read (`SCRAP_IDENTITY_HEADER` is ignored while the
+  check is on). `/mcp` changes stay Claude's.
 - **Helm.** `authProxy.oidc.issuer` and `.clientId` are required with `authProxy.enabled`; the
-  Deployment gets `SCRAP_OIDC_ISSUER`, `SCRAP_OIDC_CLIENT_ID` and `SCRAP_ALLOWED_EMAILS`
-  (the lower-cased `allowedEmails`). The CronJobs serve no HTTP and do not.
+  Deployment gets `SCRAP_OIDC_ISSUER`, `SCRAP_OIDC_CLIENT_ID` and `SCRAP_ALLOWED_USERS`
+  (the lower-cased `allowedUsers`). The CronJobs serve no HTTP and do not.
 
 ## Consequences
 
 - A pod that reaches the Service gets `401` on everything but `/healthz` and `/mcp`, and `/mcp`
   needs the bearer token. `/healthz` still answers anyone, as before.
-- Keycloak's access tokens must carry `email` and `email_verified` (its default `email` scope
-  maps both into the access token) and name the client in `azp`.
+- Keycloak's access tokens must carry `preferred_username` (its default `profile` scope maps
+  it into the access token) and name the client in `azp`. Whether the email is verified does
+  not matter.
 - A token taken from the owner's browser is good for its few remaining minutes, as the login
   cookie is for longer: the check stops forgery, not theft.
 - `kubectl port-forward` to the Service reaches `/healthz` and `/mcp` only; the web app needs
   the Ingress.
 - The web app is unusable while Keycloak's keys cannot be had (after the cached hour), which is
   also when nobody can log in.
+
+## Amendment: the owner is the fedid
+
+The first version checked `email_verified` true and `email` in `SCRAP_ALLOWED_EMAILS`. DLS
+Keycloak does not verify emails: real staff accounts' tokens carry `email_verified: false`.
+The first login on argus failed in oauth2-proxy, which refuses an unverified email
+(`email in id_token (giles.knap@diamond.ac.uk) isn't verified`, a `500`), and loosening the
+proxy alone would only have moved the failure to scrap's `401`.
+
+So the owner is the Keycloak username, `preferred_username`. At DLS that is the fedid, the
+same identity that names the user's argus namespace (namespace `abc12345` is fedid
+`abc12345`), so the installer takes it from the namespace. The `profile` scope carries it
+into the access token. So the trust anchor is that DLS users cannot change their own username:
+the realm has "Edit username" off (and no "Email as username" with editable emails), and
+`preferred_username` comes from Keycloak's built-in username mapper, not an editable
+attribute. The token's claim must be lower-case ASCII and match exactly; scrap does not fold
+it, so no look-alike spelling passes. The proxy sets `insecure_oidc_allow_unverified_email`:
+it admits any DLS login, as before, and each scrap admits only its owner. `SCRAP_ALLOWED_EMAILS` and
+`authProxy.allowedEmails` are gone, not kept as aliases: they shipped in 1.6.0 a day earlier
+and had no users but the owner, whose login never worked.
+
+The proxy keeps `email_domains = ["diamond.ac.uk"]`: an unverified email is still one DLS
+Keycloak holds for the account, and the domain check costs nothing. The author of a change
+is now the username too: it is the identity the check admitted, while the email is not
+checked at all.

@@ -168,8 +168,8 @@ inside them is silently ignored. The main ones:
 | `service.type`, `service.port` | `ClusterIP`, `80` | The Service. |
 | `networkPolicy.enabled`, `.from` | off | Who may connect, below. |
 | `mcp.tokenSecret.name`, `.key` | none, `SCRAP_MCP_TOKEN` | An existing Secret and the key in it holding the bearer token(s) `/mcp` requires (`SCRAP_MCP_TOKEN`, comma separated for several). Never a token as a value; the chart creates no Secret. Empty name: no token needed. See {ref}`k8s-mcp-token`. |
-| `identityHeader` | `Tailscale-User-Login` | `SCRAP_IDENTITY_HEADER`: the header recorded as the author, e.g. `X-Auth-Request-User` behind oauth2-proxy. Not read with `authProxy.enabled`, where the author is the token's email. |
-| `authProxy.enabled`, `.service`, `.port`, `.allowedEmails` | off, none, `80`, none | A login for the web app through an oauth2-proxy you run, with ingress-nginx only ({ref}`k8s-auth-proxy`). |
+| `identityHeader` | `Tailscale-User-Login` | `SCRAP_IDENTITY_HEADER`: the header recorded as the author, e.g. `X-Auth-Request-User` behind oauth2-proxy. Not read with `authProxy.enabled`, where the author is the token's username. |
+| `authProxy.enabled`, `.service`, `.port`, `.allowedUsers` | off, none, `80`, none | A login for the web app through an oauth2-proxy you run, with ingress-nginx only ({ref}`k8s-auth-proxy`). |
 | `authProxy.oidc.issuer`, `.clientId` | none | Required with `authProxy.enabled`: the identity provider's issuer URL (https) and the proxy's client ID, whose access tokens scrap checks on every request (`SCRAP_OIDC_ISSUER`, `SCRAP_OIDC_CLIENT_ID`; {ref}`k8s-auth-proxy`). |
 | `extraEnv`, `extraEnvFrom` | none | Anything else for the container, such as `SCRAP_PUBLIC_URL` (see {ref}`k8s-mcp`) or `SCRAP_ENRICH`. |
 | `public.enabled`, `.site`, `.tokenSecret.*`, `.ingress.*`, `.networkPolicy.webFrom` | off | Public pages: the public site and its upload receiver in their own namespace ({ref}`k8s-public-pages`). |
@@ -386,7 +386,7 @@ fixed `redirect_url`), the chart wires it in:
 authProxy:
   enabled: true
   service: oauth2-proxy.scrap.svc.cluster.local   # the proxy's in-cluster DNS name
-  allowedEmails: [first.last@example.org]             # who may use the web app
+  allowedUsers: [abc12345]                            # who may use the web app (usernames)
   oidc:
     issuer: https://identity.example.org/realms/main  # the realm, as in its tokens' iss
     clientId: scrap                                   # the proxy's client
@@ -400,15 +400,15 @@ through an `ExternalName` Service, so the sign-in, its callback
 (`https://<host>/oauth2/callback`, which the identity provider must allow) and the cookie are
 on scrap's own host. Both Ingresses get `proxy-buffer-size: 16k` unless `ingress.annotations`
 sets it, since the login's cookies overflow nginx's 4k default. The author of a change is
-the verified email in the proxy's token, so `identityHeader` is not read. The install fails without `ingress.enabled`, `ingress.tls` (the cookie is
-https only), `mcp.tokenSecret.name`, `authProxy.service`, `authProxy.allowedEmails`,
+the username (`preferred_username`) in the proxy's token, so `identityHeader` is not read. The install fails without `ingress.enabled`, `ingress.tls` (the cookie is
+https only), `mcp.tokenSecret.name`, `authProxy.service`, `authProxy.allowedUsers`,
 `authProxy.oidc.issuer` or `authProxy.oidc.clientId`.
 
 The login alone guards the Ingress only: without a NetworkPolicy, any pod can reach the Service
 and send its own `X-Auth-Request-Email`. So scrap checks the proxy's access token itself
 ([ADR 45](../explanations/decisions/0045-scrap-verifies-the-login-proxys-keycloak-token.md)): the
-Deployment gets `SCRAP_OIDC_ISSUER`, `SCRAP_OIDC_CLIENT_ID` and `SCRAP_ALLOWED_EMAILS`, and every
-request but `/healthz` and `/mcp` needs a valid token for an allowed email (`401` without).
+Deployment gets `SCRAP_OIDC_ISSUER`, `SCRAP_OIDC_CLIENT_ID` and `SCRAP_ALLOWED_USERS`, and every
+request but `/healthz` and `/mcp` needs a valid token for an allowed username (`401` without).
 This is also the only owner check: anyone the proxy lets log in passes the Ingress. Run
 the proxy with `pass_access_token = true`, and a `cookie_refresh` shorter than the access tokens'
 life. Other controllers

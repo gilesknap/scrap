@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>HTTP API and CLI &#8212; scrap 1.7.0b2.dev5+g338225bce documentation</title>
+    <title>HTTP API and CLI &#8212; scrap 1.7.0 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=b5061c93"></script>
+    <script src="../_static/documentation_options.js?v=030dc6f6"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -50,7 +50,7 @@
     <script>
         DOCUMENTATION_OPTIONS.theme_version = '0.23.0';
         DOCUMENTATION_OPTIONS.theme_switcher_json_url = 'https://gilesknap.github.io/scrap/switcher.json';
-        DOCUMENTATION_OPTIONS.theme_switcher_version_match = 'main';
+        DOCUMENTATION_OPTIONS.theme_switcher_version_match = '1.7.0';
         DOCUMENTATION_OPTIONS.show_version_warning_banner =
             false;
         </script>
@@ -63,7 +63,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="color-scheme" content="light dark"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="main" />
+  <meta name="docsearch:version" content="1.7.0" />
   
     
     <script src="../_static/searchtools.js"></script>
@@ -500,7 +500,7 @@ The service listens on <code class="docutils literal notranslate"><span class="p
 single-server install’s default), and has no login; put Tailscale Serve (or an authenticating
 proxy) in front. The author of a capture or edit is the <code class="docutils literal notranslate"><span class="pre">Tailscale-User-Login</span></code> header (or the header named by
 <code class="docutils literal notranslate"><span class="pre">SCRAP_IDENTITY_HEADER</span></code>), else <code class="docutils literal notranslate"><span class="pre">tagged</span></code>; a header naming <code class="docutils literal notranslate"><span class="pre">claude</span></code> (MCP’s author) counts as none.
-With <code class="docutils literal notranslate"><span class="pre">SCRAP_OIDC_ISSUER</span></code> set it is instead the verified email of the login proxy’s token.
+With <code class="docutils literal notranslate"><span class="pre">SCRAP_OIDC_ISSUER</span></code> set it is instead the username (<code class="docutils literal notranslate"><span class="pre">preferred_username</span></code>) in the login proxy’s token.
 A text revision made over HTTP is always source <code class="docutils literal notranslate"><span class="pre">web</span></code>, never Claude’s.</p>
 <section id="http">
 <h2>HTTP<a class="headerlink" href="#http" title="Link to this heading">#</a></h2>
@@ -950,15 +950,15 @@ chart’s values in <a class="reference internal" href="../how-to/deploy-kuberne
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">SCRAP_OIDC_ISSUER</span></code></p></td>
 <td><p>unset</p></td>
-<td><p>The login proxy’s token check (<a class="reference internal" href="../explanations/decisions/0045-scrap-verifies-the-login-proxys-keycloak-token.html"><span class="std std-doc">ADR 45</span></a>): an OpenID Connect issuer URL (https, or http on loopback), e.g. <code class="docutils literal notranslate"><span class="pre">https://identity.diamond.ac.uk/realms/dls</span></code>. Set, every request but <code class="docutils literal notranslate"><span class="pre">/healthz</span></code> and <code class="docutils literal notranslate"><span class="pre">/mcp</span></code> (and the paths under it) needs an access token from it in <code class="docutils literal notranslate"><span class="pre">X-Auth-Request-Access-Token</span></code> (oauth2-proxy’s <code class="docutils literal notranslate"><span class="pre">pass_access_token</span></code>, passed on by the ingress): signed RS256 or ES256 by a key from the issuer’s discovery document, <code class="docutils literal notranslate"><span class="pre">typ</span></code> <code class="docutils literal notranslate"><span class="pre">Bearer</span></code> (not an ID token), <code class="docutils literal notranslate"><span class="pre">iss</span></code> this exactly, issued to <code class="docutils literal notranslate"><span class="pre">SCRAP_OIDC_CLIENT_ID</span></code> (<code class="docutils literal notranslate"><span class="pre">azp</span></code>, or in <code class="docutils literal notranslate"><span class="pre">aud</span></code>), in date (30 s leeway), <code class="docutils literal notranslate"><span class="pre">email_verified</span></code> true and <code class="docutils literal notranslate"><span class="pre">email</span></code> in <code class="docutils literal notranslate"><span class="pre">SCRAP_ALLOWED_EMAILS</span></code>. Else <code class="docutils literal notranslate"><span class="pre">401</span></code> (JSON under <code class="docutils literal notranslate"><span class="pre">/api</span></code>, text elsewhere), or <code class="docutils literal notranslate"><span class="pre">503</span></code> if the issuer’s keys cannot be fetched. The author of a change is then the token’s email, and <code class="docutils literal notranslate"><span class="pre">SCRAP_IDENTITY_HEADER</span></code> is not read. Set without the two below, or without an <code class="docutils literal notranslate"><span class="pre">/mcp</span></code> bearer token (<code class="docutils literal notranslate"><span class="pre">SCRAP_MCP_TOKEN</span></code> or <code class="docutils literal notranslate"><span class="pre">SCRAP_MCP_TOKEN_FILE</span></code>), stops scrap at start</p></td>
+<td><p>The login proxy’s token check (<a class="reference internal" href="../explanations/decisions/0045-scrap-verifies-the-login-proxys-keycloak-token.html"><span class="std std-doc">ADR 45</span></a>): an OpenID Connect issuer URL (https, or http on loopback), e.g. <code class="docutils literal notranslate"><span class="pre">https://identity.diamond.ac.uk/realms/dls</span></code>. Set, every request but <code class="docutils literal notranslate"><span class="pre">/healthz</span></code> and <code class="docutils literal notranslate"><span class="pre">/mcp</span></code> (and the paths under it) needs an access token from it in <code class="docutils literal notranslate"><span class="pre">X-Auth-Request-Access-Token</span></code> (oauth2-proxy’s <code class="docutils literal notranslate"><span class="pre">pass_access_token</span></code>, passed on by the ingress): signed RS256 or ES256 by a key from the issuer’s discovery document, <code class="docutils literal notranslate"><span class="pre">typ</span></code> <code class="docutils literal notranslate"><span class="pre">Bearer</span></code> (not an ID token), <code class="docutils literal notranslate"><span class="pre">iss</span></code> this exactly, issued to <code class="docutils literal notranslate"><span class="pre">SCRAP_OIDC_CLIENT_ID</span></code> (<code class="docutils literal notranslate"><span class="pre">azp</span></code>, or in <code class="docutils literal notranslate"><span class="pre">aud</span></code>), in date (30 s leeway), and <code class="docutils literal notranslate"><span class="pre">preferred_username</span></code> (the Keycloak username; at DLS the fedid) in <code class="docutils literal notranslate"><span class="pre">SCRAP_ALLOWED_USERS</span></code>. Else <code class="docutils literal notranslate"><span class="pre">401</span></code> (JSON under <code class="docutils literal notranslate"><span class="pre">/api</span></code>, text elsewhere), or <code class="docutils literal notranslate"><span class="pre">503</span></code> if the issuer’s keys cannot be fetched. The author of a change is then the token’s username, and <code class="docutils literal notranslate"><span class="pre">SCRAP_IDENTITY_HEADER</span></code> is not read. Set without the two below, or without an <code class="docutils literal notranslate"><span class="pre">/mcp</span></code> bearer token (<code class="docutils literal notranslate"><span class="pre">SCRAP_MCP_TOKEN</span></code> or <code class="docutils literal notranslate"><span class="pre">SCRAP_MCP_TOKEN_FILE</span></code>), stops scrap at start</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">SCRAP_OIDC_CLIENT_ID</span></code></p></td>
 <td><p>unset</p></td>
 <td><p>With <code class="docutils literal notranslate"><span class="pre">SCRAP_OIDC_ISSUER</span></code>: the client a token must be issued to</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">SCRAP_ALLOWED_EMAILS</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">SCRAP_ALLOWED_USERS</span></code></p></td>
 <td><p>unset</p></td>
-<td><p>With <code class="docutils literal notranslate"><span class="pre">SCRAP_OIDC_ISSUER</span></code>: the emails let in, comma separated, compared lower-cased</p></td>
+<td><p>With <code class="docutils literal notranslate"><span class="pre">SCRAP_OIDC_ISSUER</span></code>: the Keycloak usernames let in (a token’s <code class="docutils literal notranslate"><span class="pre">preferred_username</span></code>; at DLS the fedids), comma separated and lower-cased when read. The token’s username must be lower-case ASCII and match one exactly</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">SCRAP_REVISION_WINDOW</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">300</span></code></p></td>
@@ -1112,7 +1112,7 @@ chart’s values in <a class="reference internal" href="../how-to/deploy-kuberne
 
   
   <div class="tocsection editthispage">
-    <a href="https://github.com/gilesknap/scrap/edit/main/docs/reference/api.md">
+    <a href="https://github.com/gilesknap/scrap/edit/1.7.0/docs/reference/api.md">
       <i class="fa-solid fa-pencil"></i>
       
       

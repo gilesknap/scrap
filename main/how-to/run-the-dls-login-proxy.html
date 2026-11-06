@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Run the DLS login proxy &#8212; scrap 1.7.0b2.dev5+g338225bce documentation</title>
+    <title>Run the DLS login proxy &#8212; scrap 1.7.0 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=b5061c93"></script>
+    <script src="../_static/documentation_options.js?v=030dc6f6"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -50,7 +50,7 @@
     <script>
         DOCUMENTATION_OPTIONS.theme_version = '0.23.0';
         DOCUMENTATION_OPTIONS.theme_switcher_json_url = 'https://gilesknap.github.io/scrap/switcher.json';
-        DOCUMENTATION_OPTIONS.theme_switcher_version_match = 'main';
+        DOCUMENTATION_OPTIONS.theme_switcher_version_match = '1.7.0';
         DOCUMENTATION_OPTIONS.show_version_warning_banner =
             false;
         </script>
@@ -63,7 +63,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="color-scheme" content="light dark"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="main" />
+  <meta name="docsearch:version" content="1.7.0" />
   
     
     <script src="../_static/searchtools.js"></script>
@@ -510,14 +510,15 @@ sets it up and keeps it running.</p>
 Keycloak client secret and the proxy’s cookie secret; users never see them.</p></li>
 <li><p>Each user’s scrap has two Ingresses on <code class="docutils literal notranslate"><span class="pre">scrap-&lt;fedid&gt;.diamond.ac.uk</span></code>. The main one sends every
 request to the proxy first (ingress-nginx’s <code class="docutils literal notranslate"><span class="pre">auth-url</span></code>), which needs a DLS login; scrap then
-lets in only that user’s email address, from the token the proxy passes on. The other has no login and carries <code class="docutils literal notranslate"><span class="pre">/mcp</span></code> (scrap’s bearer token guards it) and
+lets in only that user’s fedid, from the token the proxy passes on. The other has no login and carries <code class="docutils literal notranslate"><span class="pre">/mcp</span></code> (scrap’s bearer token guards it) and
 <code class="docutils literal notranslate"><span class="pre">/oauth2</span></code>, which reaches the proxy through an <code class="docutils literal notranslate"><span class="pre">ExternalName</span></code> Service in the user’s namespace.</p></li>
 <li><p>The proxy has no fixed callback address and no cookie domain, so each user’s login and cookie
 belong to that user’s host alone. That is why Keycloak needs one exact redirect URI per user.</p></li>
 <li><p>Any DLS login passes the proxy, on any user’s host: the <code class="docutils literal notranslate"><span class="pre">auth-url</span></code> carries no
 <code class="docutils literal notranslate"><span class="pre">allowed_emails</span></code>, because DLS’s ingress-nginx refuses an <code class="docutils literal notranslate"><span class="pre">&#64;</span></code> or <code class="docutils literal notranslate"><span class="pre">%</span></code> in it. Each user’s scrap
-admits only its owner, by the email in the access token: another DLS user who logs in there
-gets scrap’s <code class="docutils literal notranslate"><span class="pre">401</span></code>.</p></li>
+admits only its owner, by the fedid in the access token (<code class="docutils literal notranslate"><span class="pre">preferred_username</span></code>): another DLS
+user who logs in there gets scrap’s <code class="docutils literal notranslate"><span class="pre">401</span></code>. DLS Keycloak does not verify emails, so the proxy
+runs with <code class="docutils literal notranslate"><span class="pre">insecure_oidc_allow_unverified_email</span></code>; the email is not what lets anyone in.</p></li>
 <li><p>The proxy passes the user’s Keycloak access token on (<code class="docutils literal notranslate"><span class="pre">pass_access_token</span></code>), and scrap checks
 it on every request (<a class="reference internal" href="../explanations/decisions/0045-scrap-verifies-the-login-proxys-keycloak-token.html"><span class="std std-doc">45. scrap verifies the login proxy’s Keycloak token</span></a>).
 argus users cannot make NetworkPolicies, so a pod in the cluster can reach a user’s scrap
@@ -536,17 +537,19 @@ chart, pinned in <code class="docutils literal notranslate"><span class="pre">de
 <ul class="simple">
 <li><p><strong>Confidential</strong> (client authentication on), <strong>standard flow</strong> only, with <strong>PKCE</strong> method
 <code class="docutils literal notranslate"><span class="pre">S256</span></code>.</p></li>
-<li><p>Client scopes <code class="docutils literal notranslate"><span class="pre">openid</span></code> and <code class="docutils literal notranslate"><span class="pre">email</span></code> only (no <code class="docutils literal notranslate"><span class="pre">profile</span></code>, no <code class="docutils literal notranslate"><span class="pre">offline_access</span></code>).</p></li>
+<li><p>Client scopes <code class="docutils literal notranslate"><span class="pre">openid</span></code>, <code class="docutils literal notranslate"><span class="pre">email</span></code> and <code class="docutils literal notranslate"><span class="pre">profile</span></code> only (no <code class="docutils literal notranslate"><span class="pre">offline_access</span></code>).</p></li>
 <li><p>An <strong>audience mapper</strong> that adds the client’s own ID to the access token’s audience: oauth2-proxy
 checks it.</p></li>
 <li><p><strong>Valid redirect URIs</strong>: one exact entry per user, <code class="docutils literal notranslate"><span class="pre">https://scrap-&lt;fedid&gt;.diamond.ac.uk/oauth2/callback</span></code>.
 No wildcards. Start with your own.</p></li>
-<li><p><strong>Access tokens that carry <code class="docutils literal notranslate"><span class="pre">email</span></code> and <code class="docutils literal notranslate"><span class="pre">email_verified</span></code></strong>: scrap reads them from the access
-token, not the ID token. Keycloak’s default <code class="docutils literal notranslate"><span class="pre">email</span></code> client scope maps both into the access
-token; check it has not been changed to the ID token only.</p></li>
-<li><p>Confirmation that emails in the <code class="docutils literal notranslate"><span class="pre">dls</span></code> realm are <strong>verified</strong> (<code class="docutils literal notranslate"><span class="pre">email_verified</span></code> true).
-oauth2-proxy refuses a login with an unverified email; do not set
-<code class="docutils literal notranslate"><span class="pre">insecure_oidc_allow_unverified_email</span></code> to get round it.</p></li>
+<li><p><strong>Access tokens that carry <code class="docutils literal notranslate"><span class="pre">preferred_username</span></code></strong> (the fedid): scrap reads it from the access
+token, not the ID token. Keycloak’s default <code class="docutils literal notranslate"><span class="pre">profile</span></code> client scope maps it into the access
+token; check it has not been changed to the ID token only. The tokens also carry <code class="docutils literal notranslate"><span class="pre">email</span></code>,
+which the proxy checks against <code class="docutils literal notranslate"><span class="pre">email_domains</span></code>; it need not be verified.</p></li>
+<li><p>Confirmation that users <strong>cannot change their username</strong> in the <code class="docutils literal notranslate"><span class="pre">dls</span></code> realm: “Edit username”
+off, and not “Email as username” with emails users can edit. And that the access token’s
+<code class="docutils literal notranslate"><span class="pre">preferred_username</span></code> comes from Keycloak’s built-in username mapper, not from an attribute
+users can edit. scrap trusts it to name the owner.</p></li>
 </ul>
 <p>Keep the client ID and secret for the next step.</p>
 <p>Also ask the argus admins to confirm that user namespaces may have <code class="docutils literal notranslate"><span class="pre">ExternalName</span></code> Services, and
@@ -569,6 +572,8 @@ the Secret <code class="docutils literal notranslate"><span class="pre">oauth2-p
 budget, and no Ingress. The proxy answers inside the cluster at
 <code class="docutils literal notranslate"><span class="pre">oauth2-proxy.scrap.svc.cluster.local</span></code>, where every user’s installer points by default.</p>
 <p>Re-run the script after changing <code class="docutils literal notranslate"><span class="pre">values.yaml</span></code> or the pinned chart version. It keeps the Secret.
+A run that makes the Secret (the first, or after you deleted it) also restarts the proxy, since
+its pods read the Secret only when they start.
 With a namespace other than <code class="docutils literal notranslate"><span class="pre">scrap</span></code>, users must set <code class="docutils literal notranslate"><span class="pre">SCRAP_AUTH_NAMESPACE</span></code> to it when they
 run their installer.</p>
 </section>
@@ -670,7 +675,7 @@ usually means the proxy is down or the user’s Ingress names the wrong Service:
 
   
   <div class="tocsection editthispage">
-    <a href="https://github.com/gilesknap/scrap/edit/main/docs/how-to/run-the-dls-login-proxy.md">
+    <a href="https://github.com/gilesknap/scrap/edit/1.7.0/docs/how-to/run-the-dls-login-proxy.md">
       <i class="fa-solid fa-pencil"></i>
       
       

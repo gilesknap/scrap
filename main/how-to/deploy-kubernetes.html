@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Deploy on Kubernetes &#8212; scrap 1.7.0b2.dev5+g338225bce documentation</title>
+    <title>Deploy on Kubernetes &#8212; scrap 1.7.0 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=b5061c93"></script>
+    <script src="../_static/documentation_options.js?v=030dc6f6"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -408,7 +408,7 @@ window.runMermaid = runMermaid;</script>
     <script>
         DOCUMENTATION_OPTIONS.theme_version = '0.23.0';
         DOCUMENTATION_OPTIONS.theme_switcher_json_url = 'https://gilesknap.github.io/scrap/switcher.json';
-        DOCUMENTATION_OPTIONS.theme_switcher_version_match = 'main';
+        DOCUMENTATION_OPTIONS.theme_switcher_version_match = '1.7.0';
         DOCUMENTATION_OPTIONS.show_version_warning_banner =
             false;
         </script>
@@ -421,7 +421,7 @@ window.runMermaid = runMermaid;</script>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="color-scheme" content="light dark"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="main" />
+  <meta name="docsearch:version" content="1.7.0" />
   
     
     <script src="../_static/searchtools.js"></script>
@@ -1097,9 +1097,9 @@ inside them is silently ignored. The main ones:</p>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">identityHeader</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Tailscale-User-Login</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">SCRAP_IDENTITY_HEADER</span></code>: the header recorded as the author, e.g. <code class="docutils literal notranslate"><span class="pre">X-Auth-Request-User</span></code> behind oauth2-proxy. Not read with <code class="docutils literal notranslate"><span class="pre">authProxy.enabled</span></code>, where the author is the token’s email.</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">SCRAP_IDENTITY_HEADER</span></code>: the header recorded as the author, e.g. <code class="docutils literal notranslate"><span class="pre">X-Auth-Request-User</span></code> behind oauth2-proxy. Not read with <code class="docutils literal notranslate"><span class="pre">authProxy.enabled</span></code>, where the author is the token’s username.</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">authProxy.enabled</span></code>, <code class="docutils literal notranslate"><span class="pre">.service</span></code>, <code class="docutils literal notranslate"><span class="pre">.port</span></code>, <code class="docutils literal notranslate"><span class="pre">.allowedEmails</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">authProxy.enabled</span></code>, <code class="docutils literal notranslate"><span class="pre">.service</span></code>, <code class="docutils literal notranslate"><span class="pre">.port</span></code>, <code class="docutils literal notranslate"><span class="pre">.allowedUsers</span></code></p></td>
 <td><p>off, none, <code class="docutils literal notranslate"><span class="pre">80</span></code>, none</p></td>
 <td><p>A login for the web app through an oauth2-proxy you run, with ingress-nginx only (<a class="reference internal" href="#k8s-auth-proxy"><span class="std std-ref">A central oauth2-proxy with ingress-nginx</span></a>).</p></td>
 </tr>
@@ -1310,7 +1310,7 @@ fixed <code class="docutils literal notranslate"><span class="pre">redirect_url<
 <div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">authProxy</span><span class="p">:</span>
 <span class="w">  </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
 <span class="w">  </span><span class="nt">service</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">oauth2-proxy.scrap.svc.cluster.local</span><span class="w">   </span><span class="c1"># the proxy's in-cluster DNS name</span>
-<span class="w">  </span><span class="nt">allowedEmails</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">first.last@example.org</span><span class="p p-Indicator">]</span><span class="w">             </span><span class="c1"># who may use the web app</span>
+<span class="w">  </span><span class="nt">allowedUsers</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">abc12345</span><span class="p p-Indicator">]</span><span class="w">                            </span><span class="c1"># who may use the web app (usernames)</span>
 <span class="w">  </span><span class="nt">oidc</span><span class="p">:</span>
 <span class="w">    </span><span class="nt">issuer</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">https://identity.example.org/realms/main</span><span class="w">  </span><span class="c1"># the realm, as in its tokens' iss</span>
 <span class="w">    </span><span class="nt">clientId</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">scrap</span><span class="w">                                   </span><span class="c1"># the proxy's client</span>
@@ -1324,14 +1324,14 @@ through an <code class="docutils literal notranslate"><span class="pre">External
 (<code class="docutils literal notranslate"><span class="pre">https://&lt;host&gt;/oauth2/callback</span></code>, which the identity provider must allow) and the cookie are
 on scrap’s own host. Both Ingresses get <code class="docutils literal notranslate"><span class="pre">proxy-buffer-size:</span> <span class="pre">16k</span></code> unless <code class="docutils literal notranslate"><span class="pre">ingress.annotations</span></code>
 sets it, since the login’s cookies overflow nginx’s 4k default. The author of a change is
-the verified email in the proxy’s token, so <code class="docutils literal notranslate"><span class="pre">identityHeader</span></code> is not read. The install fails without <code class="docutils literal notranslate"><span class="pre">ingress.enabled</span></code>, <code class="docutils literal notranslate"><span class="pre">ingress.tls</span></code> (the cookie is
-https only), <code class="docutils literal notranslate"><span class="pre">mcp.tokenSecret.name</span></code>, <code class="docutils literal notranslate"><span class="pre">authProxy.service</span></code>, <code class="docutils literal notranslate"><span class="pre">authProxy.allowedEmails</span></code>,
+the username (<code class="docutils literal notranslate"><span class="pre">preferred_username</span></code>) in the proxy’s token, so <code class="docutils literal notranslate"><span class="pre">identityHeader</span></code> is not read. The install fails without <code class="docutils literal notranslate"><span class="pre">ingress.enabled</span></code>, <code class="docutils literal notranslate"><span class="pre">ingress.tls</span></code> (the cookie is
+https only), <code class="docutils literal notranslate"><span class="pre">mcp.tokenSecret.name</span></code>, <code class="docutils literal notranslate"><span class="pre">authProxy.service</span></code>, <code class="docutils literal notranslate"><span class="pre">authProxy.allowedUsers</span></code>,
 <code class="docutils literal notranslate"><span class="pre">authProxy.oidc.issuer</span></code> or <code class="docutils literal notranslate"><span class="pre">authProxy.oidc.clientId</span></code>.</p>
 <p>The login alone guards the Ingress only: without a NetworkPolicy, any pod can reach the Service
 and send its own <code class="docutils literal notranslate"><span class="pre">X-Auth-Request-Email</span></code>. So scrap checks the proxy’s access token itself
 (<a class="reference internal" href="../explanations/decisions/0045-scrap-verifies-the-login-proxys-keycloak-token.html"><span class="std std-doc">ADR 45</span></a>): the
-Deployment gets <code class="docutils literal notranslate"><span class="pre">SCRAP_OIDC_ISSUER</span></code>, <code class="docutils literal notranslate"><span class="pre">SCRAP_OIDC_CLIENT_ID</span></code> and <code class="docutils literal notranslate"><span class="pre">SCRAP_ALLOWED_EMAILS</span></code>, and every
-request but <code class="docutils literal notranslate"><span class="pre">/healthz</span></code> and <code class="docutils literal notranslate"><span class="pre">/mcp</span></code> needs a valid token for an allowed email (<code class="docutils literal notranslate"><span class="pre">401</span></code> without).
+Deployment gets <code class="docutils literal notranslate"><span class="pre">SCRAP_OIDC_ISSUER</span></code>, <code class="docutils literal notranslate"><span class="pre">SCRAP_OIDC_CLIENT_ID</span></code> and <code class="docutils literal notranslate"><span class="pre">SCRAP_ALLOWED_USERS</span></code>, and every
+request but <code class="docutils literal notranslate"><span class="pre">/healthz</span></code> and <code class="docutils literal notranslate"><span class="pre">/mcp</span></code> needs a valid token for an allowed username (<code class="docutils literal notranslate"><span class="pre">401</span></code> without).
 This is also the only owner check: anyone the proxy lets log in passes the Ingress. Run
 the proxy with <code class="docutils literal notranslate"><span class="pre">pass_access_token</span> <span class="pre">=</span> <span class="pre">true</span></code>, and a <code class="docutils literal notranslate"><span class="pre">cookie_refresh</span></code> shorter than the access tokens’
 life. Other controllers
@@ -2217,7 +2217,7 @@ sessions (<a class="reference internal" href="connect-claude-code.html"><span cl
 
   
   <div class="tocsection editthispage">
-    <a href="https://github.com/gilesknap/scrap/edit/main/docs/how-to/deploy-kubernetes.md">
+    <a href="https://github.com/gilesknap/scrap/edit/1.7.0/docs/how-to/deploy-kubernetes.md">
       <i class="fa-solid fa-pencil"></i>
       
       
