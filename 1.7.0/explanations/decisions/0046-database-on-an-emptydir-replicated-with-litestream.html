@@ -1,0 +1,848 @@
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="../../" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>46. The database on an emptyDir, replicated with Litestream &#8212; scrap 1.7.0 documentation</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  <!--
+    this give us a css class that will be invisible only if js is disabled
+  -->
+  <noscript>
+    <style>
+      .pst-js-only { display: none !important; }
+
+    </style>
+  </noscript>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="../../_static/styles/theme.css?digest=18bd87630a240e9c25be" rel="stylesheet" />
+<link href="../../_static/styles/pydata-sphinx-theme.css?digest=18bd87630a240e9c25be" rel="stylesheet" />
+
+    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=03e43079" />
+    <link rel="stylesheet" type="text/css" href="../../_static/graphviz.css?v=4ae1632d" />
+    <link rel="stylesheet" type="text/css" href="../../_static/copybutton.css?v=76b2166b" />
+    <link rel="stylesheet" type="text/css" href="../../_static/sphinx-design.min.css?v=95c83b7e" />
+  
+  <!-- So that users can add custom icons -->
+  <script defer src="../../_static/scripts/fontawesome.js?digest=18bd87630a240e9c25be"></script>
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
+<link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
+
+    <script src="../../_static/documentation_options.js?v=030dc6f6"></script>
+    <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
+    <script src="../../_static/copybutton.js?v=30646c52"></script>
+    <script src="../../_static/design-tabs.js?v=f930bc37"></script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'explanations/decisions/0046-database-on-an-emptydir-replicated-with-litestream';</script>
+    <script>
+        DOCUMENTATION_OPTIONS.theme_version = '0.23.0';
+        DOCUMENTATION_OPTIONS.theme_switcher_json_url = 'https://gilesknap.github.io/scrap/switcher.json';
+        DOCUMENTATION_OPTIONS.theme_switcher_version_match = '1.7.0';
+        DOCUMENTATION_OPTIONS.show_version_warning_banner =
+            false;
+        </script>
+    <script>DOCUMENTATION_OPTIONS.search_as_you_type = false;</script>
+    <link rel="icon" href="../../_static/dls-logo.svg"/>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="Architecture" href="../design.html" />
+    <link rel="prev" title="45. scrap verifies the login proxy’s Keycloak token" href="0045-scrap-verifies-the-login-proxys-keycloak-token.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="color-scheme" content="light dark"/>
+  <meta name="docsearch:language" content="en"/>
+  <meta name="docsearch:version" content="1.7.0" />
+  
+    
+    <script src="../../_static/searchtools.js"></script>
+    <script src="../../_static/language_data.js"></script>
+    <script src="../../searchindex.js"></script>
+  
+  </head>
+  <body data-default-mode="">
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+  
+  
+  
+  
+  <dialog id="pst-search-dialog">
+    
+<form class="bd-search d-flex align-items-center"
+      action="../../search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         placeholder="Search the docs ..."
+         aria-label="Search the docs ..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form>
+  </dialog>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+
+  
+    <header id="pst-header" class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+<div class="bd-header__inner bd-page-width">
+  <button type="button" class="pst-navbar-icon sidebar-toggle primary-toggle" aria-label="Site navigation">
+    <span class="fa-solid fa-bars"></span>
+  </button>
+  
+  
+  <div class="col-lg-3 navbar-header-items__start">
+    
+      <div class="navbar-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="../../index.html">
+  
+  
+  
+  
+  
+    
+    
+      
+    
+    
+    <img src="../../_static/dls-logo.svg" class="logo__image only-light" alt=""/>
+    <img src="../../_static/dls-logo.svg" class="logo__image only-dark pst-js-only" alt=""/>
+  
+  
+    <p class="title logo__title">scrap</p>
+  
+</a></div>
+    
+  </div>
+  
+  <div class="col-lg-9 navbar-header-items">
+    
+    <div class="me-auto navbar-header-items__center">
+      
+        <div class="navbar-item">
+<nav>
+  <ul class="bd-navbar-elements navbar-nav">
+    
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../tutorials.html">
+    Tutorials
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../how-to.html">
+    How-to Guides
+  </a>
+</li>
+
+
+<li class="nav-item current active">
+  <a class="nav-link nav-internal" href="../../explanations.html">
+    Explanations
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../reference.html">
+    Reference
+  </a>
+</li>
+
+  </ul>
+</nav></div>
+      
+    </div>
+    
+    
+    <div class="navbar-header-items__end">
+      
+        <div class="navbar-item navbar-persistent--container">
+          
+
+<button type="button" class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button>
+        </div>
+      
+      
+        <div class="navbar-item">
+
+<div class="theme-switch-container dropdown pst-js-only" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Color mode">
+  <button type="button" class="btn btn-sm nav-link pst-navbar-icon theme-switch-button dropdown-toggle" aria-label="Color mode" data-bs-toggle="dropdown">
+    <i class="theme-switch fa-solid fa-sun fa-lg fa-fw" data-mode="light" title="Light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg fa-fw" data-mode="dark" title="Dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg fa-fw" data-mode="auto" title="System Settings"></i>
+  </button>
+  <ul class="dropdown-menu dropdown-menu-end">
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="auto"><i class="fa-solid fa-circle-half-stroke fa-lg fa-fw me-1"></i>System Settings</button></li>
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="light"><i class="fa-solid fa-sun fa-lg fa-fw me-1"></i>Light</button></li>
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="dark"><i class="fa-solid fa-moon fa-lg fa-fw me-1"></i>Dark</button></li>
+  </ul>
+</div></div>
+      
+        <div class="navbar-item"><ul class="navbar-icon-links"
+    aria-label="Icon Links">
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://github.com/gilesknap/scrap" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-square-github fa-lg" aria-hidden="true"></i><span class="visually-hidden">GitHub</span></a>
+        </li>
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://pypi.org/project/scrap" title="PyPI" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fas fa-cube fa-lg" aria-hidden="true"></i><span class="visually-hidden">PyPI</span></a>
+        </li>
+</ul></div>
+      
+        <div class="navbar-item">
+<div class="version-switcher__container dropdown pst-js-only">
+  <button id="pst-version-switcher-button-2"
+    type="button"
+    class="version-switcher__button btn btn-sm dropdown-toggle"
+    data-bs-toggle="dropdown"
+    aria-haspopup="listbox"
+    aria-controls="pst-version-switcher-list-2"
+    aria-label="Version switcher list"
+  >
+    Choose version  <!-- this text may get changed later by javascript -->
+    <span class="caret"></span>
+  </button>
+  <div id="pst-version-switcher-list-2"
+    class="version-switcher__menu dropdown-menu list-group-flush py-0"
+    role="listbox" aria-labelledby="pst-version-switcher-button-2">
+    <!-- dropdown will be populated by javascript on page load -->
+  </div>
+</div></div>
+      
+    </div>
+    
+  </div>
+  
+  
+    <div class="navbar-persistent--mobile">
+
+<button type="button" class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button>
+    </div>
+  
+
+  
+    <button type="button" class="pst-navbar-icon sidebar-toggle secondary-toggle" aria-label="On this page">
+      <span class="fa-solid fa-outdent"></span>
+    </button>
+  
+</div>
+
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+      <dialog id="pst-primary-sidebar-modal"></dialog>
+      <div id="pst-primary-sidebar" class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+      <div class="sidebar-header-items__center">
+        
+          
+          
+            <div class="navbar-item">
+<nav>
+  <ul class="bd-navbar-elements navbar-nav">
+    
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../tutorials.html">
+    Tutorials
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../how-to.html">
+    How-to Guides
+  </a>
+</li>
+
+
+<li class="nav-item current active">
+  <a class="nav-link nav-internal" href="../../explanations.html">
+    Explanations
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../reference.html">
+    Reference
+  </a>
+</li>
+
+  </ul>
+</nav></div>
+          
+        
+      </div>
+    
+    
+    
+      <div class="sidebar-header-items__end">
+        
+          <div class="navbar-item">
+
+<div class="theme-switch-container dropdown pst-js-only" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Color mode">
+  <button type="button" class="btn btn-sm nav-link pst-navbar-icon theme-switch-button dropdown-toggle" aria-label="Color mode" data-bs-toggle="dropdown">
+    <i class="theme-switch fa-solid fa-sun fa-lg fa-fw" data-mode="light" title="Light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg fa-fw" data-mode="dark" title="Dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg fa-fw" data-mode="auto" title="System Settings"></i>
+  </button>
+  <ul class="dropdown-menu dropdown-menu-end">
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="auto"><i class="fa-solid fa-circle-half-stroke fa-lg fa-fw me-1"></i>System Settings</button></li>
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="light"><i class="fa-solid fa-sun fa-lg fa-fw me-1"></i>Light</button></li>
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="dark"><i class="fa-solid fa-moon fa-lg fa-fw me-1"></i>Dark</button></li>
+  </ul>
+</div></div>
+        
+          <div class="navbar-item"><ul class="navbar-icon-links"
+    aria-label="Icon Links">
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://github.com/gilesknap/scrap" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-square-github fa-lg" aria-hidden="true"></i><span class="visually-hidden">GitHub</span></a>
+        </li>
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://pypi.org/project/scrap" title="PyPI" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fas fa-cube fa-lg" aria-hidden="true"></i><span class="visually-hidden">PyPI</span></a>
+        </li>
+</ul></div>
+        
+          <div class="navbar-item">
+<div class="version-switcher__container dropdown pst-js-only">
+  <button id="pst-version-switcher-button-3"
+    type="button"
+    class="version-switcher__button btn btn-sm dropdown-toggle"
+    data-bs-toggle="dropdown"
+    aria-haspopup="listbox"
+    aria-controls="pst-version-switcher-list-3"
+    aria-label="Version switcher list"
+  >
+    Choose version  <!-- this text may get changed later by javascript -->
+    <span class="caret"></span>
+  </button>
+  <div id="pst-version-switcher-list-3"
+    class="version-switcher__menu dropdown-menu list-group-flush py-0"
+    role="listbox" aria-labelledby="pst-version-switcher-button-3">
+    <!-- dropdown will be populated by javascript on page load -->
+  </div>
+</div></div>
+        
+      </div>
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item pst-sidebar-collapse"><button type="button" id="pst-collapse-sidebar-button" aria-expanded="true" aria-controls="pst-primary-sidebar">
+  <svg class="pst-icon" role="img" aria-hidden="true" focusable="false" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
+    <path fill="currentColor" d="M3 15.5C2.36232 15.5 1.74874 15.2564 1.28478 14.8189C0.820828 14.3815 0.541576 13.7832 0.504167 13.1467L0.5 13L0.5 3C0.499965 2.36232 0.743605 1.74874 1.18107 1.28478C1.61854 0.820828 2.21676 0.541576 2.85333 0.504167L3 0.5L13 0.5C13.6377 0.499965 14.2513 0.743605 14.7152 1.18107C15.1792 1.61854 15.4584 2.21676 15.4958 2.85333L15.5 3L15.5 13C15.5 13.6377 15.2564 14.2513 14.8189 14.7152C14.3815 15.1792 13.7832 15.4584 13.1467 15.4958L13 15.5L3 15.5ZM3 13.8333L10.5 13.8333L10.5 2.16667L3 2.16667C2.79589 2.16669 2.59889 2.24163 2.44636 2.37726C2.29383 2.5129 2.19638 2.69979 2.1725 2.9025L2.16667 3L2.16667 13C2.16669 13.2041 2.24163 13.4011 2.37726 13.5536C2.5129 13.7062 2.69979 13.8036 2.9025 13.8275L3 13.8333ZM6.65583 10.325L6.5775 10.2558L4.91083 8.58917C4.76735 8.44567 4.68116 8.25476 4.66843 8.05223C4.65569 7.84971 4.71729 7.6495 4.84167 7.48917L4.91083 7.41083L6.5775 5.74417C6.72747 5.59471 6.9287 5.50794 7.14032 5.50148C7.35194 5.49502 7.55809 5.56935 7.7169 5.70937C7.8757 5.8494 7.97525 6.04463 7.99533 6.25539C8.01541 6.46616 7.95451 6.67667 7.825 6.84417L7.75583 6.9225L6.67917 8L7.75583 9.0775C7.89931 9.22099 7.98551 9.41191 7.99824 9.61443C8.01097 9.81695 7.94938 10.0172 7.825 10.1775L7.75583 10.2558C7.61234 10.3993 7.42142 10.4855 7.2189 10.4982C7.01638 10.511 6.81617 10.4494 6.65583 10.325Z"/>
+  </svg>
+  <span class="pst-collapse-sidebar-label">Collapse Sidebar</span>
+  <span class="pst-expand-sidebar-label">Expand Sidebar</span>
+</button></div>
+        <div class="sidebar-primary-item">
+
+<nav class="bd-docs-nav bd-links"
+     aria-label="Section Navigation">
+  <p class="bd-links__title" role="heading" aria-level="1">Section Navigation</p>
+  <div class="bd-toc-item navbar-nav"><ul class="current nav bd-sidenav">
+<li class="toctree-l1 current active has-children"><a class="reference internal" href="../decisions.html">Architectural Decision Records</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="0001-record-architecture-decisions.html">1. Record architecture decisions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="0002-switched-to-python-copier-template.html">2. Adopt python-copier-template for project structure</a></li>
+<li class="toctree-l2"><a class="reference internal" href="0003-one-process-sqlite-and-a-folder.html">3. One process, one SQLite database, one folder of files</a></li>
+<li class="toctree-l2"><a class="reference internal" href="0004-originals-kept-everything-else-derived.html">4. Originals are kept; everything else is derived, versioned or disposable</a></li>
+<li class="toctree-l2"><a class="reference internal" href="0005-capture-never-waits.html">5. Capture never waits: client-minted ids, an offline queue, no LLM on the save path</a></li>
+<li class="toctree-l2"><a class="reference internal" href="0006-vanilla-typescript-pwa-with-lazy-chunks.html">6. A vanilla TypeScript PWA with a size budget and lazy chunks</a></li>
+<li class="toctree-l2"><a class="reference internal" href="0007-tailscale-serve-for-access-and-identity.html">7. Tailscale Serve is the only way in; no login code</a></li>
+<li class="toctree-l2"><a class="reference internal" href="0008-search-fts5-only-for-now.html">8. Search is SQLite FTS5 with a shared query syntax; embeddings are deferred</a></li>
+<li class="toctree-l2"><a class="reference internal" href="0009-claude-ingest-via-messages-api.html">9. Claude ingest: Messages API, no tools, one structured call per photo</a></li>
+<li class="toctree-l2"><a class="reference internal" href="0010-job-queue-pauses-instead-of-failing.html">10. Queue error classes: outages pause, charged failures count, spend is capped</a></li>
+<li class="toctree-l2"><a class="reference internal" href="0011-drawings-as-skeletons-excalidraw.html">11. Whiteboards become Excalidraw drawings: model skeletons, human scenes, two sanitisers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="0012-kinds-flat-fields-and-typed-todo-columns.html">12. Page kinds with flat fields; due date and priority as typed columns</a></li>
+<li class="toctree-l2"><a class="reference internal" href="0013-mcp-server-inside-the-app.html">13. The MCP server is part of the app: streamable HTTP, add-only writes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="0014-markdown-parsed-by-a-library-on-both-sides.html">14. Page text is Markdown, parsed by a library on both sides</a></li>
+<li class="toctree-l2"><a class="reference internal" href="0015-images-in-text-and-gc.html">15. Images are embedded in the page text; <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">gc</span></code> is conservative</a></li>
+<li class="toctree-l2"><a class="reference internal" href="0016-deployment-single-server-and-helm.html">16. Deployment: rootless podman units for one server, a Helm chart for Kubernetes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="0017-thoth-vault-import-through-the-store.html">17. Import from a Thoth vault goes through <code class="docutils literal notranslate"><span class="pre">Store</span></code> and is idempotent</a></li>
+<li class="toctree-l2"><a class="reference internal" href="0018-unix-socket-for-single-server-installs.html">18. Single-server installs listen on a Unix socket, reached only through Tailscale Serve</a></li>
+<li class="toctree-l2"><a class="reference internal" href="0019-kinds-and-tags-editable-with-revisions.html">19. Kinds and tags editable over MCP, made safe by metadata revisions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="0020-text-enrichment.html">20. Text enrichment: Claude tags, summarises and relates text pages, apart from the text</a></li>
+<li class="toctree-l2"><a class="reference internal" href="0021-ingest-on-a-claude-seat-through-claude-p.html">21. Ingest on a Claude seat: <code class="docutils literal notranslate"><span class="pre">claude</span> <span class="pre">-p</span></code> with a long-lived token</a></li>
+<li class="toctree-l2"><a class="reference internal" href="0022-page-text-editable-over-mcp-with-revisions.html">22. Page text editable over MCP, made safe by text revisions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="0023-bearer-token-on-mcp-and-an-identity-header-setting.html">23. Bearer token on /mcp and an identity-header setting</a></li>
+<li class="toctree-l2"><a class="reference internal" href="0024-settings-pane-theme-overrides.html">24. A settings pane in the top bar, with theme overrides</a></li>
+<li class="toctree-l2"><a class="reference internal" href="0025-trash-and-recent-changes-over-mcp.html">25. The trash and a recent-changes feed over MCP</a></li>
+<li class="toctree-l2"><a class="reference internal" href="0026-claude-appends-task-boxes-to-a-list-of-actions.html">26. Claude appends task boxes to a list of actions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="0027-claude-write-ups-of-boards-apart-from-the-text.html">27. Claude’s write-ups of boards, apart from the text</a></li>
+<li class="toctree-l2"><a class="reference internal" href="0028-claude-maintained-topic-pages.html">28. Claude-maintained topic pages</a></li>
+<li class="toctree-l2"><a class="reference internal" href="0029-store-health-checks-as-search-filters.html">29. Store health checks as search filters; outdated write-ups are the owner’s to regenerate</a></li>
+<li class="toctree-l2"><a class="reference internal" href="0030-fewer-mcp-tools.html">30. Fewer MCP tools: recent, todos and revert_text folded away</a></li>
+<li class="toctree-l2"><a class="reference internal" href="0030-trash-purged-after-n-days.html">30. The trash is purged after N days</a></li>
+<li class="toctree-l2"><a class="reference internal" href="0031-search-orders-by-section-on-the-server.html">31. Search orders results by section on the server</a></li>
+<li class="toctree-l2"><a class="reference internal" href="0032-pins-are-a-page-of-links.html">32. Pins are an ordinary page of links</a></li>
+<li class="toctree-l2"><a class="reference internal" href="0033-who-made-a-page-is-stored.html">33. Who made a page, and where a text revision came from, are stored</a></li>
+<li class="toctree-l2"><a class="reference internal" href="0034-claude-can-move-pages-to-the-trash.html">34. Claude can move pages to the trash</a></li>
+<li class="toctree-l2"><a class="reference internal" href="0035-files-are-read-locally-for-search.html">35. Files are read locally, for search</a></li>
+<li class="toctree-l2"><a class="reference internal" href="0036-todo-values-in-a-side-table.html">36. A todo’s due date, priority and snooze are in a table of their own</a></li>
+<li class="toctree-l2"><a class="reference internal" href="0037-one-baseline-schema-for-1-0.html">37. One baseline schema for 1.0</a></li>
+<li class="toctree-l2"><a class="reference internal" href="0038-file-text-is-sent-to-claude-on-capture-bounded.html">38. File text is sent to Claude on capture, bounded</a></li>
+<li class="toctree-l2"><a class="reference internal" href="0039-generated-content-keeps-only-its-current-version.html">39. Generated content keeps only its current version</a></li>
+<li class="toctree-l2"><a class="reference internal" href="0040-search-greps-raw-text.html">40. Search greps raw text: a parameter, and a scan</a></li>
+<li class="toctree-l2"><a class="reference internal" href="0041-mcp-clients-download-under-mcp.html">41. MCP clients download files under /mcp</a></li>
+<li class="toctree-l2"><a class="reference internal" href="0042-mcp-clients-add-svg-and-files.html">42. MCP clients add SVG diagrams and files to pages</a></li>
+<li class="toctree-l2"><a class="reference internal" href="0043-public-pages-a-static-site-scrap-pushes-to.html">43. Public pages: a static site scrap pushes to</a></li>
+<li class="toctree-l2"><a class="reference internal" href="0044-claudes-reading-in-a-fold.html">44. Claude’s reading in a fold, and Claude’s own images not read</a></li>
+<li class="toctree-l2"><a class="reference internal" href="0045-scrap-verifies-the-login-proxys-keycloak-token.html">45. scrap verifies the login proxy’s Keycloak token</a></li>
+<li class="toctree-l2 current active"><a aria-current="page" class="current reference internal" href="#">46. The database on an emptyDir, replicated with Litestream</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../design.html">Architecture</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../architecture/data-model.html">Data model and storage</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../architecture/capture-and-files.html">Capture, files and backup</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../architecture/claude-pipeline.html">Job queue and Claude features</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../architecture/search.html">Search</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../architecture/mcp-and-access.html">MCP server and access</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../architecture/frontend-pwa.html">The PWA</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../architecture/deployment.html">Deployment and operations</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1"><a class="reference internal" href="../design-system.html">The PWA’s design system</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../ingest.html">Claude ingest</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../llm-calls.html">What Claude is asked, per page</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../overview.html">Scope and stack</a></li>
+</ul>
+</div>
+</nav></div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+      <div class="sidebar-primary-item">
+<div id="ethical-ad-placement"
+      class="flat"
+      data-ea-publisher="readthedocs"
+      data-ea-type="readthedocs-sidebar"
+      data-ea-manual="true">
+</div></div>
+  </div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item">
+
+<nav aria-label="Breadcrumb" class="d-print-none">
+  <ul class="bd-breadcrumbs">
+    
+    <li class="breadcrumb-item breadcrumb-home">
+      <a href="../../index.html" class="nav-link" aria-label="Home">
+        <i class="fa-solid fa-home"></i>
+      </a>
+    </li>
+    
+    <li class="breadcrumb-item"><a href="../../explanations.html" class="nav-link">Explanations</a></li>
+    
+    
+    <li class="breadcrumb-item"><a href="../decisions.html" class="nav-link">Architectural Decision Records</a></li>
+    
+    <li class="breadcrumb-item active" aria-current="page"><span class="ellipsis">46. The database on an emptyDir, replicated with Litestream</span></li>
+  </ul>
+</nav>
+</div>
+      
+    </div>
+  
+  
+</div>
+</div>
+              
+              
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <section id="the-database-on-an-emptydir-replicated-with-litestream">
+<h1>46. The database on an emptyDir, replicated with Litestream<a class="headerlink" href="#the-database-on-an-emptydir-replicated-with-litestream" title="Link to this heading">#</a></h1>
+<p>Date: 2026-11-05</p>
+<section id="status">
+<h2>Status<a class="headerlink" href="#status" title="Link to this heading">#</a></h2>
+<p>Accepted. Opt-in (<code class="docutils literal notranslate"><span class="pre">litestream.enabled</span></code>, off by default); the DLS installer turns it on. With it off
+the chart renders exactly as before.</p>
+</section>
+<section id="context">
+<h2>Context<a class="headerlink" href="#context" title="Link to this heading">#</a></h2>
+<p>scrap keeps SQLite in WAL mode. On DLS’s argus cluster the only dynamic storage is <code class="docutils literal notranslate"><span class="pre">netapp</span></code>, which
+is NFS, and the <a class="reference internal" href="../../how-to/deploy-kubernetes.html"><span class="std std-doc">storage notes</span></a> say never to put the database
+on NFS: WAL needs shared memory and locking a network filesystem does not provide reliably. The
+owner decided that the database moves off NFS rather than testing whether it copes there. This
+ADR does not claim to explain any past hang: none was traced to NFS.</p>
+<p>Block storage, which the storage notes recommend, is not an option here: the argus admins removed
+it a while back for security reasons, and <code class="docutils literal notranslate"><span class="pre">netapp</span></code> is the only dynamic class, so it was not pursued.</p>
+</section>
+<section id="decision">
+<h2>Decision<a class="headerlink" href="#decision" title="Link to this heading">#</a></h2>
+<p><strong>The shape.</strong> The database is at <code class="docutils literal notranslate"><span class="pre">/db/scrap.db</span></code> (<code class="docutils literal notranslate"><span class="pre">SCRAP_DB_PATH</span></code>) on an emptyDir on the node’s
+disk (not <code class="docutils literal notranslate"><span class="pre">medium:</span> <span class="pre">Memory</span></code>; argus’s is a local xfs, seen on the cluster). A Litestream sidecar
+replicates it to <code class="docutils literal notranslate"><span class="pre">/data/litestream</span></code> on the data volume. <code class="docutils literal notranslate"><span class="pre">files/</span></code> and the preview cache stay on the
+data volume. With <code class="docutils literal notranslate"><span class="pre">SCRAP_DB_PATH</span></code> unset nothing changes: <code class="docutils literal notranslate"><span class="pre">Store</span></code> builds <code class="docutils literal notranslate"><span class="pre">dir</span> <span class="pre">/</span> <span class="pre">&quot;scrap.db&quot;</span></code>, as
+before. The lock, WAL and <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">restore</span></code>’s <code class="docutils literal notranslate"><span class="pre">scrap.db.restore</span></code> follow the database, so its rename
+never crosses filesystems. <code class="docutils literal notranslate"><span class="pre">gc.lock</span></code> stays in the data folder, on NFS, as it does today.</p>
+<p><strong>The version: Litestream 0.5.18, by tag and digest.</strong> The 0.5 line is the maintained one (the
+docs call 0.3.14 “previous”); its restore checks LTX files and fails on a damaged one, seen below,
+and it has what is used here: <code class="docutils literal notranslate"><span class="pre">shutdown-sync-timeout</span></code>, <code class="docutils literal notranslate"><span class="pre">snapshot</span></code>, and a file replica whose renames
+are fsynced (0.5.16). 0.5.18 rather than the two-month-old 0.5.17, despite being two days old when
+chosen, for its fixes on this path: “read the whole WAL when the last-page check fails”, “keep read
+lock alive after caller context is cancelled” and “cache LTX pages for checkpoint verification”;
+and it is the version the trial below ran. Moving it is a decision: read the release notes, and
+repeat the trial’s restore steps.</p>
+<p><strong>Two images.</strong> The sidecar is Litestream’s own image, not a binary added to scrap’s, so nobody
+with <code class="docutils literal notranslate"><span class="pre">litestream.enabled</span></code> off carries it. An init container copies its static binary into a small
+emptyDir, so the Python below can call it. The Debian image (<code class="docutils literal notranslate"><span class="pre">0.5.18</span></code>, not <code class="docutils literal notranslate"><span class="pre">-scratch</span></code>) has the
+<code class="docutils literal notranslate"><span class="pre">cp</span></code> and <code class="docutils literal notranslate"><span class="pre">sh</span></code> this needs. The chart still makes no ConfigMap: the sidecar writes its config at start.</p>
+<p><strong>Starting up: <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">db-init</span></code>, in an init container, so the logic can be unit tested.</strong> The first
+that applies decides:</p>
+<ol class="arabic simple">
+<li><p>A database on the emptyDir is kept (the pod restarted on its node), never overwritten.</p></li>
+<li><p>A staged restore is taken up (below), and the replica renamed aside.</p></li>
+<li><p>A replica is restored. No <code class="docutils literal notranslate"><span class="pre">-if-replica-exists</span></code>: if the restore or the integrity and schema
+check fails, the init container fails and scrap does not start. A retry can work.</p></li>
+<li><p>No replica but a <code class="docutils literal notranslate"><span class="pre">/data/scrap.db</span></code> with pages (an install from before this; an empty one counts
+as absent): brought across once with SQLite’s backup API (it may have a WAL), checked, left
+where it is.</p></li>
+<li><p>Neither: a new database, unless something says there should be one.</p></li>
+</ol>
+<p><strong>Telling “really new” from “looks empty because something is wrong”.</strong> A new volume with no
+history looks exactly like a replaced or mistakenly empty one from inside the volume, so the
+evidence has to include something that outlives it. <code class="docutils literal notranslate"><span class="pre">db-init</span></code> fails closed on any of:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">.scrap-db-state.json</span></code> on the data volume, written the first time a database is put in place
+(<code class="docutils literal notranslate"><span class="pre">how</span></code> and <code class="docutils literal notranslate"><span class="pre">at</span></code>; a later restore of the replica leaves those and sets <code class="docutils literal notranslate"><span class="pre">replica_restored_at</span></code>),
+with no replica beside it. So the replica cannot vanish unnoticed, and a stale <code class="docutils literal notranslate"><span class="pre">/data/scrap.db</span></code>
+cannot come back by rule 4. This also fires if the pod dies between the first placement and
+Litestream’s first write, about a second; it costs a person a look, not data.</p></li>
+<li><p>Files in <code class="docutils literal notranslate"><span class="pre">files/</span></code>.</p></li>
+<li><p>Backup runs (daily or monthly) in the backup folder, which is on other storage (at DLS,
+<code class="docutils literal notranslate"><span class="pre">/dls/science</span></code>): the one signal that notices a new, empty data volume.</p></li>
+</ul>
+<p>And any error looking is a failure, not “absent”: <code class="docutils literal notranslate"><span class="pre">os.stat</span></code>, not <code class="docutils literal notranslate"><span class="pre">Path.exists()</span></code>, which from Python
+3.12 answers <code class="docutils literal notranslate"><span class="pre">False</span></code> on a stale NFS handle. It cannot catch everything: a data volume and backup
+folder both new and empty really is a new install, and with backups off only the first two apply.
+<code class="docutils literal notranslate"><span class="pre">litestream.init.override</span></code> gets past these refusals, for after a person has looked. Each use is
+recorded (<code class="docutils literal notranslate"><span class="pre">override_at</span></code>), and gc only counts until a person clears it (<code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">db-hold</span> <span class="pre">--clear</span></code>), so
+leaving it on cannot make a later loss of the replica silent. A source over half of
+<code class="docutils literal notranslate"><span class="pre">litestream.sizeLimit</span></code> is refused regardless, as the WAL and Litestream’s own LTX share that emptyDir.</p>
+<p><strong>Off Litestream.</strong> With the setting off, or a <code class="docutils literal notranslate"><span class="pre">helm</span> <span class="pre">rollback</span></code> to a chart that has it off,
+<code class="docutils literal notranslate"><span class="pre">/data/scrap.db</span></code> is the copy from before, and gc would delete files only the newer database uses. So
+while the state file exists and <code class="docutils literal notranslate"><span class="pre">SCRAP_DB_PATH</span></code> is unset, the app and <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">gc</span></code> refuse. A plain
+<code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">restore</span></code> removes the state file: that is the way off. Installs that never used Litestream have
+no state file and are not affected. A rollback to a chart from before this code cannot be guarded,
+and the how-to warns of it.</p>
+<p><strong>Restoring a backup.</strong> The old steps wrote <code class="docutils literal notranslate"><span class="pre">/data/scrap.db</span></code>, which the replica would then silently
+win over. So <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">restore</span> <span class="pre">--stage</span></code> leaves the checked, migrated backup at <code class="docutils literal notranslate"><span class="pre">/data/scrap.db.restored</span></code>,
+which outranks the replica; the replica is renamed <code class="docutils literal notranslate"><span class="pre">litestream.retired-&lt;time&gt;</span></code>, not deleted, and
+Litestream starts a new one. Guards: a plain <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">restore</span></code> is refused where
+<code class="docutils literal notranslate"><span class="pre">SCRAP_LITESTREAM_REPLICA</span></code> is set (inside the pod), <code class="docutils literal notranslate"><span class="pre">--stage</span></code> where <code class="docutils literal notranslate"><span class="pre">SCRAP_DB_PATH</span></code> exists, and
+<code class="docutils literal notranslate"><span class="pre">--stage</span></code> on a folder with no sign of Litestream, where nothing would take it up. A <code class="docutils literal notranslate"><span class="pre">/data/scrap.db</span></code>
+whose size or modified time differ from the state file stops the start, saying the replica may be
+the newer copy. A staged restore beside a live emptyDir database stops the pod until it is scaled to
+0, and one older than any replica file (scrap kept running after it) is refused, naming how to choose.
+A retired replica can bring back rows by hand, never files: files added since the backup are
+unreferenced after a restore, so gc only counts for 14 days afterwards, or until cleared.</p>
+<p><strong>Backups stay CronJobs and work from the replica.</strong> <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">backup</span> <span class="pre">--from-replica</span></code> restores to a
+temporary file, then runs the existing <code class="docutils literal notranslate"><span class="pre">backup()</span></code> on that plus <code class="docutils literal notranslate"><span class="pre">/data/files</span></code>: same integrity check
+and <code class="docutils literal notranslate"><span class="pre">COMPLETE</span></code> marker, both jobs. The data volume is mounted read only. The restore is at or
+behind the live database and blobs are written before the row that names them, so the files it
+names are there, but for a gc in the last second, and gc and backups share a lock and run an hour
+apart.</p>
+<p><strong>A stale replica must not make a good-looking backup,</strong> because gc trusts <code class="docutils literal notranslate"><span class="pre">COMPLETE</span></code>. Idle
+databases write nothing: Litestream’s files do not change, and a snapshot is skipped when nothing
+changed (seen locally), so file times prove nothing. So <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">schedule</span></code> stamps the time in the
+database header (<code class="docutils literal notranslate"><span class="pre">PRAGMA</span> <span class="pre">application_id</span></code>, unused and needing no schema change) every 15 minutes,
+and the backup refuses a restore whose stamp is over 3 hours old. If Litestream is failing, or the
+jobs container, the backup fails loudly and then gc only counts.</p>
+<p><strong>Writes must not be accepted while replication is broken, then rolled back at the next start.</strong>
+Litestream that cannot write logs <code class="docutils literal notranslate"><span class="pre">monitor</span> <span class="pre">error</span></code> and stays up. Nightly backups would notice hours
+later, and everything since would go at the next restart. So the jobs container looks each minute for
+a new file under the replica: a working one has one within about 15 minutes, from the stamp alone. At
+20 minutes (<code class="docutils literal notranslate"><span class="pre">watch.py</span></code>; nothing is judged until 20 minutes after it starts, so a start cannot flap)
+it logs, notifies and removes the file its readiness probe wants young, so the pod leaves its Service.
+It recovers by itself. It also notes each stamp on the data volume, with a last one at shutdown. The
+next start compares: behind is a warning (a node that died, or a last sync that did not land, which
+nothing else can detect: Litestream’s only sign of that is a log line in a container that has gone);
+over 30 minutes behind is a refusal. The note is on the same volume, so a whole volume failing does
+not show here, only as the stall.</p>
+<p><strong>gc’s safety limit is the backstop</strong> for what all that misses, since deleted originals cannot come
+back. On a Litestream install <code class="docutils literal notranslate"><span class="pre">gc</span> <span class="pre">--delete</span></code> counts only, and fails, when the database has no captures
+but <code class="docutils literal notranslate"><span class="pre">files/</span></code> has content, or when the files to delete are over <code class="docutils literal notranslate"><span class="pre">MAX_UNUSED_SHARE</span></code> (10 %) of them and
+at least <code class="docutils literal notranslate"><span class="pre">MIN_UNUSED</span></code> (5). Low on purpose: a healthy night deletes few, a false alarm costs one
+<code class="docutils literal notranslate"><span class="pre">--allow-large</span></code> by hand, and a miss deletes originals. It cannot catch a small rollback, whose few
+files fall under it; that is what the state holds are for.</p>
+<p><strong>gc and the Claude passes must see the live database, so they move into the pod.</strong> A <code class="docutils literal notranslate"><span class="pre">jobs</span></code>
+container runs <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">schedule</span></code>, on the existing image with no new dependency: a few hundred lines
+of cron (<code class="docutils literal notranslate"><span class="pre">cron.py</span></code>, following robfig/cron v3 as a CronJob’s schedule is read, but refusing <code class="docutils literal notranslate"><span class="pre">&#64;every</span></code>
+and signed numbers, and stopping the rollout on a bad one) and threads (<code class="docutils literal notranslate"><span class="pre">schedule.py</span></code>). The same values set the
+same schedules and deadlines. It is close to a CronJob, not the same: an overlapping run is skipped,
+and after a gap one run stands for those missed, if one is within the hour, as with
+<code class="docutils literal notranslate"><span class="pre">concurrencyPolicy:</span> <span class="pre">Forbid</span></code> and <code class="docutils literal notranslate"><span class="pre">startingDeadlineSeconds:</span> <span class="pre">3600</span></code>; but an empty
+<code class="docutils literal notranslate"><span class="pre">timeZone</span></code> is UTC rather than the controller’s zone; a time missed during a rollout is not made up
+and a rollout stops a running pass, as there is deliberately no state to resume from; the jobs share
+one set of resources, not one each; and there is no Job object to look at afterwards. gc’s script is the same one, shared through a Helm template, so it
+still takes the backup lock, checks for a <code class="docutils literal notranslate"><span class="pre">COMPLETE</span></code> run under 26 hours old and otherwise only
+counts and fails. So the backup volume is mounted in the scrap pod.</p>
+<p><strong>Not fighting Litestream.</strong> scrap never checkpoints or sets <code class="docutils literal notranslate"><span class="pre">wal_autocheckpoint</span></code>,
+<code class="docutils literal notranslate"><span class="pre">locking_mode</span></code> or <code class="docutils literal notranslate"><span class="pre">synchronous</span></code>; its one <code class="docutils literal notranslate"><span class="pre">journal_mode</span> <span class="pre">=</span> <span class="pre">WAL</span></code> is what Litestream needs; it sets the
+<code class="docutils literal notranslate"><span class="pre">busy_timeout</span> <span class="pre">=</span> <span class="pre">5000</span></code> Litestream’s docs ask for; a test checks all of that. SQLite’s automatic passive
+checkpoint stays: Litestream’s docs recommend turning it off only at very high write rates, and
+Litestream’s read lock holds it back anyway. A restart of Litestream alone, with writes during the
+gap, caught up with no loss on the cluster.</p>
+<p><strong>Shutdown and probes.</strong> Litestream is a native sidecar (an init container with <code class="docutils literal notranslate"><span class="pre">restartPolicy:</span> <span class="pre">Always</span></code>, Kubernetes 1.29), so it starts before scrap and stops after it, and scrap’s last writes
+reach it. Its final sync has up to 25 s, and <code class="docutils literal notranslate"><span class="pre">terminationGracePeriodSeconds</span></code> grows by 30. Probes are
+unchanged: init containers run before the startup probe counts, so a slow restore cannot fail it,
+and readiness still means <code class="docutils literal notranslate"><span class="pre">/healthz</span></code>.</p>
+</section>
+<section id="consequences">
+<h2>Consequences<a class="headerlink" href="#consequences" title="Link to this heading">#</a></h2>
+<ul class="simple">
+<li><p><strong>What can be lost.</strong> Replication is asynchronous: while it is healthy, about a second of writes
+if the node dies. While it has stalled, up to the 20 minutes before scrap leaves its Service. A
+clean stop loses none. Files are written straight to NFS, so the file of a lost capture stays
+until gc removes it.</p></li>
+<li><p><strong>Backup jobs still run beside the scrap pod.</strong> It was hoped they would not need to. They do on
+argus: the data claim is <code class="docutils literal notranslate"><span class="pre">ReadWriteOnce</span></code>, and a pod on another node, even mounting it read only,
+waits with <code class="docutils literal notranslate"><span class="pre">FailedAttachVolume:</span> <span class="pre">Waiting</span> <span class="pre">for</span> <span class="pre">detach</span> <span class="pre">...</span> <span class="pre">Volume</span> <span class="pre">is</span> <span class="pre">already</span> <span class="pre">used</span> <span class="pre">by</span> <span class="pre">pod(s)</span></code> (seen on
+the cluster). The affinity stays. A new <code class="docutils literal notranslate"><span class="pre">ReadWriteMany</span></code> claim (<code class="docutils literal notranslate"><span class="pre">netapp</span></code> offers it) might allow
+dropping it, but <code class="docutils literal notranslate"><span class="pre">accessModes</span></code> cannot change on an existing claim, and that was not tried.</p></li>
+<li><p>A failed gc or Claude pass no longer shows as a failed Job: it is in the <code class="docutils literal notranslate"><span class="pre">jobs</span></code> container’s log,
+and pushed to <code class="docutils literal notranslate"><span class="pre">SCRAP_NOTIFY_URL</span></code> if set. A pass stopped by a queue pause or a spent budget is not
+reported as failed: it says so on stderr, and <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">schedule</span></code> reads that last line.</p></li>
+<li><p>A restart of <code class="docutils literal notranslate"><span class="pre">litestream</span></code> or <code class="docutils literal notranslate"><span class="pre">jobs</span></code> that keeps failing takes the pod out of its Service. For both
+that is right: <code class="docutils literal notranslate"><span class="pre">jobs</span></code> is what watches replication, so with it down nothing does.</p></li>
+<li><p>The scrap pod now needs the backup folder mounted: a <code class="docutils literal notranslate"><span class="pre">hostPath</span></code> that a node lacks, or an RWO
+backup claim on another node, keeps the pod from starting.</p></li>
+<li><p>The database must fit half of <code class="docutils literal notranslate"><span class="pre">litestream.sizeLimit</span></code> (2 Gi), and at DLS a backup’s restored copy
+must fit the 2 Gi per container argus allows. Past that the start is refused or the backup fails.
+<code class="docutils literal notranslate"><span class="pre">jobs</span></code> has a <code class="docutils literal notranslate"><span class="pre">/tmp</span></code> of its own, so a job cannot fill scrap’s.</p></li>
+<li><p>As with SQLite on any RWO volume, one writer relies on <code class="docutils literal notranslate"><span class="pre">Recreate</span></code> and the attach check; two
+Litestreams replicating into one place can corrupt it.</p></li>
+<li><p>Turning it off again does not bring the database back: <code class="docutils literal notranslate"><span class="pre">/data/scrap.db</span></code> is the old one. Take a
+backup, turn it off, and <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">restore</span> <span class="pre">--force</span></code> it (see the how-to).</p></li>
+</ul>
+<p><strong>Tested</strong> on argus on 2026-11-05, with Litestream 0.5.18 from Docker Hub, in a throwaway release,
+as the DLS uid, and this branch’s Python laid over the 1.6.0 image with <code class="docutils literal notranslate"><span class="pre">PYTHONPATH</span></code> (there is no
+published image with it yet). Writes reached the replica; a deleted pod came back on another node
+with its data, including a write just before the delete; truncated LTX files and a missing replica
+each failed the init container, and scrap did not start; a <code class="docutils literal notranslate"><span class="pre">/data/scrap.db</span></code> with a <code class="docutils literal notranslate"><span class="pre">-wal</span></code> came across
+once; both backup jobs made <code class="docutils literal notranslate"><span class="pre">COMPLETE</span></code> runs; a staged restore of one came up with its file, without
+the later write; a plain restore was caught; a stale stamp failed a backup; gc ran in the pod, by
+hand and on its schedule, and refused to delete with no backup. Not tried there: the Claude passes
+doing real work (no API key: only that <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">enrich</span> <span class="pre">--related</span></code> runs in the container), a real node
+death, the backups on a <code class="docutils literal notranslate"><span class="pre">hostPath</span></code>, <code class="docutils literal notranslate"><span class="pre">install-dls.sh</span></code> itself, and a database of real size. The rule
+that keeps a database on the emptyDir has only unit tests: a killed container does not rerun the
+init container, and a pod restarting on its node with its emptyDir could not be forced. The override
+was tried, starting a fresh database past a refusal.</p>
+</section>
+</section>
+
+
+                </article>
+              
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+    <a class="left-prev"
+       href="0045-scrap-verifies-the-login-proxys-keycloak-token.html"
+       title="previous page">
+      <i class="fa-solid fa-angle-left"></i>
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">previous</p>
+        <p class="prev-next-title">45. scrap verifies the login proxy’s Keycloak token</p>
+      </div>
+    </a>
+    <a class="right-next"
+       href="../design.html"
+       title="next page">
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">next</p>
+        <p class="prev-next-title">Architecture</p>
+      </div>
+      <i class="fa-solid fa-angle-right"></i>
+    </a>
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+                <dialog id="pst-secondary-sidebar-modal"></dialog>
+                <div id="pst-secondary-sidebar" class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
+
+
+  <div class="sidebar-secondary-item">
+<div
+    id="pst-page-navigation-heading-2"
+    class="page-toc tocsection onthispage">
+    <i class="fa-solid fa-list"></i> On this page
+  </div>
+  <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
+    <ul class="pst-show_toc_level nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#status">Status</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#context">Context</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#decision">Decision</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#consequences">Consequences</a></li>
+</ul>
+  </nav></div>
+
+  <div class="sidebar-secondary-item">
+
+  
+  <div class="tocsection editthispage">
+    <a href="https://github.com/gilesknap/scrap/edit/1.7.0/docs/explanations/decisions/0046-database-on-an-emptydir-replicated-with-litestream.md">
+      <i class="fa-solid fa-pencil"></i>
+      
+      
+        
+          Edit on GitHub
+        
+      
+    </a>
+  </div>
+</div>
+
+  <div class="sidebar-secondary-item">
+
+  <div class="tocsection sourcelink">
+    <a href="../../_sources/explanations/decisions/0046-database-on-an-emptydir-replicated-with-litestream.md.txt">
+      <i class="fa-solid fa-file-lines"></i> Show Source
+    </a>
+  </div>
+</div>
+
+</div></div>
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+          </footer>
+        
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script defer src="../../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be"></script>
+<script defer src="../../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be"></script>
+
+  <footer class="bd-footer">
+<div class="bd-footer__inner bd-page-width">
+  
+  
+  
+    <div class="footer-items__end">
+      
+        <div class="footer-item">
+<p class="theme-version">
+  <!-- # L10n: Setting the PST URL as an argument as this does not need to be localized -->
+  Built with the <a href="https://pydata-sphinx-theme.readthedocs.io/en/stable/index.html">PyData Sphinx Theme</a> 0.23.0.
+</p></div>
+      
+    </div>
+  
+</div>
+
+  </footer>
+  </body>
+</html>

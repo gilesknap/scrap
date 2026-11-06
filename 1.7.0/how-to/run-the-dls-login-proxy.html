@@ -1,0 +1,734 @@
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="../" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>Run the DLS login proxy &#8212; scrap 1.7.0 documentation</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  <!--
+    this give us a css class that will be invisible only if js is disabled
+  -->
+  <noscript>
+    <style>
+      .pst-js-only { display: none !important; }
+
+    </style>
+  </noscript>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="../_static/styles/theme.css?digest=18bd87630a240e9c25be" rel="stylesheet" />
+<link href="../_static/styles/pydata-sphinx-theme.css?digest=18bd87630a240e9c25be" rel="stylesheet" />
+
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=03e43079" />
+    <link rel="stylesheet" type="text/css" href="../_static/graphviz.css?v=4ae1632d" />
+    <link rel="stylesheet" type="text/css" href="../_static/copybutton.css?v=76b2166b" />
+    <link rel="stylesheet" type="text/css" href="../_static/sphinx-design.min.css?v=95c83b7e" />
+  
+  <!-- So that users can add custom icons -->
+  <script defer src="../_static/scripts/fontawesome.js?digest=18bd87630a240e9c25be"></script>
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
+<link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
+
+    <script src="../_static/documentation_options.js?v=030dc6f6"></script>
+    <script src="../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
+    <script src="../_static/copybutton.js?v=30646c52"></script>
+    <script src="../_static/design-tabs.js?v=f930bc37"></script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'how-to/run-the-dls-login-proxy';</script>
+    <script>
+        DOCUMENTATION_OPTIONS.theme_version = '0.23.0';
+        DOCUMENTATION_OPTIONS.theme_switcher_json_url = 'https://gilesknap.github.io/scrap/switcher.json';
+        DOCUMENTATION_OPTIONS.theme_switcher_version_match = '1.7.0';
+        DOCUMENTATION_OPTIONS.show_version_warning_banner =
+            false;
+        </script>
+    <script>DOCUMENTATION_OPTIONS.search_as_you_type = false;</script>
+    <link rel="icon" href="../_static/dls-logo.svg"/>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Use scrap on your phone over Tailscale" href="use-scrap-on-your-phone.html" />
+    <link rel="prev" title="Publish pages" href="publish-pages.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="color-scheme" content="light dark"/>
+  <meta name="docsearch:language" content="en"/>
+  <meta name="docsearch:version" content="1.7.0" />
+  
+    
+    <script src="../_static/searchtools.js"></script>
+    <script src="../_static/language_data.js"></script>
+    <script src="../searchindex.js"></script>
+  
+  </head>
+  <body data-default-mode="">
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+  
+  
+  
+  
+  <dialog id="pst-search-dialog">
+    
+<form class="bd-search d-flex align-items-center"
+      action="../search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         placeholder="Search the docs ..."
+         aria-label="Search the docs ..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form>
+  </dialog>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+
+  
+    <header id="pst-header" class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+<div class="bd-header__inner bd-page-width">
+  <button type="button" class="pst-navbar-icon sidebar-toggle primary-toggle" aria-label="Site navigation">
+    <span class="fa-solid fa-bars"></span>
+  </button>
+  
+  
+  <div class="col-lg-3 navbar-header-items__start">
+    
+      <div class="navbar-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="../index.html">
+  
+  
+  
+  
+  
+    
+    
+      
+    
+    
+    <img src="../_static/dls-logo.svg" class="logo__image only-light" alt=""/>
+    <img src="../_static/dls-logo.svg" class="logo__image only-dark pst-js-only" alt=""/>
+  
+  
+    <p class="title logo__title">scrap</p>
+  
+</a></div>
+    
+  </div>
+  
+  <div class="col-lg-9 navbar-header-items">
+    
+    <div class="me-auto navbar-header-items__center">
+      
+        <div class="navbar-item">
+<nav>
+  <ul class="bd-navbar-elements navbar-nav">
+    
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../tutorials.html">
+    Tutorials
+  </a>
+</li>
+
+
+<li class="nav-item current active">
+  <a class="nav-link nav-internal" href="../how-to.html">
+    How-to Guides
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../explanations.html">
+    Explanations
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../reference.html">
+    Reference
+  </a>
+</li>
+
+  </ul>
+</nav></div>
+      
+    </div>
+    
+    
+    <div class="navbar-header-items__end">
+      
+        <div class="navbar-item navbar-persistent--container">
+          
+
+<button type="button" class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button>
+        </div>
+      
+      
+        <div class="navbar-item">
+
+<div class="theme-switch-container dropdown pst-js-only" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Color mode">
+  <button type="button" class="btn btn-sm nav-link pst-navbar-icon theme-switch-button dropdown-toggle" aria-label="Color mode" data-bs-toggle="dropdown">
+    <i class="theme-switch fa-solid fa-sun fa-lg fa-fw" data-mode="light" title="Light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg fa-fw" data-mode="dark" title="Dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg fa-fw" data-mode="auto" title="System Settings"></i>
+  </button>
+  <ul class="dropdown-menu dropdown-menu-end">
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="auto"><i class="fa-solid fa-circle-half-stroke fa-lg fa-fw me-1"></i>System Settings</button></li>
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="light"><i class="fa-solid fa-sun fa-lg fa-fw me-1"></i>Light</button></li>
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="dark"><i class="fa-solid fa-moon fa-lg fa-fw me-1"></i>Dark</button></li>
+  </ul>
+</div></div>
+      
+        <div class="navbar-item"><ul class="navbar-icon-links"
+    aria-label="Icon Links">
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://github.com/gilesknap/scrap" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-square-github fa-lg" aria-hidden="true"></i><span class="visually-hidden">GitHub</span></a>
+        </li>
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://pypi.org/project/scrap" title="PyPI" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fas fa-cube fa-lg" aria-hidden="true"></i><span class="visually-hidden">PyPI</span></a>
+        </li>
+</ul></div>
+      
+        <div class="navbar-item">
+<div class="version-switcher__container dropdown pst-js-only">
+  <button id="pst-version-switcher-button-2"
+    type="button"
+    class="version-switcher__button btn btn-sm dropdown-toggle"
+    data-bs-toggle="dropdown"
+    aria-haspopup="listbox"
+    aria-controls="pst-version-switcher-list-2"
+    aria-label="Version switcher list"
+  >
+    Choose version  <!-- this text may get changed later by javascript -->
+    <span class="caret"></span>
+  </button>
+  <div id="pst-version-switcher-list-2"
+    class="version-switcher__menu dropdown-menu list-group-flush py-0"
+    role="listbox" aria-labelledby="pst-version-switcher-button-2">
+    <!-- dropdown will be populated by javascript on page load -->
+  </div>
+</div></div>
+      
+    </div>
+    
+  </div>
+  
+  
+    <div class="navbar-persistent--mobile">
+
+<button type="button" class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button>
+    </div>
+  
+
+  
+    <button type="button" class="pst-navbar-icon sidebar-toggle secondary-toggle" aria-label="On this page">
+      <span class="fa-solid fa-outdent"></span>
+    </button>
+  
+</div>
+
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+      <dialog id="pst-primary-sidebar-modal"></dialog>
+      <div id="pst-primary-sidebar" class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+      <div class="sidebar-header-items__center">
+        
+          
+          
+            <div class="navbar-item">
+<nav>
+  <ul class="bd-navbar-elements navbar-nav">
+    
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../tutorials.html">
+    Tutorials
+  </a>
+</li>
+
+
+<li class="nav-item current active">
+  <a class="nav-link nav-internal" href="../how-to.html">
+    How-to Guides
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../explanations.html">
+    Explanations
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../reference.html">
+    Reference
+  </a>
+</li>
+
+  </ul>
+</nav></div>
+          
+        
+      </div>
+    
+    
+    
+      <div class="sidebar-header-items__end">
+        
+          <div class="navbar-item">
+
+<div class="theme-switch-container dropdown pst-js-only" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Color mode">
+  <button type="button" class="btn btn-sm nav-link pst-navbar-icon theme-switch-button dropdown-toggle" aria-label="Color mode" data-bs-toggle="dropdown">
+    <i class="theme-switch fa-solid fa-sun fa-lg fa-fw" data-mode="light" title="Light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg fa-fw" data-mode="dark" title="Dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg fa-fw" data-mode="auto" title="System Settings"></i>
+  </button>
+  <ul class="dropdown-menu dropdown-menu-end">
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="auto"><i class="fa-solid fa-circle-half-stroke fa-lg fa-fw me-1"></i>System Settings</button></li>
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="light"><i class="fa-solid fa-sun fa-lg fa-fw me-1"></i>Light</button></li>
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="dark"><i class="fa-solid fa-moon fa-lg fa-fw me-1"></i>Dark</button></li>
+  </ul>
+</div></div>
+        
+          <div class="navbar-item"><ul class="navbar-icon-links"
+    aria-label="Icon Links">
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://github.com/gilesknap/scrap" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-square-github fa-lg" aria-hidden="true"></i><span class="visually-hidden">GitHub</span></a>
+        </li>
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://pypi.org/project/scrap" title="PyPI" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fas fa-cube fa-lg" aria-hidden="true"></i><span class="visually-hidden">PyPI</span></a>
+        </li>
+</ul></div>
+        
+          <div class="navbar-item">
+<div class="version-switcher__container dropdown pst-js-only">
+  <button id="pst-version-switcher-button-3"
+    type="button"
+    class="version-switcher__button btn btn-sm dropdown-toggle"
+    data-bs-toggle="dropdown"
+    aria-haspopup="listbox"
+    aria-controls="pst-version-switcher-list-3"
+    aria-label="Version switcher list"
+  >
+    Choose version  <!-- this text may get changed later by javascript -->
+    <span class="caret"></span>
+  </button>
+  <div id="pst-version-switcher-list-3"
+    class="version-switcher__menu dropdown-menu list-group-flush py-0"
+    role="listbox" aria-labelledby="pst-version-switcher-button-3">
+    <!-- dropdown will be populated by javascript on page load -->
+  </div>
+</div></div>
+        
+      </div>
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item pst-sidebar-collapse"><button type="button" id="pst-collapse-sidebar-button" aria-expanded="true" aria-controls="pst-primary-sidebar">
+  <svg class="pst-icon" role="img" aria-hidden="true" focusable="false" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
+    <path fill="currentColor" d="M3 15.5C2.36232 15.5 1.74874 15.2564 1.28478 14.8189C0.820828 14.3815 0.541576 13.7832 0.504167 13.1467L0.5 13L0.5 3C0.499965 2.36232 0.743605 1.74874 1.18107 1.28478C1.61854 0.820828 2.21676 0.541576 2.85333 0.504167L3 0.5L13 0.5C13.6377 0.499965 14.2513 0.743605 14.7152 1.18107C15.1792 1.61854 15.4584 2.21676 15.4958 2.85333L15.5 3L15.5 13C15.5 13.6377 15.2564 14.2513 14.8189 14.7152C14.3815 15.1792 13.7832 15.4584 13.1467 15.4958L13 15.5L3 15.5ZM3 13.8333L10.5 13.8333L10.5 2.16667L3 2.16667C2.79589 2.16669 2.59889 2.24163 2.44636 2.37726C2.29383 2.5129 2.19638 2.69979 2.1725 2.9025L2.16667 3L2.16667 13C2.16669 13.2041 2.24163 13.4011 2.37726 13.5536C2.5129 13.7062 2.69979 13.8036 2.9025 13.8275L3 13.8333ZM6.65583 10.325L6.5775 10.2558L4.91083 8.58917C4.76735 8.44567 4.68116 8.25476 4.66843 8.05223C4.65569 7.84971 4.71729 7.6495 4.84167 7.48917L4.91083 7.41083L6.5775 5.74417C6.72747 5.59471 6.9287 5.50794 7.14032 5.50148C7.35194 5.49502 7.55809 5.56935 7.7169 5.70937C7.8757 5.8494 7.97525 6.04463 7.99533 6.25539C8.01541 6.46616 7.95451 6.67667 7.825 6.84417L7.75583 6.9225L6.67917 8L7.75583 9.0775C7.89931 9.22099 7.98551 9.41191 7.99824 9.61443C8.01097 9.81695 7.94938 10.0172 7.825 10.1775L7.75583 10.2558C7.61234 10.3993 7.42142 10.4855 7.2189 10.4982C7.01638 10.511 6.81617 10.4494 6.65583 10.325Z"/>
+  </svg>
+  <span class="pst-collapse-sidebar-label">Collapse Sidebar</span>
+  <span class="pst-expand-sidebar-label">Expand Sidebar</span>
+</button></div>
+        <div class="sidebar-primary-item">
+
+<nav class="bd-docs-nav bd-links"
+     aria-label="Section Navigation">
+  <p class="bd-links__title" role="heading" aria-level="1">Section Navigation</p>
+  <div class="bd-toc-item navbar-nav"><ul class="current nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="auto-summary-on-compact.html">Post a summary to scrap when Claude Code compacts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="connect-claude-code.html">Connect a Claude Code session</a></li>
+<li class="toctree-l1"><a class="reference internal" href="connect-claude-sandbox.html">Connect Claude Code in claude-sandbox</a></li>
+<li class="toctree-l1"><a class="reference internal" href="contribute.html">Contribute to the project</a></li>
+<li class="toctree-l1"><a class="reference internal" href="deploy-kubernetes.html">Deploy on Kubernetes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="deploy-single-server.html">Deploy on a single server</a></li>
+<li class="toctree-l1"><a class="reference internal" href="export-your-pages.html">Export your pages</a></li>
+<li class="toctree-l1"><a class="reference internal" href="import-your-pages.html">Import your pages</a></li>
+<li class="toctree-l1"><a class="reference internal" href="keep-an-index.html">Keep an index of your pages</a></li>
+<li class="toctree-l1"><a class="reference internal" href="make-your-own-lists.html">Make your own lists: a contacts directory</a></li>
+<li class="toctree-l1"><a class="reference internal" href="publish-pages.html">Publish pages</a></li>
+<li class="toctree-l1 current active"><a aria-current="page" class="current reference internal" href="#">Run the DLS login proxy</a></li>
+<li class="toctree-l1"><a class="reference internal" href="use-scrap-on-your-phone.html">Use scrap on your phone over Tailscale</a></li>
+<li class="toctree-l1"><a class="reference internal" href="use-the-pwa.html">Capture from your phone (the PWA)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="work-with-claude.html">Work on scrap with Claude</a></li>
+</ul>
+</div>
+</nav></div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+      <div class="sidebar-primary-item">
+<div id="ethical-ad-placement"
+      class="flat"
+      data-ea-publisher="readthedocs"
+      data-ea-type="readthedocs-sidebar"
+      data-ea-manual="true">
+</div></div>
+  </div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item">
+
+<nav aria-label="Breadcrumb" class="d-print-none">
+  <ul class="bd-breadcrumbs">
+    
+    <li class="breadcrumb-item breadcrumb-home">
+      <a href="../index.html" class="nav-link" aria-label="Home">
+        <i class="fa-solid fa-home"></i>
+      </a>
+    </li>
+    
+    <li class="breadcrumb-item"><a href="../how-to.html" class="nav-link">How-to Guides</a></li>
+    
+    <li class="breadcrumb-item active" aria-current="page"><span class="ellipsis">Run the DLS login proxy</span></li>
+  </ul>
+</nav>
+</div>
+      
+    </div>
+  
+  
+</div>
+</div>
+              
+              
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <section id="run-the-dls-login-proxy">
+<h1>Run the DLS login proxy<a class="headerlink" href="#run-the-dls-login-proxy" title="Link to this heading">#</a></h1>
+<p>This is for the scrap admins at DLS. Every DLS user’s scrap (installed with
+<a class="reference internal" href="../tutorials/install-dls.html"><span class="std std-doc">Install scrap at DLS</span></a>) logs in through one central
+<a class="reference external" href="https://oauth2-proxy.github.io/oauth2-proxy/">oauth2-proxy</a> against DLS Keycloak. This page
+sets it up and keeps it running.</p>
+<section id="how-it-fits-together">
+<h2>How it fits together<a class="headerlink" href="#how-it-fits-together" title="Link to this heading">#</a></h2>
+<ul class="simple">
+<li><p>The proxy runs in its own namespace, <code class="docutils literal notranslate"><span class="pre">scrap</span></code> by default. Only that namespace holds the
+Keycloak client secret and the proxy’s cookie secret; users never see them.</p></li>
+<li><p>Each user’s scrap has two Ingresses on <code class="docutils literal notranslate"><span class="pre">scrap-&lt;fedid&gt;.diamond.ac.uk</span></code>. The main one sends every
+request to the proxy first (ingress-nginx’s <code class="docutils literal notranslate"><span class="pre">auth-url</span></code>), which needs a DLS login; scrap then
+lets in only that user’s fedid, from the token the proxy passes on. The other has no login and carries <code class="docutils literal notranslate"><span class="pre">/mcp</span></code> (scrap’s bearer token guards it) and
+<code class="docutils literal notranslate"><span class="pre">/oauth2</span></code>, which reaches the proxy through an <code class="docutils literal notranslate"><span class="pre">ExternalName</span></code> Service in the user’s namespace.</p></li>
+<li><p>The proxy has no fixed callback address and no cookie domain, so each user’s login and cookie
+belong to that user’s host alone. That is why Keycloak needs one exact redirect URI per user.</p></li>
+<li><p>Any DLS login passes the proxy, on any user’s host: the <code class="docutils literal notranslate"><span class="pre">auth-url</span></code> carries no
+<code class="docutils literal notranslate"><span class="pre">allowed_emails</span></code>, because DLS’s ingress-nginx refuses an <code class="docutils literal notranslate"><span class="pre">&#64;</span></code> or <code class="docutils literal notranslate"><span class="pre">%</span></code> in it. Each user’s scrap
+admits only its owner, by the fedid in the access token (<code class="docutils literal notranslate"><span class="pre">preferred_username</span></code>): another DLS
+user who logs in there gets scrap’s <code class="docutils literal notranslate"><span class="pre">401</span></code>. DLS Keycloak does not verify emails, so the proxy
+runs with <code class="docutils literal notranslate"><span class="pre">insecure_oidc_allow_unverified_email</span></code>; the email is not what lets anyone in.</p></li>
+<li><p>The proxy passes the user’s Keycloak access token on (<code class="docutils literal notranslate"><span class="pre">pass_access_token</span></code>), and scrap checks
+it on every request (<a class="reference internal" href="../explanations/decisions/0045-scrap-verifies-the-login-proxys-keycloak-token.html"><span class="std std-doc">45. scrap verifies the login proxy’s Keycloak token</span></a>).
+argus users cannot make NetworkPolicies, so a pod in the cluster can reach a user’s scrap
+Service directly, but without a valid Keycloak token for that user it gets <code class="docutils literal notranslate"><span class="pre">401</span></code>; <code class="docutils literal notranslate"><span class="pre">/mcp</span></code> needs
+its bearer token. The proxy refreshes the session every minute, inside the access token’s
+5 minutes. Without <code class="docutils literal notranslate"><span class="pre">offline_access</span></code>, a user stays logged in only as long as their DLS
+Keycloak session; when it ends, the next refresh fails and they log in again.</p></li>
+</ul>
+<p>The chart side is <code class="docutils literal notranslate"><span class="pre">authProxy</span></code> (<a class="reference internal" href="deploy-kubernetes.html#k8s-auth-proxy"><span class="std std-ref">A central oauth2-proxy with ingress-nginx</span></a>). The proxy is the upstream oauth2-proxy
+chart, pinned in <code class="docutils literal notranslate"><span class="pre">deploy/dls/auth-proxy/install.sh</span></code>, with <code class="docutils literal notranslate"><span class="pre">deploy/dls/auth-proxy/values.yaml</span></code>.</p>
+</section>
+<section id="request-the-keycloak-client">
+<h2>1. Request the Keycloak client<a class="headerlink" href="#request-the-keycloak-client" title="Link to this heading">#</a></h2>
+<p>Ask the DLS Keycloak team for one client in the <code class="docutils literal notranslate"><span class="pre">dls</span></code> realm
+(<code class="docutils literal notranslate"><span class="pre">https://identity.diamond.ac.uk/realms/dls</span></code>):</p>
+<ul class="simple">
+<li><p><strong>Confidential</strong> (client authentication on), <strong>standard flow</strong> only, with <strong>PKCE</strong> method
+<code class="docutils literal notranslate"><span class="pre">S256</span></code>.</p></li>
+<li><p>Client scopes <code class="docutils literal notranslate"><span class="pre">openid</span></code>, <code class="docutils literal notranslate"><span class="pre">email</span></code> and <code class="docutils literal notranslate"><span class="pre">profile</span></code> only (no <code class="docutils literal notranslate"><span class="pre">offline_access</span></code>).</p></li>
+<li><p>An <strong>audience mapper</strong> that adds the client’s own ID to the access token’s audience: oauth2-proxy
+checks it.</p></li>
+<li><p><strong>Valid redirect URIs</strong>: one exact entry per user, <code class="docutils literal notranslate"><span class="pre">https://scrap-&lt;fedid&gt;.diamond.ac.uk/oauth2/callback</span></code>.
+No wildcards. Start with your own.</p></li>
+<li><p><strong>Access tokens that carry <code class="docutils literal notranslate"><span class="pre">preferred_username</span></code></strong> (the fedid): scrap reads it from the access
+token, not the ID token. Keycloak’s default <code class="docutils literal notranslate"><span class="pre">profile</span></code> client scope maps it into the access
+token; check it has not been changed to the ID token only. The tokens also carry <code class="docutils literal notranslate"><span class="pre">email</span></code>,
+which the proxy checks against <code class="docutils literal notranslate"><span class="pre">email_domains</span></code>; it need not be verified.</p></li>
+<li><p>Confirmation that users <strong>cannot change their username</strong> in the <code class="docutils literal notranslate"><span class="pre">dls</span></code> realm: “Edit username”
+off, and not “Email as username” with emails users can edit. And that the access token’s
+<code class="docutils literal notranslate"><span class="pre">preferred_username</span></code> comes from Keycloak’s built-in username mapper, not from an attribute
+users can edit. scrap trusts it to name the owner.</p></li>
+</ul>
+<p>Keep the client ID and secret for the next step.</p>
+<p>Also ask the argus admins to confirm that user namespaces may have <code class="docutils literal notranslate"><span class="pre">ExternalName</span></code> Services, and
+that their ingress-nginx allows the <code class="docutils literal notranslate"><span class="pre">auth-url</span></code> and <code class="docutils literal notranslate"><span class="pre">auth-signin</span></code> annotations (its
+<code class="docutils literal notranslate"><span class="pre">annotations-risk-level</span></code> setting can block them).</p>
+</section>
+<section id="install-the-proxy">
+<h2>2. Install the proxy<a class="headerlink" href="#install-the-proxy" title="Link to this heading">#</a></h2>
+<p>You need the namespace (<code class="docutils literal notranslate"><span class="pre">scrap</span></code>, or another that only the admins use) and the right to make
+Secrets and Deployments in it. On a DLS machine:</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>module<span class="w"> </span>load<span class="w"> </span>argus
+git<span class="w"> </span>clone<span class="w"> </span>https://github.com/gilesknap/scrap.git
+<span class="nb">cd</span><span class="w"> </span>scrap
+sh<span class="w"> </span>deploy/dls/auth-proxy/install.sh
+</pre></div>
+</div>
+<p>The first run asks for the client ID and secret (the secret is not shown as you type). It makes
+the Secret <code class="docutils literal notranslate"><span class="pre">oauth2-proxy-keycloak</span></code> with the keys <code class="docutils literal notranslate"><span class="pre">client-id</span></code>, <code class="docutils literal notranslate"><span class="pre">client-secret</span></code> and a generated
+<code class="docutils literal notranslate"><span class="pre">cookie-secret</span></code>, then installs the chart as the release <code class="docutils literal notranslate"><span class="pre">oauth2-proxy</span></code>: two pods, a disruption
+budget, and no Ingress. The proxy answers inside the cluster at
+<code class="docutils literal notranslate"><span class="pre">oauth2-proxy.scrap.svc.cluster.local</span></code>, where every user’s installer points by default.</p>
+<p>Re-run the script after changing <code class="docutils literal notranslate"><span class="pre">values.yaml</span></code> or the pinned chart version. It keeps the Secret.
+A run that makes the Secret (the first, or after you deleted it) also restarts the proxy, since
+its pods read the Secret only when they start.
+With a namespace other than <code class="docutils literal notranslate"><span class="pre">scrap</span></code>, users must set <code class="docutils literal notranslate"><span class="pre">SCRAP_AUTH_NAMESPACE</span></code> to it when they
+run their installer.</p>
+</section>
+<section id="add-users">
+<h2>3. Add users<a class="headerlink" href="#add-users" title="Link to this heading">#</a></h2>
+<p>After installing, each user asks you to add their login address,
+<code class="docutils literal notranslate"><span class="pre">https://scrap-&lt;fedid&gt;.diamond.ac.uk/oauth2/callback</span></code>. Collect them and send them to the Keycloak
+team in batches, to add to the client’s valid redirect URIs. Until a user’s address is added, their
+login fails with Keycloak’s “Invalid parameter: redirect_uri”.</p>
+</section>
+<section id="rotate-the-client-secret">
+<h2>Rotate the client secret<a class="headerlink" href="#rotate-the-client-secret" title="Link to this heading">#</a></h2>
+<p>Ask the Keycloak team for a new client secret, then put it in the Secret from a private file and
+restart the proxy:</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span><span class="nv">tmp</span><span class="o">=</span><span class="k">$(</span>mktemp<span class="w"> </span>-d<span class="k">)</span>
+chmod<span class="w"> </span><span class="m">700</span><span class="w"> </span><span class="s2">"</span><span class="nv">$tmp</span><span class="s2">"</span>
+<span class="nb">printf</span><span class="w"> </span><span class="s1">'New client secret: '</span><span class="p">;</span><span class="w"> </span>stty<span class="w"> </span>-echo<span class="p">;</span><span class="w"> </span><span class="nb">read</span><span class="w"> </span>-r<span class="w"> </span>s<span class="p">;</span><span class="w"> </span>stty<span class="w"> </span>echo<span class="p">;</span><span class="w"> </span><span class="nb">echo</span>
+<span class="nb">printf</span><span class="w"> </span><span class="s1">'{"data":{"client-secret":"%s"}}'</span><span class="w"> </span><span class="s2">"</span><span class="k">$(</span><span class="nb">printf</span><span class="w"> </span>%s<span class="w"> </span><span class="s2">"</span><span class="nv">$s</span><span class="s2">"</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>base64<span class="w"> </span><span class="p">|</span><span class="w"> </span>tr<span class="w"> </span>-d<span class="w"> </span><span class="s1">'\n'</span><span class="k">)</span><span class="s2">"</span><span class="w"> </span>&gt;<span class="s2">"</span><span class="nv">$tmp</span><span class="s2">/patch.json"</span>
+<span class="nb">unset</span><span class="w"> </span>s
+kubectl<span class="w"> </span>-n<span class="w"> </span>scrap<span class="w"> </span>patch<span class="w"> </span>secret<span class="w"> </span>oauth2-proxy-keycloak<span class="w"> </span>--type<span class="w"> </span>merge<span class="w"> </span>--patch-file<span class="w"> </span><span class="s2">"</span><span class="nv">$tmp</span><span class="s2">/patch.json"</span>
+rm<span class="w"> </span>-rf<span class="w"> </span><span class="s2">"</span><span class="nv">$tmp</span><span class="s2">"</span>
+kubectl<span class="w"> </span>-n<span class="w"> </span>scrap<span class="w"> </span>rollout<span class="w"> </span>restart<span class="w"> </span>deploy/oauth2-proxy
+</pre></div>
+</div>
+<p>To sign everyone out, replace <code class="docutils literal notranslate"><span class="pre">cookie-secret</span></code> the same way, with 32 random bytes in URL-safe
+base64 (<code class="docutils literal notranslate"><span class="pre">head</span> <span class="pre">-c</span> <span class="pre">32</span> <span class="pre">/dev/urandom</span> <span class="pre">|</span> <span class="pre">base64</span> <span class="pre">|</span> <span class="pre">tr</span> <span class="pre">--</span> <span class="pre">'+/'</span> <span class="pre">'-_'</span></code>).</p>
+</section>
+<section id="check-it">
+<h2>Check it<a class="headerlink" href="#check-it" title="Link to this heading">#</a></h2>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>kubectl<span class="w"> </span>-n<span class="w"> </span>scrap<span class="w"> </span>get<span class="w"> </span>pods,svc,pdb
+kubectl<span class="w"> </span>-n<span class="w"> </span>scrap<span class="w"> </span>logs<span class="w"> </span>deploy/oauth2-proxy
+curl<span class="w"> </span>-sI<span class="w"> </span>https://scrap-&lt;fedid&gt;.diamond.ac.uk/<span class="w"> </span><span class="p">|</span><span class="w"> </span>head<span class="w"> </span>-n<span class="w"> </span><span class="m">3</span>
+</pre></div>
+</div>
+<p>The pods are ready, and the <code class="docutils literal notranslate"><span class="pre">curl</span></code> answers <code class="docutils literal notranslate"><span class="pre">302</span></code> to <code class="docutils literal notranslate"><span class="pre">/oauth2/start</span></code> on the same host. Opened in a
+browser, the address goes to the DLS login and then back to scrap. A <code class="docutils literal notranslate"><span class="pre">500</span></code> from the user’s host
+usually means the proxy is down or the user’s Ingress names the wrong Service: check the
+<code class="docutils literal notranslate"><span class="pre">authProxy.service</span></code> in their release (<code class="docutils literal notranslate"><span class="pre">helm</span> <span class="pre">-n</span> <span class="pre">&lt;fedid&gt;</span> <span class="pre">get</span> <span class="pre">values</span> <span class="pre">scrap</span></code>).</p>
+</section>
+</section>
+
+
+                </article>
+              
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+    <a class="left-prev"
+       href="publish-pages.html"
+       title="previous page">
+      <i class="fa-solid fa-angle-left"></i>
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">previous</p>
+        <p class="prev-next-title">Publish pages</p>
+      </div>
+    </a>
+    <a class="right-next"
+       href="use-scrap-on-your-phone.html"
+       title="next page">
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">next</p>
+        <p class="prev-next-title">Use scrap on your phone over Tailscale</p>
+      </div>
+      <i class="fa-solid fa-angle-right"></i>
+    </a>
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+                <dialog id="pst-secondary-sidebar-modal"></dialog>
+                <div id="pst-secondary-sidebar" class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
+
+
+  <div class="sidebar-secondary-item">
+<div
+    id="pst-page-navigation-heading-2"
+    class="page-toc tocsection onthispage">
+    <i class="fa-solid fa-list"></i> On this page
+  </div>
+  <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
+    <ul class="pst-show_toc_level nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#how-it-fits-together">How it fits together</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#request-the-keycloak-client">1. Request the Keycloak client</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#install-the-proxy">2. Install the proxy</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#add-users">3. Add users</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#rotate-the-client-secret">Rotate the client secret</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#check-it">Check it</a></li>
+</ul>
+  </nav></div>
+
+  <div class="sidebar-secondary-item">
+
+  
+  <div class="tocsection editthispage">
+    <a href="https://github.com/gilesknap/scrap/edit/1.7.0/docs/how-to/run-the-dls-login-proxy.md">
+      <i class="fa-solid fa-pencil"></i>
+      
+      
+        
+          Edit on GitHub
+        
+      
+    </a>
+  </div>
+</div>
+
+  <div class="sidebar-secondary-item">
+
+  <div class="tocsection sourcelink">
+    <a href="../_sources/how-to/run-the-dls-login-proxy.md.txt">
+      <i class="fa-solid fa-file-lines"></i> Show Source
+    </a>
+  </div>
+</div>
+
+</div></div>
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+          </footer>
+        
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script defer src="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be"></script>
+<script defer src="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be"></script>
+
+  <footer class="bd-footer">
+<div class="bd-footer__inner bd-page-width">
+  
+  
+  
+    <div class="footer-items__end">
+      
+        <div class="footer-item">
+<p class="theme-version">
+  <!-- # L10n: Setting the PST URL as an argument as this does not need to be localized -->
+  Built with the <a href="https://pydata-sphinx-theme.readthedocs.io/en/stable/index.html">PyData Sphinx Theme</a> 0.23.0.
+</p></div>
+      
+    </div>
+  
+</div>
+
+  </footer>
+  </body>
+</html>
