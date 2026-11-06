@@ -76,3 +76,6 @@ src/scrap/static/
 # Claude Code worktrees
 .claude/worktrees/
 _claude
+
+# Cluster credentials
+*.kubeconfig
