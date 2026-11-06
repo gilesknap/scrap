@@ -36,8 +36,9 @@ own and trusted that header as sent.
   `SCRAP_OIDC_ISSUER`; issued to our client (`azp` is `SCRAP_OIDC_CLIENT_ID`, or it is in `aud`,
   since Keycloak's access tokens have `aud: account` unless a mapper adds the client); `exp`,
   `nbf` and `iat` with 30 s of leeway; and `preferred_username` (the Keycloak username, at
-  DLS the fedid; lower-cased) in `SCRAP_ALLOWED_USERS`. A token without it, or with one that
-  is not a string, gets `401`. This allow-list is the only owner check: the token alone says only
+  DLS the fedid) in `SCRAP_ALLOWED_USERS` (lower-cased when read). The claim must be
+  lower-case ASCII and match exactly, never folded; a token without it, or with any other
+  spelling, gets `401`. This allow-list is the only owner check: the token alone says only
   that someone at DLS logged in, and the Ingress's `auth-url` carries no `allowed_emails`
   (DLS's ingress-nginx refuses an `@` or `%` in it), so any DLS login passes the proxy, and
   another user gets scrap's `401`.
@@ -107,8 +108,12 @@ proxy alone would only have moved the failure to scrap's `401`.
 So the owner is the Keycloak username, `preferred_username`. At DLS that is the fedid, the
 same identity that names the user's argus namespace (namespace `abc12345` is fedid
 `abc12345`), so the installer takes it from the namespace. The `profile` scope carries it
-into the access token. The proxy sets `insecure_oidc_allow_unverified_email`: it admits any
-DLS login, as before, and each scrap admits only its owner. `SCRAP_ALLOWED_EMAILS` and
+into the access token. So the trust anchor is that DLS users cannot change their own username:
+the realm has "Edit username" off (and no "Email as username" with editable emails), and
+`preferred_username` comes from Keycloak's built-in username mapper, not an editable
+attribute. The token's claim must be lower-case ASCII and match exactly; scrap does not fold
+it, so no look-alike spelling passes. The proxy sets `insecure_oidc_allow_unverified_email`:
+it admits any DLS login, as before, and each scrap admits only its owner. `SCRAP_ALLOWED_EMAILS` and
 `authProxy.allowedEmails` are gone, not kept as aliases: they shipped in 1.6.0 a day earlier
 and had no users but the owner, whose login never worked.
 

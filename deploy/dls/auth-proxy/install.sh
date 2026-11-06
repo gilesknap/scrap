@@ -63,8 +63,12 @@ main() {
     # The pods read the Secret only at start, and an upgrade that changes nothing in
     # the chart leaves them running: restart them onto the new Secret.
     if [ -n "$made" ]; then
-        kubectl -n "$ns" rollout restart deploy/oauth2-proxy </dev/null
-        kubectl -n "$ns" rollout status deploy/oauth2-proxy --timeout 5m </dev/null
+        if ! kubectl -n "$ns" rollout restart deploy/oauth2-proxy </dev/null ||
+            ! kubectl -n "$ns" rollout status deploy/oauth2-proxy --timeout 5m </dev/null; then
+            echo "The new Secret is in place but the proxy pods did not restart: run" >&2
+            echo "  kubectl -n $ns rollout restart deploy/oauth2-proxy" >&2
+            exit 1
+        fi
     fi
     echo "oauth2-proxy is at http://oauth2-proxy.$ns.svc.cluster.local/ inside the cluster."
 }

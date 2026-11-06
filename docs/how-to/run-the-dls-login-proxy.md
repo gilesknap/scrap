@@ -47,6 +47,10 @@ Ask the DLS Keycloak team for one client in the `dls` realm
   token, not the ID token. Keycloak's default `profile` client scope maps it into the access
   token; check it has not been changed to the ID token only. The tokens also carry `email`,
   which the proxy checks against `email_domains`; it need not be verified.
+- Confirmation that users **cannot change their username** in the `dls` realm: "Edit username"
+  off, and not "Email as username" with emails users can edit. And that the access token's
+  `preferred_username` comes from Keycloak's built-in username mapper, not from an attribute
+  users can edit. scrap trusts it to name the owner.
 
 Keep the client ID and secret for the next step.
 

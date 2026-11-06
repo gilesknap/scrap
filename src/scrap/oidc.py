@@ -14,8 +14,9 @@ over any copy the client sent) that:
   `$SCRAP_OIDC_CLIENT_ID`, or it is in `aud`);
 - is in date (`exp`, `nbf`, `iat`, with 30 s of leeway for clock skew);
 - carries a `preferred_username` (the Keycloak username: at DLS the fedid, which also
-  names the user's namespace) in `$SCRAP_ALLOWED_USERS` (comma separated; compared
-  lower-cased). Not the email: DLS's Keycloak does not verify emails
+  names the user's namespace) in `$SCRAP_ALLOWED_USERS` (comma separated, lower-cased
+  when read). The token's claim is not folded: it must be lower-case ASCII (USERNAME)
+  and match exactly. Not the email: DLS's Keycloak does not verify emails
   (`email_verified` is false for staff), so it is not the gate.
 
 Otherwise 401 (JSON under /api, else plain text; no redirect, the Ingress does the
@@ -30,6 +31,7 @@ starts only after a fetch that worked. Below app and uploads.
 import json
 import logging
 import os
+import re
 import threading
 import time
 import urllib.request
@@ -57,6 +59,10 @@ KEYS_LIFESPAN = 3600  # how long a fetched key set is used before it is fetched 
 COOLDOWN = 30  # the least time between refetches for a key id not in the set
 RETRY = 10  # seconds after a failed fetch before trying again (503 meanwhile)
 LOOPBACK = ("localhost", "127.0.0.1", "::1")
+# A token's username as Keycloak writes it: lower-case ASCII only. Anything else (upper
+# case, spaces, a non-breaking space, a look-alike such as the Kelvin sign) is refused
+# rather than folded, so no other spelling can match an allowed name.
+USERNAME = re.compile(r"[a-z0-9._@-]+")
 
 
 class InvalidTokenError(Exception):
@@ -240,7 +246,7 @@ class Verifier:
         return self.key(kid)
 
     def verify(self, token: str) -> str:
-        """The token's username, lower-cased, if it lets its holder in; else
+        """The token's username, exactly as allowed, if it lets its holder in; else
         InvalidTokenError (KeysUnavailableError when the keys cannot be had)."""
         key = self.signing_key(token)
         if key.algorithm_name not in ALGORITHMS:
@@ -264,9 +270,11 @@ class Verifier:
         if not isinstance(typ, str) or typ.lower() != "bearer":
             raise InvalidTokenError("not an access token")
         user = claims.get("preferred_username")
-        if not isinstance(user, str) or user.strip().lower() not in self.conf.allowed:
+        if not isinstance(user, str) or not USERNAME.fullmatch(user):
+            raise InvalidTokenError("the token's username is not lower-case ASCII")
+        if user not in self.conf.allowed:
             raise InvalidTokenError("this login may not use this scrap")
-        return user.strip().lower()
+        return user
 
 
 def exempt(path: str) -> bool:

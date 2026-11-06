@@ -147,6 +147,10 @@ main() {
             ;;
         esac
         echo "The web app's login will let in only $owner."
+        # On a DLS machine your Linux username is your fedid: say so if they differ.
+        if [ "$owner" != "$(printf %s "$user" | tr '[:upper:]' '[:lower:]')" ]; then
+            echo "WARNING: scrap will let in only $owner, not you ($user): set SCRAP_USER if that is wrong." >&2
+        fi
     fi
 
     if [ -n "$backup_dir" ]; then

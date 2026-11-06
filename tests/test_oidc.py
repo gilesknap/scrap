@@ -82,7 +82,8 @@ def issuer(monkeypatch):
     monkeypatch.setenv("SCRAP_MCP_TOKEN", MCP_TOKEN)
     monkeypatch.setenv("SCRAP_OIDC_ISSUER", ISSUER)
     monkeypatch.setenv("SCRAP_OIDC_CLIENT_ID", CLIENT)
-    monkeypatch.setenv("SCRAP_ALLOWED_USERS", f" {OWNER} ,xyz98765")
+    # a second user with a k: the Kelvin sign lower-cases to it, and must not let in
+    monkeypatch.setenv("SCRAP_ALLOWED_USERS", f" {OWNER} ,kxy98765")
     return state
 
 
@@ -153,6 +154,15 @@ def test_a_forged_email_header_alone_does_nothing(gated, monkeypatch):
         pytest.param(lambda: token(preferred_username=None), id="no-username"),
         pytest.param(lambda: token(preferred_username=["abc12345"]), id="not-a-string"),
         pytest.param(lambda: token(preferred_username=""), id="empty-username"),
+        # the claim is not folded: only the exact lower-case ASCII name lets in
+        pytest.param(
+            lambda: token(preferred_username=OWNER + " "), id="trailing-space"
+        ),
+        pytest.param(lambda: token(preferred_username=OWNER + "\u00a0"), id="nbsp"),
+        pytest.param(lambda: token(preferred_username=OWNER.upper()), id="upper-case"),
+        pytest.param(
+            lambda: token(preferred_username="\u212axy98765"), id="kelvin-sign"
+        ),
         pytest.param(
             lambda: token(preferred_username="zzz11111", email_verified=True),
             id="not-allowed-email-verified",
@@ -407,7 +417,7 @@ def test_discovery_for_another_issuer_is_503(gated, issuer):
 
 
 def test_a_good_token_lets_in_and_its_username_is_the_author(gated, issuer, tmp_path):
-    good = token(preferred_username="ABC12345")  # compared lower-cased
+    good = token(preferred_username=OWNER)
     assert get(gated, good).status_code == 200
     r = gated.post(
         "/api/captures",
@@ -436,7 +446,7 @@ def test_a_good_token_lets_in_and_its_username_is_the_author(gated, issuer, tmp_
         pytest.param(lambda: token(email_verified=False), id="email-unverified"),
         pytest.param(lambda: token(email_verified=None), id="email-verified-missing"),
         pytest.param(lambda: token(email=None), id="no-email"),
-        pytest.param(lambda: token(preferred_username=" xyz98765 "), id="second-user"),
+        pytest.param(lambda: token(preferred_username="kxy98765"), id="second-user"),
     ],
 )
 def test_other_good_tokens(gated, tok):

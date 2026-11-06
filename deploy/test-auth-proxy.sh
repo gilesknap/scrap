@@ -22,6 +22,7 @@ echo "kubectl \$*" >>"$tmp/calls"
 case "\$*" in
   *"create secret"*) touch "$tmp/secret"; exit 0 ;;
   *"get secret"*) [ -e "$tmp/secret" ]; exit \$? ;;
+  *"rollout \${STUB_ROLLOUT_FAIL:-none} "*) exit 1 ;;
 esac
 exit 0
 STUB
@@ -53,6 +54,19 @@ if command -v script >/dev/null 2>&1 && script -qec true /dev/null </dev/null >/
         tr '\n' '|')
     check "restarts the proxy after the upgrade, and waits" [ "$order" = \
         "kubectl -n login create secret|helm upgrade|kubectl -n login rollout restart deploy/oauth2-proxy|kubectl -n login rollout status deploy/oauth2-proxy|" ]
+
+    # The restart, or the wait for it, fails: the script fails and says what to run.
+    for step in restart status; do
+        rm -f "$tmp/secret"; : >"$tmp/calls"
+        if printf 'my-client\nmy-secret\n' |
+            PATH="$tmp/bin:$PATH" SCRAP_AUTH_NAMESPACE=login STUB_ROLLOUT_FAIL=$step \
+                script -qec "sh '$here/dls/auth-proxy/install.sh'" -e /dev/null >"$tmp/out" 2>&1; then
+            rc=0
+        else rc=1; fi
+        check "a failed rollout $step fails the script" [ "$rc" = 1 ]
+        check "a failed rollout $step says what to run" sh -c "grep -q 'did not restart' '$tmp/out' &&
+            grep -q 'kubectl -n login rollout restart deploy/oauth2-proxy' '$tmp/out'"
+    done
 else
     echo "skip a new Secret (no script(1) to give the prompts a terminal)"
 fi

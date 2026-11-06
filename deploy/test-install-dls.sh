@@ -97,6 +97,7 @@ check "authProxy on" sh -c "grep -A1 '^authProxy:' '$tmp/values.yaml' | grep -q 
 check "the central proxy's service" grep -q "^  service: oauth2-proxy.scrap.svc.cluster.local$" "$tmp/values.yaml"
 check "only the owner's fedid" sh -c "grep -A1 '^  allowedUsers:' '$tmp/values.yaml' | grep -q '^    - \"abc12345\"$'"
 check "says who it lets in" grep -q "let in only abc12345\.$" "$tmp/out"
+check "no warning when the owner is you" sh -c "! grep -q 'not you' '$tmp/out'"
 check "scrap checks DLS Keycloak's token" sh -c "grep -A2 '^  oidc:' '$tmp/values.yaml' | tr -d '\n' |
     grep -q 'issuer: \"https://identity.diamond.ac.uk/realms/dls\" *clientId: \"scrap\"'"
 check "says a direct call gets 401" grep -q "directly without your login gets 401" "$tmp/out"
@@ -149,7 +150,10 @@ rm -f "$tmp/nopublish"
 # SCRAP_USER overrides the namespace; SCRAP_AUTH_NAMESPACE and _SERVICE move the proxy.
 (SCRAP_USER=XYZ98765 SCRAP_AUTH_NAMESPACE=login run)
 check "SCRAP_USER, lower case" grep -q '^    - "xyz98765"$' "$tmp/values.yaml"
+check "warns when the owner is not you" grep -q "WARNING: scrap will let in only xyz98765, not you (abc12345): set SCRAP_USER" "$tmp/out"
 check "SCRAP_AUTH_NAMESPACE" grep -q "^  service: oauth2-proxy.login.svc.cluster.local$" "$tmp/values.yaml"
+(SCRAP_USER=ABC12345 run)
+check "no warning for your fedid in upper case" sh -c "! grep -q 'not you' '$tmp/out'"
 (SCRAP_OIDC_ISSUER=https://kc.example.org/realms/x SCRAP_OIDC_CLIENT_ID=mine run)
 check "SCRAP_OIDC_ISSUER and _CLIENT_ID" sh -c "grep -A2 '^  oidc:' '$tmp/values.yaml' | tr -d '\n' |
     grep -q 'issuer: \"https://kc.example.org/realms/x\" *clientId: \"mine\"'"
