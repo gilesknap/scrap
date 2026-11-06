@@ -29,15 +29,27 @@ After changing that Secret: kubectl -n {{ .Release.Namespace }} rollout restart 
 Backups: CronJob {{ include "scrap.backupName" . }} ({{ .Values.backup.schedule }}) keeps {{ .Values.backup.keep }} runs {{ with .Values.backup.persistence.hostPath }}in {{ . }} on the node{{ else }}on claim {{ include "scrap.backupClaim" $ }}{{ end }}.
 Run one now: kubectl -n {{ .Release.Namespace }} create job --from=cronjob/{{ include "scrap.backupName" . }} {{ include "scrap.fullname" . | trunc 45 | trimSuffix "-" }}-backup-now
 {{- end }}
-{{- if include "scrap.gcEnabled" . }}
+{{- if .Values.litestream.enabled }}
+
+The database is on the pod's emptyDir, replicated by Litestream to /data/litestream on {{ include "scrap.dataClaim" . }}.
+If the pod stays in Init, see why: kubectl -n {{ .Release.Namespace }} logs deploy/{{ include "scrap.fullname" . }} -c db-init
+gc and the Claude passes run in the pod's jobs container, not as CronJobs.
+{{- if .Values.litestream.init.override }}
+
+WARNING: litestream.init.override is ON. A lost replica or an empty volume will start without
+stopping. When it was used, gc counts only until you check and run
+  kubectl -n {{ .Release.Namespace }} exec deploy/{{ include "scrap.fullname" . }} -c jobs -- scrap db-hold --clear
+Set it back to false now.
+{{- end }}
+{{- else if include "scrap.gcEnabled" . }}
 
 GC: CronJob {{ include "scrap.cronName" (dict "ctx" . "suffix" "-gc") }} ({{ .Values.gc.schedule }}) deletes unused files and run records older than {{ .Values.gc.runDays }} days{{ if .Values.gc.requireBackup }}, only after a backup less than 26 hours old{{ end }}.
 {{- end }}
-{{- if and .Values.enrichRelated.enabled .Values.ingest.enabled }}
+{{- if and .Values.enrichRelated.enabled .Values.ingest.enabled (not .Values.litestream.enabled) }}
 
 Related pages: CronJob {{ include "scrap.cronName" (dict "ctx" . "suffix" "-enrich-related") }} ({{ .Values.enrichRelated.schedule }}) runs `scrap enrich --related`.
 {{- end }}
-{{- if and .Values.enrichTopics.enabled .Values.ingest.enabled }}
+{{- if and .Values.enrichTopics.enabled .Values.ingest.enabled (not .Values.litestream.enabled) }}
 
 Topics: CronJob {{ include "scrap.cronName" (dict "ctx" . "suffix" "-enrich-topics") }} ({{ .Values.enrichTopics.schedule }}) runs `scrap enrich --topics`.
 {{- end }}

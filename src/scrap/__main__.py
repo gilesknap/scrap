@@ -1,12 +1,13 @@
 """Interface for ``python -m scrap``."""
 
 import os
+import sys
 from argparse import ArgumentParser, ArgumentTypeError
 from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
 
-from . import __version__
+from . import __version__, litestream_cli
 
 __all__ = ["main"]
 
@@ -23,6 +24,12 @@ def main(args: Sequence[str] | None = None) -> None:
     common = ArgumentParser(add_help=False)
     common.add_argument(
         "--data-dir", type=Path, help="Data folder (default $SCRAP_DATA_DIR or ./data)"
+    )
+    common.add_argument(
+        "--db-path",
+        type=Path,
+        help="The database, if not in the data folder (default $SCRAP_DB_PATH; a"
+        " --data-dir on its own means the database in that folder)",
     )
     subparsers = parser.add_subparsers(dest="command")
     serve = subparsers.add_parser(
@@ -44,7 +51,27 @@ def main(args: Sequence[str] | None = None) -> None:
     ]:
         sub = subparsers.add_parser(name, parents=[common], help=text)
         sub.add_argument("dir", type=Path)
+        if name == "backup":
+            sub.add_argument(
+                "--from-replica",
+                type=Path,
+                help="Back up a restore of this Litestream replica, with the data"
+                " folder's files, instead of the live database (ADR 46)",
+            )
+            sub.add_argument(
+                "--max-replica-age-hours",
+                type=float,
+                default=3.0,
+                help="With --from-replica: refuse a replica whose heartbeat is older"
+                " than this (0: do not check; default 3)",
+            )
         if name == "restore":
+            sub.add_argument(
+                "--stage",
+                action="store_true",
+                help="With Litestream (ADR 46): leave the backup in the data folder for"
+                " the next pod start to take up, in place of the replica",
+            )
             sub.add_argument(
                 "--force",
                 action="store_true",
@@ -77,6 +104,7 @@ def main(args: Sequence[str] | None = None) -> None:
         help="Queue the new pages' photos for Claude to read, on the vision model"
         " (the dearer part; off: none, Reprocess on a page sends them later)",
     )
+    litestream_cli.add_parsers(subparsers, common)
     gc = subparsers.add_parser(
         "gc",
         parents=[common],
@@ -127,6 +155,12 @@ def main(args: Sequence[str] | None = None) -> None:
         help="Delete the finished (done or dead) ingest and enrich job records last"
         " changed more than this many days ago (1 to 36500), but the latest of each"
         " photo and of each page (default 30)",
+    )
+    gc.add_argument(
+        "--allow-large",
+        action="store_true",
+        help="On a Litestream install: delete although a safety limit says to count"
+        " only (ADR 46). After a person has looked",
     )
     gc.add_argument(
         "--report",
@@ -201,6 +235,9 @@ def main(args: Sequence[str] | None = None) -> None:
             parser.error("serve: --uds listens on a socket only; drop --host/--port")
         if parsed.data_dir:
             os.environ["SCRAP_DATA_DIR"] = str(parsed.data_dir)
+        db = db_path(parsed)
+        if db:
+            os.environ["SCRAP_DB_PATH"] = str(db)
         if parsed.uds is None:
             uvicorn.run(
                 "scrap.app:create_app",
@@ -219,11 +256,16 @@ def main(args: Sequence[str] | None = None) -> None:
         # left behind on stop and replaced by the next start.
         config = uvicorn.Config("scrap.app:create_app", factory=True)
         uvicorn.Server(config).run(sockets=[sock])
+    elif litestream_cli.run(parsed):
+        pass
     elif parsed.command:
-        from . import backup, export
+        from . import backup, dbstate, export
         from .store import Store
 
-        store = Store(parsed.data_dir or os.environ.get("SCRAP_DATA_DIR", "data"))
+        store = Store(
+            parsed.data_dir or os.environ.get("SCRAP_DATA_DIR", "data"),
+            db_path(parsed),
+        )
         if parsed.command == "gc":
             gc_command(store, parsed)
         elif parsed.command == "import":
@@ -286,13 +328,37 @@ def main(args: Sequence[str] | None = None) -> None:
                 verb = "would queue" if parsed.dry_run else "queued"
                 print(f"{verb} {n} untagged pages for Claude")
         elif parsed.command == "backup":
-            backup.backup(store, parsed.dir)
+            if parsed.from_replica:
+                from .replica import backup_from_replica
+
+                backup_from_replica(
+                    store.dir, parsed.from_replica, parsed.dir,
+                    parsed.max_replica_age_hours,
+                )  # fmt: skip
+            else:
+                backup.backup(store, parsed.dir)
         elif parsed.command == "restore":
+            from .dbinit import check_restore, staged
+
+            if parsed.stage:
+                store = staged(store.dir)
+            else:
+                check_restore()
             backup.restore(parsed.dir, store, parsed.force)
+            if not parsed.stage:
+                dbstate.forget_if_here(store.db, store.dir)
         else:
             print(f"exported {export.export(store, parsed.dir)} pages to {parsed.dir}")
     else:
         parser.print_help()
+
+
+def db_path(parsed: Any) -> Path | None:
+    """The database a command was told to use: --db-path, or with --data-dir alone the
+    one in that folder (not $SCRAP_DB_PATH's); None leaves it to the Store."""
+    if parsed.db_path:
+        return parsed.db_path
+    return parsed.data_dir / "scrap.db" if parsed.data_dir else None
 
 
 def trash_days(value: str) -> float | None:
@@ -309,7 +375,9 @@ def gc_command(store: Any, parsed: Any) -> None:
     """scrap gc: the run (a dry run unless --delete), or with --report the sizes."""
     import sqlite3
 
-    from .gc import GcError, collect
+    from .dbstate import StateError, refuse_old_database
+    from .gc import GcError
+    from .gc_guard import guarded
 
     try:
         if parsed.report:
@@ -328,17 +396,23 @@ def gc_command(store: Any, parsed: Any) -> None:
             except sqlite3.Error as error:
                 raise GcError(f"cannot read the database: {error}") from None
             return
-        report = collect(
+        refuse_old_database(store.db, store.dir)
+        report, hold = guarded(
             store,
             parsed.delete and not parsed.dry_run,
+            parsed.allow_large,
             parsed.grace_hours,
             parsed.run_days,
             trash_days=parsed.trash_days,
             job_days=parsed.job_days,
         )
-    except GcError as error:
+    except (GcError, StateError) as error:
         raise SystemExit(f"scrap gc: {error}") from None
     print(report.text())
+    if hold:
+        print(f"scrap gc: deleted nothing: {hold.why}", file=sys.stderr)
+        if hold.fails:
+            raise SystemExit(1)
 
 
 def import_command(store: Any, parsed: Any) -> None:

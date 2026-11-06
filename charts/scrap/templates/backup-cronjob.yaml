@@ -35,6 +35,10 @@ spec:
           # the same host as the server: run beside the scrap pod.
           affinity:
             {{- include "scrap.sameNodeAffinity" . | nindent 12 }}
+          {{- if .Values.litestream.enabled }}
+          initContainers:
+            {{- include "scrap.litestreamTool" (dict "ctx" . "resources" .Values.backup.resources) | nindent 12 }}
+          {{- end }}
           containers:
             - name: backup
               image: {{ include "scrap.image" . }}
@@ -52,7 +56,7 @@ spec:
                   flock 9
                   dest="$SCRAP_BACKUPS/$(date -u +%Y%m%dT%H%M%SZ)"
                   mkdir "$dest"  # fails, touching nothing, if that run exists
-                  if ! scrap backup "$dest"; then
+                  if ! scrap backup "$dest"{{ if .Values.litestream.enabled }} --from-replica "$SCRAP_LITESTREAM_REPLICA"{{ end }}; then
                       rm -rf -- "$dest"
                       echo "Backup failed; kept the existing backups untouched." >&2
                       exit 1
@@ -62,6 +66,15 @@ spec:
               env:
                 - name: SCRAP_DATA_DIR
                   value: /data
+                {{- if .Values.litestream.enabled }}
+                # This job works from a restore of the replica: it never opens the
+                # live database (on the scrap pod's emptyDir), and its volume is
+                # read only.
+                - name: SCRAP_LITESTREAM_REPLICA
+                  value: {{ include "scrap.litestreamReplica" . }}
+                - name: SCRAP_LITESTREAM_BIN
+                  value: /tools/litestream
+                {{- end }}
                 - name: SCRAP_BACKUPS
                   value: /backups
                 - name: SCRAP_BACKUP_KEEP
@@ -73,6 +86,11 @@ spec:
               volumeMounts:
                 - name: data
                   mountPath: /data
+                  {{- if .Values.litestream.enabled }}
+                  readOnly: true
+                - name: tools
+                  mountPath: /tools
+                  {{- end }}
                 - name: backups
                   mountPath: /backups
                 - name: tmp
@@ -85,4 +103,9 @@ spec:
               {{- include "scrap.backupVolume" . | nindent 14 }}
             - name: tmp
               emptyDir: {}
+            {{- if .Values.litestream.enabled }}
+            - name: tools
+              emptyDir:
+                sizeLimit: 128Mi
+            {{- end }}
 {{- end }}

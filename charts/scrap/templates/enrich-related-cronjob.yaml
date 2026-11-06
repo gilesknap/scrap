@@ -1,5 +1,5 @@
 {{- /* The nightly related-pages pass needs Claude, so it exists only with ingest on. */ -}}
-{{- if and .Values.enrichRelated.enabled .Values.ingest.enabled }}
+{{- if and .Values.enrichRelated.enabled .Values.ingest.enabled (not .Values.litestream.enabled) }}
 {{- $suffix := "-enrich-related" }}
 apiVersion: batch/v1
 kind: CronJob

@@ -86,7 +86,10 @@ check "clusterip by default" grep -q "type: ClusterIP" "$tmp/values.yaml"
 check "ticket advice" grep -q "jira.diamond.ac.uk/servicedesk/customer/portal/2/create/156" "$tmp/out"
 check "backup dir made, mode 700" sh -c "[ \"\$(stat -c %a '$tmp/science/scrap')\" = 700 ]"
 check "backups on the host path" grep -q "hostPath: $tmp/science/scrap" "$tmp/values.yaml"
-check "job cpu limits fit argus" [ "$(grep -c 'limits: {cpu: 500m}' "$tmp/values.yaml")" = 4 ]
+check "job cpu limits fit argus" [ "$(grep -c 'limits: {cpu: 500m' "$tmp/values.yaml")" = 4 ]
+check "backup jobs have room to restore the database" grep -q "^  resources: {limits: {cpu: 500m, ephemeral-storage: 2Gi}}$" "$tmp/values.yaml"
+check "the database moves off NFS" sh -c "grep -A1 '^litestream:' '$tmp/values.yaml' | grep -q 'enabled: true'"
+check "says what can be lost" grep -q "last moments of writes are lost" "$tmp/out"
 check "runs as the user" grep -q "runAsUser: $(id -u)" "$tmp/values.yaml"
 check "no network policy" sh -c "! grep -q '^networkPolicy' '$tmp/values.yaml'"
 # The login: the central proxy, letting in only the email from the namespace's label.
@@ -159,6 +162,7 @@ check "SCRAP_AUTH_SERVICE" grep -q "^  service: proxy.elsewhere.svc.cluster.loca
 if (STUB_EMAIL_LABEL='' run); then ne_rc=0; else ne_rc=1; fi
 check "no email refused" [ "$ne_rc" = 1 ]
 check "no email explained" grep -q "Set SCRAP_EMAIL" "$tmp/out"
+check "no email: says the login is as it was" grep -q "if it had no login (SCRAP_LOGIN=off), it still has none" "$tmp/out"
 check "no email: no Secret, no helm" sh -c "! grep -q 'create secret' '$tmp/kubectl.calls' && [ ! -s '$tmp/helm.calls' ]"
 if (SCRAP_EMAIL='a b@diamond.ac.uk' run); then be_rc=0; else be_rc=1; fi
 check "a bad email refused" [ "$be_rc" = 1 ]
@@ -188,6 +192,9 @@ rm -f "$tmp/secret"
 if (STUB_HELM_FAIL=1 run); then helm_rc=0; else helm_rc=1; fi
 check "helm failure fails the script" [ "$helm_rc" = 1 ]
 check "token shown when helm fails" grep -q "bearer token (shown once" "$tmp/out"
+check "helm failure: says the login is as it was" grep -q "if it had no login (SCRAP_LOGIN=off), it still has none" "$tmp/out"
+check "helm failure: where to look if stuck in Init" grep -q "logs deploy/scrap -c db-init" "$tmp/out"
+check "helm failure: an older chart explained" grep -q "additional properties 'litestream' not allowed" "$tmp/out"
 
 # An existing backup directory keeps its mode.
 mkdir -p "$tmp/mine" && chmod 750 "$tmp/mine"
@@ -209,6 +216,43 @@ check "secret without token refused" [ "$nt_rc" = 1 ]
 check "secret without token: no helm" sh -c "[ ! -s '$tmp/helm.calls' ]"
 check "secret without token explained" grep -q "has no SCRAP_MCP_TOKEN" "$tmp/out"
 rm -f "$tmp/notoken"
+
+# SCRAP_LOGIN=off: no login values, no email needed, the Secret and everything else kept,
+# and a warning at both ends. Default and on: the login. Anything else: refused, untouched.
+touch "$tmp/secret"
+: >"$tmp/kubectl.calls"; : >"$tmp/helm.calls"
+(SCRAP_LOGIN=off STUB_EMAIL_LABEL='' run)
+cp "$tmp/values.yaml" "$tmp/off-values.yaml"
+check "login off: no authProxy, no oidc" sh -c "! grep -Eq 'authProxy|oidc|allowedEmails|issuer' '$tmp/values.yaml'"
+check "login off: needs no email" sh -c "! grep -q 'get namespace' '$tmp/kubectl.calls'"
+check "login off: warns twice" [ "$(grep -c '^WARNING: SCRAP_LOGIN=off' "$tmp/out")" = 2 ]
+check "login off: warned before Helm ran" sh -c "sed -n 1,6p '$tmp/out' | grep -q 'NO LOGIN'"
+check "login off: says who can read" sh -c "grep -q 'Anyone on the DLS network can read' '$tmp/out' &&
+    grep -q 'any pod in the cluster' '$tmp/out' && grep -q 'Test data only' '$tmp/out' &&
+    grep -q 're-run this script without SCRAP_LOGIN=off' '$tmp/out'"
+check "login off: no Keycloak next step" sh -c "! grep -q 'oauth2/callback' '$tmp/out' && ! grep -q 'Keycloak' '$tmp/out'"
+check "login off: keeps the secret" sh -c "! grep -q 'create secret' '$tmp/kubectl.calls'"
+check "login off: /mcp keeps its token" sh -c "grep -A2 '^mcp:' '$tmp/values.yaml' | grep -q 'name: scrap-secrets'"
+check "login off: backups, pages and the database as normal" sh -c "grep -q 'hostPath: ' '$tmp/values.yaml' &&
+    grep -A1 '^public:' '$tmp/values.yaml' | grep -q 'enabled: true' &&
+    grep -A1 '^litestream:' '$tmp/values.yaml' | grep -q 'enabled: true'"
+# Re-run without it, from that install: the login is back, and the Secret kept.
+: >"$tmp/kubectl.calls"
+run
+check "login back on: authProxy" sh -c "grep -A1 '^authProxy:' '$tmp/values.yaml' | grep -q 'enabled: true'"
+check "login back on: no warning" sh -c "! grep -q 'SCRAP_LOGIN=off' '$tmp/out'"
+check "login back on: keeps the secret" sh -c "! grep -q 'create secret' '$tmp/kubectl.calls'"
+check "login back on: the Keycloak step" grep -q "oauth2/callback" "$tmp/out"
+cp "$tmp/values.yaml" "$tmp/on-values.yaml"
+(SCRAP_LOGIN=on run)
+check "SCRAP_LOGIN=on is the default" cmp -s "$tmp/values.yaml" "$tmp/on-values.yaml"
+for bad in OFF Off false 0 no 'off ' disabled; do
+    : >"$tmp/kubectl.calls"; : >"$tmp/helm.calls"
+    if (SCRAP_LOGIN=$bad run); then bad_rc=0; else bad_rc=1; fi
+    check "SCRAP_LOGIN='$bad' refused" [ "$bad_rc" = 1 ]
+    check "SCRAP_LOGIN='$bad': nothing touched" sh -c "[ ! -s '$tmp/helm.calls' ] && [ ! -s '$tmp/kubectl.calls' ]"
+    check "SCRAP_LOGIN='$bad' explained" grep -q "SCRAP_LOGIN must be on or off" "$tmp/out"
+done
 
 # Backups on a claim: no hostPath. A relative directory is refused.
 (SCRAP_BACKUP_DIR='' run)
@@ -232,6 +276,25 @@ if [ -n "$real_helm" ] && [ -n "$real_kubeconform" ]; then
         echo "ok   the installer's values render: three Ingresses, no NetworkPolicy"
     else
         echo "FAIL the installer's values do not render"
+        fail=1
+    fi
+    # Login off, and back on: the same Ingress objects' change, through the chart.
+    if KUBECONFIG=/dev/null "$real_helm" template scrap "$here/../charts/scrap" --namespace abc12345 \
+        -f "$tmp/off-values.yaml" >"$tmp/off.yaml" &&
+        KUBECONFIG=/dev/null "$real_helm" template scrap "$here/../charts/scrap" --namespace abc12345 \
+        -f "$tmp/on-values.yaml" >"$tmp/on.yaml" &&
+        "$real_kubeconform" -strict -summary "$tmp/off.yaml" >/dev/null &&
+        "$real_kubeconform" -strict -summary "$tmp/on.yaml" >/dev/null &&
+        [ "$(grep -c '^kind: Ingress$' "$tmp/off.yaml")" = 2 ] &&
+        ! grep -Eq 'auth-url|auth-signin|SCRAP_OIDC|SCRAP_ALLOWED_EMAILS|ExternalName|name: scrap-open' "$tmp/off.yaml" &&
+        grep -q 'name: SCRAP_MCP_TOKEN$' "$tmp/off.yaml" &&
+        [ "$(grep -c '^kind: Ingress$' "$tmp/on.yaml")" = 3 ] &&
+        grep -q 'auth-url' "$tmp/on.yaml" && grep -q 'name: SCRAP_OIDC_ISSUER' "$tmp/on.yaml" &&
+        grep -q 'name: scrap-open' "$tmp/on.yaml" && grep -q 'ExternalName' "$tmp/on.yaml" &&
+        ! grep -q '^kind: Secret$' "$tmp/off.yaml" && ! grep -q '^kind: Secret$' "$tmp/on.yaml"; then
+        echo "ok   login off renders a plain Ingress, and back on the auth, the open Ingress and OIDC"
+    else
+        echo "FAIL login off or back on does not render as it should"
         fail=1
     fi
 else
