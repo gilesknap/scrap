@@ -34,7 +34,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - name: shellcheck deploy scripts
-        run: shellcheck deploy/*.sh deploy/check-env deploy/scrap-run deploy/scrap-backup deploy/scrap-gc scrap-public/*.sh
+        run: shellcheck deploy/*.sh deploy/check-env deploy/scrap-run deploy/scrap-backup deploy/scrap-gc scrap-public/*.sh deploy/dls/auth-proxy/install.sh
       - name: Run deploy shell tests
         run: |
           for t in deploy/test-*.sh; do

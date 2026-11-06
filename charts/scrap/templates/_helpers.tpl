@@ -273,8 +273,8 @@ capabilities:
 {{- if not .Values.authProxy.service }}
 {{- fail "authProxy.enabled needs authProxy.service: oauth2-proxy's in-cluster DNS name, e.g. oauth2-proxy.scrap.svc.cluster.local" }}
 {{- end }}
-{{- if not .Values.authProxy.allowedEmails }}
-{{- fail "authProxy.enabled needs authProxy.allowedEmails: the logins that may use the web app" }}
+{{- if not .Values.authProxy.allowedUsers }}
+{{- fail "authProxy.enabled needs authProxy.allowedUsers: the Keycloak usernames (at DLS the fedids) that may use the web app" }}
 {{- end }}
 {{- if not .Values.mcp.tokenSecret.name }}
 {{- fail "authProxy.enabled needs mcp.tokenSecret.name: /mcp is on an Ingress without the login, so it needs the bearer token" }}
@@ -300,8 +300,8 @@ not enough. Only the Deployment serves HTTP, so the CronJobs do without. */}}
   value: {{ .Values.authProxy.oidc.issuer | quote }}
 - name: SCRAP_OIDC_CLIENT_ID
   value: {{ .Values.authProxy.oidc.clientId | quote }}
-- name: SCRAP_ALLOWED_EMAILS
-  value: {{ join "," .Values.authProxy.allowedEmails | lower | quote }}
+- name: SCRAP_ALLOWED_USERS
+  value: {{ join "," .Values.authProxy.allowedUsers | lower | quote }}
 {{- end }}
 {{- end }}
 

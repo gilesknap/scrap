@@ -102,16 +102,18 @@ expect_refused "authProxy without ingress" -f "$chart/ci/auth-proxy-values.yaml"
     --set ingress.enabled=false
 expect_refused "authProxy without service" -f "$chart/ci/auth-proxy-values.yaml" \
     --set authProxy.service=
-expect_refused "authProxy without allowedEmails" -f "$chart/ci/auth-proxy-values.yaml" \
-    --set 'authProxy.allowedEmails=null'
-expect_refused "authProxy with an empty allowedEmails" -f "$chart/ci/auth-proxy-values.yaml" \
-    --set 'authProxy.allowedEmails={}'
+expect_refused "authProxy without allowedUsers" -f "$chart/ci/auth-proxy-values.yaml" \
+    --set 'authProxy.allowedUsers=null'
+expect_refused "authProxy with an empty allowedUsers" -f "$chart/ci/auth-proxy-values.yaml" \
+    --set 'authProxy.allowedUsers={}'
 expect_refused "authProxy without an /mcp token" -f "$chart/ci/auth-proxy-values.yaml" \
     --set mcp.tokenSecret.name=
 expect_refused "authProxy without tls" -f "$chart/ci/auth-proxy-values.yaml" \
     --set 'ingress.tls=null'
-expect_refused "authProxy with an email that is not one" -f "$chart/ci/auth-proxy-values.yaml" \
-    --set 'authProxy.allowedEmails[0]=nobody'
+expect_refused "authProxy with a username with a space" -f "$chart/ci/auth-proxy-values.yaml" \
+    --set 'authProxy.allowedUsers[0]=a b'
+expect_refused "authProxy with the old allowedEmails" -f "$chart/ci/auth-proxy-values.yaml" \
+    --set 'authProxy.allowedEmails[0]=first.last@example.org'
 expect_refused "authProxy with a service that is not a DNS name" -f "$chart/ci/auth-proxy-values.yaml" \
     --set 'authProxy.service=http://proxy'
 expect_refused "authProxy without oidc.issuer" -f "$chart/ci/auth-proxy-values.yaml" \
@@ -266,27 +268,27 @@ if grep -Fq '|            - name: SCRAP_IDENTITY_HEADER|              value: "X-
     ok "authProxy: identityHeader defaults to X-Auth-Request-Email"
 else bad "authProxy: identityHeader is not X-Auth-Request-Email, or ignores identityHeader"; fi
 # scrap checks the proxy's token itself (ADR 45): the Deployment has the issuer, the
-# client and the lower-cased emails; the CronJobs (no HTTP) do not.
+# client and the lower-cased usernames; the CronJobs (no HTTP) do not.
 deploy=$(grep '|kind: Deployment|' "$ap" | grep '|  name: scrap|' || true)
-oidc_env='|            - name: SCRAP_OIDC_ISSUER|              value: "https://identity.example.org/realms/dls"|            - name: SCRAP_OIDC_CLIENT_ID|              value: "scrap"|            - name: SCRAP_ALLOWED_EMAILS|              value: "first.last@example.org"|'
+oidc_env='|            - name: SCRAP_OIDC_ISSUER|              value: "https://identity.example.org/realms/dls"|            - name: SCRAP_OIDC_CLIENT_ID|              value: "scrap"|            - name: SCRAP_ALLOWED_USERS|              value: "abc12345"|'
 if echo "$deploy" | grep -Fq "$oidc_env" &&
     [ "$(grep -c 'SCRAP_OIDC_ISSUER' "$ap")" = 1 ] &&
     helm template scrap "$chart" -f "$chart/ci/auth-proxy-values.yaml" \
-        --set 'authProxy.allowedEmails[0]=First.Last@Example.org' --set 'authProxy.allowedEmails[1]=b@x.org' |
-    grep -A1 'name: SCRAP_ALLOWED_EMAILS$' | grep -Fq 'value: "first.last@example.org,b@x.org"'; then
-    ok "authProxy: the Deployment checks the proxy's token, for the lower-cased emails"
-else bad "authProxy: the Deployment lacks SCRAP_OIDC_* or SCRAP_ALLOWED_EMAILS, or a CronJob has them"; fi
+        --set 'authProxy.allowedUsers[0]=ABC12345' --set 'authProxy.allowedUsers[1]=xyz98765' |
+    grep -A1 'name: SCRAP_ALLOWED_USERS$' | grep -Fq 'value: "abc12345,xyz98765"'; then
+    ok "authProxy: the Deployment checks the proxy's token, for the lower-cased usernames"
+else bad "authProxy: the Deployment lacks SCRAP_OIDC_* or SCRAP_ALLOWED_USERS, or a CronJob has them"; fi
 if [ "$(helm template scrap "$chart" -f "$chart/ci/auth-proxy-values.yaml" \
     --set-string 'ingress.annotations.nginx\.ingress\.kubernetes\.io/proxy-buffer-size=32k' |
     grep -c 'nginx.ingress.kubernetes.io/proxy-buffer-size: 32k$')" = 2 ]; then
     ok "authProxy: an ingress.annotations proxy-buffer-size wins on both Ingresses"
 else bad "authProxy: ingress.annotations' proxy-buffer-size is overridden"; fi
 # ingress-nginx's annotation validation (DLS's) refuses an @ or % in the auth-url, so
-# it has no query: the owner check is scrap's token check (SCRAP_ALLOWED_EMAILS).
+# it has no query: the owner check is scrap's token check (SCRAP_ALLOWED_USERS).
 if grep -o 'nginx.ingress.kubernetes.io/auth-url: [^|]*' "$ap" | grep -q '[?@%]'; then
     bad "authProxy: the auth-url has a query, an @ or a %"
 else ok "authProxy: the auth-url has no query, @ or %"; fi
-if helm template scrap "$chart" | grep -Eq 'ExternalName|-open$|auth-url|proxy-buffer-size|SCRAP_OIDC|SCRAP_ALLOWED_EMAILS'; then
+if helm template scrap "$chart" | grep -Eq 'ExternalName|-open$|auth-url|proxy-buffer-size|SCRAP_OIDC|SCRAP_ALLOWED_USERS'; then
     bad "authProxy renders while off"
 else ok "authProxy is off by default"; fi
 

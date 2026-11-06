@@ -13,8 +13,8 @@ ingress:
 authProxy:
   enabled: true
   service: oauth2-proxy.scrap.svc.cluster.local
-  allowedEmails:
-    - first.last@example.org
+  allowedUsers:
+    - abc12345
   oidc:
     issuer: https://identity.example.org/realms/dls
     clientId: scrap

@@ -6,8 +6,8 @@ the pages you make public on `pages-<fedid>.diamond.ac.uk`, all only from the DL
 
 Who can get in:
 
-- **The web app**: it asks for your DLS login (Keycloak), and scrap lets in only your own email
-  address: another DLS user who logs in gets `401`. That keeps it from the network. Pods in the cluster can reach its Service directly,
+- **The web app**: it asks for your DLS login (Keycloak), and scrap lets in only your own
+  fedid: another DLS user who logs in gets `401`. That keeps it from the network. Pods in the cluster can reach its Service directly,
   but scrap checks the login's token itself, so without a valid DLS login token for you they get
   `401`. You stay logged in as long as your DLS Keycloak session lasts; when it ends, the web app
   and the phone app take you to the DLS login again.
@@ -48,8 +48,8 @@ It:
 3. installs the latest scrap release with Helm, with Ingresses for `scrap-<fedid>.diamond.ac.uk`
    and `pages-<fedid>.diamond.ac.uk` on argus's `nginx` ingress, served over HTTPS by its
    `*.diamond.ac.uk` certificate;
-4. puts the web app behind the DLS login, letting in only your email address, which it reads from
-   your namespace (in lower case);
+4. puts the web app behind the DLS login, letting in only your fedid, which is your namespace's
+   name (in lower case);
 5. makes `/dls/science/users/<fedid>/scrap` (mode 700, if it is new) and keeps the nightly backups there, with
    scrap's pods running as you, so the backups are your files;
 6. puts scrap's database on the pod's own disk, not on your NFS volume, where SQLite is not safe,
@@ -67,10 +67,9 @@ without your data rather than starting empty: `kubectl logs deploy/scrap -c db-i
 It is safe to re-run: a re-run upgrades to the latest release and never overwrites the Secret. A
 Secret made by an older installer gets only the upload token added. Set `SCRAP_VERSION` to install a particular release;
 the script and chart go together, so an older release needs that version's script.
-`SCRAP_BACKUP_DIR` moves the backups (empty keeps them on a volume in the cluster). If the
-installer stops with "Cannot find your email address", set `SCRAP_EMAIL` to your DLS email
-address (`first.last@diamond.ac.uk`) and run it again. The header of the script lists every
-setting.
+`SCRAP_BACKUP_DIR` moves the backups (empty keeps them on a volume in the cluster). If you
+install into a namespace not named after your fedid, set `SCRAP_USER` to your fedid. The
+header of the script lists every setting.
 
 Keep the token in a password manager. To see it again:
 
@@ -94,7 +93,7 @@ In a pipe, the variable goes after it:
 curl -fsSL https://raw.githubusercontent.com/gilesknap/scrap/main/deploy/install-dls.sh | SCRAP_LOGIN=off sh
 ```
 
-It needs no email address, and everything else is as normal: the bearer token on `/mcp`, backups,
+It checks no fedid (`SCRAP_USER` is not used), and everything else is as normal: the bearer token on `/mcp`, backups,
 public pages and the database. The installer warns you up front and again in its summary. Only
 exactly `off` does this: anything but `on` or `off` stops the installer before it touches anything.
 

@@ -24,14 +24,19 @@ config:
   configFile: |-
     provider = "keycloak-oidc"
     oidc_issuer_url = "https://identity.diamond.ac.uk/realms/dls"
-    # The email scope puts email and email_verified in the access token, which scrap
-    # checks. No offline_access: a login lasts as long as the DLS Keycloak session.
-    scope = "openid email"
+    # The profile scope puts preferred_username (the fedid) in the access token, which
+    # scrap checks; email is for the proxy's own email_domains check. No
+    # offline_access: a login lasts as long as the DLS Keycloak session.
+    scope = "openid email profile"
     code_challenge_method = "S256"
 
-    # Any DLS login passes the proxy; each user's scrap then admits only its owner,
-    # checking the access token passed on (ADR 45). Anyone else gets scrap's 401.
+    # Any DLS login passes the proxy; each user's scrap then admits only its owner by
+    # fedid, checking the access token passed on (ADR 45). Anyone else gets scrap's 401.
     email_domains = ["diamond.ac.uk"]
+    # DLS Keycloak does not verify emails (email_verified is false for staff), and the
+    # proxy would refuse every login with a 500. The email is not the gate: the proxy
+    # admits any DLS login and each scrap admits only its owner by fedid.
+    insecure_oidc_allow_unverified_email = true
 
     # Answer nginx's auth subrequests only: no upstream.
     upstreams = ["static://202"]
