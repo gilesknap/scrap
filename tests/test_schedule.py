@@ -390,6 +390,71 @@ def test_a_gap_past_catch_up_is_only_noted(monkeypatch, caplog, tmp_path):
     assert not out.exists()  # 04:35 is further back than a CronJob's deadline
 
 
+def test_a_gap_past_catch_up_still_runs_a_time_within_it(monkeypatch, tmp_path):
+    """As a CronJob with startingDeadlineSeconds: 3600, the latest time missed is run
+    if it is within the hour."""
+    started = []
+    monkeypatch.setattr(
+        schedule.Scheduler, "run_job", lambda self, j: started.append(j.name)
+    )
+    sched = Scheduler([job("recent", "30 6 * * *"), job("old", "59 5 * * *")])
+    times = iter(
+        [
+            at("2026-11-05 04:30"),  # the start
+            at("2026-11-05 04:30"),  # for the sleep
+            at("2026-11-05 07:00"),  # after a long stall
+        ]
+    )
+
+    class Clock(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            try:
+                return next(times)
+            except StopIteration:
+                sched.stopping = True
+                return at("2026-11-05 07:00")
+
+    monkeypatch.setattr(schedule, "datetime", Clock)
+    monkeypatch.setattr(schedule.Scheduler, "_sleep", lambda self, s: None)
+    sched.run()
+    for thread in sched.threads:
+        thread.join(5)
+    # 06:30 is within the hour; 05:59 is not (back to 06:00, which is exclusive)
+    assert started == ["recent"]
+
+
+def test_stop_jobs_stops_them_all_at_once(monkeypatch, tmp_path):
+    """Several jobs that ignore SIGTERM: one STOP_SECONDS for all, not one each, so
+    Litestream's last sync gets its window."""
+    monkeypatch.setattr(schedule, "STOP_SECONDS", 1)
+    monkeypatch.setattr(schedule, "STOP_ALL_SECONDS", 3)
+    names = ["a", "b", "c", "d"]
+    code = (
+        "import pathlib,signal,sys,time;signal.signal(15,signal.SIG_IGN);"
+        "pathlib.Path(sys.argv[1]).touch();time.sleep(60)"
+    )
+    sched = Scheduler(
+        [
+            job(name, command=[sys.executable, "-c", code, str(tmp_path / name)])
+            for name in names
+        ]
+    )
+    sched.tick(at("2026-11-05 04:30"))
+    # Each running, and ignoring SIGTERM
+    assert until(
+        lambda: all((tmp_path / n).exists() and sched.running.get(n) for n in names), 30
+    )
+    procs = list(sched.running.values())
+    start = time.monotonic()
+    sched.stopping = True
+    sched.stop_jobs()
+    took = time.monotonic() - start
+    assert took < 2.5  # one at a time would be over 4
+    assert all(p and p.returncode == -signal.SIGKILL for p in procs)
+    assert not any(t.is_alive() for t in sched.threads)
+
+
 def test_finished_threads_are_let_go():
     sched = Scheduler([job("quick", "* * * * *")])
     for minute in range(3):

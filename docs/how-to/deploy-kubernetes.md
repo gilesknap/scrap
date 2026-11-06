@@ -1051,7 +1051,8 @@ needs Kubernetes 1.29 and the `litestream/litestream` image, pinned in `litestre
   change to `/data/litestream` on the data volume. Files and the preview cache stay on the data volume.
 - **What can be lost.** While Litestream is healthy, a copy follows each write by about a second: if
   the node dies, those last moments are lost. A clean stop or upgrade loses nothing: Litestream stops
-  after scrap, with its last sync (`terminationGracePeriodSeconds` grows by 30 s). Backups remain the
+  after scrap, with its last sync (`terminationGracePeriodSeconds` grows by 30 s; the `jobs`
+  container stops its jobs within 15 s, so they never eat into it). Backups remain the
   protection against everything else, including a mistake that replicates faithfully.
 - **If replication stalls** (Litestream stays up, logging `monitor error`, if it cannot write),
   "about a second" no longer holds. The `jobs` container stamps the database every 15 minutes and

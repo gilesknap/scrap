@@ -2,10 +2,11 @@
 pod, a one-off restore pod and gc can all read them, and nothing depends on the
 database.
 
-- The state file says a database was put in place here, so a lost replica is noticed. It
-also holds what stops gc deleting for now: an override used, or a restore taken up. -
-The health file holds the last stamp written to the live database, so the next start can
-tell how far behind the replica it restores is.
+- The state file says a database was put in place here (how, and at when), so a lost
+replica is noticed; replica_restored_at is the latest start that restored it. It also
+holds what stops gc deleting for now: an override used, or a restore taken up.
+- The health file holds the last stamp written to the live database, so the next start
+can tell how far behind the replica it restores is.
 
 With neither file (every install without Litestream) nothing here does anything.
 """
@@ -102,12 +103,17 @@ def _write_json(path: Path, value: dict[str, Any]) -> None:
 
 
 def write_state(data: Path, how: str | None = None, **fields: Any) -> None:
-    """Update the state file, keeping what it holds: how the database got here, when,
-    and the old file's fingerprint as it is now."""
+    """Update the state file, keeping what it holds, and the old file's fingerprint as
+    it is now. With how, a database was put in place: how and at say how and when.
+    Without it (a restore of the replica, which is the same database again) they are
+    left as they were, so they always describe the database the replica holds."""
     state = read_state(data) or {}
+    if how:  # a different database: its predecessor's last restore is not its own
+        state.pop("replica_restored_at", None)
     state.update(fields)
-    state["how"] = how or state.get("how", "unknown")
-    state["at"] = now_iso()
+    if how or "how" not in state:
+        state["how"] = how or "unknown"
+        state["at"] = now_iso()
     state["legacy"] = fingerprint(data / LEGACY)
     _write_json(data / STATE, state)
 

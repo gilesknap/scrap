@@ -112,6 +112,51 @@ def test_a_replica_is_restored(paths):
     assert (paths.data / dbinit.STATE).is_file()
 
 
+def test_the_state_file_stays_truthful_across_restores(paths, monkeypatch):
+    """First start, then the pod replaced: how and at still say how and when the
+    database was first put in place; the restore is recorded beside them."""
+    clock = ["2026-11-01T09:00:00+00:00"]
+    monkeypatch.setattr(dbinit, "now_iso", lambda: clock[0])
+    monkeypatch.setattr(dbstate, "now_iso", lambda: clock[0])
+    assert "new" in put_in_place(paths)
+    first = json.loads((paths.data / dbinit.STATE).read_text())
+    assert first["how"] == "new" and first["at"] == "2026-11-01T09:00:00+00:00"
+    assert "replica_restored_at" not in first
+    paths.db.unlink()  # the pod is replaced, its emptyDir gone
+    with_replica(paths)
+    clock[0] = "2026-11-03T10:00:00+00:00"
+    assert "restored" in put_in_place(paths)
+    state = json.loads((paths.data / dbinit.STATE).read_text())
+    assert state["how"] == "new" and state["at"] == "2026-11-01T09:00:00+00:00"
+    assert state["replica_restored_at"] == "2026-11-03T10:00:00+00:00"
+    assert "restored_at" not in state  # that would hold gc
+    paths.db.unlink()
+    shutil.rmtree(paths.replica)  # and the replica then lost: the refusal reads true
+    with pytest.raises(InitError) as refused:
+        put_in_place(paths)
+    assert (
+        "put in place on 2026-11-01T09:00:00+00:00 (new), last restored from its"
+        " replica on 2026-11-03T10:00:00+00:00"
+    ) in str(refused.value)
+
+
+def test_a_replica_restored_with_no_state_file_says_so(paths):
+    with_replica(paths)
+    put_in_place(paths)
+    state = json.loads((paths.data / dbinit.STATE).read_text())
+    assert state["how"] == "replica" and state["replica_restored_at"]
+
+
+def test_a_staged_restore_is_a_new_placement(paths):
+    with_replica(paths)
+    put_in_place(paths)
+    paths.db.unlink()
+    staged_store(paths)
+    put_in_place(paths)
+    state = json.loads((paths.data / dbinit.STATE).read_text())
+    assert state["how"] == "staged restore" and "replica_restored_at" not in state
+
+
 def test_a_restore_that_fails_fails_and_starts_nothing(paths):
     with_legacy(paths)  # a way out it must not take
     put_in_place(paths)

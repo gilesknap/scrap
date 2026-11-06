@@ -94,7 +94,8 @@ after it. */}}
       snapshot:
         interval: 6h
         retention: 24h
-      # Within the pod's extra 30s of terminationGracePeriodSeconds.
+      # How long the last sync at shutdown retries (Litestream's default is 30s): within
+      # the 30s the pod's terminationGracePeriodSeconds gains for it.
       shutdown-sync-timeout: 25s
       dbs:
         - path: {{ include "scrap.litestreamDb" . }}

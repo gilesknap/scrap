@@ -111,7 +111,7 @@ def _too_big(paths: Paths, size: int, what: str) -> None:
         )
 
 
-def _placed(paths: Paths, how: str, **fields: object) -> None:
+def _placed(paths: Paths, how: str | None, **fields: object) -> None:
     """The database is in place: note how, and any override used."""
     if paths.overridden:
         fields |= {
@@ -190,8 +190,10 @@ def _check_stamp(paths: Paths, db: Path) -> None:
         )
 
 
-def _restored(paths: Paths, how: str) -> str:
-    """The replica, restored into a folder beside the database, then moved in."""
+def _restored(paths: Paths, how: str | None) -> str:
+    """The replica, restored into a folder beside the database, then moved in. how is
+    None when the state file already says how the database first got here: a restore
+    brings the same one back, so only replica_restored_at is new."""
     folder = paths.db.with_name(f"{paths.db.name}.restoring")
     folder.mkdir()
     out = folder / "scrap.db"
@@ -200,7 +202,7 @@ def _restored(paths: Paths, how: str) -> str:
     _check_stamp(paths, out)
     out.replace(paths.db)
     shutil.rmtree(folder)
-    _placed(paths, how)
+    _placed(paths, how, replica_restored_at=now_iso())
     return f"restored {paths.db} from the replica at {paths.replica}"
 
 
@@ -266,6 +268,11 @@ def _fresh(paths: Paths) -> str:
     return f"made a new database at {paths.db}"
 
 
+def _last_restore(state: dict) -> str:
+    at = state.get("replica_restored_at")
+    return f", last restored from its replica on {at}" if at else ""
+
+
 def _place(paths: Paths) -> str:
     """The rules at the top of this module, when no database is on the emptyDir."""
     paths.db.parent.mkdir(parents=True, exist_ok=True)
@@ -276,12 +283,13 @@ def _place(paths: Paths) -> str:
     legacy = fingerprint(paths.data / LEGACY)
     if has_replica(paths.replica):
         _refuse_changed_legacy(paths, state, legacy)
-        return _restored(paths, state["how"] if state else "replica")
+        return _restored(paths, None if state else "replica")
     if state:
         _refuse(
             paths,
             f"{paths.data / STATE} says a database was put in place on"
-            f" {state.get('at')} ({state.get('how')}), but there is no replica at"
+            f" {state.get('at')} ({state.get('how')}){_last_restore(state)}, but there"
+            f" is no replica at"
             f" {paths.replica}: it was lost, or this is not the volume it was on."
             " Restore a backup (docs/how-to/deploy-kubernetes.md), or if the pod died"
             " before Litestream's first write, set litestream.init.override to start"

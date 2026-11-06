@@ -57,7 +57,8 @@ that applies decides:
 history looks exactly like a replaced or mistakenly empty one from inside the volume, so the
 evidence has to include something that outlives it. `db-init` fails closed on any of:
 
-- `.scrap-db-state.json` on the data volume, written the first time a database is put in place,
+- `.scrap-db-state.json` on the data volume, written the first time a database is put in place
+  (`how` and `at`; a later restore of the replica leaves those and sets `replica_restored_at`),
   with no replica beside it. So the replica cannot vanish unnoticed, and a stale `/data/scrap.db`
   cannot come back by rule 4. This also fires if the pod dies between the first placement and
   Litestream's first write, about a second; it costs a person a look, not data.
@@ -130,7 +131,8 @@ container runs `scrap schedule`, on the existing image with no new dependency: a
 of cron (`cron.py`, following robfig/cron v3 as a CronJob's schedule is read, but refusing `@every`
 and signed numbers, and stopping the rollout on a bad one) and threads (`schedule.py`). The same values set the
 same schedules and deadlines. It is close to a CronJob, not the same: an overlapping run is skipped,
-and after a gap one run stands for those missed, as with `concurrencyPolicy: Forbid`; but an empty
+and after a gap one run stands for those missed, if one is within the hour, as with
+`concurrencyPolicy: Forbid` and `startingDeadlineSeconds: 3600`; but an empty
 `timeZone` is UTC rather than the controller's zone; a time missed during a rollout is not made up
 and a rollout stops a running pass, as there is deliberately no state to resume from; the jobs share
 one set of resources, not one each; and there is no Job object to look at afterwards. gc's script is the same one, shared through a Helm template, so it

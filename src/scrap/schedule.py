@@ -10,7 +10,8 @@ chart would give the CronJobs. $SCRAP_SCHEDULE is their list, as JSON:
 An empty timeZone is UTC here, not the cluster controller's zone.
 
 As with a CronJob's concurrencyPolicy: Forbid, a job still running at its next time is
-not started again, and after a gap one run stands for all the times missed in it. A
+not started again, and after a gap one run stands for all the times missed in it, if
+one of them is within the last 60 minutes (a CronJob's startingDeadlineSeconds). A
 per-job lock makes that hold for --run too. A job's failure is logged, pushed to
 SCRAP_NOTIFY_URL if set, and never stops the scheduler. A time missed while this was
 not running is not made up, and a rollout stops a running job: the next run carries on.
@@ -48,6 +49,8 @@ log = logging.getLogger("scrap.schedule")
 BEAT = timedelta(minutes=15)
 CATCH_UP = timedelta(minutes=60)  # as the CronJobs' startingDeadlineSeconds
 STOP_SECONDS = 10  # a job asked to stop, before it is killed
+# Every job, together, at a pod's end: Litestream's last sync waits on this container
+STOP_ALL_SECONDS = 15
 BUSY = 75  # EX_TEMPFAIL: --run found the job already running
 PAUSED = "stopped: the queue is paused"  # scrap enrich's last line at a pause or budget
 
@@ -244,9 +247,9 @@ class Scheduler:
             time.sleep(min(left, 1))
 
     def run(self) -> None:
-        """Until told to stop: each new minute, with gaps of up to CATCH_UP firing a job
-        once. The minute this started in is not one: a restart inside a job's minute
-        does not run it twice."""
+        """Until told to stop: each new minute, a gap firing a job once if it was due
+        within the last CATCH_UP. The minute this started in is not one: a restart
+        inside a job's minute does not run it twice."""
         last = _minute(datetime.now(UTC))
         self.stamp()
         if self.watch:
@@ -257,8 +260,13 @@ class Scheduler:
             if self.stopping or minute <= last:
                 continue
             if minute - last > CATCH_UP:
-                log.warning("nothing ran from %s to %s", last, minute)
-                last = minute - timedelta(minutes=1)
+                log.warning(
+                    "nothing ran from %s to %s: times before %s are not made up",
+                    last,
+                    minute,
+                    minute - CATCH_UP,
+                )
+                last = minute - CATCH_UP
             self.tick(minute, last)
             last = minute
         # The last stamp: if the replica lacks it, the final sync did not land
@@ -277,12 +285,27 @@ class Scheduler:
         return result[0]
 
     def stop_jobs(self) -> None:
+        """SIGTERM to every running job at once, SIGKILL to any left after STOP_SECONDS,
+        and the lot within STOP_ALL_SECONDS: the native sidecar, and so Litestream's
+        last sync, is only told to stop once this container has ended."""
+        deadline = time.monotonic() + STOP_ALL_SECONDS
+        kill_at = time.monotonic() + STOP_SECONDS
         with self.lock:
             procs = [p for p in self.running.values() if p]
         for proc in procs:
-            _stop(proc)
+            _signal(proc, signal.SIGTERM)
+        for proc in procs:
+            try:
+                proc.wait(max(0, kill_at - time.monotonic()))
+            except subprocess.TimeoutExpired:
+                _signal(proc, signal.SIGKILL)
+        for proc in procs:
+            try:
+                proc.wait(max(0, deadline - time.monotonic()))
+            except subprocess.TimeoutExpired:
+                log.error("job process %s: still there after SIGKILL", proc.pid)
         for thread in self.threads:
-            thread.join(STOP_SECONDS)
+            thread.join(max(0, deadline - time.monotonic()))
 
     def stop(self, *_: object) -> None:
         self.stopping = True
@@ -290,6 +313,15 @@ class Scheduler:
 
 def _minute(at: datetime) -> datetime:
     return at.replace(second=0, microsecond=0)
+
+
+def _signal(proc: subprocess.Popen, number: signal.Signals) -> None:
+    """The signal to the job's whole process group, unless it has already ended."""
+    if proc.returncode is None:
+        try:
+            os.killpg(proc.pid, number)
+        except ProcessLookupError:
+            pass
 
 
 def _stop(proc: subprocess.Popen) -> int:

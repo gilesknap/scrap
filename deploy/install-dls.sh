@@ -43,7 +43,11 @@
 #   SCRAP_INGRESS_CLASS    ingressClassName for the Ingress (default: nginx, argus's ingress)
 #   SCRAP_BACKUP_DIR       where the nightly backups go (default: /dls/science/users/$USER/scrap,
 #                          made here with mode 700 if new; every argus node mounts /dls/science).
-#                          Empty keeps them on a claim in the cluster instead
+#                          Empty keeps them on a claim in the cluster instead. The scrap pod
+#                          mounts this folder itself (it runs gc, which checks the backups),
+#                          so a node without it, a namespace whose Pod Security rejects
+#                          hostPath, or an RWO claim attached on another node stops scrap
+#                          starting, not only the backups
 #   SCRAP_SERVICE_TYPE     Service type (default ClusterIP; LoadBalancer gets an external IP,
 #                          which bypasses any auth proxy: not recommended)
 #   ANTHROPIC_API_KEY      your Claude API key (default: asked for; empty answer skips ingest)
