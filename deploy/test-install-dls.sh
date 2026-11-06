@@ -31,7 +31,6 @@ case "\$*" in
   *"patch secret"*)
     while [ \$# -gt 0 ]; do [ "\$1" = --patch-file ] && cp "\$2" "$tmp/patch.json"; shift; done
     exit 0 ;;
-  *"get namespace"*) printf '%s' "\${STUB_EMAIL_LABEL-giles.knap--at--diamond.ac.uk}"; exit 0 ;;
   *"get secret"*ANTHROPIC*) [ -e "$tmp/key" ] && echo eg== ; exit 0 ;;
   *"get secret"*SCRAP_MCP_TOKEN*) [ -e "$tmp/notoken" ] || echo dA== ; exit 0 ;;
   *"get secret"*SCRAP_PUBLISH_TOKEN*) [ -e "$tmp/nopublish" ] || echo cA== ; exit 0 ;;
@@ -92,11 +91,12 @@ check "the database moves off NFS" sh -c "grep -A1 '^litestream:' '$tmp/values.y
 check "says what can be lost" grep -q "last moments of writes are lost" "$tmp/out"
 check "runs as the user" grep -q "runAsUser: $(id -u)" "$tmp/values.yaml"
 check "no network policy" sh -c "! grep -q '^networkPolicy' '$tmp/values.yaml'"
-# The login: the central proxy, letting in only the email from the namespace's label.
-check "email from the namespace label" grep -q -- "get namespace abc12345" "$tmp/kubectl.calls"
+# The login: the central proxy, letting in only the fedid the namespace is named for.
+check "no namespace label read" sh -c "! grep -q 'get namespace' '$tmp/kubectl.calls'"
 check "authProxy on" sh -c "grep -A1 '^authProxy:' '$tmp/values.yaml' | grep -q 'enabled: true'"
 check "the central proxy's service" grep -q "^  service: oauth2-proxy.scrap.svc.cluster.local$" "$tmp/values.yaml"
-check "only the owner's email" sh -c "grep -A1 '^  allowedEmails:' '$tmp/values.yaml' | grep -q '^    - \"giles.knap@diamond.ac.uk\"$'"
+check "only the owner's fedid" sh -c "grep -A1 '^  allowedUsers:' '$tmp/values.yaml' | grep -q '^    - \"abc12345\"$'"
+check "says who it lets in" grep -q "let in only abc12345\.$" "$tmp/out"
 check "scrap checks DLS Keycloak's token" sh -c "grep -A2 '^  oidc:' '$tmp/values.yaml' | tr -d '\n' |
     grep -q 'issuer: \"https://identity.diamond.ac.uk/realms/dls\" *clientId: \"scrap\"'"
 check "says a direct call gets 401" grep -q "directly without your login gets 401" "$tmp/out"
@@ -146,28 +146,26 @@ check "patched token never on a command line" sh -c "! grep -qF '$pub' '$tmp/kub
 check "patch's temp files removed" sh -c "[ -z \"\$(ls -A '$tmp/installer-tmp')\" ]"
 rm -f "$tmp/nopublish"
 
-# SCRAP_EMAIL overrides the label; SCRAP_AUTH_NAMESPACE and _SERVICE move the proxy.
-(SCRAP_EMAIL=Someone.Else@Diamond.ac.uk SCRAP_AUTH_NAMESPACE=login run)
-check "SCRAP_EMAIL, lower case" grep -q '^    - "someone.else@diamond.ac.uk"$' "$tmp/values.yaml"
+# SCRAP_USER overrides the namespace; SCRAP_AUTH_NAMESPACE and _SERVICE move the proxy.
+(SCRAP_USER=XYZ98765 SCRAP_AUTH_NAMESPACE=login run)
+check "SCRAP_USER, lower case" grep -q '^    - "xyz98765"$' "$tmp/values.yaml"
 check "SCRAP_AUTH_NAMESPACE" grep -q "^  service: oauth2-proxy.login.svc.cluster.local$" "$tmp/values.yaml"
 (SCRAP_OIDC_ISSUER=https://kc.example.org/realms/x SCRAP_OIDC_CLIENT_ID=mine run)
 check "SCRAP_OIDC_ISSUER and _CLIENT_ID" sh -c "grep -A2 '^  oidc:' '$tmp/values.yaml' | tr -d '\n' |
     grep -q 'issuer: \"https://kc.example.org/realms/x\" *clientId: \"mine\"'"
-(STUB_EMAIL_LABEL=Giles.Knap--at--Diamond.ac.uk SCRAP_AUTH_SERVICE=proxy.elsewhere.svc.cluster.local run)
-check "label email, lower case" grep -q '^    - "giles.knap@diamond.ac.uk"$' "$tmp/values.yaml"
+(STUB_NS=ABC12345 SCRAP_AUTH_SERVICE=proxy.elsewhere.svc.cluster.local run)
+check "the namespace's fedid, lower case" grep -q '^    - "abc12345"$' "$tmp/values.yaml"
 check "SCRAP_AUTH_SERVICE" grep -q "^  service: proxy.elsewhere.svc.cluster.local$" "$tmp/values.yaml"
 
-# No email anywhere, or a value that is not one: stop before the Secret and Helm.
+# A value that is not a fedid (an email, a space): stop before the Secret and Helm.
 : >"$tmp/kubectl.calls"; : >"$tmp/helm.calls"; rm -f "$tmp/secret"
-if (STUB_EMAIL_LABEL='' run); then ne_rc=0; else ne_rc=1; fi
-check "no email refused" [ "$ne_rc" = 1 ]
-check "no email explained" grep -q "Set SCRAP_EMAIL" "$tmp/out"
-check "no email: says the login is as it was" grep -q "if it had no login (SCRAP_LOGIN=off), it still has none" "$tmp/out"
-check "no email: no Secret, no helm" sh -c "! grep -q 'create secret' '$tmp/kubectl.calls' && [ ! -s '$tmp/helm.calls' ]"
-if (SCRAP_EMAIL='a b@diamond.ac.uk' run); then be_rc=0; else be_rc=1; fi
-check "a bad email refused" [ "$be_rc" = 1 ]
-if (SCRAP_EMAIL='fedid' run); then fe_rc=0; else fe_rc=1; fi
-check "an email without @ refused" [ "$fe_rc" = 1 ]
+if (SCRAP_USER='giles.knap@diamond.ac.uk' run); then em_rc=0; else em_rc=1; fi
+check "an email as SCRAP_USER refused" [ "$em_rc" = 1 ]
+check "a bad fedid explained" grep -q "Set SCRAP_USER to your fedid" "$tmp/out"
+check "a bad fedid: says the login is as it was" grep -q "if it had no login (SCRAP_LOGIN=off), it still has none" "$tmp/out"
+check "a bad fedid: no Secret, no helm" sh -c "! grep -q 'create secret' '$tmp/kubectl.calls' && [ ! -s '$tmp/helm.calls' ]"
+if (SCRAP_USER='a b' run); then sp_rc=0; else sp_rc=1; fi
+check "a fedid with a space refused" [ "$sp_rc" = 1 ]
 touch "$tmp/secret"
 
 (SCRAP_SERVICE_TYPE=LoadBalancer run)
@@ -217,14 +215,14 @@ check "secret without token: no helm" sh -c "[ ! -s '$tmp/helm.calls' ]"
 check "secret without token explained" grep -q "has no SCRAP_MCP_TOKEN" "$tmp/out"
 rm -f "$tmp/notoken"
 
-# SCRAP_LOGIN=off: no login values, no email needed, the Secret and everything else kept,
+# SCRAP_LOGIN=off: no login values, no fedid needed (a bad SCRAP_USER is ignored), the Secret and everything else kept,
 # and a warning at both ends. Default and on: the login. Anything else: refused, untouched.
 touch "$tmp/secret"
 : >"$tmp/kubectl.calls"; : >"$tmp/helm.calls"
-(SCRAP_LOGIN=off STUB_EMAIL_LABEL='' run)
+(SCRAP_LOGIN=off SCRAP_USER='not a fedid@x' run)
 cp "$tmp/values.yaml" "$tmp/off-values.yaml"
-check "login off: no authProxy, no oidc" sh -c "! grep -Eq 'authProxy|oidc|allowedEmails|issuer' '$tmp/values.yaml'"
-check "login off: needs no email" sh -c "! grep -q 'get namespace' '$tmp/kubectl.calls'"
+check "login off: no authProxy, no oidc" sh -c "! grep -Eq 'authProxy|oidc|allowedUsers|issuer' '$tmp/values.yaml'"
+check "login off: needs no fedid" sh -c "! grep -q 'Not a fedid' '$tmp/out' && ! grep -q 'let in only' '$tmp/out'"
 check "login off: warns twice" [ "$(grep -c '^WARNING: SCRAP_LOGIN=off' "$tmp/out")" = 2 ]
 check "login off: warned before Helm ran" sh -c "sed -n 1,6p '$tmp/out' | grep -q 'NO LOGIN'"
 check "login off: says who can read" sh -c "grep -q 'Anyone on the DLS network can read' '$tmp/out' &&
@@ -286,7 +284,7 @@ if [ -n "$real_helm" ] && [ -n "$real_kubeconform" ]; then
         "$real_kubeconform" -strict -summary "$tmp/off.yaml" >/dev/null &&
         "$real_kubeconform" -strict -summary "$tmp/on.yaml" >/dev/null &&
         [ "$(grep -c '^kind: Ingress$' "$tmp/off.yaml")" = 2 ] &&
-        ! grep -Eq 'auth-url|auth-signin|SCRAP_OIDC|SCRAP_ALLOWED_EMAILS|ExternalName|name: scrap-open' "$tmp/off.yaml" &&
+        ! grep -Eq 'auth-url|auth-signin|SCRAP_OIDC|SCRAP_ALLOWED_USERS|ExternalName|name: scrap-open' "$tmp/off.yaml" &&
         grep -q 'name: SCRAP_MCP_TOKEN$' "$tmp/off.yaml" &&
         [ "$(grep -c '^kind: Ingress$' "$tmp/on.yaml")" = 3 ] &&
         grep -q 'auth-url' "$tmp/on.yaml" && grep -q 'name: SCRAP_OIDC_ISSUER' "$tmp/on.yaml" &&

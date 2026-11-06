@@ -13,12 +13,14 @@ over any copy the client sent) that:
 - has `iss` the issuer exactly, and was issued to our client (`azp` is
   `$SCRAP_OIDC_CLIENT_ID`, or it is in `aud`);
 - is in date (`exp`, `nbf`, `iat`, with 30 s of leeway for clock skew);
-- carries `email_verified: true` and an `email` in `$SCRAP_ALLOWED_EMAILS` (comma
-  separated; compared lower-cased).
+- carries a `preferred_username` (the Keycloak username: at DLS the fedid, which also
+  names the user's namespace) in `$SCRAP_ALLOWED_USERS` (comma separated; compared
+  lower-cased). Not the email: DLS's Keycloak does not verify emails
+  (`email_verified` is false for staff), so it is not the gate.
 
 Otherwise 401 (JSON under /api, else plain text; no redirect, the Ingress does the
 login), or 503 when the keys cannot be fetched: never let through on an error. The
-verified email is the author of a change (uploads.author). Unset: nothing changes.
+checked username is the author of a change (uploads.author). Unset: nothing changes.
 
 Fetches use the standard library (http(s) only, no redirects, a timeout), with
 scrap's own cache and back-off (Verifier) rather than PyJWKClient's, whose cooldown
@@ -40,12 +42,12 @@ import jwt
 from starlette.responses import JSONResponse, PlainTextResponse, Response
 from starlette.types import ASGIApp, Receive, Scope, Send
 
-__all__ = ["EMAIL", "OidcGate", "Settings", "Verifier", "enabled", "settings"]
+__all__ = ["USER", "OidcGate", "Settings", "Verifier", "enabled", "settings"]
 
 log = logging.getLogger(__name__)
 
 HEADER = b"x-auth-request-access-token"
-EMAIL = "scrap.oidc_email"  # the scope key the verified email is kept under
+USER = "scrap.oidc_user"  # the scope key the checked username is kept under
 ALGORITHMS = ("RS256", "ES256")
 LEEWAY = 30  # seconds of clock skew allowed on exp, nbf and iat
 TIMEOUT = 5  # seconds for each socket operation of a fetch from the issuer
@@ -87,14 +89,14 @@ def settings(mcp_guarded: bool) -> Settings | None:
         return None
     issuer = os.environ["SCRAP_OIDC_ISSUER"].strip()
     client_id = os.environ.get("SCRAP_OIDC_CLIENT_ID", "").strip()
-    raw = os.environ.get("SCRAP_ALLOWED_EMAILS", "")
+    raw = os.environ.get("SCRAP_ALLOWED_USERS", "")
     allowed = frozenset(e.strip().lower() for e in raw.split(",") if e.strip())
     if not secure(issuer):
         raise SystemExit(f"SCRAP_OIDC_ISSUER must be an https URL, not {issuer!r}")
     if not client_id:
         raise SystemExit("SCRAP_OIDC_ISSUER is set but SCRAP_OIDC_CLIENT_ID is empty")
     if not allowed:
-        raise SystemExit("SCRAP_OIDC_ISSUER is set but SCRAP_ALLOWED_EMAILS is empty")
+        raise SystemExit("SCRAP_OIDC_ISSUER is set but SCRAP_ALLOWED_USERS is empty")
     if not mcp_guarded:
         raise SystemExit(
             "SCRAP_OIDC_ISSUER is set but /mcp has no bearer token: set SCRAP_MCP_TOKEN"
@@ -238,7 +240,7 @@ class Verifier:
         return self.key(kid)
 
     def verify(self, token: str) -> str:
-        """The token's email, lower-cased, if it lets its holder in; else
+        """The token's username, lower-cased, if it lets its holder in; else
         InvalidTokenError (KeysUnavailableError when the keys cannot be had)."""
         key = self.signing_key(token)
         if key.algorithm_name not in ALGORITHMS:
@@ -261,12 +263,10 @@ class Verifier:
         typ = claims.get("typ")
         if not isinstance(typ, str) or typ.lower() != "bearer":
             raise InvalidTokenError("not an access token")
-        if claims.get("email_verified") is not True:
-            raise InvalidTokenError("the token's email is not verified")
-        email = claims.get("email")
-        if not isinstance(email, str) or email.strip().lower() not in self.conf.allowed:
+        user = claims.get("preferred_username")
+        if not isinstance(user, str) or user.strip().lower() not in self.conf.allowed:
             raise InvalidTokenError("this login may not use this scrap")
-        return email.strip().lower()
+        return user.strip().lower()
 
 
 def exempt(path: str) -> bool:
@@ -276,7 +276,7 @@ def exempt(path: str) -> bool:
 
 class OidcGate:
     """ASGI middleware: the token check above on every HTTP request but exempt()'s.
-    The verified email goes in scope[EMAIL]."""
+    The checked username goes in scope[USER]."""
 
     def __init__(self, app: ASGIApp, verifier: Verifier) -> None:
         self.app = app
@@ -295,15 +295,15 @@ class OidcGate:
         if scope["type"] != "http":  # a websocket: scrap has none, so refuse it
             await send({"type": "websocket.close", "code": 1008})
             return
-        email = await self.check(scope, path)
-        if isinstance(email, Response):
-            await email(scope, receive, send)
+        user = await self.check(scope, path)
+        if isinstance(user, Response):
+            await user(scope, receive, send)
             return
-        scope[EMAIL] = email
+        scope[USER] = user
         await self.app(scope, receive, send)
 
     async def check(self, scope: Scope, path: str) -> str | Response:
-        """The request's verified email, or the refusal to send."""
+        """The request's checked username, or the refusal to send."""
         method = scope.get("method")
         tokens = [v for k, v in scope["headers"] if k == HEADER]
         try:

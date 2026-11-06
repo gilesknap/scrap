@@ -24,7 +24,7 @@ def no_mcp_token(monkeypatch):
 @pytest.fixture(autouse=True)
 def no_login_check(monkeypatch):
     """The login token check (oidc) set in the developer's shell must not gate tests."""
-    for name in ("SCRAP_OIDC_ISSUER", "SCRAP_OIDC_CLIENT_ID", "SCRAP_ALLOWED_EMAILS"):
+    for name in ("SCRAP_OIDC_ISSUER", "SCRAP_OIDC_CLIENT_ID", "SCRAP_ALLOWED_USERS"):
         monkeypatch.delenv(name, raising=False)
 
 

@@ -5,7 +5,8 @@
 #   sh deploy/dls/auth-proxy/install.sh   # SCRAP_AUTH_NAMESPACE: the namespace (default scrap)
 # The namespace must exist. The first run asks for the Keycloak client ID and secret and
 # makes a cookie secret, into the Secret oauth2-proxy-keycloak. Later runs keep that
-# Secret and only upgrade. See docs/how-to/run-the-dls-login-proxy.md.
+# Secret and only upgrade. A run that makes the Secret also restarts the proxy, which
+# reads it only at start. See docs/how-to/run-the-dls-login-proxy.md.
 set -eu
 
 # The upstream chart, pinned. Bump it deliberately.
@@ -22,6 +23,7 @@ main() {
     # dash skips the EXIT trap when a signal kills it: exit, so the cleanup runs.
     trap 'exit 130' INT TERM HUP
 
+    made=
     if ! kubectl -n "$ns" get secret "$secret" </dev/null >/dev/null 2>&1; then
         printf 'Keycloak client ID: ' >/dev/tty
         read -r client_id </dev/tty
@@ -49,6 +51,7 @@ main() {
             --from-file=client-secret="$tmp/client-secret" \
             --from-file=cookie-secret="$tmp/cookie-secret" >/dev/null
         rm -rf "$tmp"
+        made=yes
         echo "Made Secret $secret in $ns."
     else
         echo "Secret $secret already exists in $ns: keeping it."
@@ -57,6 +60,12 @@ main() {
     helm upgrade --install oauth2-proxy oauth2-proxy --repo "$REPO" \
         --version "$CHART_VERSION" --namespace "$ns" -f "$here/values.yaml" \
         --wait --timeout 5m </dev/null
+    # The pods read the Secret only at start, and an upgrade that changes nothing in
+    # the chart leaves them running: restart them onto the new Secret.
+    if [ -n "$made" ]; then
+        kubectl -n "$ns" rollout restart deploy/oauth2-proxy </dev/null
+        kubectl -n "$ns" rollout status deploy/oauth2-proxy --timeout 5m </dev/null
+    fi
     echo "oauth2-proxy is at http://oauth2-proxy.$ns.svc.cluster.local/ inside the cluster."
 }
 

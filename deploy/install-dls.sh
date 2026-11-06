@@ -31,9 +31,9 @@
 #   SCRAP_HOST             hostname (default: scrap-$USER.diamond.ac.uk: one level under
 #                          diamond.ac.uk, so the ingress's *.diamond.ac.uk certificate covers it)
 #   SCRAP_PAGES_HOST       public pages' hostname (default: pages-$USER.diamond.ac.uk)
-#   SCRAP_EMAIL            your login's email address, the only one let in (not used with
-#                          SCRAP_LOGIN=off; default: from
-#                          your namespace's "email" label, first.last@diamond.ac.uk)
+#   SCRAP_USER             your fedid, the only DLS login let in (not used with
+#                          SCRAP_LOGIN=off; default: the namespace's name, which on
+#                          argus is your fedid)
 #   SCRAP_AUTH_NAMESPACE   the login proxy's namespace (default: scrap)
 #   SCRAP_AUTH_SERVICE     the login proxy's in-cluster DNS name (default:
 #                          oauth2-proxy.$SCRAP_AUTH_NAMESPACE.svc.cluster.local)
@@ -135,32 +135,18 @@ main() {
     if [ "$login" = off ]; then
         login_off_warning
     else
-        # The web app lets in only this login (scrap checks it in the login's token). argus
-        # labels your namespace with your email, first.last--at--diamond.ac.uk (a label value
-        # cannot hold @). Lower case, as Keycloak's are.
-        email=${SCRAP_EMAIL:-}
-        if [ -z "$email" ]; then
-            email=$(kubectl get namespace "$ns" -o jsonpath='{.metadata.labels.email}' </dev/null 2>/dev/null |
-                sed 's/--at--/@/' || true)
-        fi
-        email=$(printf %s "$email" | tr '[:upper:]' '[:lower:]')
-        case $email in
-        "")
-            echo "Cannot find your email address: namespace $ns has no \"email\" label you can read." >&2
-            echo "Set SCRAP_EMAIL to your DLS email address (first.last@diamond.ac.uk) and re-run." >&2
+        # The web app lets in only this login, by fedid: scrap checks it against the
+        # login token's preferred_username (DLS Keycloak's username). argus names your
+        # namespace after your fedid. Lower case, as Keycloak's are.
+        owner=$(printf %s "${SCRAP_USER:-$ns}" | tr '[:upper:]' '[:lower:]')
+        case $owner in
+        "" | *[!a-z0-9._-]*)
+            echo "Not a fedid: '$owner'. Set SCRAP_USER to your fedid (as in abc12345) and re-run." >&2
             login_unchanged
             exit 1
             ;;
-        *[!A-Za-z0-9._+@-]* | *@*@* | @* | *@) bad_email=yes ;;
-        *@*) bad_email= ;;
-        *) bad_email=yes ;;
         esac
-        if [ -n "$bad_email" ]; then
-            echo "Not an email address: $email. Set SCRAP_EMAIL to yours (first.last@diamond.ac.uk)." >&2
-            login_unchanged
-            exit 1
-        fi
-        echo "The web app's login will let in only $email."
+        echo "The web app's login will let in only $owner."
     fi
 
     if [ -n "$backup_dir" ]; then
@@ -294,10 +280,10 @@ main() {
             echo "authProxy:"
             echo "  enabled: true"
             echo "  service: $auth_svc"
-            echo "  allowedEmails:"
-            echo "    - \"$email\""
+            echo "  allowedUsers:"
+            echo "    - \"$owner\""
             # scrap checks the proxy's Keycloak token on each request: from this realm, for
-            # this client, for your email.
+            # this client, for your fedid.
             echo "  oidc:"
             echo "    issuer: \"$oidc_issuer\""
             echo "    clientId: \"$oidc_client\""
@@ -358,7 +344,7 @@ EOF
     fi
 
     if [ "$login" = on ]; then
-        who="DLS login, for $email only"
+        who="DLS login, for $owner only"
     else
         who="NO LOGIN: anyone on the DLS network"
     fi

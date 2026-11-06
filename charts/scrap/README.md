@@ -74,7 +74,7 @@ connect; an empty `from` admits nobody.
 
 With ingress-nginx and an oauth2-proxy you run, `authProxy.enabled` adds the login for you:
 the Ingress asks the proxy (`authProxy.service`) about every request, scrap admits only
-`authProxy.allowedEmails` (from the proxy's token), and a second Ingress without auth carries `/mcp` and the proxy's
+`authProxy.allowedUsers` (Keycloak usernames, from the proxy's token), and a second Ingress without auth carries `/mcp` and the proxy's
 `/oauth2`, so the sign-in is on scrap's own host. scrap also checks the proxy's access token
 on every request (`authProxy.oidc.issuer` and `.clientId`, both required), so a pod that calls
 the Service directly gets `401`. Other controllers need their own annotations in `ingress.annotations`.

@@ -32,12 +32,12 @@ def author(request: Request) -> str:
     # header makes a change Claude's: one naming claude (MCP's author) counts as none
     # (#153), and a web change's revision is source web whatever its author. One
     # by an /mcp/... path is Claude's (by_mcp), whatever header it carries. With the
-    # login's token check on (oidc, ADR 45) the author is the token's verified email,
-    # and no header is read.
+    # login's token check on (oidc, ADR 45) the author is the token's checked username
+    # (at DLS the fedid), and no header is read.
     if by_mcp(request):
         return CLAUDE
     if oidc.enabled():
-        return request.scope.get(oidc.EMAIL) or "tagged"
+        return request.scope.get(oidc.USER) or "tagged"
     name = os.environ.get("SCRAP_IDENTITY_HEADER", "").strip() or IDENTITY_HEADER
     who = request.headers.get(name, "")
     return "tagged" if who.strip().lower() in ("", CLAUDE) else who

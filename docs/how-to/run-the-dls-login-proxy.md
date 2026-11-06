@@ -11,14 +11,15 @@ sets it up and keeps it running.
   Keycloak client secret and the proxy's cookie secret; users never see them.
 - Each user's scrap has two Ingresses on `scrap-<fedid>.diamond.ac.uk`. The main one sends every
   request to the proxy first (ingress-nginx's `auth-url`), which needs a DLS login; scrap then
-  lets in only that user's email address, from the token the proxy passes on. The other has no login and carries `/mcp` (scrap's bearer token guards it) and
+  lets in only that user's fedid, from the token the proxy passes on. The other has no login and carries `/mcp` (scrap's bearer token guards it) and
   `/oauth2`, which reaches the proxy through an `ExternalName` Service in the user's namespace.
 - The proxy has no fixed callback address and no cookie domain, so each user's login and cookie
   belong to that user's host alone. That is why Keycloak needs one exact redirect URI per user.
 - Any DLS login passes the proxy, on any user's host: the `auth-url` carries no
   `allowed_emails`, because DLS's ingress-nginx refuses an `@` or `%` in it. Each user's scrap
-  admits only its owner, by the email in the access token: another DLS user who logs in there
-  gets scrap's `401`.
+  admits only its owner, by the fedid in the access token (`preferred_username`): another DLS
+  user who logs in there gets scrap's `401`. DLS Keycloak does not verify emails, so the proxy
+  runs with `insecure_oidc_allow_unverified_email`; the email is not what lets anyone in.
 - The proxy passes the user's Keycloak access token on (`pass_access_token`), and scrap checks
   it on every request ([](../explanations/decisions/0045-scrap-verifies-the-login-proxys-keycloak-token.md)).
   argus users cannot make NetworkPolicies, so a pod in the cluster can reach a user's scrap
@@ -37,17 +38,15 @@ Ask the DLS Keycloak team for one client in the `dls` realm
 
 - **Confidential** (client authentication on), **standard flow** only, with **PKCE** method
   `S256`.
-- Client scopes `openid` and `email` only (no `profile`, no `offline_access`).
+- Client scopes `openid`, `email` and `profile` only (no `offline_access`).
 - An **audience mapper** that adds the client's own ID to the access token's audience: oauth2-proxy
   checks it.
 - **Valid redirect URIs**: one exact entry per user, `https://scrap-<fedid>.diamond.ac.uk/oauth2/callback`.
   No wildcards. Start with your own.
-- **Access tokens that carry `email` and `email_verified`**: scrap reads them from the access
-  token, not the ID token. Keycloak's default `email` client scope maps both into the access
-  token; check it has not been changed to the ID token only.
-- Confirmation that emails in the `dls` realm are **verified** (`email_verified` true).
-  oauth2-proxy refuses a login with an unverified email; do not set
-  `insecure_oidc_allow_unverified_email` to get round it.
+- **Access tokens that carry `preferred_username`** (the fedid): scrap reads it from the access
+  token, not the ID token. Keycloak's default `profile` client scope maps it into the access
+  token; check it has not been changed to the ID token only. The tokens also carry `email`,
+  which the proxy checks against `email_domains`; it need not be verified.
 
 Keep the client ID and secret for the next step.
 
@@ -74,6 +73,8 @@ budget, and no Ingress. The proxy answers inside the cluster at
 `oauth2-proxy.scrap.svc.cluster.local`, where every user's installer points by default.
 
 Re-run the script after changing `values.yaml` or the pinned chart version. It keeps the Secret.
+A run that makes the Secret (the first, or after you deleted it) also restarts the proxy, since
+its pods read the Secret only when they start.
 With a namespace other than `scrap`, users must set `SCRAP_AUTH_NAMESPACE` to it when they
 run their installer.
 

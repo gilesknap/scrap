@@ -21,7 +21,7 @@ from scrap.store import Store, new_ulid
 ISSUER = "https://identity.example.org/realms/dls"
 JWKS_URI = ISSUER + "/protocol/openid-connect/certs"
 CLIENT = "scrap"
-OWNER = "first.last@example.org"
+OWNER = "abc12345"  # a DLS fedid: the Keycloak username
 HEADER = "X-Auth-Request-Access-Token"
 MCP_TOKEN = "an-mcp-bearer-token"
 
@@ -46,7 +46,8 @@ JWKS = {"keys": [jwk(RSA_KEY, "rsa1"), jwk(EC_KEY, "ec1"), OCT, ENC]}
 def claims(**over: Any) -> dict[str, Any]:
     now = int(time.time())
     base = {"iss": ISSUER, "aud": "account", "azp": CLIENT, "iat": now,
-            "exp": now + 300, "email": OWNER, "email_verified": True,
+            "exp": now + 300, "preferred_username": OWNER,
+            "email": "first.last@example.org", "email_verified": False,
             "typ": "Bearer"}  # fmt: skip
     base.update(over)
     return {k: v for k, v in base.items() if v is not None}
@@ -81,7 +82,7 @@ def issuer(monkeypatch):
     monkeypatch.setenv("SCRAP_MCP_TOKEN", MCP_TOKEN)
     monkeypatch.setenv("SCRAP_OIDC_ISSUER", ISSUER)
     monkeypatch.setenv("SCRAP_OIDC_CLIENT_ID", CLIENT)
-    monkeypatch.setenv("SCRAP_ALLOWED_EMAILS", f" {OWNER} ,someone@example.org")
+    monkeypatch.setenv("SCRAP_ALLOWED_USERS", f" {OWNER} ,xyz98765")
     return state
 
 
@@ -148,11 +149,17 @@ def test_a_forged_email_header_alone_does_nothing(gated, monkeypatch):
         pytest.param(lambda: token(exp=None), id="no-exp"),
         pytest.param(lambda: token(iat=None), id="no-iat"),
         pytest.param(lambda: token(nbf=int(time.time()) + 120), id="not-yet-valid"),
-        pytest.param(lambda: token(email="other@example.org"), id="not-allowed"),
-        pytest.param(lambda: token(email=None), id="no-email"),
-        pytest.param(lambda: token(email_verified=False), id="unverified"),
-        pytest.param(lambda: token(email_verified=None), id="verified-missing"),
-        pytest.param(lambda: token(email_verified="true"), id="verified-a-string"),
+        pytest.param(lambda: token(preferred_username="zzz11111"), id="not-allowed"),
+        pytest.param(lambda: token(preferred_username=None), id="no-username"),
+        pytest.param(lambda: token(preferred_username=["abc12345"]), id="not-a-string"),
+        pytest.param(lambda: token(preferred_username=""), id="empty-username"),
+        pytest.param(
+            lambda: token(preferred_username="zzz11111", email_verified=True),
+            id="not-allowed-email-verified",
+        ),
+        pytest.param(
+            lambda: token(preferred_username=None, email=OWNER), id="email-not-username"
+        ),
         pytest.param(lambda: token(typ="ID"), id="an-id-token"),
         pytest.param(lambda: token(typ=None), id="no-typ"),
         pytest.param(lambda: token(OTHER_KEY, kid="rsa-enc"), id="an-enc-key"),
@@ -399,8 +406,8 @@ def test_discovery_for_another_issuer_is_503(gated, issuer):
 # ---- let in
 
 
-def test_a_good_token_lets_in_and_its_email_is_the_author(gated, issuer, tmp_path):
-    good = token(email="First.Last@Example.org")  # compared lower-cased
+def test_a_good_token_lets_in_and_its_username_is_the_author(gated, issuer, tmp_path):
+    good = token(preferred_username="ABC12345")  # compared lower-cased
     assert get(gated, good).status_code == 200
     r = gated.post(
         "/api/captures",
@@ -425,6 +432,11 @@ def test_a_good_token_lets_in_and_its_email_is_the_author(gated, issuer, tmp_pat
         pytest.param(lambda: token(azp=None, aud=["account", CLIENT]), id="aud"),
         pytest.param(lambda: token(aud=None), id="azp-only"),
         pytest.param(lambda: token(exp=int(time.time()) - 10), id="within-leeway"),
+        # DLS's Keycloak does not verify emails: the username is the gate
+        pytest.param(lambda: token(email_verified=False), id="email-unverified"),
+        pytest.param(lambda: token(email_verified=None), id="email-verified-missing"),
+        pytest.param(lambda: token(email=None), id="no-email"),
+        pytest.param(lambda: token(preferred_username=" xyz98765 "), id="second-user"),
     ],
 )
 def test_other_good_tokens(gated, tok):
@@ -465,7 +477,8 @@ def test_the_root_path_is_minded(issuer, tmp_path):
 @pytest.mark.parametrize(
     "name, value, said",
     [
-        ("SCRAP_ALLOWED_EMAILS", " , ", "SCRAP_ALLOWED_EMAILS is empty"),
+        ("SCRAP_ALLOWED_USERS", " , ", "SCRAP_ALLOWED_USERS is empty"),
+        ("SCRAP_ALLOWED_USERS", None, "SCRAP_ALLOWED_USERS is empty"),
         ("SCRAP_OIDC_CLIENT_ID", " ", "SCRAP_OIDC_CLIENT_ID is empty"),
         ("SCRAP_OIDC_ISSUER", "http://identity.example.org", "https"),
         ("SCRAP_MCP_TOKEN", None, "no bearer token"),
@@ -484,9 +497,9 @@ def test_a_missing_setting_stops_the_start(issuer, tmp_path, monkeypatch, name,
 def test_a_loopback_issuer_may_be_http(monkeypatch):
     monkeypatch.setenv("SCRAP_OIDC_ISSUER", "http://localhost:8080/realms/dev")
     monkeypatch.setenv("SCRAP_OIDC_CLIENT_ID", CLIENT)
-    monkeypatch.setenv("SCRAP_ALLOWED_EMAILS", "A@x.org")
+    monkeypatch.setenv("SCRAP_ALLOWED_USERS", "ABC12345")
     conf = oidc.settings(mcp_guarded=True)
-    assert conf and conf.allowed == frozenset({"a@x.org"})
+    assert conf and conf.allowed == frozenset({"abc12345"})
 
 
 def test_fetch_json_takes_http_only():
