@@ -14,6 +14,12 @@ Who can get in:
 - **`/mcp`**: whoever has your bearer token, which the installer makes and shows you once.
 - **Your public pages**: anyone on the DLS network. Only the pages you make public are there.
 
+```{warning}
+**`SCRAP_LOGIN=off` takes the login away, for testing only.** It lets colleagues try scrap before
+the Keycloak client has your address: see {ref}`install-dls-no-login`. Then **anyone on the DLS
+network can read and change your pages**, and so can any pod in the cluster. Test data only.
+```
+
 ## What you need
 
 - A DLS account. Your namespace is named after your fedid, which is also your Linux username.
@@ -46,10 +52,21 @@ It:
    your namespace (in lower case);
 5. makes `/dls/science/users/<fedid>/scrap` (mode 700, if it is new) and keeps the nightly backups there, with
    scrap's pods running as you, so the backups are your files;
-6. prints the Service IP, your bearer token (once), and what to do next.
+6. puts scrap's database on the pod's own disk, not on your NFS volume, where SQLite is not safe,
+   with Litestream copying each change to that volume ({ref}`k8s-litestream`);
+7. prints the Service IP, your bearer token (once), and what to do next.
+
+**What can be lost.** While it is working, the copy follows each write by about a second, so if the
+node dies, the last moments of writes are lost. A normal restart or upgrade loses nothing: the new
+pod restores the database first. If the copy stops working (it noticed by itself within about 20
+minutes), scrap leaves the network until it works again, so the app shows it as unreachable; writes
+in those minutes are at risk, and a later restart refuses to start without someone looking. An install from before this moves over by itself when you re-run the installer,
+leaving the old `/data/scrap.db` in place. If a pod ever stays in `Init`, it is refusing to start
+without your data rather than starting empty: `kubectl logs deploy/scrap -c db-init` says why.
 
 It is safe to re-run: a re-run upgrades to the latest release and never overwrites the Secret. A
-Secret made by an older installer gets only the upload token added. Set `SCRAP_VERSION` to install a particular release.
+Secret made by an older installer gets only the upload token added. Set `SCRAP_VERSION` to install a particular release;
+the script and chart go together, so an older release needs that version's script.
 `SCRAP_BACKUP_DIR` moves the backups (empty keeps them on a volume in the cluster). If the
 installer stops with "Cannot find your email address", set `SCRAP_EMAIL` to your DLS email
 address (`first.last@diamond.ac.uk`) and run it again. The header of the script lists every
@@ -60,6 +77,30 @@ Keep the token in a password manager. To see it again:
 ```
 kubectl get secret scrap-secrets -o jsonpath='{.data.SCRAP_MCP_TOKEN}' | base64 -d; echo
 ```
+
+(install-dls-no-login)=
+### Without a login, for testing
+
+```{warning}
+This is for trying scrap out, with test data only. With the login off, the web app has **no login
+at all**: **anyone on the DLS network can read and change every page**, and any pod in the cluster
+can too. Your bearer token still guards `/mcp`, but that does not protect the web app or its API.
+```
+
+To let colleagues test before your login address is on the Keycloak client, set `SCRAP_LOGIN=off`.
+In a pipe, the variable goes after it:
+
+```
+curl -fsSL https://raw.githubusercontent.com/gilesknap/scrap/main/deploy/install-dls.sh | SCRAP_LOGIN=off sh
+```
+
+It needs no email address, and everything else is as normal: the bearer token on `/mcp`, backups,
+public pages and the database. The installer warns you up front and again in its summary. Only
+exactly `off` does this: anything but `on` or `off` stops the installer before it touches anything.
+
+**To turn the login on**, re-run the installer without it. Your Secret and your data are kept. Then
+ask for your login address (step 4). If that run fails, nothing has been turned on: the web app still
+has no login until it succeeds.
 
 ## 3. Ask for the DNS names
 
@@ -94,7 +135,8 @@ filesystem, one folder per run, named for its time (like `20261104T033000Z`). It
 daily runs, and on the 1st of each month a copy in the `monthly/` folder, keeping the last 12 of
 those. The folder is yours (mode 700 when the installer makes it) and the backup pods run as you, so
 the backups are your files. To put them elsewhere, set `SCRAP_BACKUP_DIR` before you run the
-installer. To restore from them, see [below](#install-dls-restore).
+installer. Backups work from Litestream's copy of the database, not the live one, but still
+run on the same node as the scrap pod. To restore from them, see [below](#install-dls-restore).
 
 ## 5. Use it
 
@@ -171,4 +213,5 @@ For everything the chart can do (backups, restore, upgrades), see [](../how-to/d
 
 (install-dls-restore)=
 To restore from the backups in your directory, follow its restore steps with the changes in
-{ref}`backups in a hostPath <k8s-restore-hostpath>`, and your namespace in place of `-n scrap`.
+{ref}`with Litestream <k8s-restore-litestream>` and {ref}`backups in a hostPath <k8s-restore-hostpath>`,
+and your namespace in place of `-n scrap`.

@@ -27,6 +27,10 @@ flowchart LR
 | Related pages | `<fullname>-enrich-related` | `scrap-enrich-related.timer`, `scrap-enrich-related.service` | 03:41 daily, `41 3 * * *` | `scrap enrich --related`: picks related pages for every page changed, or with a photo read, since its last picks ({ref}`ingest-enrich-related`). It does not write board write-ups again: an outdated one is the owner's to regenerate | Yes | Kubernetes: starts within 1 h, runs at most 4 h; single server: none |
 | Topics | `<fullname>-enrich-topics` | `scrap-enrich-topics.timer`, `scrap-enrich-topics.service` | 04:11 on Sundays, `11 4 * * 0` | `scrap enrich --topics`: one discovery call (new topic pages and sources), then a synthesis queued for each topic due, which the scrap service's worker makes ({ref}`ingest-topics`) | Yes (the call, and the syntheses) | Kubernetes: starts within 1 h, runs at most 1 h; single server: none |
 
+With the chart's `litestream.enabled`, gc, related pages and topics need the live database, so they
+are not CronJobs: the same values run them in the scrap pod's `jobs` container
+({ref}`k8s-litestream`). The two backups stay CronJobs.
+
 ## Settings
 
 Each chart value, its default, and what does the same on a single server. A timer drop-in is
