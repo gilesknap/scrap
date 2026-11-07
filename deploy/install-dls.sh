@@ -39,7 +39,7 @@
 #                          oauth2-proxy.$SCRAP_AUTH_NAMESPACE.svc.cluster.local)
 #   SCRAP_OIDC_ISSUER      the Keycloak realm whose login tokens scrap checks (default:
 #                          https://identity.diamond.ac.uk/realms/dls)
-#   SCRAP_OIDC_CLIENT_ID   the login proxy's Keycloak client (default: scrap)
+#   SCRAP_OIDC_CLIENT_ID   the login proxy's Keycloak client (default: scrap-central-proxy)
 #   SCRAP_INGRESS_CLASS    ingressClassName for the Ingress (default: nginx, argus's ingress)
 #   SCRAP_BACKUP_DIR       where the nightly backups go (default: /dls/science/users/$USER/scrap,
 #                          made here with mode 700 if new; every argus node mounts /dls/science).
@@ -111,7 +111,7 @@ main() {
     pages_host=${SCRAP_PAGES_HOST:-pages-$user.diamond.ac.uk}
     auth_svc=${SCRAP_AUTH_SERVICE:-oauth2-proxy.${SCRAP_AUTH_NAMESPACE:-scrap}.svc.cluster.local}
     oidc_issuer=${SCRAP_OIDC_ISSUER:-https://identity.diamond.ac.uk/realms/dls}
-    oidc_client=${SCRAP_OIDC_CLIENT_ID:-scrap}
+    oidc_client=${SCRAP_OIDC_CLIENT_ID:-scrap-central-proxy}
     # The largest capture in MB: scrap's limit. nginx's body size is 1 MiB more, so a
     # file just over scrap's limit gets scrap's own error, not nginx's HTML 413.
     max_upload=50
@@ -254,6 +254,13 @@ main() {
         echo "  runAsUser: $uid"
         echo "  runAsGroup: $gid"
         echo "  fsGroup: $gid"
+        # argus's Kyverno fills these in on each container when it creates a Deployment,
+        # but not when an upgrade adds one (1.7.0's jobs container): it then refuses the
+        # upgrade unless the chart sets them itself. Helm merges these into the chart's.
+        echo "securityContext:"
+        echo "  privileged: false"
+        echo "  runAsUser: $uid"
+        echo "  runAsGroup: $gid"
         # argus caps a container's CPU limit at 10 times its request, and its default
         # limit is 1 CPU: the jobs request 50m, so give them a limit that fits.
         # The backup jobs restore the database to their own disk first: argus's largest
