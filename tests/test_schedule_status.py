@@ -8,6 +8,7 @@ import sys
 import time
 import urllib.error
 import urllib.request
+from contextlib import closing
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -49,7 +50,7 @@ def put(db, name, **fields):
     fields.setdefault("seen_at", "2026-01-01T00:00:00.000Z")
     names = ", ".join(["name", *fields])
     marks = ", ".join("?" * (len(fields) + 1))
-    with sqlite3.connect(db) as conn:
+    with closing(sqlite3.connect(db)) as conn, conn:
         conn.execute(
             f"INSERT OR REPLACE INTO scheduled_job ({names}) VALUES ({marks})",
             (name, *fields.values()),
@@ -513,7 +514,8 @@ def get(url):
         with urllib.request.urlopen(url, timeout=5) as response:
             return response.status, response.read().decode()
     except urllib.error.HTTPError as error:
-        return error.code, ""
+        with error:  # closed here, not left to the collector
+            return error.code, ""
 
 
 def test_the_metrics_are_served(db, tmp_path):

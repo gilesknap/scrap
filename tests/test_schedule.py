@@ -312,7 +312,10 @@ def test_stop_reaches_a_grandchild(tmp_path):
         except ProcessLookupError:
             return True
         # A zombie awaiting its reaper counts as gone
-        return Path(f"/proc/{pid}/stat").read_text().split()[2] == "Z"
+        try:
+            return Path(f"/proc/{pid}/stat").read_text().split()[2] == "Z"
+        except (FileNotFoundError, ProcessLookupError):  # reaped meanwhile
+            return True
 
     assert until(gone)
 
@@ -613,6 +616,9 @@ def test_a_real_sigterm_stops_a_run_now_and_its_job(tmp_path):
             os.kill(pid, 0)
         except ProcessLookupError:
             return True
-        return Path(f"/proc/{pid}/stat").read_text().split()[2] == "Z"
+        try:
+            return Path(f"/proc/{pid}/stat").read_text().split()[2] == "Z"
+        except (FileNotFoundError, ProcessLookupError):  # reaped meanwhile
+            return True
 
     assert until(gone)
