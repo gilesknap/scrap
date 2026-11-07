@@ -298,8 +298,7 @@ given; a PDF or text file is listed below the text and read for search.
 commands. Each is one Markdown file with a one-line description, and each is its own command, so
 typing `/sc` in Claude Code autocompletes the whole set with that description. They use the server added in step 2 (the `mcp__scrap__*` tools, or
 `mcp__scrap-dls__*` when there is no `scrap` server) and
-do nothing useful without it; if the tools are missing they say so and print the `claude mcp add`
-line.
+do nothing useful without it; if the tools are missing they say so and point to the setup.
 
 | Command | What it does |
 | --- | --- |

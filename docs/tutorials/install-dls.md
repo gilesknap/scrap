@@ -10,7 +10,8 @@ Who can get in:
 - **`/mcp`** (Claude Code): whoever has your bearer token, which the installer makes.
 - **Your public pages**: anyone on the DLS network. Only the pages you make public are there.
 
-You need a DLS account. A Claude API key is optional: scrap uses it to read photos and tag pages.
+You need a DLS account. Your namespace is named after your fedid, which is also your Linux
+username. A Claude API key is optional: scrap uses it to read photos and tag pages.
 
 ## 1. Load argus
 
@@ -38,12 +39,13 @@ for your namespace. The installer lists only the names that do not resolve yet.
 ## 4. Open it
 
 - **Phone:** add the phone to the DLS VPN first (follow DLS IT's VPN instructions). Then, on the
-  VPN, open `https://scrap-<fedid>.diamond.ac.uk/`, log in with your DLS account, and install the
-  app.
+  VPN, open `https://scrap-<fedid>.diamond.ac.uk/`, log in with your DLS account (the login page
+  shows the first time), and install the app.
 - **Browser:** on a DLS machine, open `https://scrap-<fedid>.diamond.ac.uk/` and log in.
 
-Claude Code is already connected: `claude mcp list` shows `scrap-dls`. Ask Claude to search your
-pages. To add the `sc` commands and skills, see [](../how-to/connect-claude-code.md).
+Claude Code is connected (once the DNS names exist; `claude mcp list` shows `scrap-dls`), if
+`claude` was on your PATH when you ran the installer, else run the command it printed. Ask Claude
+to search your pages. To add the `sc` commands and skills, see [](../how-to/connect-claude-code.md).
 
 That is all. The rest of this page is details.
 
@@ -108,8 +110,11 @@ time it connects, and the helper reads the token from a private file. The instal
 
    ```sh
    #!/bin/sh
-   # Headers for scrap's /mcp at DLS: the bearer token
-   set -a; . ~/.config/terminal-config/.env; set +a
+   # Headers for scrap's /mcp at DLS: the bearer token, from the .env on the host, or where
+   # claude-sandbox mounts it.
+   for f in "$HOME/.config/terminal-config/.env" /user-terminal-config/.env; do
+       if [ -r "$f" ]; then set -a; . "$f"; set +a; break; fi
+   done
    printf '{"Authorization":"Bearer %s"}\n' "$SCRAP_DLS_MCP_TOKEN"
    ```
 
@@ -127,8 +132,9 @@ left alone. The `sc` commands use `scrap` if it is there, else `scrap-dls`.
 If `claude` is not on your path, or this step fails, the installer still succeeds and prints the
 command to run. `SCRAP_CLAUDE=off` skips all three.
 
-In claude-sandbox, make the helper and add `scrap-dls` inside the container, and in the helper's
-`set -a` line use `/user-terminal-config/.env`, where claude-sandbox mounts the same file.
+For claude-sandbox, run the installer on the host (or a DLS machine). Inside claude-sandbox the
+same helper and server work, because claude-sandbox mounts the .env at
+`/user-terminal-config/.env`.
 
 ```{note}
 Only Claude Code on the DLS network can reach scrap's `/mcp`. Claude.ai's hosted connectors and
@@ -161,7 +167,7 @@ at all**: **anyone on the DLS network can read and change every page**, and any 
 can too. Your bearer token still guards `/mcp`, but that does not protect the web app or its API.
 ```
 
-To let colleagues test before your login address is on the Keycloak client, set `SCRAP_LOGIN=off`:
+To try scrap without the login, with test data only, set `SCRAP_LOGIN=off`:
 
 ```
 curl -fsSL https://raw.githubusercontent.com/gilesknap/scrap/main/deploy/install-dls.sh | SCRAP_LOGIN=off sh

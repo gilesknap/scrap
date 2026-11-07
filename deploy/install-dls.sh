@@ -95,8 +95,11 @@ login_unchanged() {
 headers_helper() {
     cat <<'EOF'
 #!/bin/sh
-# Headers for scrap's /mcp at DLS: the bearer token
-set -a; . ~/.config/terminal-config/.env; set +a
+# Headers for scrap's /mcp at DLS: the bearer token, from the .env on the host, or where
+# claude-sandbox mounts it.
+for f in "$HOME/.config/terminal-config/.env" /user-terminal-config/.env; do
+    if [ -r "$f" ]; then set -a; . "$f"; set +a; break; fi
+done
 printf '{"Authorization":"Bearer %s"}\n' "$SCRAP_DLS_MCP_TOKEN"
 EOF
 }

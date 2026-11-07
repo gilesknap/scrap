@@ -160,16 +160,26 @@ tok=$(cat "$tmp/created-SCRAP_MCP_TOKEN")
 json='{"type":"http","url":"https://scrap-abc12345.diamond.ac.uk/mcp","headersHelper":"'$helper'"}'
 cat >"$tmp/want-helper" <<'EOF'
 #!/bin/sh
-# Headers for scrap's /mcp at DLS: the bearer token
-set -a; . ~/.config/terminal-config/.env; set +a
+# Headers for scrap's /mcp at DLS: the bearer token, from the .env on the host, or where
+# claude-sandbox mounts it.
+for f in "$HOME/.config/terminal-config/.env" /user-terminal-config/.env; do
+    if [ -r "$f" ]; then set -a; . "$f"; set +a; break; fi
+done
 printf '{"Authorization":"Bearer %s"}\n' "$SCRAP_DLS_MCP_TOKEN"
 EOF
 check "claude: .env is mode 600" sh -c "[ \"\$(stat -c %a '$envf')\" = 600 ]"
 check "claude: the token in .env" grep -qx "SCRAP_DLS_MCP_TOKEN=$tok" "$envf"
 check "claude: helper is mode 700" sh -c "[ \"\$(stat -c %a '$helper')\" = 700 ]"
 check "claude: helper as in the tutorial" cmp -s "$helper" "$tmp/want-helper"
-check "claude: the helper gives the header" sh -c "HOME='$tmp/home' '$helper' |
+check "claude: the helper reads the host's .env" sh -c "HOME='$tmp/home' '$helper' |
     grep -qxF '{\"Authorization\":\"Bearer $tok\"}'"
+# In claude-sandbox the .env is at /user-terminal-config/.env: the same helper, with that
+# path moved into $tmp, and a HOME with no .env.
+mkdir -p "$tmp/sandbox-env" "$tmp/sandbox-home"
+printf 'SCRAP_DLS_MCP_TOKEN=sandbox\n' >"$tmp/sandbox-env/.env"
+sed "s|/user-terminal-config/.env|$tmp/sandbox-env/.env|" "$helper" >"$tmp/sandbox-helper"
+check "claude: the helper reads claude-sandbox's .env" sh -c "HOME='$tmp/sandbox-home' sh '$tmp/sandbox-helper' |
+    grep -qxF '{\"Authorization\":\"Bearer sandbox\"}'"
 check "claude: scrap-dls added with the JSON" grep -qxF "mcp add-json --scope user scrap-dls $json" "$tmp/claude.calls"
 check "claude: says it is connected" grep -q "Claude Code is connected to scrap for all your projects, as scrap-dls" "$tmp/out"
 check "claude: no tutorial link when connected" sh -c "! grep -q 'install-dls-claude' '$tmp/out'"
@@ -353,6 +363,24 @@ check "claude fails: the install succeeds" [ "$cf_rc" = 0 ]
 check "claude fails: warns" grep -q "WARNING: claude mcp add-json failed" "$tmp/out"
 check "claude fails: says what to run" grep -q "fix the cause above, then run:" "$tmp/out"
 check "claude fails: prints the command" grep -qxF "  claude mcp add-json --scope user scrap-dls '$json'" "$tmp/out"
+
+# A fresh HOME, with no ~/.config at all: the directory and an empty .env are made.
+rm -rf "${tmp:?}/home"
+if run; then fh_rc=0; else fh_rc=1; fi
+check "fresh home: the install succeeds" [ "$fh_rc" = 0 ]
+check "fresh home: .env holds only the token, mode 600" sh -c "[ \"\$(stat -c %a '$envf')\" = 600 ] &&
+    [ \"\$(cat '$envf')\" = \"SCRAP_DLS_MCP_TOKEN=\$(cat '$tmp/created-SCRAP_MCP_TOKEN')\" ]"
+check "fresh home: the helper made" cmp -s "$helper" "$tmp/want-helper"
+check "fresh home: connected" grep -q "Claude Code is connected" "$tmp/out"
+
+# The .env cannot be written (its directory is a file): warned, and the install succeeds.
+rm -rf "${tmp:?}/home"; mkdir -p "$tmp/home/.config"; echo x >"$tmp/home/.config/terminal-config"
+: >"$tmp/claude.calls"
+if run; then nw_rc=0; else nw_rc=1; fi
+check "no .env: the install succeeds" [ "$nw_rc" = 0 ]
+check "no .env: warns" grep -q "WARNING: could not write the token to $envf" "$tmp/out"
+check "no .env: says what to do" grep -q "fix the cause above, then re-run this script" "$tmp/out"
+check "no .env: claude left alone" sh -c "[ ! -s '$tmp/claude.calls' ]"
 
 # SCRAP_CLAUDE=off: no .env, no helper, no claude.
 rm -rf "${tmp:?}/home"; : >"$tmp/claude.calls"
