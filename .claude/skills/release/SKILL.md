@@ -37,7 +37,8 @@ are merged.
 - Note migrations since the last tag:
   `git diff --name-only <last-tag>..HEAD -- src/scrap/migrations`.
   Script `NNNN_*.sql` sets `user_version` N.
-- Note whether the DLS login proxy changed since the last tag:
+- Note whether the DLS login proxy changed since the last deployed tag
+  (skip tags whose CI failed):
   `git diff --name-only <last-tag>..HEAD -- deploy/dls/auth-proxy`.
   It is deployed by its own script, not by the tag (step 7).
 
@@ -135,7 +136,8 @@ are merged.
   on the phone.
 - If `deploy/dls/auth-proxy` changed (step 1), tell the owner the DLS
   central proxy must be upgraded with `sh deploy/dls/auth-proxy/install.sh`
-  (with access to the proxy's namespace; it keeps its Secret and rolls
+  from a checkout of the new tag (with access to the proxy's namespace; it
+  keeps its Secret and rolls
   through its 2 replicas without an outage). The tag does not deploy the
   proxy, so DLS logins can fail until it is run.
 
