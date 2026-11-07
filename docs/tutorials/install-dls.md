@@ -1,30 +1,16 @@
 # Install scrap at DLS
 
 In this tutorial you run scrap in your own namespace on the DLS argus Kubernetes cluster, with one
-script. At the end the web app and the MCP endpoint answer on `scrap-<fedid>.diamond.ac.uk`, and
-the pages you make public on `pages-<fedid>.diamond.ac.uk`, all only from the DLS network.
+script. At the end the web app answers on `scrap-<fedid>.diamond.ac.uk`, your public pages on
+`pages-<fedid>.diamond.ac.uk`, and Claude Code is connected to scrap.
 
 Who can get in:
 
-- **The web app**: it asks for your DLS login (Keycloak), and scrap lets in only your own
-  fedid: another DLS user who logs in gets `401`. That keeps it from the network. Pods in the cluster can reach its Service directly,
-  but scrap checks the login's token itself, so without a valid DLS login token for you they get
-  `401`. You stay logged in as long as your DLS Keycloak session lasts; when it ends, the web app
-  and the phone app take you to the DLS login again.
-- **`/mcp`**: whoever has your bearer token, which the installer makes and shows you once.
+- **The web app**: only your own DLS login. Another DLS user who logs in gets `401`.
+- **`/mcp`** (Claude Code): whoever has your bearer token, which the installer makes.
 - **Your public pages**: anyone on the DLS network. Only the pages you make public are there.
 
-```{warning}
-**`SCRAP_LOGIN=off` takes the login away, for testing only.** It lets colleagues try scrap before
-the Keycloak client has your address: see {ref}`install-dls-no-login`. Then **anyone on the DLS
-network can read and change your pages**, and so can any pod in the cluster. Test data only.
-```
-
-## What you need
-
-- A DLS account. Your namespace is named after your fedid, which is also your Linux username.
-- A Claude API key, for ingest (reading photos and tagging pages). Without one, photos queue and
-  nothing more happens.
+You need a DLS account. A Claude API key is optional: scrap uses it to read photos and tag pages.
 
 ## 1. Load argus
 
@@ -40,42 +26,127 @@ This puts `kubectl` and `helm` on your path and selects your own namespace.
 curl -fsSL https://raw.githubusercontent.com/gilesknap/scrap/main/deploy/install-dls.sh | sh
 ```
 
-It:
+It asks for your Claude API key (input hidden; Enter skips it), installs scrap, connects Claude
+Code, and shows your `/mcp` bearer token once. Keep the token in a password manager.
 
-1. asks for your Claude API key (input hidden; Enter skips ingest);
-2. creates a Secret `scrap-secrets` holding the key, a generated `/mcp` bearer token and a
-   generated upload token for your public pages;
-3. installs the latest scrap release with Helm, with Ingresses for `scrap-<fedid>.diamond.ac.uk`
-   and `pages-<fedid>.diamond.ac.uk` on argus's `nginx` ingress, served over HTTPS by its
-   `*.diamond.ac.uk` certificate;
-4. puts the web app behind the DLS login, letting in only your fedid, which is your namespace's
-   name (in lower case);
-5. makes `/dls/science/users/<fedid>/scrap` (mode 700, if it is new) and keeps the nightly backups there, with
-   scrap's pods running as you, so the backups are your files;
-6. puts scrap's database on the pod's own disk, not on your NFS volume, where SQLite is not safe,
-   with Litestream copying each change to that volume ({ref}`k8s-litestream`);
-7. prints the Service IP, your bearer token (once), and what to do next.
+## 3. Ask for the DNS names
+
+Raise a request at <https://jira.diamond.ac.uk/servicedesk/customer/portal/2/create/156> asking for
+`scrap-<fedid>.diamond.ac.uk` and `pages-<fedid>.diamond.ac.uk` to be set up on the argus ingress
+for your namespace. The installer lists only the names that do not resolve yet.
+
+## 4. Open it
+
+- **Phone:** add the phone to the DLS VPN first (follow DLS IT's VPN instructions). Then, on the
+  VPN, open `https://scrap-<fedid>.diamond.ac.uk/`, log in with your DLS account, and install the
+  app.
+- **Browser:** on a DLS machine, open `https://scrap-<fedid>.diamond.ac.uk/` and log in.
+
+Claude Code is already connected: `claude mcp list` shows `scrap`. Ask Claude to search your
+pages. To add the `sc` commands and skills, see [](../how-to/connect-claude-code.md).
+
+That is all. The rest of this page is details.
+
+## Details
+
+### What the installer does
+
+1. It asks for your Claude API key. Without one, photos queue and nothing more happens.
+2. It creates a Secret `scrap-secrets` holding the key, a generated `/mcp` bearer token and a
+   generated upload token for your public pages.
+3. It installs the latest scrap release with Helm, with Ingresses for `scrap-<fedid>` and
+   `pages-<fedid>` on argus's `nginx` ingress, served over HTTPS by its `*.diamond.ac.uk`
+   certificate.
+4. It puts the web app behind the DLS login (Keycloak), letting in only your fedid, which is
+   your namespace's name (in lower case). Pods in the cluster can reach scrap's Service directly,
+   but scrap checks the login's token itself, so without your login they get `401`. You stay
+   logged in as long as your DLS Keycloak session lasts; when it ends, the web app and the phone
+   app take you to the DLS login again.
+5. It makes `/dls/science/users/<fedid>/scrap` (mode 700, if it is new) for the nightly backups.
+   scrap's pods run as you, so the backups are your files.
+6. It puts scrap's database on the pod's own disk, not on your NFS volume, where SQLite is not
+   safe, with Litestream copying each change to that volume ({ref}`k8s-litestream`).
+7. It connects Claude Code (below).
+8. It prints the Service IP, your bearer token (once), and what to do next.
 
 **What can be lost.** While it is working, the copy follows each write by about a second, so if the
 node dies, the last moments of writes are lost. A normal restart or upgrade loses nothing: the new
-pod restores the database first. If the copy stops working (it noticed by itself within about 20
-minutes), scrap leaves the network until it works again, so the app shows it as unreachable; writes
-in those minutes are at risk, and a later restart refuses to start without someone looking. An install from before this moves over by itself when you re-run the installer,
-leaving the old `/data/scrap.db` in place. If a pod ever stays in `Init`, it is refusing to start
-without your data rather than starting empty: `kubectl logs deploy/scrap -c db-init` says why.
+pod restores the database first. If the copy stops working (scrap notices by itself within about
+20 minutes), scrap leaves the network until it works again, so the app shows it as unreachable;
+writes in those minutes are at risk, and a later restart refuses to start without someone looking.
+An install from before this moves over by itself when you re-run the installer, leaving the old
+`/data/scrap.db` in place. If a pod ever stays in `Init`, it is refusing to start without your
+data rather than starting empty: `kubectl logs deploy/scrap -c db-init` says why.
+
+### Re-running and settings
 
 It is safe to re-run: a re-run upgrades to the latest release and never overwrites the Secret. A
-Secret made by an older installer gets only the upload token added. Set `SCRAP_VERSION` to install a particular release;
-the script and chart go together, so an older release needs that version's script.
-`SCRAP_BACKUP_DIR` moves the backups (empty keeps them on a volume in the cluster). If you
-install into a namespace not named after your fedid, set `SCRAP_USER` to your fedid. The
-header of the script lists every setting.
+Secret made by an older installer gets only the upload token added. Settings go in the
+environment, after the pipe (`curl ... | SCRAP_VERSION=1.7.0 sh`):
 
-Keep the token in a password manager. To see it again:
+- `SCRAP_VERSION` installs a particular release. The script and chart go together, so an older
+  release needs that version's script.
+- `SCRAP_BACKUP_DIR` moves the backups (empty keeps them on a volume in the cluster).
+- `SCRAP_USER` is your fedid, for a namespace not named after it.
+- `SCRAP_CLAUDE=off` leaves Claude Code alone.
+
+The header of the script lists every setting. To see your bearer token again:
 
 ```
 kubectl get secret scrap-secrets -o jsonpath='{.data.SCRAP_MCP_TOKEN}' | base64 -d; echo
 ```
+
+(install-dls-claude)=
+### Claude Code
+
+Claude Code reaches scrap at `/mcp` with your bearer token. It runs a small helper script each
+time it connects, and the helper reads the token from a private file. The installer:
+
+1. puts the token in `~/.config/terminal-config/.env` (mode 600, private before the token goes
+   in), as `SCRAP_MCP_TOKEN=...`, replacing a line already there and keeping the others;
+2. writes the helper `~/.claude/scrap-headers.sh` (mode 700):
+
+   ```sh
+   #!/bin/sh
+   # Headers for scrap's /mcp: the bearer token
+   set -a; . ~/.config/terminal-config/.env; set +a
+   printf '{"Authorization":"Bearer %s"}\n' "$SCRAP_MCP_TOKEN"
+   ```
+
+3. adds scrap to Claude Code for all your projects, replacing a `scrap` already there:
+
+   ```sh
+   claude mcp add-json --scope user scrap \
+     "{\"type\":\"http\",\"url\":\"https://scrap-$USER.diamond.ac.uk/mcp\",\"headersHelper\":\"$HOME/.claude/scrap-headers.sh\"}"
+   ```
+
+If `claude` is not on your path, or this step fails, the installer still succeeds and prints the
+command to run. `SCRAP_CLAUDE=off` skips all three.
+
+In claude-sandbox, make the helper and add scrap inside the container, and in the helper's
+`set -a` line use `/user-terminal-config/.env`, where claude-sandbox mounts the same file.
+
+```{note}
+Only Claude Code on the DLS network can reach scrap's `/mcp`. Claude.ai's hosted connectors and
+cloud sessions cannot reach a DLS-internal address.
+```
+
+### Before the DNS names exist
+
+Check scrap is up with a port-forward:
+
+```
+kubectl port-forward svc/scrap 8000:80
+```
+
+and open <http://127.0.0.1:8000/healthz>. The web app answers only with your login's token, which
+comes through the Ingress, so it and the phone app need the DNS names.
+
+### If logging in fails
+
+If logging in fails with an invalid redirect error, ask a scrap admin to add
+`https://scrap-<fedid>.diamond.ac.uk/oauth2/callback` to the Keycloak client. `/mcp` does not need
+it. Admins: see [](../how-to/run-the-dls-login-proxy.md).
 
 (install-dls-no-login)=
 ### Without a login, for testing
@@ -86,48 +157,21 @@ at all**: **anyone on the DLS network can read and change every page**, and any 
 can too. Your bearer token still guards `/mcp`, but that does not protect the web app or its API.
 ```
 
-To let colleagues test before your login address is on the Keycloak client, set `SCRAP_LOGIN=off`.
-In a pipe, the variable goes after it:
+To let colleagues test before your login address is on the Keycloak client, set `SCRAP_LOGIN=off`:
 
 ```
 curl -fsSL https://raw.githubusercontent.com/gilesknap/scrap/main/deploy/install-dls.sh | SCRAP_LOGIN=off sh
 ```
 
-It checks no fedid (`SCRAP_USER` is not used), and everything else is as normal: the bearer token on `/mcp`, backups,
-public pages and the database. The installer warns you up front and again in its summary. Only
-exactly `off` does this: anything but `on` or `off` stops the installer before it touches anything.
+It checks no fedid (`SCRAP_USER` is not used), and everything else is as normal: the bearer token
+on `/mcp`, Claude Code, backups, public pages and the database. The installer warns you up front
+and again in its summary. Only exactly `off` does this: anything but `on` or `off` stops the
+installer before it touches anything.
 
-**To turn the login on**, re-run the installer without it. Your Secret and your data are kept. Then
-ask for your login address (step 4). If that run fails, nothing has been turned on: the web app still
-has no login until it succeeds.
+**To turn the login on**, re-run the installer without it. Your Secret and your data are kept. If
+that run fails, nothing has been turned on: the web app still has no login until it succeeds.
 
-## 3. Ask for the DNS names
-
-Names under `diamond.ac.uk` are not made for you: raise a request at
-<https://jira.diamond.ac.uk/servicedesk/customer/portal/2/create/156> asking for
-`scrap-<fedid>.diamond.ac.uk` and `pages-<fedid>.diamond.ac.uk` to be set up on the argus ingress
-for your namespace. The installer lists only the names that do not resolve yet. Until they exist,
-check scrap is up with a port-forward:
-
-```
-kubectl port-forward svc/scrap 8000:80
-```
-
-and open <http://127.0.0.1:8000/healthz>. The web app answers only with your login's token, which
-comes through the Ingress, so it and the phone app need the DNS names.
-
-## 4. Ask for your login address
-
-Ask a scrap admin to add your login address to the Keycloak client:
-
-```
-https://scrap-<fedid>.diamond.ac.uk/oauth2/callback
-```
-
-Until it is added, logging in to the web app fails with an invalid redirect error. `/mcp` does not
-need it. Admins: see [](../how-to/run-the-dls-login-proxy.md).
-
-## Your backups
+### Your backups
 
 scrap backs up every night at 03:30 (UTC) to `/dls/science/users/<fedid>/scrap` on the DLS
 filesystem, one folder per run, named for its time (like `20261104T033000Z`). It keeps the last 7
@@ -137,80 +181,21 @@ the backups are your files. To put them elsewhere, set `SCRAP_BACKUP_DIR` before
 installer. Backups work from Litestream's copy of the database, not the live one, but still
 run on the same node as the scrap pod. To restore from them, see [below](#install-dls-restore).
 
-## 5. Use it
-
-- **Phone:** to use scrap from your phone, you must first add the phone to the DLS VPN; follow DLS
-  IT's VPN instructions for that. Then, on the VPN, open `https://scrap-<fedid>.diamond.ac.uk/`,
-  log in with your DLS account on the login page that shows the first time, and install the app.
-- **Browser:** on a DLS machine, open `https://scrap-<fedid>.diamond.ac.uk/` and log in with your
-  DLS account.
-
-## 6. Connect Claude Code
-
-Claude Code reaches scrap at `/mcp` with your bearer token. Claude Code runs a small helper
-script each time it connects, and the helper reads the token from a private file. Do this once,
-on a DLS machine, after `module load argus`.
-
-**1. Save the token** in `~/.config/terminal-config/.env`, readable only by you:
-
-```sh
-mkdir -p ~/.config/terminal-config
-touch ~/.config/terminal-config/.env
-chmod 600 ~/.config/terminal-config/.env
-token=$(kubectl get secret scrap-secrets -o jsonpath='{.data.SCRAP_MCP_TOKEN}' | base64 -d)
-if [ -n "$token" ]; then
-  printf 'SCRAP_MCP_TOKEN=%s\n' "$token" >> ~/.config/terminal-config/.env
-else
-  echo "No token: check kubectl get secret scrap-secrets"
-fi
-unset token
-```
-
-The file is private before the token goes in, and nothing is written if `kubectl` fails.
-
-**2. Make the helper** `~/.claude/scrap-headers.sh`:
-
-```sh
-mkdir -p ~/.claude
-cat > ~/.claude/scrap-headers.sh <<'EOF'
-#!/bin/sh
-# Headers for scrap's /mcp: the bearer token
-set -a; . ~/.config/terminal-config/.env; set +a
-printf '{"Authorization":"Bearer %s"}\n' "$SCRAP_MCP_TOKEN"
-EOF
-chmod 700 ~/.claude/scrap-headers.sh
-```
-
-**3. Add scrap to Claude Code**, for all your projects:
-
-```sh
-claude mcp add-json --scope user scrap \
-  "{\"type\":\"http\",\"url\":\"https://scrap-$USER.diamond.ac.uk/mcp\",\"headersHelper\":\"$HOME/.claude/scrap-headers.sh\"}"
-```
-
-**4. Check it.** `claude mcp list` shows `scrap` as connected. Ask Claude to search your pages.
-
-In claude-sandbox, do steps 2 to 4 inside the container, and in the helper's `set -a` line use
-`/user-terminal-config/.env`, where claude-sandbox mounts the same file. To install the `sc`
-commands and skills, see [](../how-to/connect-claude-code.md).
-
-```{note}
-Only Claude Code on the DLS network can reach scrap's `/mcp`. Claude.ai's hosted connectors and
-cloud sessions cannot reach a DLS-internal address.
-```
-
-## Publish pages
+### Publish pages
 
 A page you make public is copied to your own static site, `https://pages-<fedid>.diamond.ac.uk/`,
 where anyone on the DLS network can read it without logging in. scrap itself stays private. In the
 app, open a page's **Share** menu and choose **Make public…**. To take a page down, make it private
 again (**Make private** in the Share menu). What goes public with a page is in [](../how-to/publish-pages.md).
 
-## More
-
-For everything the chart can do (backups, restore, upgrades), see [](../how-to/deploy-kubernetes.md).
-
 (install-dls-restore)=
-To restore from the backups in your directory, follow its restore steps with the changes in
+### Restore
+
+To restore from the backups in your directory, follow the restore steps in
+[](../how-to/deploy-kubernetes.md) with the changes in
 {ref}`with Litestream <k8s-restore-litestream>` and {ref}`backups in a hostPath <k8s-restore-hostpath>`,
 and your namespace in place of `-n scrap`.
+
+### More
+
+For everything the chart can do (backups, restore, upgrades), see [](../how-to/deploy-kubernetes.md).
