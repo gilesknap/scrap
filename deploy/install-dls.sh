@@ -13,8 +13,10 @@
 # pages-$USER.diamond.ac.uk to anyone on the DLS network.
 #
 # It also connects Claude Code to /mcp, for all your projects: the token goes in
-# ~/.config/terminal-config/.env (mode 600), a helper ~/.claude/scrap-headers.sh reads it,
-# and `claude mcp add-json --scope user scrap` adds scrap (replacing a scrap already there).
+# ~/.config/terminal-config/.env (mode 600) as SCRAP_DLS_MCP_TOKEN, a helper
+# ~/.claude/scrap-dls-headers.sh reads it, and `claude mcp add-json --scope user scrap-dls`
+# adds the server (replacing a scrap-dls already there). A server named scrap, its helper
+# and SCRAP_MCP_TOKEN, for another scrap, are left alone.
 #
 # scrap's database is on the pod's own disk, replicated continuously by Litestream to its
 # volume, which is NFS here (ADR 46). An install from before that moves over by itself on
@@ -93,20 +95,21 @@ login_unchanged() {
 headers_helper() {
     cat <<'EOF'
 #!/bin/sh
-# Headers for scrap's /mcp: the bearer token
+# Headers for scrap's /mcp at DLS: the bearer token
 set -a; . ~/.config/terminal-config/.env; set +a
-printf '{"Authorization":"Bearer %s"}\n' "$SCRAP_MCP_TOKEN"
+printf '{"Authorization":"Bearer %s"}\n' "$SCRAP_DLS_MCP_TOKEN"
 EOF
 }
 
-# Connects Claude Code to /mcp. Sets claude_done to yes (connected), missing (no claude),
-# failed (claude mcp add-json failed) or no (a step before it failed, with a warning).
+# Connects Claude Code to /mcp, as the server scrap-dls. Sets claude_done to yes
+# (connected), missing (no claude), failed (claude mcp add-json failed) or no (a step
+# before it failed, with a warning).
 # Never fails the install: it runs as `connect_claude || true`, so set -e is off in it,
 # and each step checks itself.
 connect_claude() {
     claude_done=no
     env_file=$HOME/.config/terminal-config/.env
-    helper=$HOME/.claude/scrap-headers.sh
+    helper=$HOME/.claude/scrap-dls-headers.sh
     mcp_json='{"type":"http","url":"https://'$host'/mcp","headersHelper":"'$helper'"}'
     # The token, from kubectl's output: never on a command line.
     token=$(kubectl -n "$ns" get secret "$secret" -o jsonpath='{.data.SCRAP_MCP_TOKEN}' \
@@ -119,8 +122,8 @@ connect_claude() {
     # (and its inode, so a container that mounts it sees the change).
     tmp=$(mktemp -d) && chmod 700 "$tmp" &&
         mkdir -p "${env_file%/*}" && (umask 077 && touch "$env_file") && chmod 600 "$env_file" &&
-        { grep -v '^SCRAP_MCP_TOKEN=' "$env_file" >"$tmp/env" || [ $? = 1 ]; } &&
-        printf 'SCRAP_MCP_TOKEN=%s\n' "$token" >>"$tmp/env" &&
+        { grep -v '^SCRAP_DLS_MCP_TOKEN=' "$env_file" >"$tmp/env" || [ $? = 1 ]; } &&
+        printf 'SCRAP_DLS_MCP_TOKEN=%s\n' "$token" >>"$tmp/env" &&
         cat "$tmp/env" >"$env_file"
     ok=$?
     token=
@@ -138,9 +141,9 @@ connect_claude() {
         claude_done=missing
         return 0
     fi
-    # Replace a scrap already there, so a re-run is safe.
-    claude mcp remove --scope user scrap </dev/null >/dev/null 2>&1 || true
-    if out=$(claude mcp add-json --scope user scrap "$mcp_json" </dev/null 2>&1); then
+    # Replace a scrap-dls already there, so a re-run is safe.
+    claude mcp remove --scope user scrap-dls </dev/null >/dev/null 2>&1 || true
+    if out=$(claude mcp add-json --scope user scrap-dls "$mcp_json" </dev/null 2>&1); then
         claude_done=yes
     else
         claude_done=failed
@@ -515,7 +518,7 @@ EOF
     fi
     echo
     case $claude_done in
-    yes) echo "Claude Code is connected to scrap for all your projects: see 'claude mcp list'." ;;
+    yes) echo "Claude Code is connected to scrap for all your projects, as scrap-dls: see 'claude mcp list'." ;;
     off) echo "Claude Code left alone (SCRAP_CLAUDE=off)." ;;
     no) echo "Claude Code is not connected: fix the cause above, then re-run this script." ;;
     *)
@@ -524,7 +527,7 @@ EOF
         else
             echo "Claude Code is not connected: fix the cause above, then run:"
         fi
-        echo "  claude mcp add-json --scope user scrap '$mcp_json'"
+        echo "  claude mcp add-json --scope user scrap-dls '$mcp_json'"
         ;;
     esac
     if [ "$claude_done" != yes ] && [ "$claude_done" != off ]; then

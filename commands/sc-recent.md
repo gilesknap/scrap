@@ -6,7 +6,7 @@ argument-hint: [period, e.g. 1d, 1w]
 Show what changed in scrap recently. The argument is a period such as `1d`, `3d`, `2w` or `1m`
 (1m is 30 days); the default is `1d`. Read-only: write and edit nothing.
 
-Use ONLY `mcp__scrap__search` and `mcp__scrap__revisions`. If they are missing, say so and give:
+Use ONLY `mcp__scrap__search` and `mcp__scrap__revisions` (from the `scrap` server if there is one, else `scrap-dls`: `mcp__scrap-dls__*`). If they are missing, say so and give:
 `claude mcp add --transport http --scope user scrap <SCRAP_URL>/mcp`.
 
 1. `revisions` with no `page` or `batch` and `limit` 100: the recent-changes feed, newest first.

@@ -54,15 +54,16 @@ esac
 while [ \$# -gt 0 ]; do [ "\$1" = -f ] && cp "\$2" "$tmp/values.yaml"; shift; done
 [ -z "\${STUB_HELM_FAIL:-}" ]
 STUB
-# claude: records calls; remove fails unless scrap was added, add-json fails on STUB_CLAUDE_FAIL.
+# claude: records calls; a user-scope server NAME is the file $tmp/claude-NAME. remove
+# fails unless it is there; add-json fails on STUB_CLAUDE_FAIL.
 cat >"$tmp/bin/claude" <<STUB
 #!/bin/sh
 echo "\$*" >>"$tmp/claude.calls"
 case "\$*" in
-  "mcp remove --scope user scrap") rm "$tmp/claude-added" 2>/dev/null; exit \$? ;;
-  "mcp add-json --scope user scrap "*)
+  "mcp remove --scope user "*) rm "$tmp/claude-\$4" 2>/dev/null; exit \$? ;;
+  "mcp add-json --scope user "*)
     [ -z "\${STUB_CLAUDE_FAIL:-}" ] || { echo "stub claude: no" >&2; exit 1; }
-    touch "$tmp/claude-added"; exit 0 ;;
+    printf '%s\\n' "\$5" >"$tmp/claude-\$4"; exit 0 ;;
 esac
 exit 1
 STUB
@@ -86,6 +87,15 @@ run() {
     PATH="$tmp/bin:$sys_path" HOME="$tmp/home" USER=abc12345 SCRAP_BACKUP_DIR="${SCRAP_BACKUP_DIR-$tmp/science/scrap}" \
         TMPDIR="$tmp/installer-tmp" detached "$here/install-dls.sh" </dev/null >"$tmp/out" 2>&1
 }
+
+# Another scrap already set up for Claude Code: a server named scrap, its helper and its
+# token in the .env. The installer must leave all three alone.
+envf=$tmp/home/.config/terminal-config/.env
+mkdir -p "$tmp/home/.claude" "${envf%/*}"
+printf '#!/bin/sh\n# the home scrap\n' >"$tmp/home/.claude/scrap-headers.sh"
+cp "$tmp/home/.claude/scrap-headers.sh" "$tmp/home-helper"
+printf 'SCRAP_MCP_TOKEN=home\n' >"$envf"; chmod 600 "$envf"
+echo home >"$tmp/claude-scrap"
 
 # First run: key from the environment, token generated and shown once.
 : >"$tmp/kubectl.calls"; : >"$tmp/claude.calls"; touch "$tmp/key"
@@ -144,25 +154,24 @@ check "no patch for a new Secret" sh -c "! grep -q 'patch secret' '$tmp/kubectl.
 check "asks for both names" sh -c "grep -q '^         scrap-abc12345.diamond.ac.uk$' '$tmp/out' &&
     grep -q '^         pages-abc12345.diamond.ac.uk$' '$tmp/out'"
 check "the Keycloak redirect, as a hint" grep -q "^     https://scrap-abc12345.diamond.ac.uk/oauth2/callback to the Keycloak client.$" "$tmp/out"
-# Claude Code: the token in a private .env, the helper, and scrap added for all projects.
-envf=$tmp/home/.config/terminal-config/.env
-helper=$tmp/home/.claude/scrap-headers.sh
+# Claude Code: the token in a private .env, the helper, and scrap-dls added for all projects.
+helper=$tmp/home/.claude/scrap-dls-headers.sh
 tok=$(cat "$tmp/created-SCRAP_MCP_TOKEN")
 json='{"type":"http","url":"https://scrap-abc12345.diamond.ac.uk/mcp","headersHelper":"'$helper'"}'
 cat >"$tmp/want-helper" <<'EOF'
 #!/bin/sh
-# Headers for scrap's /mcp: the bearer token
+# Headers for scrap's /mcp at DLS: the bearer token
 set -a; . ~/.config/terminal-config/.env; set +a
-printf '{"Authorization":"Bearer %s"}\n' "$SCRAP_MCP_TOKEN"
+printf '{"Authorization":"Bearer %s"}\n' "$SCRAP_DLS_MCP_TOKEN"
 EOF
 check "claude: .env is mode 600" sh -c "[ \"\$(stat -c %a '$envf')\" = 600 ]"
-check "claude: the token in .env" grep -qx "SCRAP_MCP_TOKEN=$tok" "$envf"
+check "claude: the token in .env" grep -qx "SCRAP_DLS_MCP_TOKEN=$tok" "$envf"
 check "claude: helper is mode 700" sh -c "[ \"\$(stat -c %a '$helper')\" = 700 ]"
 check "claude: helper as in the tutorial" cmp -s "$helper" "$tmp/want-helper"
 check "claude: the helper gives the header" sh -c "HOME='$tmp/home' '$helper' |
     grep -qxF '{\"Authorization\":\"Bearer $tok\"}'"
-check "claude: scrap added with the JSON" grep -qxF "mcp add-json --scope user scrap $json" "$tmp/claude.calls"
-check "claude: says it is connected" grep -q "Claude Code is connected to scrap" "$tmp/out"
+check "claude: scrap-dls added with the JSON" grep -qxF "mcp add-json --scope user scrap-dls $json" "$tmp/claude.calls"
+check "claude: says it is connected" grep -q "Claude Code is connected to scrap for all your projects, as scrap-dls" "$tmp/out"
 check "claude: no tutorial link when connected" sh -c "! grep -q 'install-dls-claude' '$tmp/out'"
 check "mcp token never on a command line" sh -c "! grep -qF '$tok' '$tmp/kubectl.calls' '$tmp/helm.calls' '$tmp/claude.calls'"
 cp "$tmp/values.yaml" "$tmp/first-values.yaml"
@@ -176,9 +185,14 @@ check "says which version" sh -c "head -n1 '$tmp/out' | grep -q 'Installing scra
 # Re-run: the secret exists, so no create and no token printed.
 : >"$tmp/kubectl.calls"; : >"$tmp/claude.calls"
 run
-check "claude: the token once in .env after re-runs" [ "$(grep -c '^SCRAP_MCP_TOKEN=' "$envf")" = 1 ]
-check "claude: re-run removes scrap, then adds it" sh -c "[ \"\$(sed -n 1p '$tmp/claude.calls')\" = 'mcp remove --scope user scrap' ] &&
-    grep -qxF 'mcp add-json --scope user scrap $json' '$tmp/claude.calls' && [ \"\$(wc -l <'$tmp/claude.calls')\" = 2 ]"
+check "claude: the token once in .env after re-runs" [ "$(grep -c '^SCRAP_DLS_MCP_TOKEN=' "$envf")" = 1 ]
+check "claude: re-run removes scrap-dls, then adds it" sh -c "[ \"\$(sed -n 1p '$tmp/claude.calls')\" = 'mcp remove --scope user scrap-dls' ] &&
+    grep -qxF 'mcp add-json --scope user scrap-dls $json' '$tmp/claude.calls' && [ \"\$(wc -l <'$tmp/claude.calls')\" = 2 ]"
+check "the other scrap: its server left alone" sh -c "[ \"\$(cat '$tmp/claude-scrap')\" = home ] &&
+    ! grep -Eq ' scrap( |\$)' '$tmp/claude.calls'"
+check "the other scrap: its helper left alone" cmp -s "$tmp/home/.claude/scrap-headers.sh" "$tmp/home-helper"
+check "the other scrap: its token left alone" sh -c "[ \"\$(grep -c '^SCRAP_MCP_TOKEN=' '$envf')\" = 1 ] &&
+    grep -qx SCRAP_MCP_TOKEN=home '$envf'"
 check "keeps existing secret" sh -c "! grep -q 'create secret' '$tmp/kubectl.calls'"
 check "token not reshown" sh -c "! grep -q 'shown once' '$tmp/out'"
 check "no patch when the publish key exists" sh -c "! grep -q 'patch secret' '$tmp/kubectl.calls'"
@@ -317,11 +331,11 @@ run
 check "ingest off without a key" sh -c "grep -A1 '^ingest:' '$tmp/values.yaml' | grep -q 'enabled: false'"
 
 # Claude Code: other lines in the .env kept, the token line replaced, the file made private.
-printf 'OTHER=1\nSCRAP_MCP_TOKEN=old\nLAST=2' >"$envf"; chmod 644 "$envf"
+printf 'OTHER=1\nSCRAP_DLS_MCP_TOKEN=old\nLAST=2' >"$envf"; chmod 644 "$envf"
 run
 check "claude: other .env lines kept" sh -c "grep -qx OTHER=1 '$envf' && grep -qx LAST=2 '$envf'"
-check "claude: the old token line replaced" sh -c "[ \"\$(grep -c '^SCRAP_MCP_TOKEN=' '$envf')\" = 1 ] &&
-    ! grep -q '^SCRAP_MCP_TOKEN=old' '$envf'"
+check "claude: the old token line replaced" sh -c "[ \"\$(grep -c '^SCRAP_DLS_MCP_TOKEN=' '$envf')\" = 1 ] &&
+    ! grep -q '^SCRAP_DLS_MCP_TOKEN=old' '$envf'"
 check "claude: an open .env made private" sh -c "[ \"\$(stat -c %a '$envf')\" = 600 ]"
 
 # No claude on the PATH: the install succeeds and says what to run.
@@ -330,7 +344,7 @@ if run; then nc_rc=0; else nc_rc=1; fi
 mv "$tmp/claude.off" "$tmp/bin/claude"
 check "no claude: the install succeeds" [ "$nc_rc" = 0 ]
 check "no claude: says so" grep -q "Claude Code was not found" "$tmp/out"
-check "no claude: prints the command" grep -qxF "  claude mcp add-json --scope user scrap '$json'" "$tmp/out"
+check "no claude: prints the command" grep -qxF "  claude mcp add-json --scope user scrap-dls '$json'" "$tmp/out"
 check "no claude: links the tutorial" grep -q "install-dls.html#install-dls-claude" "$tmp/out"
 
 # claude fails: warned, and the install still succeeds.
@@ -338,7 +352,7 @@ if (STUB_CLAUDE_FAIL=1 run); then cf_rc=0; else cf_rc=1; fi
 check "claude fails: the install succeeds" [ "$cf_rc" = 0 ]
 check "claude fails: warns" grep -q "WARNING: claude mcp add-json failed" "$tmp/out"
 check "claude fails: says what to run" grep -q "fix the cause above, then run:" "$tmp/out"
-check "claude fails: prints the command" grep -qxF "  claude mcp add-json --scope user scrap '$json'" "$tmp/out"
+check "claude fails: prints the command" grep -qxF "  claude mcp add-json --scope user scrap-dls '$json'" "$tmp/out"
 
 # SCRAP_CLAUDE=off: no .env, no helper, no claude.
 rm -rf "${tmp:?}/home"; : >"$tmp/claude.calls"

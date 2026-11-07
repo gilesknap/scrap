@@ -20,6 +20,7 @@ The rest of the arguments, if any, are the title.
 
 Use ONLY the scrap MCP tools (`mcp__scrap__tags`, `search`, `read`, `write`), except for `day`,
 which also uses `mcp__scrap__revisions`, `topics`, `ListAgents`, `SendMessage`, `gh` and `jq`.
+The scrap tools are the `scrap` server's if there is one, else `scrap-dls`'s (`mcp__scrap-dls__*`).
 If the scrap tools are missing, say so and give the connect line:
 `claude mcp add --transport http --scope user scrap <SCRAP_URL>/mcp`.
 

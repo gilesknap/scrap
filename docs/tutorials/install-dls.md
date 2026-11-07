@@ -42,7 +42,7 @@ for your namespace. The installer lists only the names that do not resolve yet.
   app.
 - **Browser:** on a DLS machine, open `https://scrap-<fedid>.diamond.ac.uk/` and log in.
 
-Claude Code is already connected: `claude mcp list` shows `scrap`. Ask Claude to search your
+Claude Code is already connected: `claude mcp list` shows `scrap-dls`. Ask Claude to search your
 pages. To add the `sc` commands and skills, see [](../how-to/connect-claude-code.md).
 
 That is all. The rest of this page is details.
@@ -103,27 +103,31 @@ Claude Code reaches scrap at `/mcp` with your bearer token. It runs a small help
 time it connects, and the helper reads the token from a private file. The installer:
 
 1. puts the token in `~/.config/terminal-config/.env` (mode 600, private before the token goes
-   in), as `SCRAP_MCP_TOKEN=...`, replacing a line already there and keeping the others;
-2. writes the helper `~/.claude/scrap-headers.sh` (mode 700):
+   in), as `SCRAP_DLS_MCP_TOKEN=...`, replacing a line already there and keeping the others;
+2. writes the helper `~/.claude/scrap-dls-headers.sh` (mode 700):
 
    ```sh
    #!/bin/sh
-   # Headers for scrap's /mcp: the bearer token
+   # Headers for scrap's /mcp at DLS: the bearer token
    set -a; . ~/.config/terminal-config/.env; set +a
-   printf '{"Authorization":"Bearer %s"}\n' "$SCRAP_MCP_TOKEN"
+   printf '{"Authorization":"Bearer %s"}\n' "$SCRAP_DLS_MCP_TOKEN"
    ```
 
-3. adds scrap to Claude Code for all your projects, replacing a `scrap` already there:
+3. adds the server `scrap-dls` to Claude Code for all your projects, replacing a `scrap-dls`
+   already there:
 
    ```sh
-   claude mcp add-json --scope user scrap \
-     "{\"type\":\"http\",\"url\":\"https://scrap-$USER.diamond.ac.uk/mcp\",\"headersHelper\":\"$HOME/.claude/scrap-headers.sh\"}"
+   claude mcp add-json --scope user scrap-dls \
+     "{\"type\":\"http\",\"url\":\"https://scrap-$USER.diamond.ac.uk/mcp\",\"headersHelper\":\"$HOME/.claude/scrap-dls-headers.sh\"}"
    ```
+
+A server named `scrap` for another scrap, with its `scrap-headers.sh` and `SCRAP_MCP_TOKEN`, is
+left alone. The `sc` commands use `scrap` if it is there, else `scrap-dls`.
 
 If `claude` is not on your path, or this step fails, the installer still succeeds and prints the
 command to run. `SCRAP_CLAUDE=off` skips all three.
 
-In claude-sandbox, make the helper and add scrap inside the container, and in the helper's
+In claude-sandbox, make the helper and add `scrap-dls` inside the container, and in the helper's
 `set -a` line use `/user-terminal-config/.env`, where claude-sandbox mounts the same file.
 
 ```{note}

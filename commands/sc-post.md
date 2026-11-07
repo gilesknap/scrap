@@ -8,7 +8,7 @@ Save your previous response (the last thing you wrote before this command) to sc
 sections. The body is exactly that response's text, character for character. If there is no
 previous response, say so and stop. Bare `/sc-post` with no arguments is the normal use.
 
-Use ONLY the scrap MCP tools (`mcp__scrap__tags`, `mcp__scrap__write`). If they are missing, say
+Use ONLY the scrap MCP tools (`mcp__scrap__tags`, `mcp__scrap__write`) (from the `scrap` server if there is one, else `scrap-dls`: `mcp__scrap-dls__*`). If they are missing, say
 so and give the connect line: `claude mcp add --transport http --scope user scrap <SCRAP_URL>/mcp`
 (`<SCRAP_URL>` is the address scrap is served at; ask the user if you don't know it).
 

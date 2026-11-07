@@ -3,7 +3,7 @@ description: Bulk-fix scrap kinds and tags (dry run first)
 argument-hint: <what to change>
 ---
 
-Bulk kind and tag changes in scrap, using only `mcp__scrap__search`, `tags` and `edit_meta`. If
+Bulk kind and tag changes in scrap, using only `mcp__scrap__search`, `tags` and `edit_meta` (from the `scrap` server if there is one, else `scrap-dls`: `mcp__scrap-dls__*`). If
 the tools are missing, say so and give:
 `claude mcp add --transport http --scope user scrap <SCRAP_URL>/mcp`.
 

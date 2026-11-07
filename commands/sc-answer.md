@@ -6,7 +6,7 @@ argument-hint: <question>
 Answer the question in the arguments from scrap's content alone. If the arguments are empty, ask
 for the question and stop. Read-only: do not write, edit or tag anything.
 
-Use ONLY `mcp__scrap__search`, `mcp__scrap__read` and `mcp__scrap__tags`. If they are missing,
+Use ONLY `mcp__scrap__search`, `mcp__scrap__read` and `mcp__scrap__tags` (from the `scrap` server if there is one, else `scrap-dls`: `mcp__scrap-dls__*`). If they are missing,
 say so and give: `claude mcp add --transport http --scope user scrap <SCRAP_URL>/mcp`.
 
 1. `search` with 2-4 short queries built from the question's key words (try synonyms; tags from

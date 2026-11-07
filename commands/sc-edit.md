@@ -7,7 +7,7 @@ Change the text of one existing page with `edit_page`: the first argument names 
 slug, id or page URL), the rest is the change to make. If either is missing, ask and stop. Counterpart
 to `/sc-write`, which only creates pages.
 
-Use ONLY `mcp__scrap__search`, `read` and `edit_page`. If they are missing, say so
+Use ONLY `mcp__scrap__search`, `read` and `edit_page` (from the `scrap` server if there is one, else `scrap-dls`: `mcp__scrap-dls__*`). If they are missing, say so
 and give: `claude mcp add --transport http --scope user scrap <SCRAP_URL>/mcp`. If `edit_page`
 is missing or refuses with `text editing is off`, content editing is switched off on the server
 (`SCRAP_MCP_CONTENT_EDIT=0`): say so and stop.
