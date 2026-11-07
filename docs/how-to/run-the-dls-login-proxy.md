@@ -33,6 +33,11 @@ sets it up and keeps it running.
   overlapped a refresh. Redis saves nothing to disk, so restarting it (or a node drain moving
   it) logs everyone out once; restarting only the proxy pods does not. Its password is in the
   Secret `oauth2-proxy-redis`, since any pod in the cluster can reach its Service.
+- While Redis is down (a restart or a node drain), every login check fails, so users briefly see
+  "Can't reach the server" until it is back, usually within seconds, as well as logging in again.
+- Browsers that logged in before the move to Redis keep the old split cookies (`_scrap_auth_0`,
+  `_scrap_auth_1`) until they expire or the proxy clears them. They are harmless: they hold no
+  session the proxy will accept.
 
 The chart side is `authProxy` ({ref}`k8s-auth-proxy`). The proxy is the upstream oauth2-proxy
 chart, pinned in `deploy/dls/auth-proxy/install.sh`, with `deploy/dls/auth-proxy/values.yaml`.
@@ -86,9 +91,9 @@ pod, and no Ingress. The proxy answers inside the cluster at
 `oauth2-proxy.scrap.svc.cluster.local`, where every user's installer points by default.
 
 Re-run the script after changing `values.yaml` or the pinned chart version. It keeps the
-Secrets. A run that makes either Secret (the first, or after you deleted one) also restarts Redis
-and the proxy, since their pods read the Secrets only when they start; that logs everyone out
-once. The first run after the move to Redis sessions makes the Redis Secret, so it logs everyone
+Secrets. A run that makes either Secret (the first, or after you deleted one) also restarts the
+proxy, and a Redis that was already running, since their pods read the Secrets only when they
+start; that logs everyone out once. The first run after the move to Redis sessions makes the Redis Secret, so it logs everyone
 out once too.
 With a namespace other than `scrap`, users must set `SCRAP_AUTH_NAMESPACE` to it when they
 run their installer.

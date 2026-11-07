@@ -7,7 +7,8 @@
 # makes a cookie secret, into the Secret oauth2-proxy-keycloak. Any run that finds no
 # Secret oauth2-proxy-redis makes one with a random Redis password (the sessions are kept
 # in a Redis beside the proxy). Later runs keep both Secrets and only upgrade. A run that
-# makes either Secret also restarts Redis and the proxy, which read them only at start.
+# makes either Secret also restarts the proxy, and Redis if it was running before the
+# Redis Secret was made: they read the Secrets only at start.
 # See docs/how-to/run-the-dls-login-proxy.md.
 set -eu
 
@@ -60,7 +61,13 @@ main() {
         echo "Secret $secret already exists in $ns: keeping it."
     fi
 
+    restart=
     if ! kubectl -n "$ns" get secret "$redis_secret" </dev/null >/dev/null 2>&1; then
+        # A Redis already running must restart onto the new password; one the upgrade
+        # below makes starts with it.
+        if kubectl -n "$ns" get deploy oauth2-proxy-redis </dev/null >/dev/null 2>&1; then
+            restart=oauth2-proxy-redis
+        fi
         tmp=$(mktemp -d)
         chmod 700 "$tmp"
         # 32 random bytes in hex: nothing in it needs quoting anywhere.
@@ -80,7 +87,7 @@ main() {
     # The pods read the Secrets only at start, and an upgrade that changes nothing in
     # the chart leaves them running: restart them onto the new Secrets, Redis first.
     if [ -n "$made" ]; then
-        for d in oauth2-proxy-redis oauth2-proxy; do
+        for d in $restart oauth2-proxy; do
             if ! kubectl -n "$ns" rollout restart "deploy/$d" </dev/null ||
                 ! kubectl -n "$ns" rollout status "deploy/$d" --timeout 5m </dev/null; then
                 echo "The new Secret is in place but the $d pods did not restart: run" >&2
