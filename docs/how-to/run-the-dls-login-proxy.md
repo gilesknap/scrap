@@ -52,7 +52,9 @@ Ask the DLS Keycloak team for one client in the `dls` realm
   `preferred_username` comes from Keycloak's built-in username mapper, not from an attribute
   users can edit. scrap trusts it to name the owner.
 
-Keep the client ID and secret for the next step.
+Keep the client ID and secret for the next step. The user installer (`deploy/install-dls.sh`)
+expects the client ID `scrap-central-proxy`; with a different one, each user sets
+`SCRAP_OIDC_CLIENT_ID`.
 
 Also ask the argus admins to confirm that user namespaces may have `ExternalName` Services, and
 that their ingress-nginx allows the `auth-url` and `auth-signin` annotations (its

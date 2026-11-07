@@ -90,6 +90,8 @@ check "backup jobs have room to restore the database" grep -q "^  resources: {li
 check "the database moves off NFS" sh -c "grep -A1 '^litestream:' '$tmp/values.yaml' | grep -q 'enabled: true'"
 check "says what can be lost" grep -q "last moments of writes are lost" "$tmp/out"
 check "runs as the user" grep -q "runAsUser: $(id -u)" "$tmp/values.yaml"
+check "containers name the user too (argus's Kyverno on upgrade)" sh -c "grep -A3 '^securityContext:' '$tmp/values.yaml' | tr -d '\n' |
+    grep -q 'privileged: false *runAsUser: $(id -u) *runAsGroup: $(id -g)'"
 check "no network policy" sh -c "! grep -q '^networkPolicy' '$tmp/values.yaml'"
 # The login: the central proxy, letting in only the fedid the namespace is named for.
 check "no namespace label read" sh -c "! grep -q 'get namespace' '$tmp/kubectl.calls'"
@@ -99,7 +101,7 @@ check "only the owner's fedid" sh -c "grep -A1 '^  allowedUsers:' '$tmp/values.y
 check "says who it lets in" grep -q "let in only abc12345\.$" "$tmp/out"
 check "no warning when the owner is you" sh -c "! grep -q 'not you' '$tmp/out'"
 check "scrap checks DLS Keycloak's token" sh -c "grep -A2 '^  oidc:' '$tmp/values.yaml' | tr -d '\n' |
-    grep -q 'issuer: \"https://identity.diamond.ac.uk/realms/dls\" *clientId: \"scrap\"'"
+    grep -q 'issuer: \"https://identity.diamond.ac.uk/realms/dls\" *clientId: \"scrap-central-proxy\"'"
 check "says a direct call gets 401" grep -q "directly without your login gets 401" "$tmp/out"
 # Public pages: on, in this namespace, on pages-<fedid>, with a key of the one Secret.
 check "body size: maxUploadMB plus a margin" sh -c "grep -qx 'maxUploadMB: 50' '$tmp/values.yaml' &&
