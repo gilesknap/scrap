@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Run the DLS login proxy &#8212; scrap 1.7.1.dev6+gda660f0b9 documentation</title>
+    <title>Run the DLS login proxy &#8212; scrap 1.7.1.dev8+gee5fce824 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=9ef6eeee"></script>
+    <script src="../_static/documentation_options.js?v=d5d8f993"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -551,7 +551,9 @@ off, and not “Email as username” with emails users can edit. And that the ac
 <code class="docutils literal notranslate"><span class="pre">preferred_username</span></code> comes from Keycloak’s built-in username mapper, not from an attribute
 users can edit. scrap trusts it to name the owner.</p></li>
 </ul>
-<p>Keep the client ID and secret for the next step.</p>
+<p>Keep the client ID and secret for the next step. The user installer (<code class="docutils literal notranslate"><span class="pre">deploy/install-dls.sh</span></code>)
+expects the client ID <code class="docutils literal notranslate"><span class="pre">scrap-central-proxy</span></code>; with a different one, each user sets
+<code class="docutils literal notranslate"><span class="pre">SCRAP_OIDC_CLIENT_ID</span></code>.</p>
 <p>Also ask the argus admins to confirm that user namespaces may have <code class="docutils literal notranslate"><span class="pre">ExternalName</span></code> Services, and
 that their ingress-nginx allows the <code class="docutils literal notranslate"><span class="pre">auth-url</span></code> and <code class="docutils literal notranslate"><span class="pre">auth-signin</span></code> annotations (its
 <code class="docutils literal notranslate"><span class="pre">annotations-risk-level</span></code> setting can block them).</p>
