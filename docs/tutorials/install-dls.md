@@ -113,8 +113,13 @@ time it connects, and the helper reads the token from a private file. The instal
    # Headers for scrap's /mcp at DLS: the bearer token, from the .env on the host, or where
    # claude-sandbox mounts it.
    for f in "$HOME/.config/terminal-config/.env" /user-terminal-config/.env; do
-       if [ -r "$f" ]; then set -a; . "$f"; set +a; break; fi
+       if [ -r "$f" ]; then set -a; . "$f"; set +a; fi
+       [ -z "${SCRAP_DLS_MCP_TOKEN:-}" ] || break
    done
+   if [ -z "${SCRAP_DLS_MCP_TOKEN:-}" ]; then
+       echo "SCRAP_DLS_MCP_TOKEN not found in ~/.config/terminal-config/.env or /user-terminal-config/.env" >&2
+       exit 1
+   fi
    printf '{"Authorization":"Bearer %s"}\n' "$SCRAP_DLS_MCP_TOKEN"
    ```
 
@@ -132,9 +137,16 @@ left alone. The `sc` commands use `scrap` if it is there, else `scrap-dls`.
 If `claude` is not on your path, or this step fails, the installer still succeeds and prints the
 command to run. `SCRAP_CLAUDE=off` skips all three.
 
-For claude-sandbox, run the installer on the host (or a DLS machine). Inside claude-sandbox the
-same helper and server work, because claude-sandbox mounts the .env at
-`/user-terminal-config/.env`.
+claude-sandbox has its own `~/.claude` and `~/.claude.json`, so the installer does not reach it.
+Run the installer on the host (or a DLS machine), so the token is in the .env that claude-sandbox
+mounts at `/user-terminal-config/.env`. Then, inside the container, save the same helper as
+`~/.claude/scrap-dls-headers.sh` (mode 700; it finds that .env by itself), and add the server,
+with your fedid (and the container's home, if it is not `/root`):
+
+```sh
+claude mcp add-json --scope user scrap-dls \
+  '{"type":"http","url":"https://scrap-<fedid>.diamond.ac.uk/mcp","headersHelper":"/root/.claude/scrap-dls-headers.sh"}'
+```
 
 ```{note}
 Only Claude Code on the DLS network can reach scrap's `/mcp`. Claude.ai's hosted connectors and

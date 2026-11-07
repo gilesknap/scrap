@@ -163,8 +163,13 @@ cat >"$tmp/want-helper" <<'EOF'
 # Headers for scrap's /mcp at DLS: the bearer token, from the .env on the host, or where
 # claude-sandbox mounts it.
 for f in "$HOME/.config/terminal-config/.env" /user-terminal-config/.env; do
-    if [ -r "$f" ]; then set -a; . "$f"; set +a; break; fi
+    if [ -r "$f" ]; then set -a; . "$f"; set +a; fi
+    [ -z "${SCRAP_DLS_MCP_TOKEN:-}" ] || break
 done
+if [ -z "${SCRAP_DLS_MCP_TOKEN:-}" ]; then
+    echo "SCRAP_DLS_MCP_TOKEN not found in ~/.config/terminal-config/.env or /user-terminal-config/.env" >&2
+    exit 1
+fi
 printf '{"Authorization":"Bearer %s"}\n' "$SCRAP_DLS_MCP_TOKEN"
 EOF
 check "claude: .env is mode 600" sh -c "[ \"\$(stat -c %a '$envf')\" = 600 ]"
@@ -180,6 +185,17 @@ printf 'SCRAP_DLS_MCP_TOKEN=sandbox\n' >"$tmp/sandbox-env/.env"
 sed "s|/user-terminal-config/.env|$tmp/sandbox-env/.env|" "$helper" >"$tmp/sandbox-helper"
 check "claude: the helper reads claude-sandbox's .env" sh -c "HOME='$tmp/sandbox-home' sh '$tmp/sandbox-helper' |
     grep -qxF '{\"Authorization\":\"Bearer sandbox\"}'"
+# A home .env without the token (as a container's might be): it goes on to the next.
+mkdir -p "$tmp/sandbox-home/.config/terminal-config"
+echo OTHER=1 >"$tmp/sandbox-home/.config/terminal-config/.env"
+check "claude: the helper goes past an .env without the token" sh -c "HOME='$tmp/sandbox-home' sh '$tmp/sandbox-helper' |
+    grep -qxF '{\"Authorization\":\"Bearer sandbox\"}'"
+# No token anywhere: an error and exit 1, never an empty bearer.
+: >"$tmp/sandbox-env/.env"
+if HOME="$tmp/sandbox-home" sh "$tmp/sandbox-helper" >"$tmp/helper.out" 2>"$tmp/helper.err"; then hn_rc=0; else hn_rc=1; fi
+check "claude: the helper fails with no token" [ "$hn_rc" = 1 ]
+check "claude: the helper says why, and sends nothing" sh -c "[ ! -s '$tmp/helper.out' ] &&
+    grep -q '^SCRAP_DLS_MCP_TOKEN not found in ~/.config/terminal-config/.env or ' '$tmp/helper.err'"
 check "claude: scrap-dls added with the JSON" grep -qxF "mcp add-json --scope user scrap-dls $json" "$tmp/claude.calls"
 check "claude: says it is connected" grep -q "Claude Code is connected to scrap for all your projects, as scrap-dls" "$tmp/out"
 check "claude: no tutorial link when connected" sh -c "! grep -q 'install-dls-claude' '$tmp/out'"

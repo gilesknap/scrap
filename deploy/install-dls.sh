@@ -98,8 +98,13 @@ headers_helper() {
 # Headers for scrap's /mcp at DLS: the bearer token, from the .env on the host, or where
 # claude-sandbox mounts it.
 for f in "$HOME/.config/terminal-config/.env" /user-terminal-config/.env; do
-    if [ -r "$f" ]; then set -a; . "$f"; set +a; break; fi
+    if [ -r "$f" ]; then set -a; . "$f"; set +a; fi
+    [ -z "${SCRAP_DLS_MCP_TOKEN:-}" ] || break
 done
+if [ -z "${SCRAP_DLS_MCP_TOKEN:-}" ]; then
+    echo "SCRAP_DLS_MCP_TOKEN not found in ~/.config/terminal-config/.env or /user-terminal-config/.env" >&2
+    exit 1
+fi
 printf '{"Authorization":"Bearer %s"}\n' "$SCRAP_DLS_MCP_TOKEN"
 EOF
 }
