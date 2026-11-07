@@ -866,6 +866,11 @@
    "related",
    "CREATE INDEX related_by_other ON related(other_id)"
   ],
+  "scheduled_job": [
+   "table",
+   "scheduled_job",
+   "CREATE TABLE scheduled_job ( name TEXT PRIMARY KEY, seen_at TEXT NOT NULL, -- first known to the scheduler: staleness counts from it started_at TEXT, -- the last start, of the run going now if there is one finished_at TEXT, -- the last run's end result TEXT, -- and how it ended exit_code INTEGER, ok_at TEXT -- the end of the last run that succeeded )"
+  ],
   "tag": [
    "table",
    "tag",
@@ -946,6 +951,7 @@
    ]
   ],
   "related": [],
+  "scheduled_job": [],
   "tag": [],
   "topic": [],
   "topic_run": [],
@@ -2923,6 +2929,74 @@
     ]
    ]
   },
+  "scheduled_job": {
+   "columns": [
+    [
+     0,
+     "name",
+     "TEXT",
+     0,
+     null,
+     1,
+     0
+    ],
+    [
+     1,
+     "seen_at",
+     "TEXT",
+     1,
+     null,
+     0,
+     0
+    ],
+    [
+     2,
+     "started_at",
+     "TEXT",
+     0,
+     null,
+     0,
+     0
+    ],
+    [
+     3,
+     "finished_at",
+     "TEXT",
+     0,
+     null,
+     0,
+     0
+    ],
+    [
+     4,
+     "result",
+     "TEXT",
+     0,
+     null,
+     0,
+     0
+    ],
+    [
+     5,
+     "exit_code",
+     "INTEGER",
+     0,
+     null,
+     0,
+     0
+    ],
+    [
+     6,
+     "ok_at",
+     "TEXT",
+     0,
+     null,
+     0,
+     0
+    ]
+   ],
+   "foreign_keys": []
+  },
   "tag": {
    "columns": [
     [
@@ -3362,5 +3436,5 @@
    ]
   }
  },
- "user_version": 21
+ "user_version": 22
 }

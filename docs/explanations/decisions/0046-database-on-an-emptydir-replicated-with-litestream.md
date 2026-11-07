@@ -164,7 +164,10 @@ and readiness still means `/healthz`.
   the cluster). The affinity stays. A new `ReadWriteMany` claim (`netapp` offers it) might allow
   dropping it, but `accessModes` cannot change on an existing claim, and that was not tried.
 - A failed gc or Claude pass no longer shows as a failed Job: it is in the `jobs` container's log,
-  and pushed to `SCRAP_NOTIFY_URL` if set. A pass stopped by a queue pause or a spent budget is not
+  and pushed to `SCRAP_NOTIFY_URL` if set. Since #558 each run is also recorded in the database
+  (table `scheduled_job`, so it survives the pod), and `scrap schedule status` (a probe: it exits 1 on
+  a failed or stale job, or a backup over 26 hours old) and opt-in Prometheus metrics served by the
+  scheduler report it, with the newest `COMPLETE` backup. A pass stopped by a queue pause or a spent budget is not
   reported as failed: it says so on stderr, and `scrap schedule` reads that last line.
 - A restart of `litestream` or `jobs` that keeps failing takes the pod out of its Service. For both
   that is right: `jobs` is what watches replication, so with it down nothing does.

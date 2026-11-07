@@ -1,0 +1,20 @@
+# The jobs container's Prometheus metrics (#558), with a NetworkPolicy letting a
+# monitoring namespace reach them, and a podAnnotation of the user's own.
+litestream:
+  enabled: true
+  jobs:
+    metrics:
+      enabled: true
+      port: 9464
+      from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring
+networkPolicy:
+  enabled: true
+  from:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: tailscale
+podAnnotations:
+  example.com/owner: scrap

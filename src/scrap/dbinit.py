@@ -27,7 +27,6 @@ so _present, not Path.exists(), which since Python 3.12 answers False on a stale
 """
 
 import os
-import re
 import shutil
 import sqlite3
 import time
@@ -36,7 +35,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
 
-from .backup import _snapshot
+from .backup import RUN, _snapshot
 from .dbstate import (
     HEALTH,
     LEGACY,
@@ -63,7 +62,6 @@ from .store import Store, connect, migrate
 
 __all__ = ["InitError", "Paths", "check_restore", "from_env", "put_in_place", "staged"]
 
-RUN = re.compile(r"\d{8}T\d{6}Z")  # a backup run's folder
 # How far behind the last stamp a restored replica may be: a stamp a little out of date
 # is the last write of a dying node; two is replication that had stopped.
 BEHIND_MINUTES = 30

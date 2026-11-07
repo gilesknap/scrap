@@ -127,6 +127,8 @@ expect_refused "a litestream sizeLimit that is not one" --set litestream.sizeLim
 expect_refused "@every with Litestream" --set litestream.enabled=true --set-string 'gc.schedule=@every 1h'
 expect_refused "a four-field schedule with Litestream" --set litestream.enabled=true --set-string 'gc.schedule=1 2 3 4'
 expect_refused "a litestream digest that is not one" --set litestream.image.digest=latest
+expect_refused "the jobs' metrics on scrap's port" --set litestream.jobs.metrics.port=8000
+expect_refused "an unknown jobs metrics key" --set litestream.jobs.metrics.path=/m
 expect_refused "litestream without native sidecars" --set litestream.enabled=true --kube-version 1.28.0
 expect_refused "litestream with gc but no backups" --set litestream.enabled=true \
     --set backup.enabled=false --set gc.enabled=true
@@ -386,6 +388,28 @@ if helm template scrap "$chart" -f "$chart/ci/litestream-values.yaml" --set lite
     ! echo "$ls_out" | grep -q SCRAP_DB_INIT_OVERRIDE; then
     ok "litestream: the init's override is off unless set"
 else bad "litestream: the init's override is wrong"; fi
+# The jobs' metrics (#558): off by default, and nothing of them without Litestream. On:
+# the port (not in the Service), its setting, the scrape annotations beside the user's,
+# and a NetworkPolicy rule for the port.
+if echo "$ls_out" | grep -Eq 'SCRAP_METRICS_PORT|name: metrics$|prometheus\.io/' ||
+    helm template scrap "$chart" --set litestream.jobs.metrics.enabled=true |
+    grep -Eq 'SCRAP_METRICS_PORT|name: metrics$|prometheus\.io/|port: metrics'; then
+    bad "litestream: the jobs' metrics render while off"
+else ok "litestream: the jobs' metrics are off by default, and without Litestream"; fi
+lm=$(helm template scrap "$chart" -f "$chart/ci/litestream-metrics-values.yaml")
+if echo "$lm" | grep -A1 'name: SCRAP_METRICS_PORT$' | grep -q 'value: "9464"' &&
+    echo "$lm" | grep -B1 'containerPort: 9464$' | grep -q 'name: metrics$' &&
+    echo "$lm" | grep -q 'prometheus.io/port: "9464"$' &&
+    echo "$lm" | grep -q 'prometheus.io/scrape: "true"$' &&
+    echo "$lm" | grep -q 'example.com/owner: scrap$' &&
+    echo "$lm" | grep -q -- '- port: metrics$' && echo "$lm" | grep -q -- '- port: http$' &&
+    ! echo "$lm" | awk '/^kind: Service$/{s=1} /^---/{s=0} s' | grep -q 9464; then
+    ok "litestream: the jobs' metrics on their own port, annotated, let through the NetworkPolicy"
+else bad "litestream: the jobs' metrics lack their port, setting, annotations or NetworkPolicy rule"; fi
+if helm template scrap "$chart" -f "$chart/ci/litestream-metrics-values.yaml" \
+    --set litestream.jobs.metrics.podAnnotations=false | grep -q 'prometheus\.io/'; then
+    bad "litestream: the scrape annotations are there although turned off"
+else ok "litestream: the scrape annotations can be turned off"; fi
 
 # By default both claims (data and backups) carry the annotations that keep them
 # through helm uninstall and an Argo CD prune.
@@ -408,6 +432,7 @@ docs=$repo/docs/reference/api.md
     helm template scrap "$chart" -f "$chart/ci/mcp-auth-values.yaml"
     helm template scrap "$chart" -f "$chart/ci/public-values.yaml"
     helm template scrap "$chart" -f "$chart/ci/litestream-values.yaml" --set litestream.init.override=true
+    helm template scrap "$chart" -f "$chart/ci/litestream-metrics-values.yaml"
 } |
     grep -oE 'name: (SCRAP|ANTHROPIC)_[A-Z_]+' | sed 's/name: //' | sort -u >"$out/env"
 while read -r var; do

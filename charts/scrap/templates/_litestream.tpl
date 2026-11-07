@@ -171,6 +171,19 @@ exist, and with their deadlines. */}}
 {{- $jobs | toJson }}
 {{- end }}
 
+{{/* The pod's annotations: podAnnotations, and with the jobs' metrics on, Prometheus's
+scrape annotations beneath them. */}}
+{{- define "scrap.podAnnotations" -}}
+{{- $annotations := deepCopy (.Values.podAnnotations | default dict) }}
+{{- $metrics := .Values.litestream.jobs.metrics }}
+{{- if and .Values.litestream.enabled $metrics.enabled $metrics.podAnnotations }}
+{{- $annotations = merge $annotations (dict "prometheus.io/scrape" "true" "prometheus.io/port" ($metrics.port | toString) "prometheus.io/path" "/metrics") }}
+{{- end }}
+{{- with $annotations }}
+{{- toYaml . }}
+{{- end }}
+{{- end }}
+
 {{- define "scrap.jobsContainer" -}}
 - name: jobs
   image: {{ include "scrap.image" . }}
@@ -186,9 +199,19 @@ exist, and with their deadlines. */}}
       value: {{ .Values.litestream.sizeLimit | quote }}
     - name: SCRAP_SCHEDULE
       value: {{ include "scrap.scheduledJobs" . | quote }}
+    {{- if .Values.litestream.jobs.metrics.enabled }}
+    - name: SCRAP_METRICS_PORT
+      value: {{ .Values.litestream.jobs.metrics.port | quote }}
+    {{- end }}
   {{- with .Values.extraEnvFrom }}
   envFrom:
     {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- if .Values.litestream.jobs.metrics.enabled }}
+  # scrap schedule's own metrics (scrap.metrics): not in the Service
+  ports:
+    - name: metrics
+      containerPort: {{ .Values.litestream.jobs.metrics.port }}
   {{- end }}
   # scrap schedule keeps this file young while the replica takes writes, and removes it
   # when it does not: the pod then leaves its Service, so scrap stops taking writes it

@@ -6,8 +6,9 @@ differing later: @every, a sign on a number (+5).
 """
 
 import re
-from collections.abc import Sequence
-from datetime import datetime
+from collections.abc import Iterator, Sequence
+from datetime import UTC, datetime, timedelta
+from zoneinfo import ZoneInfo
 
 __all__ = ["Cron"]
 
@@ -25,6 +26,7 @@ DAYS = "sun mon tue wed thu fri sat".split()
 # Each field's lowest and highest value, and its names (from the lowest)
 FIELDS = ((0, 59, []), (0, 23, []), (1, 31, []), (1, 12, MONTHS), (0, 6, DAYS))
 DIGITS = re.compile(r"[0-9]+")  # ASCII: not int()'s 1_0, +5 or other scripts' digits
+SEARCH = timedelta(days=5 * 366)  # how far times() looks: past any leap day
 
 
 def _number(text: str) -> int:
@@ -85,6 +87,7 @@ class Cron:
     """A schedule. ValueError if it is not one."""
 
     def __init__(self, text: str):
+        self.text = text
         fields = NAMED.get(text, text).split()
         if text.startswith("@") and text not in NAMED:
             raise ValueError(f"not a schedule this supports: {text!r}")
@@ -100,12 +103,37 @@ class Cron:
         self.weekday, self.any_weekday = parts[4]
 
     def matches(self, at: datetime) -> bool:
-        if at.minute not in self.minute or at.hour not in self.hour:
-            return False
-        if at.month not in self.month:
+        return at.minute in self.minute and self._hour(at)
+
+    def _hour(self, at: datetime) -> bool:
+        """Whether it fires at all in at's hour."""
+        if at.hour not in self.hour or at.month not in self.month:
             return False
         day = at.day in self.day
         weekday = (at.weekday() + 1) % 7 in self.weekday  # Python's Monday is 0
         if self.any_day or self.any_weekday:
             return day and weekday
         return day or weekday
+
+    def times(
+        self, start: datetime, zone: ZoneInfo | None = None, back: bool = False
+    ) -> Iterator[datetime]:
+        """The minutes it fires at, in UTC, walking real time as scrap schedule does:
+        after start (aware), or with back at or before it, newest first. The schedule
+        is read in zone (None: UTC). Stops SEARCH from start."""
+        at = start.astimezone(UTC).replace(second=0, microsecond=0)
+        step = timedelta(minutes=-1 if back else 1)
+        if not back:
+            at += step
+        end = start - SEARCH if back else start + SEARCH
+        while (at >= end) if back else (at <= end):
+            local = at.astimezone(zone) if zone else at
+            if not self._hour(
+                local
+            ):  # on to the next hour, or back to the last one's end
+                skip = -(local.minute + 1) if back else 60 - local.minute
+                at += timedelta(minutes=skip)
+                continue
+            if local.minute in self.minute:
+                yield at
+            at += step

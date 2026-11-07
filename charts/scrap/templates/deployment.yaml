@@ -21,9 +21,9 @@ spec:
     metadata:
       labels:
         {{- include "scrap.selectorLabels" . | nindent 8 }}
-      {{- with .Values.podAnnotations }}
+      {{- with include "scrap.podAnnotations" . }}
       annotations:
-        {{- toYaml . | nindent 8 }}
+        {{- . | nindent 8 }}
       {{- end }}
     spec:
       {{- include "scrap.podCommon" . | nindent 6 }}

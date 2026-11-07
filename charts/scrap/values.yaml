@@ -255,6 +255,22 @@ litestream:
         memory: 256Mi
       limits:
         memory: 2Gi
+    # Prometheus metrics of these jobs and the backups (#558): each job's last result,
+    # start, end and success, whether it is running or stale, and the newest COMPLETE
+    # backup. Served by the jobs container on GET /metrics at port, at the pod's IP: never
+    # through the Service or the ingress. Without them, `kubectl exec deploy/scrap
+    # -c jobs -- scrap schedule status` says the same.
+    metrics:
+      enabled: false
+      port: 9464
+      # The prometheus.io/scrape, /port and /path annotations on the pod, for a Prometheus
+      # that finds pods by them (podAnnotations of the same name win).
+      podAnnotations: true
+      # With networkPolicy.enabled: who may reach the port (NetworkPolicy peers, e.g.
+      # your Prometheus's namespace). Empty: nobody, as the policy then shuts it.
+      # Without networkPolicy.enabled any pod in the cluster can read it (job names,
+      # results and times only).
+      from: []
 
 service:
   type: ClusterIP

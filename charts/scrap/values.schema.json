@@ -147,7 +147,19 @@
         "jobs": {
           "type": "object",
           "additionalProperties": false,
-          "properties": { "resources": { "type": "object" } }
+          "properties": {
+            "resources": { "type": "object" },
+            "metrics": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "enabled": { "type": "boolean" },
+                "port": { "type": "integer", "minimum": 1024, "maximum": 65535, "not": { "const": 8000 } },
+                "podAnnotations": { "type": "boolean" },
+                "from": { "type": "array", "items": { "type": "object" } }
+              }
+            }
+          }
         }
       }
     },
