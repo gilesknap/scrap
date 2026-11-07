@@ -8,8 +8,9 @@ scrap_job_last_finish_timestamp_seconds and scrap_job_last_success_timestamp_sec
 (each absent until there is one); scrap_job_last_exit_code; scrap_job_last_result, 1 for
 the last run's result (label result: ok, failed, deadline, not-started, paused, stopped)
 and 0 for the others; scrap_job_failed (the last result is failed, deadline or
-not-started); scrap_job_stale (no success in its last two runs, as scrap schedule status
-says); scrap_job_next_run_timestamp_seconds. Then scrap_backup_visible,
+not-started); scrap_job_interrupted (the last run started, recorded no end and is not
+running: killed mid-run); scrap_job_stale (no success in its last two runs, as scrap
+schedule status says); scrap_job_next_run_timestamp_seconds. Then scrap_backup_visible,
 scrap_backup_last_complete_timestamp_seconds (if a COMPLETE run is in view),
 scrap_schedule_records_readable and scrap_schedule_problems (scrap schedule status's
 count; 0 is healthy).
@@ -17,11 +18,11 @@ count; 0 is healthy).
 
 import logging
 import os
+import socket
 import threading
 from collections.abc import Callable
 from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from pathlib import Path
 
 from .schedule import Job
 from .schedule_record import FAILURES, RESULTS
@@ -32,6 +33,30 @@ __all__ = ["from_env", "render", "serve"]
 log = logging.getLogger("scrap.schedule")
 
 CONTENT_TYPE = "text/plain; version=0.0.4; charset=utf-8"
+TIMEOUT = 10  # seconds a connection may sit idle before its thread lets it go
+
+
+class _DualStack(ThreadingHTTPServer):
+    """IPv6 and IPv4 on one socket ("::" with IPV6_V6ONLY off)."""
+
+    address_family = socket.AF_INET6
+
+    def server_bind(self) -> None:
+        self.socket.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_V6ONLY, 0)
+        super().server_bind()
+
+
+def _server(host: str | None, port: int, handler: type) -> ThreadingHTTPServer:
+    """Bound to host, or with None to every address: dual stack, or IPv4 alone where
+    the node has no IPv6."""
+    if host is not None:
+        return ThreadingHTTPServer((host, port), handler)
+    if socket.has_ipv6:
+        try:
+            return _DualStack(("::", port), handler)
+        except OSError:
+            pass
+    return ThreadingHTTPServer(("0.0.0.0", port), handler)  # noqa: S104  by design
 
 
 def _label(value: str) -> str:
@@ -104,6 +129,11 @@ def render(report: Report) -> str:
         lambda s: float(s.failed),
     )
     per_job(
+        "scrap_job_interrupted",
+        "1 if the job's last run started, recorded no end and is not running.",
+        lambda s: float(s.interrupted),
+    )
+    per_job(
         "scrap_job_stale",
         "1 if neither of the job's last two runs due to have ended succeeded.",
         lambda s: float(s.stale),
@@ -139,11 +169,13 @@ def render(report: Report) -> str:
 
 
 def serve(
-    port: int, build: Callable[[], Report], host: str = ""
+    port: int, build: Callable[[], Report], host: str | None = None
 ) -> ThreadingHTTPServer:
     """GET /metrics on port, from a daemon thread. Raises OSError if it cannot bind."""
 
     class Handler(BaseHTTPRequestHandler):
+        timeout = TIMEOUT
+
         def do_GET(self) -> None:  # noqa: N802  the stdlib's name
             if self.path.split("?")[0] != "/metrics":
                 self.send_error(404)
@@ -163,19 +195,20 @@ def serve(
         def log_message(self, format: str, *args: object) -> None:  # noqa: A002
             pass  # a scrape every 30 s is not news
 
-    server = ThreadingHTTPServer((host, port), Handler)
+    server = _server(host, port, Handler)
     server.daemon_threads = True
     threading.Thread(target=server.serve_forever, daemon=True).start()
     return server
 
 
-def from_env(jobs: list[Job], db: Path | None) -> None:
-    """Serve the metrics if SCRAP_METRICS_PORT is set. A bad port, or one that cannot
-    be bound, is logged, and the scheduler runs without them."""
+def from_env(jobs: list[Job]) -> None:
+    """Serve the metrics if SCRAP_METRICS_PORT is set, reading the database and the
+    backups as scrap schedule status does. A bad port, or one that cannot be bound, is
+    logged, and the scheduler runs without them."""
     port = os.environ.get("SCRAP_METRICS_PORT")
     if not port:
         return
-    backups = paths_from_env()[1]
+    db, backups = paths_from_env()
     try:
         serve(int(port), lambda: collect(jobs, db, backups))
     except (ValueError, OSError, OverflowError) as error:

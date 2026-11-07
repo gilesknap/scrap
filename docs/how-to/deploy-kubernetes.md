@@ -1142,9 +1142,10 @@ All healthy.
 
 A result is `ok`, `failed` (a non-zero exit), `deadline` (stopped at its deadline), `not-started`,
 `paused` (a Claude pass stopped at a queue pause or a spent budget: not a failure) or `stopped` (with
-the pod: the next run carries on). `NOTE` says `running` while a run holds the job's lock, and
-`never run`. `--json` gives the same as JSON. It **exits 1** and lists the problems when a job's last
-run failed, was stopped at its deadline or could not start; when a job is **stale**, with no success
+the pod: the next run carries on). `NOTE` says `running` while a run holds the job's lock,
+`never run`, and `INTERRUPTED` when the last run started but recorded no end and is not running
+(the pod was killed mid-run, as at a node's death: a clean stop records `stopped`). `--json` gives the same as JSON. It **exits 1** and lists the problems when a job's last
+run failed, was stopped at its deadline, could not start or was interrupted; when a job is **stale**, with no success
 in either of its last two runs that should have ended by now (each scheduled time plus its deadline:
 a `paused` run is not a success, so a pause that lasts two runs counts; a new job counts from when
 the scheduler first saw it); when the newest `COMPLETE` backup run is over 26 hours old, or there is
@@ -1157,7 +1158,9 @@ metrics on `GET /metrics` at `litestream.jobs.metrics.port` (9464), at the pod's
 Service, not through the ingress. The pod gets the `prometheus.io/scrape`, `/port` and `/path`
 annotations unless `.podAnnotations: false` (or use a PodMonitor on the `metrics` port). With
 `networkPolicy.enabled`, list your Prometheus in `.from` (NetworkPolicy peers), or the port stays
-shut. Each scrape reads the records afresh; per job (label `job`):
+shut. Without a NetworkPolicy, any pod in the cluster can read `/metrics`: it holds only job names,
+results and times, but turn `networkPolicy.enabled` on if that matters. It listens on IPv6 and
+IPv4 where the pod has both. Each scrape reads the records afresh; per job (label `job`):
 
 | Metric | Meaning |
 | --- | --- |
@@ -1166,6 +1169,7 @@ shut. Each scrape reads the records afresh; per job (label `job`):
 | `scrap_job_last_result{result=...}` | 1 for the last run's result (as above), 0 for the other five |
 | `scrap_job_last_exit_code` | The last run's exit status |
 | `scrap_job_failed` | 1 if the last result is `failed`, `deadline` or `not-started` |
+| `scrap_job_interrupted` | 1 if the last run started, recorded no end and is not running |
 | `scrap_job_stale` | 1 if stale, as `scrap schedule status` says |
 | `scrap_job_running` | 1 while it runs |
 | `scrap_job_next_run_timestamp_seconds` | When it is next due |
@@ -1173,7 +1177,7 @@ shut. Each scrape reads the records afresh; per job (label `job`):
 | `scrap_schedule_records_readable`, `scrap_schedule_problems` | Whether the records could be read, and how many problems `status` lists (0 is healthy) |
 
 Alerts to start from: `scrap_schedule_problems > 0`, or by hand
-`scrap_job_failed == 1`, `scrap_job_stale == 1` and
+`scrap_job_failed == 1`, `scrap_job_interrupted == 1`, `scrap_job_stale == 1` and
 `time() - scrap_backup_last_complete_timestamp_seconds > 26 * 3600`. A missing series, as when the
 pod is down, is worth an `absent()` alert too.
 

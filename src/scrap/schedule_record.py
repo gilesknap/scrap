@@ -86,16 +86,27 @@ def held(path: Path, locks: Path = Path("/proc/locks")) -> bool | None:
     )
 
 
-def _write(db: Path | None, what: str, sql: str, *args: object) -> bool:
+_failing: set[str] = set()  # what has failed to record, logged once until it works
+
+
+def _write(db: Path | None, key: str, what: str, sql: str, *args: object) -> bool:
+    """The write; False if it failed. A failure is logged once for key (a job, or the
+    list of jobs), as a warning, until a write for key works again: a database below
+    this table's migration would otherwise log each minute."""
     if not db:
         return False
     try:
         with closing(connect(db)) as conn:
             conn.execute(sql, args)
-        return True
-    except Exception:  # noqa: BLE001  a lost record must never stop a job
-        log.exception("could not record %s", what)
+    except Exception as error:  # noqa: BLE001  a lost record must never stop a job
+        if key not in _failing:
+            _failing.add(key)
+            log.warning("could not record %s (quiet until it works): %s", what, error)
         return False
+    if key in _failing:
+        _failing.discard(key)
+        log.info("recording %s works again", what)
+    return True
 
 
 def seen(db: Path | None, names: list[str]) -> bool:
@@ -107,6 +118,7 @@ def seen(db: Path | None, names: list[str]) -> bool:
     pairs = [value for name in names for value in (name, at)]
     return _write(
         db,
+        "",
         "the jobs",
         f"INSERT INTO scheduled_job (name, seen_at) VALUES {rows}"
         " ON CONFLICT (name) DO NOTHING",
@@ -118,6 +130,7 @@ def started(db: Path | None, name: str) -> None:
     at = now()
     _write(
         db,
+        name,
         f"job {name}'s start",
         "INSERT INTO scheduled_job (name, seen_at, started_at) VALUES (?, ?, ?)"
         " ON CONFLICT (name) DO UPDATE SET started_at = excluded.started_at",
@@ -132,6 +145,7 @@ def finished(db: Path | None, name: str, result: str, code: int | None) -> None:
     ok_at = at if result == OK else None
     _write(
         db,
+        name,
         f"job {name}'s end",
         "INSERT INTO scheduled_job"
         " (name, seen_at, finished_at, result, exit_code, ok_at)"

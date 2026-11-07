@@ -381,10 +381,10 @@ def _watch(db: str | None) -> Watch | None:
 
 def from_env(
     run: str | None = None,
-    beside: Callable[[list[Job], Path | None], None] | None = None,
+    beside: Callable[[list[Job]], None] | None = None,
 ) -> None:
     """scrap schedule, or with run one job now, exiting with its status. beside is
-    started with the jobs and the database before the scheduler runs (the metrics)."""
+    started with the jobs before the scheduler runs (the metrics)."""
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(message)s")
     jobs = load(os.environ.get("SCRAP_SCHEDULE", "[]"))
     db = os.environ.get("SCRAP_DB_PATH")
@@ -404,6 +404,6 @@ def from_env(
     for number in signals:
         signal.signal(number, scheduler.stop)
     if beside:
-        beside(jobs, scheduler.db)
+        beside(jobs)
     log.info("running: %s", ", ".join(j.name for j in jobs) or "only the heartbeat")
     scheduler.run()

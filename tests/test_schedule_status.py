@@ -2,6 +2,7 @@
 
 import json
 import os
+import socket
 import sqlite3
 import sys
 import time
@@ -25,6 +26,7 @@ from scrap.store import Store
 @pytest.fixture(autouse=True)
 def private_locks(tmp_path, monkeypatch):
     monkeypatch.setattr("tempfile.tempdir", str(tmp_path))
+    monkeypatch.setattr(schedule_record, "_failing", set())
 
 
 @pytest.fixture
@@ -188,6 +190,25 @@ def test_a_failure_to_record_never_breaks_the_job(tmp_path, caplog):
     assert "could not record" in caplog.text
 
 
+def test_a_record_failure_is_logged_once_until_it_works(tmp_path, caplog):
+    caplog.set_level("INFO")
+    db = tmp_path / "s.db"
+    sqlite3.connect(db).close()  # below the migration: no table
+    sched = Scheduler([job("a")], db)
+    for _ in range(5):
+        sched.note_jobs()
+        sched.run_job(sched.jobs[0])
+    failures = [r for r in caplog.records if "could not record" in r.getMessage()]
+    # Once for the list of jobs, once for job a (its start and end share it)
+    assert len(failures) == 2
+    assert all(r.levelname == "WARNING" and not r.exc_info for r in failures)
+    Store(tmp_path, db).migrate()
+    sched.note_jobs()
+    sched.run_job(sched.jobs[0])
+    assert "works again" in caplog.text
+    assert read(db)["a"].result == "ok"
+
+
 def test_the_jobs_are_noted_once_the_table_is_there(tmp_path):
     db = tmp_path / "s.db"
     sched = Scheduler([job("a"), job("b")], db)
@@ -222,6 +243,40 @@ def test_without_proc_locks_running_comes_from_the_records(db, tmp_path, monkeyp
     put(db, "j", started_at="2026-11-05T04:30:00Z", finished_at="2026-11-04T04:31:00Z")
     report = collect([job("j")], db, None, at("2026-11-05 04:40"))
     assert report.jobs[0].running
+
+
+def test_a_run_killed_midway_is_interrupted_not_healthy(db, monkeypatch):
+    monkeypatch.setattr(schedule_status, "held", lambda path: False)
+    put(
+        db,
+        "gc",
+        started_at="2026-11-05T04:30:00Z",
+        finished_at="2026-11-04T04:31:00Z",
+        result="ok",
+        exit_code=0,
+        ok_at="2026-11-04T04:31:00Z",
+    )
+    report = collect([job("gc")], db, None, at("2026-11-05 12:00"))
+    status = report.jobs[0]
+    assert status.interrupted and not status.running
+    assert report.problems == ["job gc: its last run did not finish (killed mid-run)"]
+    assert "INTERRUPTED" in text(report)
+    assert schedule_status.as_json(report)["jobs"][0]["interrupted"] is True
+    assert 'scrap_job_interrupted{job="gc"} 1.0' in metrics.render(report).splitlines()
+
+
+def test_a_run_going_now_is_not_interrupted(db, monkeypatch):
+    monkeypatch.setattr(schedule_status, "held", lambda path: True)
+    put(
+        db,
+        "gc",
+        started_at="2026-11-05T04:30:00Z",
+        finished_at="2026-11-04T04:31:00Z",
+        ok_at="2026-11-04T04:31:00Z",
+    )
+    report = collect([job("gc")], db, None, at("2026-11-05 04:40"))
+    assert report.jobs[0].running and not report.jobs[0].interrupted
+    assert report.problems == []
 
 
 def test_held_cannot_tell_without_the_list(tmp_path):
@@ -489,17 +544,60 @@ def test_a_failed_report_is_a_500_not_a_dead_server(caplog):
     assert "could not make the report" in caplog.text
 
 
+def test_the_metrics_listen_on_every_address_dual_stack(db, tmp_path):
+    report = report_with_runs(db, tmp_path)
+    server = metrics.serve(0, lambda: report)
+    try:
+        port = server.server_address[1]
+        assert get(f"http://127.0.0.1:{port}/metrics")[0] == 200
+        if server.address_family == socket.AF_INET6:
+            assert get(f"http://[::1]:{port}/metrics")[0] == 200
+    finally:
+        server.shutdown()
+        server.server_close()
+
+
+def test_an_idle_connection_is_let_go(db, tmp_path, monkeypatch):
+    monkeypatch.setattr(metrics, "TIMEOUT", 0.3)
+    server = metrics.serve(0, lambda: report_with_runs(db, tmp_path), "127.0.0.1")
+    try:
+        with socket.create_connection(
+            ("127.0.0.1", server.server_address[1]), 5
+        ) as idle:
+            started = time.monotonic()
+            assert idle.recv(1) == b""  # closed by the server, not left waiting
+            assert time.monotonic() - started < 4
+    finally:
+        server.shutdown()
+        server.server_close()
+
+
+def test_metrics_read_the_database_status_does(tmp_path, monkeypatch):
+    """No SCRAP_DB_PATH: both fall back to scrap.db in the data folder."""
+    Store(tmp_path, tmp_path / "scrap.db").migrate()
+    put(tmp_path / "scrap.db", "gc", result="failed", exit_code=4)
+    monkeypatch.delenv("SCRAP_DB_PATH", raising=False)
+    monkeypatch.delenv("SCRAP_BACKUPS", raising=False)
+    monkeypatch.setenv("SCRAP_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("SCRAP_METRICS_PORT", "1")
+    builds = []
+    monkeypatch.setattr(metrics, "serve", lambda port, build: builds.append(build))
+    metrics.from_env([job("gc")])
+    assert builds[0]().jobs[0].failed
+    assert schedule_status.paths_from_env()[0] == tmp_path / "scrap.db"
+
+
 def test_metrics_are_off_unless_a_port_is_set(monkeypatch):
     served = []
     monkeypatch.setattr(metrics, "serve", lambda *a, **k: served.append(a))
     monkeypatch.delenv("SCRAP_METRICS_PORT", raising=False)
-    metrics.from_env([], None)
+    metrics.from_env([])
     assert served == []
 
 
 def test_a_bad_metrics_port_is_logged_and_the_scheduler_goes_on(monkeypatch, caplog):
     monkeypatch.setenv("SCRAP_METRICS_PORT", "lots")
-    metrics.from_env([], None)
+    metrics.from_env([])
     assert "metrics: not served" in caplog.text
 
 

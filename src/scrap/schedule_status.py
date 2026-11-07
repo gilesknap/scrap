@@ -6,6 +6,8 @@ jobs container (kubectl exec); its exit status makes it usable as a probe. The m
 A problem, which makes the exit status 1:
 
 - a job whose last run failed (a non-zero exit, its deadline, or it could not start);
+- an interrupted job: its last run started but recorded no end, and is not running,
+  as after a node death or a kill (a clean stop with the pod records stopped);
 - a stale job: neither of its last two runs that should have finished by now (each
   scheduled time plus the job's deadline) succeeded. It counts from when the scheduler
   first knew the job, so a new job is not stale. A Claude pass stopped at a queue pause
@@ -103,8 +105,16 @@ class JobStatus:
     def failed(self) -> bool:
         return bool(self.record and self.record.result in FAILURES)
 
+    @property
+    def interrupted(self) -> bool:
+        """Its last run started but never recorded an end, and is not running: the
+        pod or scheduler was killed mid-run (a clean stop records stopped)."""
+        return _unfinished(self.record) and not self.running
+
     def problem(self) -> str | None:
         name = self.job.name
+        if self.interrupted:
+            return f"job {name}: its last run did not finish (killed mid-run)"
         if self.failed:
             assert self.record
             how = HOW.get(self.record.result or "", "failed")
@@ -132,16 +142,21 @@ def _stale(job: Job, record: Record | None, at: datetime) -> bool:
     return len(due) == 2 and since < due[1]
 
 
-def _running(name: str, record: Record | None) -> bool:
-    found = held(lock_path(name))
-    if found is not None:
-        return found
-    # No /proc/locks: from the records, which a killed pod may have left "running"
+def _unfinished(record: Record | None) -> bool:
+    """The last start has no end after it."""
     return bool(
         record
         and record.started_at
         and (record.finished_at is None or record.started_at > record.finished_at)
     )
+
+
+def _running(name: str, record: Record | None) -> bool:
+    found = held(lock_path(name))
+    if found is not None:
+        return found
+    # No /proc/locks: from the records, which a killed pod may have left "running"
+    return _unfinished(record)
 
 
 def collect(
@@ -201,6 +216,7 @@ def text(report: Report) -> str:
             if record.exit_code:
                 result += f" ({record.exit_code})"
         notes = ["running"] if status.running else []
+        notes += ["INTERRUPTED: last run did not finish"] if status.interrupted else []
         notes += ["STALE"] if status.stale else []
         notes += ["never run"] if not (record and record.started_at) else []
         zone = job.zone.key if job.zone else "UTC"
@@ -257,6 +273,7 @@ def as_json(report: Report) -> dict[str, Any]:
                 "known_since": _iso(record and record.seen_at),
                 "next_run": _iso(status.next_run),
                 "failed": status.failed,
+                "interrupted": status.interrupted,
                 "stale": status.stale,
             }
         )
