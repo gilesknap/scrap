@@ -14,14 +14,15 @@ check() { # check NAME CONDITION-COMMAND...
     if "$@"; then echo "ok   $name"; else echo "FAIL $name"; fail=1; fi
 }
 
-# kubectl and helm record their calls, in order, in one file; `get secret` succeeds
-# only once $tmp/secret exists.
+# kubectl and helm record their calls, in order, in one file; `get secret NAME`
+# succeeds only once $tmp/secret-NAME exists.
 cat >"$tmp/bin/kubectl" <<STUB
 #!/bin/sh
 echo "kubectl \$*" >>"$tmp/calls"
 case "\$*" in
-  *"create secret"*) touch "$tmp/secret"; exit 0 ;;
-  *"get secret"*) [ -e "$tmp/secret" ]; exit \$? ;;
+  *"create secret generic "*) n=\${*#*create secret generic }; touch "$tmp/secret-\${n%% *}"; exit 0 ;;
+  *"get secret "*) n=\${*#*get secret }; [ -e "$tmp/secret-\${n%% *}" ]; exit \$? ;;
+  *"get deploy oauth2-proxy-redis"*) [ -e "$tmp/redis-running" ]; exit \$? ;;
   *"rollout \${STUB_ROLLOUT_FAIL:-none} "*) exit 1 ;;
 esac
 exit 0
@@ -35,29 +36,60 @@ run() {
     PATH="$tmp/bin:$PATH" SCRAP_AUTH_NAMESPACE=login sh "$here/dls/auth-proxy/install.sh"
 }
 
-# The Secret exists: upgrade only, no restart.
-touch "$tmp/secret"; : >"$tmp/calls"
+kc=oauth2-proxy-keycloak
+rd=oauth2-proxy-redis
+proxy='kubectl -n login rollout restart deploy/oauth2-proxy|kubectl -n login rollout status deploy/oauth2-proxy|'
+redis='kubectl -n login rollout restart deploy/oauth2-proxy-redis|kubectl -n login rollout status deploy/oauth2-proxy-redis|'
+# The calls that matter, in order, joined by |.
+order() {
+    grep -o '^kubectl -n login create secret generic [a-z0-9-]*\|^helm upgrade\|^kubectl -n login rollout [a-z]* deploy/[a-z0-9-]*' "$tmp/calls" |
+        tr '\n' '|'
+}
+
+# Both Secrets exist: upgrade only, no restart.
+touch "$tmp/secret-$kc" "$tmp/secret-$rd"; : >"$tmp/calls"
 run </dev/null >"$tmp/out" 2>&1
-check "keeps the Secret" sh -c "grep -q 'already exists in login' '$tmp/out' && ! grep -q 'create secret' '$tmp/calls'"
+check "keeps the Secrets" sh -c "grep -q '$kc already exists in login' '$tmp/out' &&
+    grep -q '$rd already exists in login' '$tmp/out' && ! grep -q 'create secret' '$tmp/calls'"
 check "upgrades the release" grep -q "^helm upgrade --install oauth2-proxy oauth2-proxy .*--namespace login" "$tmp/calls"
-check "no restart when the Secret is kept" sh -c "! grep -q rollout '$tmp/calls'"
+check "no restart when the Secrets are kept" sh -c "! grep -q rollout '$tmp/calls'"
+
+# Only the Redis Secret is missing and no Redis runs yet (the upgrade from cookie
+# sessions): it is made with no prompt, from a file, then the upgrade, then only the
+# proxy restarts (the new Redis starts with the password).
+rm -f "$tmp/secret-$rd" "$tmp/redis-running"; : >"$tmp/calls"
+run </dev/null >"$tmp/out" 2>&1
+check "makes the Redis Secret from a file" grep -q "^kubectl -n login create secret generic $rd --from-file=redis-password=" "$tmp/calls"
+check "a new Redis is not restarted, the proxy is" [ "$(order)" = \
+    "kubectl -n login create secret generic $rd|helm upgrade|$proxy" ]
+
+# The Redis Secret was deleted under a running Redis: Redis restarts, then the proxy.
+rm -f "$tmp/secret-$rd"; touch "$tmp/redis-running"; : >"$tmp/calls"
+run </dev/null >"$tmp/out" 2>&1
+check "a running Redis restarts onto the new Secret, then the proxy" [ "$(order)" = \
+    "kubectl -n login create secret generic $rd|helm upgrade|$redis$proxy" ]
+rm -f "$tmp/redis-running"
+
+# values.yaml uses the Secret install.sh makes, for the proxy and for Redis.
+values=$here/dls/auth-proxy/values.yaml
+check "values keep sessions in Redis" grep -q '^  type: redis$' "$values"
+check "values name the Redis Secret" sh -c "grep -q '^    existingSecret: $rd\$' '$values' &&
+    grep -q '^                      name: $rd\$' '$values'"
 
 # A new Secret: made from the answers, then the upgrade, then a restart and its wait.
 if command -v script >/dev/null 2>&1 && script -qec true /dev/null </dev/null >/dev/null 2>&1; then
-    rm -f "$tmp/secret"; : >"$tmp/calls"
+    rm -f "$tmp/secret-"*; : >"$tmp/calls"
     printf 'my-client\nmy-secret\n' |
         PATH="$tmp/bin:$PATH" SCRAP_AUTH_NAMESPACE=login \
             script -qec "sh '$here/dls/auth-proxy/install.sh'" /dev/null >"$tmp/out" 2>&1
-    check "makes the Secret" grep -q "^kubectl -n login create secret generic oauth2-proxy-keycloak" "$tmp/calls"
+    check "makes the Secret" grep -q "^kubectl -n login create secret generic $kc" "$tmp/calls"
     check "secret never on a command line" sh -c "! grep -q my-secret '$tmp/calls'"
-    order=$(grep -o '^kubectl -n login create secret\|^helm upgrade\|^kubectl -n login rollout restart deploy/oauth2-proxy\|^kubectl -n login rollout status deploy/oauth2-proxy' "$tmp/calls" |
-        tr '\n' '|')
-    check "restarts the proxy after the upgrade, and waits" [ "$order" = \
-        "kubectl -n login create secret|helm upgrade|kubectl -n login rollout restart deploy/oauth2-proxy|kubectl -n login rollout status deploy/oauth2-proxy|" ]
+    check "makes both Secrets, then restarts the proxy after the upgrade, and waits" \
+        [ "$(order)" = "kubectl -n login create secret generic $kc|kubectl -n login create secret generic $rd|helm upgrade|$proxy" ]
 
     # The restart, or the wait for it, fails: the script fails and says what to run.
     for step in restart status; do
-        rm -f "$tmp/secret"; : >"$tmp/calls"
+        rm -f "$tmp/secret-"*; : >"$tmp/calls"
         if printf 'my-client\nmy-secret\n' |
             PATH="$tmp/bin:$PATH" SCRAP_AUTH_NAMESPACE=login STUB_ROLLOUT_FAIL=$step \
                 script -qec "sh '$here/dls/auth-proxy/install.sh'" -e /dev/null >"$tmp/out" 2>&1; then
@@ -65,7 +97,7 @@ if command -v script >/dev/null 2>&1 && script -qec true /dev/null </dev/null >/
         else rc=1; fi
         check "a failed rollout $step fails the script" [ "$rc" = 1 ]
         check "a failed rollout $step says what to run" sh -c "grep -q 'did not restart' '$tmp/out' &&
-            grep -q 'kubectl -n login rollout restart deploy/oauth2-proxy' '$tmp/out'"
+            grep -q 'kubectl -n login rollout restart deploy/oauth2-proxy-redis deploy/oauth2-proxy' '$tmp/out'"
     done
 else
     echo "skip a new Secret (no script(1) to give the prompts a terminal)"
