@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>46. The database on an emptyDir, replicated with Litestream &#8212; scrap 1.7.0 documentation</title>
+    <title>46. The database on an emptyDir, replicated with Litestream &#8212; scrap 1.7.1.dev4+g18a07b28c documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../../_static/documentation_options.js?v=030dc6f6"></script>
+    <script src="../../_static/documentation_options.js?v=435128cb"></script>
     <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -50,7 +50,7 @@
     <script>
         DOCUMENTATION_OPTIONS.theme_version = '0.23.0';
         DOCUMENTATION_OPTIONS.theme_switcher_json_url = 'https://gilesknap.github.io/scrap/switcher.json';
-        DOCUMENTATION_OPTIONS.theme_switcher_version_match = '1.7.0';
+        DOCUMENTATION_OPTIONS.theme_switcher_version_match = 'main';
         DOCUMENTATION_OPTIONS.show_version_warning_banner =
             false;
         </script>
@@ -63,7 +63,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="color-scheme" content="light dark"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="1.7.0" />
+  <meta name="docsearch:version" content="main" />
   
     
     <script src="../../_static/searchtools.js"></script>
@@ -701,7 +701,10 @@ waits with <code class="docutils literal notranslate"><span class="pre">FailedAt
 the cluster). The affinity stays. A new <code class="docutils literal notranslate"><span class="pre">ReadWriteMany</span></code> claim (<code class="docutils literal notranslate"><span class="pre">netapp</span></code> offers it) might allow
 dropping it, but <code class="docutils literal notranslate"><span class="pre">accessModes</span></code> cannot change on an existing claim, and that was not tried.</p></li>
 <li><p>A failed gc or Claude pass no longer shows as a failed Job: it is in the <code class="docutils literal notranslate"><span class="pre">jobs</span></code> container’s log,
-and pushed to <code class="docutils literal notranslate"><span class="pre">SCRAP_NOTIFY_URL</span></code> if set. A pass stopped by a queue pause or a spent budget is not
+and pushed to <code class="docutils literal notranslate"><span class="pre">SCRAP_NOTIFY_URL</span></code> if set. Since #558 each run is also recorded in the database
+(table <code class="docutils literal notranslate"><span class="pre">scheduled_job</span></code>, so it survives the pod), and <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">schedule</span> <span class="pre">status</span></code> (a probe: it exits 1 on
+a failed or stale job, or a backup over 26 hours old) and opt-in Prometheus metrics served by the
+scheduler report it, with the newest <code class="docutils literal notranslate"><span class="pre">COMPLETE</span></code> backup. A pass stopped by a queue pause or a spent budget is not
 reported as failed: it says so on stderr, and <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">schedule</span></code> reads that last line.</p></li>
 <li><p>A restart of <code class="docutils literal notranslate"><span class="pre">litestream</span></code> or <code class="docutils literal notranslate"><span class="pre">jobs</span></code> that keeps failing takes the pod out of its Service. For both
 that is right: <code class="docutils literal notranslate"><span class="pre">jobs</span></code> is what watches replication, so with it down nothing does.</p></li>
@@ -789,7 +792,7 @@ was tried, starting a fresh database past a refusal.</p>
 
   
   <div class="tocsection editthispage">
-    <a href="https://github.com/gilesknap/scrap/edit/1.7.0/docs/explanations/decisions/0046-database-on-an-emptydir-replicated-with-litestream.md">
+    <a href="https://github.com/gilesknap/scrap/edit/main/docs/explanations/decisions/0046-database-on-an-emptydir-replicated-with-litestream.md">
       <i class="fa-solid fa-pencil"></i>
       
       

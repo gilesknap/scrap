@@ -29,7 +29,9 @@ flowchart LR
 
 With the chart's `litestream.enabled`, gc, related pages and topics need the live database, so they
 are not CronJobs: the same values run them in the scrap pod's `jobs` container
-({ref}`k8s-litestream`). The two backups stay CronJobs.
+({ref}`k8s-litestream`). The two backups stay CronJobs. `scrap schedule status` there, or its
+Prometheus metrics, says how each last ran and when the newest backup completed
+({ref}`k8s-litestream-health`).
 
 ## Settings
 
