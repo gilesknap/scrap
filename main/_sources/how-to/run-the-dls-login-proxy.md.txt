@@ -27,6 +27,17 @@ sets it up and keeps it running.
   its bearer token. The proxy refreshes the session every minute, inside the access token's
   5 minutes. Without `offline_access`, a user stays logged in only as long as their DLS
   Keycloak session; when it ends, the next refresh fails and they log in again.
+- The sessions are kept in a small Redis beside the proxy (`oauth2-proxy-redis`, one pod, part
+  of the same release); the browser's cookie only names its session. DLS Keycloak's tokens make
+  a session too big for one cookie, and a session split across cookies broke when requests
+  overlapped a refresh. Redis saves nothing to disk, so restarting it (or a node drain moving
+  it) logs everyone out once; restarting only the proxy pods does not. Its password is in the
+  Secret `oauth2-proxy-redis`, since any pod in the cluster can reach its Service.
+- While Redis is down (a restart or a node drain), every login check fails, so users briefly see
+  "Can't reach the server" until it is back, usually within seconds, as well as logging in again.
+- Browsers that logged in before the move to Redis keep the old split cookies (`_scrap_auth_0`,
+  `_scrap_auth_1`) until they expire or the proxy clears them. They are harmless: they hold no
+  session the proxy will accept.
 
 The chart side is `authProxy` ({ref}`k8s-auth-proxy`). The proxy is the upstream oauth2-proxy
 chart, pinned in `deploy/dls/auth-proxy/install.sh`, with `deploy/dls/auth-proxy/values.yaml`.
@@ -74,13 +85,16 @@ sh deploy/dls/auth-proxy/install.sh
 
 The first run asks for the client ID and secret (the secret is not shown as you type). It makes
 the Secret `oauth2-proxy-keycloak` with the keys `client-id`, `client-secret` and a generated
-`cookie-secret`, then installs the chart as the release `oauth2-proxy`: two pods, a disruption
-budget, and no Ingress. The proxy answers inside the cluster at
+`cookie-secret`, and the Secret `oauth2-proxy-redis` with a generated Redis password. Then it
+installs the chart as the release `oauth2-proxy`: two proxy pods, a disruption budget, one Redis
+pod, and no Ingress. The proxy answers inside the cluster at
 `oauth2-proxy.scrap.svc.cluster.local`, where every user's installer points by default.
 
-Re-run the script after changing `values.yaml` or the pinned chart version. It keeps the Secret.
-A run that makes the Secret (the first, or after you deleted it) also restarts the proxy, since
-its pods read the Secret only when they start.
+Re-run the script after changing `values.yaml` or the pinned chart version. It keeps the
+Secrets. A run that makes either Secret (the first, or after you deleted one) also restarts the
+proxy, and a Redis that was already running, since their pods read the Secrets only when they
+start; that logs everyone out once. The first run after the move to Redis sessions makes the Redis Secret, so it logs everyone
+out once too.
 With a namespace other than `scrap`, users must set `SCRAP_AUTH_NAMESPACE` to it when they
 run their installer.
 
@@ -107,7 +121,8 @@ rm -rf "$tmp"
 kubectl -n scrap rollout restart deploy/oauth2-proxy
 ```
 
-To sign everyone out, replace `cookie-secret` the same way, with 32 random bytes in URL-safe
+To sign everyone out, restart Redis (`kubectl -n scrap rollout restart deploy/oauth2-proxy-redis`),
+or replace `cookie-secret` the same way, with 32 random bytes in URL-safe
 base64 (`head -c 32 /dev/urandom | base64 | tr -- '+/' '-_'`).
 
 ## Check it
@@ -115,6 +130,7 @@ base64 (`head -c 32 /dev/urandom | base64 | tr -- '+/' '-_'`).
 ```sh
 kubectl -n scrap get pods,svc,pdb
 kubectl -n scrap logs deploy/oauth2-proxy
+kubectl -n scrap logs deploy/oauth2-proxy-redis
 curl -sI https://scrap-<fedid>.diamond.ac.uk/ | head -n 3
 ```
 
