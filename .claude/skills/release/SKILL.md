@@ -34,9 +34,14 @@ are merged.
   checks and is the gate (step 3). Only check that the latest finished **CI**
   and **Chart** runs on main did not fail
   (`gh run list -R gilesknap/scrap --branch main --limit 5`).
+- `<last-tag>` below is the last tag whose CI passed: a tag that failed
+  deployed nothing.
 - Note migrations since the last tag:
   `git diff --name-only <last-tag>..HEAD -- src/scrap/migrations`.
   Script `NNNN_*.sql` sets `user_version` N.
+- Note whether the DLS login proxy changed since the last tag:
+  `git diff --name-only <last-tag>..HEAD -- deploy/dls/auth-proxy`.
+  It is deployed by its own script, not by the tag (step 7).
 
 ## 2. Pick the version
 
@@ -130,6 +135,12 @@ are merged.
   `release / artifacts`.
 - Tell the user in a few lines: version, backup, migration, and what to try
   on the phone.
+- If `deploy/dls/auth-proxy` changed (step 1), tell the owner the DLS
+  central proxy must be upgraded with `sh deploy/dls/auth-proxy/install.sh`
+  from a checkout of the new tag (after `module load argus`, with access to
+  the proxy's namespace; it keeps its Secret and rolls through its 2
+  replicas).
+  The tag does not deploy the proxy, so DLS logins can fail until it is run.
 
 ## 8. Clean up
 
