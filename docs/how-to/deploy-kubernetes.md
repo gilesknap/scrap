@@ -155,6 +155,7 @@ inside them is silently ignored. The main ones:
 | `ingest.visionModel`, `ingest.budgetDayUSD` | app default, `3` | `SCRAP_VISION_MODEL`, `SCRAP_BUDGET_DAY_USD` (US dollars per UTC day). Like `ingest.notifyUrlKey`, they take effect only while `ingest.enabled` is true. |
 | `persistence.size`, `.storageClass`, `.existingClaim` | `5Gi`, default class, none | The data volume. |
 | `litestream.enabled` | `false` | The database on an emptyDir, replicated to the data volume, for a data volume on NFS: {ref}`k8s-litestream`. Under the restricted or baseline Pod Security Standard a `backup.persistence.hostPath` then also stops the scrap pod starting, as it mounts the backups. |
+| `litestream.jobs.metrics.enabled`, `.port`, `.podAnnotations`, `.from` | `false`, `9464`, `true`, none | Prometheus metrics of the `jobs` container's jobs and the backups, with the scrape annotations on the pod and, under `networkPolicy.enabled`, who may reach the port: {ref}`k8s-litestream-health`. |
 | `backup.enabled`, `.schedule`, `.timeZone`, `.keep` | `true`, `30 3 * * *`, the cluster's default (usually UTC), `7` | The backup CronJob. |
 | `gc.enabled`, `.schedule`, `.timeZone` | unset (follows `backup.enabled`), `30 4 * * *`, the cluster's default | The `scrap gc` CronJob (see {ref}`k8s-gc`). |
 | `gc.delete`, `gc.graceHours`, `gc.runDays`, `gc.requireBackup` | `true`, `24`, `30`, `true` | `delete: false`, or `graceHours: 0`, makes the job only count (a dry run in its log). Keep files younger than this many hours; keep model and enrich run records younger than this many days (at least 1); delete only after a backup less than 26 hours old. |
@@ -1029,7 +1030,7 @@ purge date from `trashDays` (`SCRAP_TRASH_DAYS`, `off` while the job does not de
   `enrichTopics.enabled: false` (or `ingest.enabled: false` for both Claude jobs).
 - **Change when** with its `.schedule` and `.timeZone`.
 - **Check them** with `kubectl -n scrap get cronjobs,jobs` and a Job's log. (With
-  `litestream.enabled`, gc and the Claude passes are not CronJobs: {ref}`k8s-litestream`.)
+  `litestream.enabled`, gc and the Claude passes are not CronJobs: {ref}`k8s-litestream-health`.)
 - **Run one now:**
 
 ```
@@ -1092,8 +1093,9 @@ needs Kubernetes 1.29 and the `litestream/litestream` image, pinned in `litestre
   for `@every`, which is refused. An empty `timeZone` is UTC here, not the controller's zone. All of
   them share `litestream.jobs.resources`: `gc.resources` and `enrich*.resources` are not used. Run
   one now with `kubectl -n scrap exec deploy/scrap -c jobs -- scrap schedule --run gc` (or
-  `enrich-related`, `enrich-topics`). A failure is in `kubectl -n scrap logs deploy/scrap -c jobs`
-  and, if set, `SCRAP_NOTIFY_URL`, not a failed Job; a Claude pass stopping at a queue pause or a
+  `enrich-related`, `enrich-topics`). A failure is in `kubectl -n scrap logs deploy/scrap -c jobs`,
+  in `scrap schedule status` and its metrics ({ref}`k8s-litestream-health`) and, if set,
+  `SCRAP_NOTIFY_URL`, not a failed Job; a Claude pass stopping at a queue pause or a
   spent budget is logged, and is not a failure. gc still deletes only with a recent `COMPLETE`
   backup, otherwise only counts. **A time missed while the pod is restarting is not made up, and a
   rollout stops a running pass**: the next run carries on, so a rollout around 04:30 skips that
@@ -1117,6 +1119,63 @@ needs Kubernetes 1.29 and the `litestream/litestream` image, pinned in `litestre
      restored file. If you do this before step 3 it refuses to start instead, and does no harm.
   5. Remove `/data/litestream*` with the same pod once you are happy (they take up room, and would
      stop a later turn back on). The CronJobs of gc and the Claude passes return by themselves.
+
+(k8s-litestream-health)=
+### Are the nightly jobs healthy? (Litestream)
+
+With no Job objects for gc and the Claude passes, `scrap schedule` records each run in the
+database (so the record survives the pod), and reports it:
+
+```
+kubectl -n scrap exec deploy/scrap -c jobs -- scrap schedule status
+```
+
+```
+JOB             SCHEDULE              LAST RESULT  LAST START        LAST END          LAST OK           NEXT RUN          NOTE
+gc              30 4 * * * UTC        ok           2026-11-07 04:30  2026-11-07 04:31  2026-11-07 04:31  2026-11-08 04:30
+enrich-related  41 3 * * * UTC        paused (1)   2026-11-07 03:41  2026-11-07 03:52  2026-11-06 03:58  2026-11-08 03:41
+enrich-topics   11 4 * * 0 UTC        ok           2026-11-01 04:11  2026-11-01 04:13  2026-11-01 04:13  2026-11-08 04:11
+Backups: newest COMPLETE run 20261107T033000Z, marked 2026-11-07 03:34 (9.1 h ago)
+Times are UTC; now 2026-11-07 12:40.
+All healthy.
+```
+
+A result is `ok`, `failed` (a non-zero exit), `deadline` (stopped at its deadline), `not-started`,
+`paused` (a Claude pass stopped at a queue pause or a spent budget: not a failure) or `stopped` (with
+the pod: the next run carries on). `NOTE` says `running` while a run holds the job's lock, and
+`never run`. `--json` gives the same as JSON. It **exits 1** and lists the problems when a job's last
+run failed, was stopped at its deadline or could not start; when a job is **stale**, with no success
+in either of its last two runs that should have ended by now (each scheduled time plus its deadline:
+a `paused` run is not a success, so a pause that lasts two runs counts; a new job counts from when
+the scheduler first saw it); when the newest `COMPLETE` backup run is over 26 hours old, or there is
+none (past 26 hours gc only counts); or when the records cannot be read. So it serves as a probe or a
+check from any monitor that can run `kubectl exec`. The backups are visible only with `backup.enabled`
+(`SCRAP_BACKUPS`); otherwise it says `not visible here`.
+
+**Metrics.** `litestream.jobs.metrics.enabled: true` has the `jobs` container serve Prometheus
+metrics on `GET /metrics` at `litestream.jobs.metrics.port` (9464), at the pod's IP: not in the
+Service, not through the ingress. The pod gets the `prometheus.io/scrape`, `/port` and `/path`
+annotations unless `.podAnnotations: false` (or use a PodMonitor on the `metrics` port). With
+`networkPolicy.enabled`, list your Prometheus in `.from` (NetworkPolicy peers), or the port stays
+shut. Each scrape reads the records afresh; per job (label `job`):
+
+| Metric | Meaning |
+| --- | --- |
+| `scrap_job_last_success_timestamp_seconds` | When a run last ended with success (absent until one has) |
+| `scrap_job_last_start_timestamp_seconds`, `scrap_job_last_finish_timestamp_seconds` | The last start, and the last run's end |
+| `scrap_job_last_result{result=...}` | 1 for the last run's result (as above), 0 for the other five |
+| `scrap_job_last_exit_code` | The last run's exit status |
+| `scrap_job_failed` | 1 if the last result is `failed`, `deadline` or `not-started` |
+| `scrap_job_stale` | 1 if stale, as `scrap schedule status` says |
+| `scrap_job_running` | 1 while it runs |
+| `scrap_job_next_run_timestamp_seconds` | When it is next due |
+| `scrap_backup_visible`, `scrap_backup_last_complete_timestamp_seconds` | Whether the backup folder is in view, and the newest `COMPLETE` marker's time |
+| `scrap_schedule_records_readable`, `scrap_schedule_problems` | Whether the records could be read, and how many problems `status` lists (0 is healthy) |
+
+Alerts to start from: `scrap_schedule_problems > 0`, or by hand
+`scrap_job_failed == 1`, `scrap_job_stale == 1` and
+`time() - scrap_backup_last_complete_timestamp_seconds > 26 * 3600`. A missing series, as when the
+pod is down, is worth an `absent()` alert too.
 
 (k8s-storage)=
 ## k3s and storage notes

@@ -17,9 +17,14 @@ def add_parsers(subparsers: Any, common: Any) -> None:
     sched = subparsers.add_parser(
         "schedule",
         help="Run the jobs in $SCRAP_SCHEDULE on their schedules, beside the service"
-        " (the pod's jobs container, with Litestream; ADR 46)",
+        " (the pod's jobs container, with Litestream; ADR 46). `scrap schedule status`"
+        " says how each last ran, and exits 1 on a failed or stale job or backup",
+    )
+    sched.add_argument(
+        "action", nargs="?", choices=["status"], help="status: report, and stop"
     )
     sched.add_argument("--run", metavar="JOB", help="Run this job once, now, and stop")
+    sched.add_argument("--json", action="store_true", help="status as JSON")
     hold = subparsers.add_parser(
         "db-hold",
         parents=[common],
@@ -29,6 +34,23 @@ def add_parsers(subparsers: Any, common: Any) -> None:
     hold.add_argument("--clear", action="store_true", help="Let gc delete again")
 
 
+def _schedule(parsed: Namespace) -> None:
+    if parsed.action == "status":
+        if parsed.run:
+            raise SystemExit("scrap schedule: status or --run, not both")
+        from .schedule_status import from_env as status
+
+        if code := status(parsed.json):
+            raise SystemExit(code)
+        return
+    if parsed.json:
+        raise SystemExit("scrap schedule: --json is for status")
+    from .metrics import from_env as metrics
+    from .schedule import from_env as schedule
+
+    schedule(parsed.run, None if parsed.run else metrics)
+
+
 def run(parsed: Namespace) -> bool:
     """Run one of them; False if parsed.command is not one."""
     if parsed.command == "db-init":
@@ -36,9 +58,7 @@ def run(parsed: Namespace) -> bool:
 
         print(f"scrap db-init: {from_env()}")
     elif parsed.command == "schedule":
-        from .schedule import from_env as schedule
-
-        schedule(parsed.run)
+        _schedule(parsed)
     elif parsed.command == "db-hold":
         from .dbstate import StateError, clear_hold, read_state
 

@@ -11,12 +11,25 @@ spec:
       {{- include "scrap.selectorLabels" . | nindent 6 }}
   policyTypes:
     - Ingress
-  {{- with .Values.networkPolicy.from }}
+  {{- $metricsFrom := list }}
+  {{- if and .Values.litestream.enabled .Values.litestream.jobs.metrics.enabled }}
+  {{- $metricsFrom = .Values.litestream.jobs.metrics.from }}
+  {{- end }}
+  {{- if or .Values.networkPolicy.from $metricsFrom }}
   ingress:
+    {{- with .Values.networkPolicy.from }}
     - from:
         {{- toYaml . | nindent 8 }}
       ports:
         - port: http
+    {{- end }}
+    {{- with $metricsFrom }}
+    # scrap schedule's metrics (litestream.jobs.metrics.from)
+    - from:
+        {{- toYaml . | nindent 8 }}
+      ports:
+        - port: metrics
+    {{- end }}
   {{- else }}
   ingress: []
   {{- end }}

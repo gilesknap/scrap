@@ -39,6 +39,7 @@ __all__ = [
 
 # Written last into a backup run; gc deletes only after a run that has one
 COMPLETE = "COMPLETE"
+RUN = re.compile(r"\d{8}T\d{6}Z")  # a backup run's folder
 
 Namer = Callable[[sqlite3.Row, set[str]], str]
 

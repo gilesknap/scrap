@@ -143,7 +143,8 @@ with the Bypass action: a wildcard application covers every subdomain. See the g
   the node dies the last moments of writes are lost. An init container restores it, brings an existing
   `/data/scrap.db` across once, or refuses to start. If replication stalls, the pod leaves its Service. Backups work from a restore of the replica
   (still beside the scrap pod, for the `ReadWriteOnce` claim); gc and the Claude passes run in a `jobs`
-  container in the pod, not as CronJobs; and restoring a backup takes `scrap restore --stage`. See
+  container in the pod, not as CronJobs (`scrap schedule status` there, or the opt-in
+  `litestream.jobs.metrics`, says how they last ran); and restoring a backup takes `scrap restore --stage`. See
   [its section of the guide](https://gilesknap.github.io/scrap/main/how-to/deploy-kubernetes.html#k8s-litestream).
 - Database migrations are forward only, so rolling back to an older version also needs a restore
   of the database.

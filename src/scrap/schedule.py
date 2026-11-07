@@ -17,7 +17,8 @@ SCRAP_NOTIFY_URL if set, and never stops the scheduler. A time missed while this
 not running is not made up, and a rollout stops a running job: the next run carries on.
 
 It also stamps the database every 15 minutes, for the backup jobs (replica.beat), and
-watches that the stamps reach the replica (watch.py).
+watches that the stamps reach the replica (watch.py). Each job's runs are recorded in
+the database (schedule_record.py), for scrap schedule status and the metrics (#558).
 """
 
 import fcntl
@@ -27,9 +28,9 @@ import os
 import signal
 import subprocess
 import sys
-import tempfile
 import threading
 import time
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -40,6 +41,18 @@ from .cron import Cron
 from .dbstate import parse_size
 from .notify import notify
 from .replica import beat
+from .schedule_record import (
+    DEADLINE,
+    FAILED,
+    NOT_STARTED,
+    OK,
+    STOPPED,
+    finished,
+    lock_path,
+    seen,
+    started,
+)
+from .schedule_record import PAUSED as PAUSED_RESULT
 from .watch import Watch
 
 __all__ = ["Job", "Scheduler", "from_env", "load"]
@@ -97,7 +110,7 @@ def load(text: str, strict: bool = False) -> list[Job]:
 
 def _lock(name: str) -> IO[str] | None:
     """The job's lock in /tmp, shared with scrap schedule --run; None if it is held."""
-    lock = open(Path(tempfile.gettempdir()) / f"scrap-job-{name}.lock", "w")  # noqa: SIM115
+    lock = open(lock_path(name), "w")  # noqa: SIM115
     try:
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
     except BlockingIOError:
@@ -142,6 +155,7 @@ class Scheduler:
         self.lock = threading.Lock()
         self.stopping = False  # a plain flag: set from the signal handler
         self.last_beat: datetime | None = None
+        self.seen = False  # the jobs are in the database's records
 
     def _start(self, job: Job) -> tuple[subprocess.Popen, Relay | None]:
         """The job's process; a pausable one's stderr is passed on, and its end kept."""
@@ -169,22 +183,26 @@ class Scheduler:
             return BUSY
         with lock:
             log.info("job %s: starting", job.name)
+            started(self.db, job.name)
             try:
                 proc, relay = self._start(job)
             except OSError as error:
                 return self._not_started(job, error)
             with self.lock:
                 self.running[job.name] = proc
+            late = False
             try:
                 code = proc.wait(job.timeout)
             except subprocess.TimeoutExpired:
                 log.error("job %s: stopped at its %ss deadline", job.name, job.timeout)
+                late = True
                 code = _stop(proc) or 1
             finally:
                 with self.lock:
                     self.running.pop(job.name, None)
             code = 128 - code if code < 0 else code  # as a shell reports a signal
-            self._report(job, code, relay.end() if relay else "")
+            result = self._report(job, code, relay.end() if relay else "", late)
+            finished(self.db, job.name, result, code)
         return code
 
     def _not_started(self, job: Job, error: OSError) -> int:
@@ -192,18 +210,29 @@ class Scheduler:
             self.running.pop(job.name, None)
         log.error("job %s: could not start: %s", job.name, error)
         notify(f"scrap: scheduled job {job.name} failed")
+        finished(self.db, job.name, NOT_STARTED, 127)
         return 127
 
-    def _report(self, job: Job, code: int, last: str) -> None:
-        if self.stopping:
+    def _report(self, job: Job, code: int, last: str, late: bool = False) -> str:
+        """Log (and notify) how the run ended; that, as a schedule_record result."""
+        if self.stopping and code:
             log.info("job %s: stopped with the pod", job.name)
-        elif code and last.startswith(PAUSED):
+            return STOPPED
+        if code and last.startswith(PAUSED):
             log.warning("job %s: stopped at a queue pause or spent budget", job.name)
-        elif code:
+            return PAUSED_RESULT
+        if code:
             log.error("job %s: failed, exit %s", job.name, code)
             notify(f"scrap: scheduled job {job.name} failed")
-        else:
-            log.info("job %s: done", job.name)
+            return DEADLINE if late else FAILED
+        log.info("job %s: done", job.name)
+        return OK
+
+    def note_jobs(self) -> None:
+        """Until it has worked once (scrap serve may not have made the table yet), put
+        each job in the records, so that its staleness counts from now."""
+        if not self.seen:
+            self.seen = seen(self.db, [j.name for j in self.jobs])
 
     def tick(self, minute: datetime, since: datetime | None = None) -> None:
         """Start whatever was due after since (default: only at minute) and up to
@@ -211,6 +240,7 @@ class Scheduler:
         self.stamp(minute)
         if self.watch:
             self.watch.check()
+        self.note_jobs()
         self.threads = [t for t in self.threads if t.is_alive()]
         count = int((minute - since) / timedelta(minutes=1)) if since else 1
         minutes = [minute - timedelta(minutes=i) for i in range(count)]
@@ -252,6 +282,7 @@ class Scheduler:
         inside a job's minute does not run it twice."""
         last = _minute(datetime.now(UTC))
         self.stamp()
+        self.note_jobs()
         if self.watch:
             self.watch.check()
         while not self.stopping:
@@ -348,14 +379,18 @@ def _watch(db: str | None) -> Watch | None:
     )
 
 
-def from_env(run: str | None = None) -> None:
-    """scrap schedule, or with run one job now, exiting with its status."""
+def from_env(
+    run: str | None = None,
+    beside: Callable[[list[Job], Path | None], None] | None = None,
+) -> None:
+    """scrap schedule, or with run one job now, exiting with its status. beside is
+    started with the jobs and the database before the scheduler runs (the metrics)."""
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(message)s")
     jobs = load(os.environ.get("SCRAP_SCHEDULE", "[]"))
     db = os.environ.get("SCRAP_DB_PATH")
     signals = (signal.SIGTERM, signal.SIGINT)
     if run:
-        scheduler = Scheduler(jobs)
+        scheduler = Scheduler(jobs, Path(db) if db else None)
         for job in jobs:
             if job.name == run:
                 for number in signals:
@@ -368,5 +403,7 @@ def from_env(run: str | None = None) -> None:
     scheduler = Scheduler(jobs, Path(db) if db else None, _watch(db))
     for number in signals:
         signal.signal(number, scheduler.stop)
+    if beside:
+        beside(jobs, scheduler.db)
     log.info("running: %s", ", ".join(j.name for j in jobs) or "only the heartbeat")
     scheduler.run()
