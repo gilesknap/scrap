@@ -6,7 +6,7 @@ import { address, view as current, go, LISTS, markNav, plain, queue } from "./ap
 import { capture } from "./capture";
 import { named, remember } from "./crumbs";
 import { KEY } from "./debug";
-import { home, homeAt } from "./home";
+import { home, homeAt, parent } from "./home";
 import { KIND_ROW } from "./kindrow";
 import { pageRow } from "./lists";
 import { unmark } from "./login";
@@ -47,7 +47,7 @@ const routes: [RegExp, (m: RegExpMatchArray) => Promise<Node> | Node][] = [
       if (!at) return capture();
       address(at);
       markNav(); // the tab for the address it has now
-      return at === "/search" ? search() : capture();
+      return at.startsWith("/search") ? search() : capture();
     },
   ],
   [/^\/capture$/, () => capture()], // the nav's Capture on a computer (app.ts)
@@ -133,10 +133,7 @@ toList.onclick = () => {
 const nameBack = () => {
   const kind = document.querySelector<HTMLElement>("#view .page[data-kind]")?.dataset.kind;
   const { prev, list } = marks();
-  const to =
-    (prev && named(prev)) ??
-    (list && named(list)) ??
-    (kind === "todo" ? "Todos" : kind === "topic" ? "Topics" : home());
+  const to = (prev && named(prev)) ?? (list && named(list)) ?? parent(kind)[0];
   backTo.textContent = to;
   up.ariaLabel = `Back to ${to}`;
   crumb(!!(prev && list));
@@ -170,7 +167,8 @@ async function render() {
   pos.replaceChildren(); // a page puts its pager here
   if (arrow) nameBack();
   else crumb(false);
-  if (LISTS[path]) remember(LISTS[path]); // a list's name: at once, even if left before drawn
+  // A list's name: at once, even if left before drawn ("/" is home: Search on a computer)
+  if (LISTS[path]) remember(path === "/" ? home() : LISTS[path]);
   logo.hidden = arrow;
   up.hidden = !arrow;
   document.body.classList.toggle("paged", arrow); // its toolbar is the bottom bar: no nav

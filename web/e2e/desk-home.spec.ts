@@ -74,6 +74,18 @@ test.describe("on a computer", () => {
     await expect(page).toHaveURL("/search");
   });
 
+  test("home keeps a query for Search; offline, home is Capture", async ({ page, context }) => {
+    await page.goto("/?q=tea");
+    await expect(page).toHaveURL("/search?q=tea");
+    await expect(page.getByRole("searchbox", { name: "Search" })).toHaveValue("tea");
+    await context.setOffline(true);
+    await page.locator("header .logo").click(); // home, in the app: no load
+    await expect(page).toHaveURL("/capture");
+    await expect(page.locator(".capture .actions")).toBeVisible();
+    await expect(page.locator("nav a[aria-current]")).toHaveText("Capture");
+    await context.setOffline(false);
+  });
+
   test("a share lands on Capture, at its own address", async ({ page }) => {
     await page.goto("/?shared=1");
     await expect(page).toHaveURL("/capture");

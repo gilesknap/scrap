@@ -639,14 +639,16 @@ def test_share_fallback_saves_a_capture(client):
         files={"files": ("p.png", PNG, "image/png")},
         follow_redirects=False,
     )
-    assert response.status_code == 303 and response.headers["location"] == "/"
+    # To Capture saying so, on a computer too (where "/" alone is Search)
+    assert response.status_code == 303 and response.headers["location"] == "/?shared=1"
     [page] = client.get("/api/pages").json()
     assert page["title"] == "A story"
     detail = client.get(f"/api/pages/{page['id']}").json()
     assert detail["captures"][0]["source"] == "share"
     assert detail["captures"][0]["url"] == "https://e.com/a"
     empty = client.post("/share", data={"text": " "}, follow_redirects=False)
-    assert empty.status_code == 303
+    # Nothing saved: plain home
+    assert empty.status_code == 303 and empty.headers["location"] == "/"
     assert len(client.get("/api/pages").json()) == 1
 
 
