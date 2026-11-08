@@ -20,8 +20,8 @@ flowchart LR
         photo["Photo capture<br/>or Reprocess"]:::user
         save["Note save<br/>or link capture"]:::user
         ask["Ask Claude"]:::user
-        night["Nightly timer"]:::user
-        week["Weekly timer"]:::user
+        night["Nightly schedule"]:::user
+        week["Weekly schedule"]:::user
     end
     subgraph Q["Queue (SQLite)"]
         job[("job<br/>kind ingest")]:::store
@@ -59,14 +59,16 @@ flowchart LR
 | Photo ingest | `job`, kind `ingest` | A photo capture, Reprocess, *Ask Claude* on one image | Vision model, one per distinct image | `derived` `ocr`, `description`, `excalidraw`; page title, tags and kind |
 | Enrich | `enrich_job` `capture`, `save`, `ask`, `backfill` | A text page save or link capture, a file page's files read (`SCRAP_FILE_ENRICH=auto`: the start of their text is sent), *Ask Claude*, `scrap enrich --backfill` | Text model | `enrichment` summary, `model_tag` tags, a link's or file page's title |
 | Related | `enrich_job` `related` | A page's first read, *Ask Claude* (the nightly pass calls Claude in its own process) | Text model, candidates from tags and search | `related` rows (at most five per page) |
-| Write-up | `enrich_job` `writeup` | A board page whose photos are all read, *Ask Claude* (`scrap enrich --writeups` calls Claude in its own process) | Vision model with the board photos | `writeup` row of the page |
+| Write-up | `enrich_job` `writeup` | A board page whose photos are all read, *Ask Claude*, the page's *Generate*, or the MCP `writeup` tool for any page with a read image (`scrap enrich --writeups` calls Claude in its own process) | Vision model with the board photos | `writeup` row of the page |
 | Topic | `enrich_job` `topic` | The weekly topics pass | Vision model | `writeup` row of a topic page |
 
-The nightly related pass and the weekly topics pass are Helm CronJobs (`enrichRelated`, default
-`41 3 * * *`; `enrichTopics`, default `11 4 * * 0`) that run `scrap enrich --related` and
-`--topics`. Related picks run in the CronJob's own process, under the same budget and pause, as do
-the write-ups of `scrap enrich --writeups` run by hand; topic discovery runs there too and queues
-one `topic` job per topic due, which the service's worker runs.
+The nightly related pass and the weekly topics pass run `scrap enrich --related` and `--topics`
+on a schedule (`enrichRelated`, default `41 3 * * *`; `enrichTopics`, default `11 4 * * 0`): a
+systemd timer on a single server, or a job of `scrap schedule` in the scrap pod's `jobs`
+container on Kubernetes ([](../../reference/scheduled-jobs.md)). Related picks run in that
+command's own process, under the same budget and pause, as do the write-ups of
+`scrap enrich --writeups` run by hand; topic discovery runs there too and queues one `topic` job
+per topic due, which the service's worker runs.
 
 How the jobs are chosen and ordered:
 

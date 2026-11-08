@@ -1,14 +1,15 @@
 # MCP server and access
 
-scrap has no login of its own. The network in front is the gate, the identity header says who did
-a thing, and `/mcp` adds an optional bearer token for clients that come in from outside.
+scrap has no login of its own. The network or proxy in front is the gate, the identity header
+(or, behind the DLS login proxy, the proxy's token) says who did a thing, and `/mcp` adds a bearer
+token for clients that come in from outside.
 
 ```{contents}
 :local:
 :depth: 1
 ```
 
-## Three ways in
+## Ways in
 
 Every route ends at the same FastAPI app. What differs is the gate in front, where the author is
 attributed and where the bearer token is checked.
@@ -21,7 +22,7 @@ flowchart LR
         L1 -.-> A1
     end
     subgraph k8s["Kubernetes"]
-        CF["Cloudflare Access<br/>+ service token"] --> IN["Ingress / Service"]
+        CF["Cloudflare Access or<br/>DLS login proxy"] --> IN["Ingress / Service"]
         IN -->|"NetworkPolicy"| A2["scrap pod"]
     end
     subgraph dev["Local dev"]
@@ -44,6 +45,7 @@ flowchart LR
 | --- | --- | --- | --- | --- |
 | Single server | Tailscale Serve (Funnel off) and the tailnet ACL | the owner's devices; locally only the scrap user, root and Serve (socket) | `Tailscale-User-Login` set by Serve | optional |
 | Kubernetes | Cloudflare Access with a service token | whoever passes Access; the Service is a ClusterIP, a NetworkPolicy narrows who may reach the pod | header from the proxy, if it sets one | `SCRAP_MCP_TOKEN`, recommended |
+| Kubernetes at DLS | oauth2-proxy with DLS Keycloak (`authProxy`); scrap verifies the proxy's access token (`SCRAP_OIDC_ISSUER`) and lets in only `allowedUsers` | the owner's DLS login; `/mcp` goes round the login, through a second Ingress | Keycloak `preferred_username` from the token | `SCRAP_MCP_TOKEN`, required: scrap does not start without it |
 | Local dev | none; loopback only | any local process | none, so `tagged` | optional |
 
 - **Unix socket.** `scrap serve --uds PATH` binds a socket mode 600 in a folder that must be mode
@@ -76,7 +78,7 @@ networkPolicy:
   from:                        # only the proxy that fronts scrap
     - namespaceSelector:
         matchLabels:
-          kubernetes.io/metadata.name: tailscale
+          kubernetes.io/metadata.name: cloudflared   # here the cloudflared namespace
 ```
 
 and set `SCRAP_PUBLIC_URL` to the address you reach scrap at. The token guards `/mcp` only; the
@@ -106,7 +108,8 @@ NetworkPolicy is what keeps other pods off the API. See [](../../how-to/deploy-k
 
 `/mcp` is served by the official MCP SDK inside the app (Streamable HTTP, stateless, JSON replies),
 so one `claude mcp add --transport http` line connects a client and a restart drops no session
-([ADR 0013](../decisions/0013-mcp-server-inside-the-app.md)). There are fifteen tools;
+([ADR 0013](../decisions/0013-mcp-server-inside-the-app.md)). There are eighteen tools (four
+fewer while `SCRAP_MCP_CONTENT_EDIT` is off, and no `add_svg` while `SCRAP_MCP_UPLOAD` is off);
 arguments, limits and result shapes are in
 [](../../reference/mcp.md).
 
@@ -115,6 +118,7 @@ flowchart LR
     subgraph read["Read only"]
         search
         read_["read"]
+        current_page
         tags
         topics
         drawing
@@ -129,6 +133,10 @@ flowchart LR
     subgraph text["Page text and drawings"]
         edit_page
         edit_drawing
+        add_svg
+    end
+    subgraph ask["Ask Claude"]
+        writeup
     end
     subgraph hist["Revisions and trash"]
         revisions
@@ -151,15 +159,17 @@ flowchart LR
 ```
 
 Tools in orange are listed only while `SCRAP_MCP_CONTENT_EDIT` is on (default). `revert` with
-`to_rev` also needs it; metadata revert does not.
+`to_rev` also needs it; metadata revert does not. `add_svg` is listed only while
+`SCRAP_MCP_UPLOAD` is on (default).
 
 | Group | Tools | Notes |
 | --- | --- | --- |
-| Read | `search`, `read`, `tags`, `topics`, `drawing` | results carry the PWA link `$SCRAP_PUBLIC_URL/p/<slug>`; `read` adds `by_model`, labelled as model-written; a trashed page reads as `trashed: true` |
+| Read | `search`, `read`, `current_page`, `tags`, `topics`, `drawing` | results carry the PWA link `$SCRAP_PUBLIC_URL/p/<slug>`; `read` adds `by_model`, labelled as model-written; a trashed page reads as `trashed: true`; `current_page`: the page last opened in the app, kept in memory only |
 | Add | `write` | a new page, or a section appended to a page written over MCP (`append_to`); source `mcp`, author `claude` |
 | Kind and tags | `edit_meta`, `rename_tag` | any page; bulk changes record a batch id; `dry_run` first ([ADR 0019](../decisions/0019-kinds-and-tags-editable-with-revisions.md)) |
 | Text and drawings | `edit_page`, `edit_drawing` | `edit_page`: one passage found exactly once, or the whole body given its current `rev` ([ADR 0022](../decisions/0022-page-text-editable-over-mcp-with-revisions.md)); `edit_drawing`: a new current version of an image's drawing, given the `base_version` read ([](../../reference/mcp.md)) |
 | Images and files | `add_svg` (and the upload below) | an SVG Claude writes, sanitised, embedded at the end or right after the line an exact anchor ends on (inside its list item or quote), as a text revision by `claude`; listed only while `SCRAP_MCP_UPLOAD` is on (default), whatever `SCRAP_MCP_CONTENT_EDIT` ([ADR 0042](../decisions/0042-mcp-clients-add-svg-and-files.md)) |
+| Ask | `writeup` | queues a write-up of a page's read image (one model call from the daily budget); refused while scrap's Claude is off |
 | History | `revisions`, `revert` | `revert` undoes metadata by revision or batch, or text with `to_rev` |
 | Trash | `trash`, `trash_pages`, `undelete` | the user's deletes land in trash, as do pages the user asks Claude to delete (`trash_pages`, at most 50 a call, as a batch `undelete` brings back); nothing over MCP deletes for good or empties the trash ([ADR 0025](../decisions/0025-trash-and-recent-changes-over-mcp.md), [ADR 0034](../decisions/0034-claude-can-move-pages-to-the-trash.md)); every move is in `revisions`; `trash` gives each page's `purge_at`, as nightly gc purges it after N days ([ADR 0030](../decisions/0030-trash-purged-after-n-days.md)) |
 
