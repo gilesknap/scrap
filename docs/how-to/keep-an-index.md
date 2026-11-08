@@ -25,9 +25,9 @@ link per line:
 A slug is the last part of a page's address (`/p/garden-plan` is `garden-plan`), and it never
 changes when a page is retitled, so the links survive renames. Only lower-case letters, digits
 and hyphens make a link: `[[Garden plan]]` stays as typed. The label after `|` is what shows.
-See [](use-the-pwa.md) (Linking pages).
+See [Linking pages](use-the-pwa.md#linking-pages).
 
-Tag the page `index`: tap **+ Tag** under its title. Tags are lower case, at
+Tag the page `index`: **Edit**, then its **Tags** line, then **Save**. Tags are lower case, at
 most 64 characters. If only this page carries the tag, a search for `tag:index` finds it at once. Use `index/projects`, `index/people` and so on for a page per topic: a search
 for `tag:index` finds them all.
 
@@ -71,5 +71,5 @@ and each edit is a revision you can undo with `revert`. A server run with
 itself, so let it write the Index (*make me an Index page*) and it can append to it afterwards (an append lands at the end of the page, not under a chosen
 heading, so you move the lines yourself).
 
-To see what an index links to, and what links back, open the page and look under **Related**:
-every page in the index lists the Index among its backlinks.
+Each page the Index links to lists the Index under **Related** (*· links here*), in its
+**About this page** card.
