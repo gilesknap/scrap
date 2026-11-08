@@ -111,14 +111,16 @@ chunks, because a chunk file's name stayed the same while its contents and impor
    capability (for Feedback); the Artifact tool's description has the rules.
 
    One publish takes at most 255 files, and the map is now about 285, so publish it in
-   two halves, one straight after the other, to the same url:
-   `python3 sim/files.py --part 1/2 previous.json > part1.json`, then `--part 2/2` into
-   `part2.json`. The previous map for next time is the whole one (no `--part`).
+   two halves, one straight after the other, to the same url. Give both the same previous
+   map, so they slice the same whole:
+   `python3 sim/files.py --part 1/2 previous.json > part1.json` and
+   `python3 sim/files.py --part 2/2 previous.json > part2.json`. The previous map for next
+   time is the whole one (no `--part`).
 
 The map leaves out `index.html` (it is the `file_path`) and `blobs/` and `excalidraw/`
 (the drawing fonts). Those two folders do not change between builds (unless the
 fixtures or the Excalidraw version do), are already on the artifact, and a publish keeps
-the files it leaves out, and leaving them out keeps the publishes fewer. For a new artifact, or after a fixture or Excalidraw
+the files it leaves out, which keeps each publish smaller. For a new artifact, or after a fixture or Excalidraw
 change, publish them as well, as a second publish to the same url:
 
 ```sh

@@ -1237,7 +1237,7 @@
     const login = document.createElement("button");
     login.type = "button";
     login.className = "sim-fb sim-login";
-    login.textContent = "Expire login";
+    login.textContent = loginExpired() ? "Log back in" : "Expire login";
     login.onclick = () => {
       expired = !loginExpired();
       login.textContent = expired ? "Log back in" : "Expire login";

@@ -36,6 +36,8 @@ if part:
     spec = part.split("=", 1)[1] if "=" in part else args.pop(i + 1)
     args.remove(part)
     part_n, parts = (int(x) for x in spec.split("/"))
+    if not 1 <= part_n <= parts:
+        sys.exit(f"--part {spec}: N must be from 1 to M")
 
 names = sorted(p.relative_to(OUT).as_posix() for p in OUT.rglob("*") if p.is_file())
 if static:
