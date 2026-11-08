@@ -79,8 +79,9 @@ export const redraw = (err: unknown) =>
     // a drawing superseded since the view was drawn: its id is no longer the page's (#520)
     (err.status === 422 && codeOf(err) === "bad_placeholder" && /drawing/.test(err.message)));
 
-/** Not sent at all: offline, or the server not reached. */
-export const unreached = (err: unknown) => !(err instanceof ApiError);
+/** Not sent at all: offline, or the server not reached (an expired login is not: whyNot says it). */
+export const unreached = (err: unknown) =>
+  !(err instanceof ApiError) && !(err instanceof LoginExpired);
 
 /** Why a publish failed, in words for a toast. */
 export function whyNot(err: unknown, online = navigator.onLine): string {

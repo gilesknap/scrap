@@ -13,6 +13,7 @@ const { ApiError, LoginExpired, api } = await import("../src/api");
 const { marked, toNetwork, unmark } = await import("../src/login");
 const { problem, relogin } = await import("../src/ui");
 const { why } = await import("../src/why");
+const { unreached, whyNot } = await import("../src/publicapi");
 
 afterEach(() => fetch.mockReset());
 
@@ -65,6 +66,14 @@ describe("why()", () => {
   });
 });
 
+describe("a publish that meets the expired login", () => {
+  it("is not taken for offline, and says why", () => {
+    expect(unreached(new LoginExpired())).toBe(false);
+    expect(unreached(new TypeError("Failed to fetch"))).toBe(true);
+    expect(whyNot(new LoginExpired())).toBe("your login has expired");
+  });
+});
+
 describe("problem()", () => {
   it("says the login expired, with Log in again", () => {
     const el = problem(new LoginExpired()) as unknown as FakeNode;
@@ -92,10 +101,10 @@ describe("problem()", () => {
 
 describe("logging in again", () => {
   it("reloads this screen marked login=1, its own query kept", () => {
-    const assign = vi.fn();
-    vi.stubGlobal("location", { href: "https://scrap.example/search?q=tag%3Ax#top", assign });
+    const replace = vi.fn();
+    vi.stubGlobal("location", { href: "https://scrap.example/search?q=tag%3Ax#top", replace });
     relogin();
-    expect(assign).toHaveBeenCalledWith("https://scrap.example/search?q=tag%3Ax&login=1#top");
+    expect(replace).toHaveBeenCalledWith("https://scrap.example/search?q=tag%3Ax&login=1#top");
     expect(marked("https://scrap.example/p/a")).toBe("https://scrap.example/p/a?login=1");
   });
 

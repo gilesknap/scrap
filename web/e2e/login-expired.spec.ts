@@ -1,13 +1,14 @@
-// The login in front of scrap expired (DLS's oauth2-proxy overnight, Cloudflare Access): the
-// API answers with a redirect to its sign-in, here faked as a 302 on every /api request. The
-// app says so, not "Can't reach the server", with Log in again, which loads the screen marked
-// login=1 (past the service worker's cache) and takes the mark off once loaded.
+// The login in front of scrap expired: every /api request is answered, as by a login proxy,
+// with a 302 to its sign-in on another site. A screen then says "Your login has expired." (not
+// "Can't reach the server") with Log in again, which loads the screen afresh with login=1 and
+// takes the mark off the address once loaded; a page edit's Save says so with Log in, the text
+// kept in the editor.
 import { expect, type Page, test } from "@playwright/test";
 import { ulid } from "./helpers";
 
 const expire = (page: Page) =>
   page.route("**/api/**", (route) =>
-    route.fulfill({ status: 302, headers: { Location: "/oauth2/start?rd=%2F" } }),
+    route.fulfill({ status: 302, headers: { Location: "https://login.invalid/start?rd=%2F" } }),
   );
 
 test("a screen says the login expired, and Log in again loads it afresh", async ({ page }) => {
@@ -16,12 +17,19 @@ test("a screen says the login expired, and Log in again loads it afresh", async 
   const state = page.locator("main .empty.failed");
   await expect(state).toContainText("Your login has expired.");
   await expect(state).not.toContainText("Can't reach");
-  const again = state.getByRole("button", { name: "Log in again" });
-  const marked = page.waitForRequest((r) => r.isNavigationRequest() && /[?&]login=1/.test(r.url()));
-  await again.click();
-  await marked;
-  await expect(state).toContainText("Your login has expired."); // still expired here
+  await page.evaluate(() => {
+    document.body.dataset.before = "1"; // gone once the screen has really loaded again
+  });
+  const loaded = page.waitForEvent(
+    "framenavigated",
+    (f) => f === page.mainFrame() && /[?&]login=1(&|#|$)/.test(f.url()),
+  );
+  await state.getByRole("button", { name: "Log in again" }).click();
+  await loaded;
+  await page.waitForLoadState("load");
+  await expect(page.locator("body")).not.toHaveAttribute("data-before", "1");
   await expect.poll(() => page.evaluate(() => location.pathname + location.search)).toBe("/todos");
+  await expect(state).toContainText("Your login has expired."); // still expired: the fake stays
 });
 
 test("a Save that meets the expired login says so and keeps the text", async ({ page }) => {

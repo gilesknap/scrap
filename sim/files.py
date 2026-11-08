@@ -35,7 +35,7 @@ if part:
     i = args.index(part)
     spec = part.split("=", 1)[1] if "=" in part else args.pop(i + 1)
     args.remove(part)
-    n, m = (int(x) for x in spec.split("/"))
+    part_n, parts = (int(x) for x in spec.split("/"))
 
 names = sorted(p.relative_to(OUT).as_posix() for p in OUT.rglob("*") if p.is_file())
 if static:
@@ -53,8 +53,8 @@ if args:
 
 if part:
     keys = sorted(files)
-    size = -(-len(keys) // m)  # rounded up
-    files = {k: files[k] for k in keys[(n - 1) * size : n * size]}
+    size = -(-len(keys) // parts)  # rounded up
+    files = {k: files[k] for k in keys[(part_n - 1) * size : part_n * size]}
 
 json.dump(files, sys.stdout, indent=0)
 print()

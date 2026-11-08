@@ -134,8 +134,9 @@ export function problem(e: unknown): Node {
 }
 
 /** Log in again: load this screen past the service worker's cache (login.ts), so the login
- * in front of scrap can send it to its sign-in and back here. */
-export const relogin = () => location.assign(marked(location.href));
+ * in front of scrap can send it to its sign-in and back here. In place of this entry, so Back
+ * does not return to the screen that said the login had expired. */
+export const relogin = () => location.replace(marked(location.href));
 
 /** A problem state (the server can't be reached): marked, so a quiet refresh can keep the old rows. */
 const failed = (line: string, ...more: Kid[]) => {
