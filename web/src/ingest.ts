@@ -2,11 +2,12 @@
 // Resume, the description and text it read (the text in a fold of its own) with the owner's
 // guidance for the next reading (#538), and its drawing beside the photo (side by side
 // when there is room, else a Photo / Drawing switch).
-import { ApiError, api, type FileRef, type Ingest, type Queue } from "./api";
+import { api, type FileRef, type Ingest, type Queue } from "./api";
 import "./excalidraw.css";
 import { drawingCard, openDrawing, type Target } from "./drawing";
 import { photoGuidance, readingFold, readingState, readText } from "./reading";
 import { h, toast } from "./ui";
+import { why } from "./why";
 
 /** The chip's words for a state. */
 function stateText(i: Ingest, q: Queue | null): string {
@@ -23,8 +24,6 @@ function stateText(i: Ingest, q: Queue | null): string {
       return `Paused${q?.reason ? ` (${q.reason})` : ""}: nothing is lost`;
   }
 }
-
-const why = (err: unknown) => (err instanceof ApiError ? err.message : "can't reach the server");
 
 export function photoPanel(o: {
   cid: string;

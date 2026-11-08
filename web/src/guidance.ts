@@ -5,16 +5,16 @@
 // next Regenerate uses it). What is being typed is kept, with its fold open, when the page is
 // drawn again. Its look in a reading is css/reading.css's. Shared by the write-up's and the
 // figure's chunks: not the app shell.
-import { ApiError } from "./api";
 import { h, toast } from "./ui";
+import { why } from "./why";
 
 /** Guidance being typed, by what it is for (a page's id, an image's capture and sha). */
 const typing = new Map<string, string>();
 /** Guidance just saved, until it is drawn again: the fold holding it stays open (a reading's,
  * reading.ts), so its "(set)" and Regenerate are in sight, as the write-up's are. */
 const saved = new Set<string>();
-export const why = (err: unknown) =>
-  err instanceof ApiError ? err.message : "can't reach the server";
+
+export { why };
 
 /** A button that does one thing, disabled while it does it. */
 export function act(label: string, run: () => Promise<void>, className = "") {

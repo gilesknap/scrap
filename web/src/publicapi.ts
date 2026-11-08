@@ -1,7 +1,7 @@
 // The public pages' calls to scrap (#497), as docs/reference/public-site.md "The PWA's API in
 // scrap" has them; the types are in api.ts. Kept apart from api.ts, which is in the app shell:
 // only the page view, Settings and publicpages.ts use these.
-import { ApiError, api, type Page, type PublicPage, type Published } from "./api";
+import { ApiError, api, LoginExpired, type Page, type PublicPage, type Published } from "./api";
 
 const JSON_TYPE = { "Content-Type": "application/json" };
 
@@ -79,11 +79,13 @@ export const redraw = (err: unknown) =>
     // a drawing superseded since the view was drawn: its id is no longer the page's (#520)
     (err.status === 422 && codeOf(err) === "bad_placeholder" && /drawing/.test(err.message)));
 
-/** Not sent at all: offline, or the server not reached. */
-export const unreached = (err: unknown) => !(err instanceof ApiError);
+/** Not sent at all: offline, or the server not reached (an expired login is not: whyNot says it). */
+export const unreached = (err: unknown) =>
+  !(err instanceof ApiError) && !(err instanceof LoginExpired);
 
 /** Why a publish failed, in words for a toast. */
 export function whyNot(err: unknown, online = navigator.onLine): string {
+  if (err instanceof LoginExpired) return err.message;
   if (!(err instanceof ApiError)) return online ? "can't reach the server" : "you're offline";
   const code = codeOf(err);
   if (err.status === 503) return "publishing is off on this server";
