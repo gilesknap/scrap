@@ -3,7 +3,7 @@
    them. Where a phone puts things under the thumb, a computer puts them where the eye and the
    mouse already are: the nav as tabs in the top bar, the capture tiles over the list, a page's
    actions as a row under what it is, toasts at the foot; and hover says what can be clicked.
-   (ui.ts has the same query, DESK, for placing toasts.) */
+   (home.ts has the same query, DESK: toasts and scrap's home use it.) */
 @media (min-width: 900px) and (hover: hover) and (pointer: fine) {
   /* The nav: tabs in the middle of the top bar, not a bar at the window's foot. Four tabs and
      the wordmark (with a long development version) are wider than --column, so a list screen's

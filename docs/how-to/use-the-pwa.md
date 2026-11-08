@@ -268,6 +268,8 @@ The app opens without a connection. Anything that reads from or writes to the se
   goes back one step at a time. A page opened cold (a link or share) goes up instead: Todos for a
   todo, Topics for a topic page, Capture otherwise. Back always goes where its label says: while
   the page is still loading, that is Capture. A screen returns scrolled where you left it.
+- **On a computer** (a mouse and a window 900 px or wider) scrap opens on **Search**, and a cold
+  page's Back says **Search** where a phone's says Capture. The **Capture** tab is at `/capture`.
 - **Layout.** On a narrow phone, a page's upload badge shortens to its dot and count (● 2). On a
   wide screen the app is one centred column, 800 px wide by default ([Maximum column width](#maximum-column-width)
   changes it, 720 to 960 px). With a mouse the tabs move to the top bar, Add files and

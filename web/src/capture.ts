@@ -46,7 +46,7 @@ export function picker(
 
 export async function capture(): Promise<Node> {
   if (new URLSearchParams(location.search).has("shared")) {
-    history.replaceState(null, "", "/");
+    history.replaceState(null, "", location.pathname); // "/", or /capture on a computer
     toast("Shared item saved");
   }
   const root = h("section", { className: "capture" });

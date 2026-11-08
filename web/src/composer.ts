@@ -3,7 +3,7 @@
 // files are tokens in the text with a chip each, as the page editor's embeds are (pending.ts).
 import { adders, restore } from "./adders";
 import { overLimit, uploadLimit } from "./api";
-import { queue } from "./app";
+import { LISTS, queue } from "./app";
 import { drafts } from "./db";
 import {
   editor,
@@ -126,7 +126,7 @@ export async function compose(picked: File[], as?: string, resume = false, given
     restored: !!kept,
     left: () => {
       // Its row is on Capture: elsewhere (Todos), say where
-      const where = location.pathname === "/" ? "" : ": it's on Capture";
+      const where = LISTS[location.pathname] === "Capture" ? "" : ": it's on Capture";
       if (!slot) return toast(`Kept as a draft${where}`);
       // Its lock is let go once it is in the kept draft's place (freshlock.ts)
       leave(slot, (older) =>
@@ -200,7 +200,8 @@ export async function compose(picked: File[], as?: string, resume = false, given
     if (navigator.onLine) {
       toast("Saved");
       refused(ids);
-    } else if (location.pathname !== "/") toast("Saved on the phone: uploads when online");
+    } else if (LISTS[location.pathname] !== "Capture")
+      toast("Saved on the phone: uploads when online");
   };
   if (!pending().length) text.focus();
 }

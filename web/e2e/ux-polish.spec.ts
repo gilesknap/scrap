@@ -471,7 +471,7 @@ test.describe("on a computer (a mouse, a wide window)", () => {
   test("the nav is tabs in the top bar, and Capture's tiles sit over the list", async ({
     page,
   }) => {
-    await page.goto("/");
+    await page.goto("/capture");
     const header = await page.locator("header").boundingBox();
     const nav = await page.locator("nav").boundingBox();
     // In the top bar's height, not at the window's foot
