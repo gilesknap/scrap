@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Run the DLS login proxy &#8212; scrap 1.8.2.dev2+g9ece7c27b documentation</title>
+    <title>Run the DLS login proxy &#8212; scrap 1.8.2.dev6+g127face67 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=74b9aaae"></script>
+    <script src="../_static/documentation_options.js?v=42becf38"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -525,7 +525,9 @@ argus users cannot make NetworkPolicies, so a pod in the cluster can reach a use
 Service directly, but without a valid Keycloak token for that user it gets <code class="docutils literal notranslate"><span class="pre">401</span></code>; <code class="docutils literal notranslate"><span class="pre">/mcp</span></code> needs
 its bearer token. The proxy refreshes the session every minute, inside the access token’s
 5 minutes. Without <code class="docutils literal notranslate"><span class="pre">offline_access</span></code>, a user stays logged in only as long as their DLS
-Keycloak session; when it ends, the next refresh fails and they log in again.</p></li>
+Keycloak session; when it ends, the next refresh fails and they log in again. The app then
+says “Your login has expired” with <strong>Log in again</strong>, which goes through the login and back
+to the same screen; an unsaved edit is kept on the phone as a draft.</p></li>
 <li><p>The sessions are kept in a small Redis beside the proxy (<code class="docutils literal notranslate"><span class="pre">oauth2-proxy-redis</span></code>, one pod, part
 of the same release); the browser’s cookie only names its session. DLS Keycloak’s tokens make
 a session too big for one cookie, and a session split across cookies broke when requests
