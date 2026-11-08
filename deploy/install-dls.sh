@@ -127,23 +127,34 @@ connect_claude() {
         return 0
     fi
     # The helper sources the .env as shell, so only a plain token goes in (this script
-    # makes 64 hex characters; one set by hand could hold $, quotes or spaces).
+    # makes 64 hex characters; one set by hand could hold $, ~, quotes or spaces).
     case $token in
-        *[!A-Za-z0-9._~+/=-]*)
+        *[!A-Za-z0-9._+/=-]*)
             token=
-            echo "WARNING: the token in $secret has characters other than letters, digits and ._~+/=-: Claude Code is not connected." >&2
+            echo "WARNING: the token in $secret has characters other than letters, digits and ._+/=-: Claude Code is not connected." >&2
             return 0 ;;
     esac
-    # Private before the token goes in. Written in place, keeping the file's other lines
-    # (and its inode, so a container that mounts it sees the change).
-    tmp=$(mktemp -d) && chmod 700 "$tmp" &&
-        mkdir -p "${env_file%/*}" && (umask 077 && touch "$env_file") && chmod 600 "$env_file" &&
-        { grep -v '^SCRAP_DLS_MCP_TOKEN=' "$env_file" >"$tmp/env" || [ $? = 1 ]; } &&
-        printf 'SCRAP_DLS_MCP_TOKEN=%s\n' "$token" >>"$tmp/env" &&
-        cat "$tmp/env" >"$env_file"
-    ok=$?
+    # Private before the token goes in. The new file is made beside the .env first (same
+    # filesystem, so a full disk or quota fails here, with the .env untouched), then copied
+    # over it in place, keeping its inode so a container that mounts it sees the change.
+    env_dir=${env_file%/*}
+    new_env=
+    ok=1
+    if mkdir -p "$env_dir" && (umask 077 && touch "$env_file") && chmod 600 "$env_file" &&
+        new_env=$(umask 077 && mktemp "$env_dir/.env.XXXXXX") &&
+        { grep -v '^SCRAP_DLS_MCP_TOKEN=' "$env_file" >"$new_env" || [ $? = 1 ]; } &&
+        printf 'SCRAP_DLS_MCP_TOKEN=%s\n' "$token" >>"$new_env"; then
+        if cat "$new_env" >"$env_file"; then
+            ok=0
+            rm -f "$new_env"
+        else
+            # The .env may be cut short: keep the full copy for the user to restore.
+            echo "WARNING: writing $env_file failed part way: its new contents are in $new_env." >&2
+        fi
+    elif [ -n "$new_env" ]; then
+        rm -f "$new_env"
+    fi
     token=
-    rm -rf "$tmp"
     if [ "$ok" != 0 ]; then
         echo "WARNING: could not write the token to $env_file: Claude Code is not connected." >&2
         return 0

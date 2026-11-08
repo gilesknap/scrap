@@ -106,7 +106,7 @@ time it connects, and the helper reads the token from a private file. The instal
 
 1. puts the token in `~/.config/terminal-config/.env` (mode 600, private before the token goes
    in), as `SCRAP_DLS_MCP_TOKEN=...`, replacing a line already there and keeping the others
-   (a token you set by hand must be only letters, digits and `._~+/=-`, as the helper reads the
+   (a token you set by hand must be only letters, digits and `._+/=-`, as the helper reads the
    file as shell);
 2. writes the helper `~/.claude/scrap-dls-headers.sh` (mode 700):
 

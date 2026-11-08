@@ -11,6 +11,7 @@ fail=0
 # The real helm and kubeconform, if any, before the stubs go on the PATH.
 real_helm=$(command -v helm || true)
 real_kubeconform=$(command -v kubeconform || true)
+real_mktemp=$(command -v mktemp)
 check() { # check NAME CONDITION-COMMAND...
     name=$1; shift
     if "$@"; then echo "ok   $name"; else echo "FAIL $name"; fail=1; fi
@@ -35,7 +36,7 @@ case "\$*" in
   *"get secret"*ANTHROPIC*) [ -e "$tmp/key" ] && echo eg== ; exit 0 ;;
   *"get secret"*SCRAP_MCP_TOKEN*)
     [ -e "$tmp/notoken" ] && exit 0
-    [ -e "$tmp/oddtoken" ] && { printf '%s' 'a\$(touch $tmp/ran)b' | base64; exit 0; }
+    [ -e "$tmp/oddtoken" ] && { base64 <"$tmp/oddtoken"; exit 0; }
     if [ -e "$tmp/created-SCRAP_MCP_TOKEN" ]; then base64 <"$tmp/created-SCRAP_MCP_TOKEN"; else echo dA==; fi
     exit 0 ;;
   *"get secret"*SCRAP_PUBLISH_TOKEN*) [ -e "$tmp/nopublish" ] || echo cA== ; exit 0 ;;
@@ -67,6 +68,15 @@ case "\$*" in
     printf '%s\\n' "\$5" >"$tmp/claude-\$4"; exit 0 ;;
 esac
 exit 1
+STUB
+# mktemp: with $tmp/fullenv, the new .env's copy goes where it cannot be written (as a
+# full disk or quota would), so the write fails before the real .env is touched.
+cat >"$tmp/bin/mktemp" <<STUB
+#!/bin/sh
+case "\$*" in
+  */.env.*) [ -e "$tmp/fullenv" ] && { echo "$tmp/nowhere/.env.x"; exit 0; } ;;
+esac
+exec "$real_mktemp" "\$@"
 STUB
 chmod +x "$tmp/bin/"*
 # The PATH without any real claude, so a test can never reach yours.
@@ -388,6 +398,7 @@ check "fresh home: the install succeeds" [ "$fh_rc" = 0 ]
 check "fresh home: .env holds only the token, mode 600" sh -c "[ \"\$(stat -c %a '$envf')\" = 600 ] &&
     [ \"\$(cat '$envf')\" = \"SCRAP_DLS_MCP_TOKEN=\$(cat '$tmp/created-SCRAP_MCP_TOKEN')\" ]"
 check "fresh home: the helper made" cmp -s "$helper" "$tmp/want-helper"
+check "fresh home: no copy of the .env left beside it" [ "$(ls -A "${envf%/*}")" = .env ]
 check "fresh home: connected" grep -q "Claude Code is connected" "$tmp/out"
 
 # The .env cannot be written (its directory is a file): warned, and the install succeeds.
@@ -399,15 +410,31 @@ check "no .env: warns" grep -q "WARNING: could not write the token to $envf" "$t
 check "no .env: says what to do" grep -q "fix the cause above, then re-run this script" "$tmp/out"
 check "no .env: claude left alone" sh -c "[ ! -s '$tmp/claude.calls' ]"
 
-# A token with shell characters (set by hand) never goes in the .env the helper sources.
-rm -rf "${tmp:?}/home"; touch "$tmp/oddtoken"; : >"$tmp/claude.calls"
-if run; then ot_rc=0; else ot_rc=1; fi
-rm -f "$tmp/oddtoken"
-check "odd token: the install succeeds" [ "$ot_rc" = 0 ]
-check "odd token: warns" grep -q "WARNING: the token in .* has characters other than" "$tmp/out"
-check "odd token: says what to do" grep -q "fix the cause above, then re-run this script" "$tmp/out"
-check "odd token: not in .env, claude left alone" sh -c "! grep -qs SCRAP_DLS_MCP_TOKEN '$envf' &&
-    [ ! -s '$tmp/claude.calls' ] && [ ! -e '$tmp/ran' ]"
+# A token set by hand with characters the helper's shell would act on ($( ), or a
+# leading ~ after the =): the meaningful check is that no SCRAP_DLS_MCP_TOKEN line
+# reaches the .env the helper sources.
+# shellcheck disable=SC2016,SC2088 # literal $( ) and ~ are the point
+for odd in 'a$(touch '"$tmp"'/ran)b' '~/x'; do
+    rm -rf "${tmp:?}/home"; printf '%s' "$odd" >"$tmp/oddtoken"; : >"$tmp/claude.calls"
+    if run; then ot_rc=0; else ot_rc=1; fi
+    rm -f "$tmp/oddtoken"
+    check "odd token '$odd': the install succeeds" [ "$ot_rc" = 0 ]
+    check "odd token '$odd': warns" grep -q "WARNING: the token in .* has characters other than" "$tmp/out"
+    check "odd token '$odd': says what to do" grep -q "fix the cause above, then re-run this script" "$tmp/out"
+    check "odd token '$odd': no token line in .env" sh -c "! grep -qs SCRAP_DLS_MCP_TOKEN '$envf'"
+    check "odd token '$odd': claude left alone" sh -c "[ ! -s '$tmp/claude.calls' ] && [ ! -e '$tmp/ran' ]"
+done
+
+# Writing the new .env fails (a full disk or quota): the .env is left as it was.
+rm -rf "${tmp:?}/home"; mkdir -p "${envf%/*}"
+printf 'SCRAP_MCP_TOKEN=home\nSCRAP_DLS_MCP_TOKEN=old\n' >"$envf"; chmod 600 "$envf"
+cp "$envf" "$tmp/want-env"; touch "$tmp/fullenv"; : >"$tmp/claude.calls"
+if run; then fw_rc=0; else fw_rc=1; fi
+rm -f "$tmp/fullenv"
+check "write fails: the install succeeds" [ "$fw_rc" = 0 ]
+check "write fails: warns" grep -q "WARNING: could not write the token to $envf" "$tmp/out"
+check "write fails: the .env untouched" cmp -s "$envf" "$tmp/want-env"
+check "write fails: claude left alone" sh -c "[ ! -s '$tmp/claude.calls' ]"
 
 # SCRAP_CLAUDE=off: no .env, no helper, no claude.
 rm -rf "${tmp:?}/home"; : >"$tmp/claude.calls"
