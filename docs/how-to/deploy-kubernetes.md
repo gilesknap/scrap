@@ -1300,6 +1300,60 @@ Alerts to start from: `scrap_schedule_problems > 0`, or by hand
 `time() - scrap_backup_last_complete_timestamp_seconds > 26 * 3600`. A missing series, as when the
 pod is down, is worth an `absent()` alert too.
 
+(k8s-large-import)=
+## Import a large export
+
+The app imports a zip of up to the upload limit (`maxUploadMB`, 50 MB): {ref}`import-your-pages`.
+For a bigger one, such as a full export of another store, run `scrap import` in the scrap pod. It
+is safe while scrap runs: the import adds each page in its own transaction to the same database
+the server uses, a page added meanwhile is skipped, and Litestream copies the writes as it copies
+the server's.
+
+### With the script
+
+[`deploy/scrap-import.sh`](https://github.com/gilesknap/scrap/blob/main/deploy/scrap-import.sh)
+needs only `kubectl`:
+
+```sh
+curl -fsSLO https://raw.githubusercontent.com/gilesknap/scrap/main/deploy/scrap-import.sh
+sh scrap-import.sh notes.zip            # a dry run: writes nothing
+sh scrap-import.sh --apply notes.zip    # the import
+```
+
+It finds the one Ready scrap pod (`SCRAP_NAMESPACE` and `SCRAP_RELEASE`, both `scrap` by
+default), checks that its database is there, streams the zip into the `jobs` container's `/tmp`
+and checks its size, then runs `scrap import --dry-run`, or the import with `--apply`. It always
+removes the zip. `--enrich` and `--photos` are passed on: they have Claude tag and summarise the
+new pages, and read their photos, which costs money and counts against `ingest.budgetDayUSD`.
+Without them Claude is not called.
+
+### By hand
+
+1. Find the pod, and check that exactly one is Ready:
+   `kubectl -n scrap get pods -l app.kubernetes.io/instance=scrap,app.kubernetes.io/name=scrap`.
+2. Copy the zip into the `jobs` container's `/tmp`. The root filesystem is read-only, and `/tmp` is
+   an emptyDir limited to 1 Gi, so keep the zip under about 900 MiB, or split the export:
+
+   ```sh
+   kubectl -n scrap exec -i <pod> -c jobs -- sh -c 'cat > /tmp/notes.zip' < notes.zip
+   ```
+
+3. Run a dry run, read its list of pages and problems, then run it again without `--dry-run`:
+
+   ```sh
+   kubectl -n scrap exec <pod> -c jobs -- scrap import --dry-run /tmp/notes.zip
+   kubectl -n scrap exec <pod> -c jobs -- scrap import /tmp/notes.zip
+   ```
+
+4. Remove the zip: `kubectl -n scrap exec <pod> -c jobs -- rm /tmp/notes.zip`.
+
+The `jobs` container has the same `SCRAP_DATA_DIR` and `SCRAP_DB_PATH` as the server, so pass
+neither. **Do not pass `--data-dir` on its own**: it means the database in that folder,
+`/data/scrap.db`, not the live `/db/scrap.db`. The new pages' files go on the data volume and the
+pages into the database on `/db`, within `litestream.sizeLimit`: `kubectl -n scrap exec
+deploy/scrap -c jobs -- scrap gc --report` shows the sizes. In the old mode
+(`litestream.enabled: false`) there is no `jobs` container: use `-c scrap`, as the script does.
+
 (k8s-storage)=
 ## k3s and storage notes
 
