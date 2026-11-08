@@ -31,6 +31,13 @@ flowchart LR
 | Related pages | `jobs` container, job `enrich-related` | `scrap-enrich-related.timer`, `scrap-enrich-related.service` | 03:41 daily, `41 3 * * *` | `scrap enrich --related`: picks related pages for every page changed, or with a photo read, since its last picks ({ref}`ingest-enrich-related`). It does not write board write-ups again: an outdated one is the owner's to regenerate | Yes | Kubernetes: 4 h; single server: none |
 | Topics | `jobs` container, job `enrich-topics` | `scrap-enrich-topics.timer`, `scrap-enrich-topics.service` | 04:11 on Sundays, `11 4 * * 0` | `scrap enrich --topics`: one discovery call (new topic pages and sources), then a synthesis queued for each topic due, which the scrap service's worker makes ({ref}`ingest-topics`) | Yes (the call, and the syntheses) | Kubernetes: 1 h; single server: none |
 
+On Kubernetes the chart runs the database with Litestream by default
+([ADR 47](../explanations/decisions/0047-litestream-is-the-default-kubernetes-mode.md)), so gc,
+related pages and topics, which need the live database, run in the scrap pod's `jobs` container,
+not as CronJobs. For now the chart also renders CronJobs named `<fullname>-gc`,
+`<fullname>-enrich-related` and `<fullname>-enrich-topics`, suspended stubs that never run: they
+replace the old mode's CronJobs on an upgrade ({ref}`k8s-upgrade-old-mode`).
+
 On Kubernetes the `jobs` container also does this, on fixed times that no value changes:
 
 | Job | Where | When | What it does |

@@ -3,20 +3,22 @@
 Runs [scrap](https://github.com/gilesknap/scrap) on Kubernetes: one Deployment with exactly
 **one replica** and the `Recreate` strategy (scrap's SQLite database has a single writer), a
 PersistentVolumeClaim for `/data`, a ClusterIP Service (port 80, container port 8000) and a
-ServiceAccount that mounts no token. On by default, a nightly backup CronJob with its own
-PersistentVolumeClaim (`backup.enabled`), and a nightly `scrap gc` CronJob (`gc.enabled`, default: follows `backup.enabled`); with
-ingest on, a nightly related-pages CronJob (`enrichRelated.enabled`) and a weekly topics CronJob
-(`enrichTopics.enabled`) too. An Ingress and a NetworkPolicy are optional.
+ServiceAccount that mounts no token. The database is on the pod's own disk, replicated
+continuously by Litestream to `/data` (`litestream.*`, below). On by default, a nightly backup
+CronJob with its own PersistentVolumeClaim (`backup.enabled`), and a nightly `scrap gc`
+(`gc.enabled`, default: follows `backup.enabled`); with ingest on, a nightly related-pages pass
+(`enrichRelated.enabled`) and a weekly topics pass (`enrichTopics.enabled`) too. gc and those
+passes run in a `jobs` container in the scrap pod. An Ingress and a NetworkPolicy are optional.
 
 scrap has **no login** of its own: expose it only on a private network such as your tailnet, or
 behind an authenticating proxy.
 
 ## Requirements
 
-- Kubernetes 1.27 or newer, and Helm 3 or 4.
-- A StorageClass that provides `ReadWriteOnce` volumes on a local or block filesystem. Do not put
-  the database on NFS or another network filesystem: SQLite's WAL mode needs reliable shared memory
-  and locking. If NFS is all there is, set `litestream.enabled` (below).
+- Kubernetes 1.29 or newer (Litestream runs as a native sidecar), and Helm 3 or 4.
+- A StorageClass that provides `ReadWriteOnce` volumes; NFS will do, as the database itself is on
+  the node's disk (an emptyDir, `litestream.sizeLimit`, default 2Gi) and only its replica is on the
+  volume.
 - A private way in. The [Tailscale Kubernetes
   operator](https://tailscale.com/kb/1236/kubernetes-operator) is the recommended one.
 - For photo ingest, a Claude API key in a Secret that you create (see below).
@@ -103,10 +105,9 @@ namespace and the token Secret in it. One pod holds nginx, which serves the site
 pushes the pages to. Only nginx gets an Ingress (`public.ingress`). A NetworkPolicy admits only
 scrap's pods to the receiver and `public.networkPolicy.webFrom` (empty: anyone) to nginx, and
 denies all egress (`public.networkPolicy.enabled: false` leaves it out, where you may not create
-one). `public.namespace` may be the release namespace; then one Secret serves both pods. The site is an `emptyDir` (`public.sizeLimit`), empty again when the pod moves.
-scrap's publisher, which pushes the pages and refills the site, arrives with the scrap side of
-issue 497: until then this section runs the public side only. The contract between the two
-sides is the [public site reference](https://gilesknap.github.io/scrap/main/reference/public-site.html),
+one). `public.namespace` may be the release namespace; then one Secret serves both pods. The site is an `emptyDir` (`public.sizeLimit`), empty again when the pod moves:
+scrap refills it from its own copies, checking the receiver when it starts and every 10 minutes.
+The contract between the two sides is the [public site reference](https://gilesknap.github.io/scrap/main/reference/public-site.html),
 and the design is [ADR 43](https://gilesknap.github.io/scrap/main/explanations/decisions/0043-public-pages-a-static-site-scrap-pushes-to.html).
 
 The upload token is a Secret you create, at least 32 characters, named by
@@ -123,8 +124,9 @@ with the Bypass action: a wildcard application covers every subdomain. See the g
 - The data and backup claims are annotated `helm.sh/resource-policy: keep`, so `helm uninstall`
   leaves your data in place.
 - The scheduled jobs (backup, monthly backup, gc, and with ingest on related pages and topics):
-  turn one off with its `.enabled`, change it with `.schedule` and `.timeZone`, and check them
-  with `kubectl -n scrap get cronjobs,jobs`. The
+  turn one off with its `.enabled`, change it with `.schedule` and `.timeZone`. The backups are
+  CronJobs (`kubectl -n scrap get cronjobs,jobs`); the rest run in the pod's `jobs` container
+  (`kubectl -n scrap exec deploy/scrap -c jobs -- scrap schedule status`). The
   [scheduled jobs table](https://gilesknap.github.io/scrap/main/reference/scheduled-jobs.html)
   has each one's schedule, what it does, its Claude budget and its values.
 - The backup CronJob runs at `30 3 * * *` by default, keeps the newest 7 runs on a 20Gi claim and
@@ -132,20 +134,26 @@ with the Bypass action: a wildcard application covers every subdomain. See the g
   a directory every node mounts instead of the claim. A monthly CronJob (`backup.monthly.*`,
   `50 3 1 * *`) adds a full copy on the 1st into the backups' `monthly/` folder and keeps the newest
   12, so a destructive change noticed after a week can still be undone.
-- The gc CronJob purges a page that has been in the trash for more than `gc.trashDays` (default
+- gc purges a page that has been in the trash for more than `gc.trashDays` (default
   30), topic pages aside, with its captures and everything on them; its files then go as unused
   ones do. Nothing deletes a page before that. It also deletes finished job records older than
   `gc.jobDays` (default 30). The scrap pod shows each trashed page's purge date from
   `gc.trashDays` (`SCRAP_TRASH_DAYS`, `off` while gc does not delete). `kubectl -n scrap exec
   deploy/scrap -- scrap gc --report` prints what the store holds, by size.
-- `litestream.enabled` (default off; Kubernetes 1.29 or newer) puts the database on an emptyDir on
-  the node's disk, replicated continuously by Litestream to the data volume, for a volume on NFS. If
-  the node dies the last moments of writes are lost. An init container restores it, brings an existing
-  `/data/scrap.db` across once, or refuses to start. If replication stalls, the pod leaves its Service. Backups work from a restore of the replica
+- Litestream ([ADR 46](https://gilesknap.github.io/scrap/main/explanations/decisions/0046-database-on-an-emptydir-replicated-with-litestream.html),
+  the default since [ADR 47](https://gilesknap.github.io/scrap/main/explanations/decisions/0047-litestream-is-the-default-kubernetes-mode.html))
+  puts the database on an emptyDir on the node's disk, replicated continuously by Litestream to the
+  data volume. If the node dies the last moments of writes are lost. An init container restores it,
+  brings an existing `/data/scrap.db` across once (an upgrade from the old mode), or refuses to
+  start. If replication stalls, the pod leaves its Service. Backups work from a restore of the replica
   (still beside the scrap pod, for the `ReadWriteOnce` claim); gc and the Claude passes run in a `jobs`
   container in the pod, not as CronJobs (`scrap schedule status` there, or the opt-in
   `litestream.jobs.metrics`, says how they last ran); and restoring a backup takes `scrap restore --stage`. See
   [its section of the guide](https://gilesknap.github.io/scrap/main/how-to/deploy-kubernetes.html#k8s-litestream).
+- Deprecated: `litestream.enabled: false` keeps the database on the data volume (`/data/scrap.db`,
+  which must then be a local or block filesystem, not NFS), with gc and the Claude passes as
+  CronJobs. It will be removed in a later release. Upgrading from it needs a backup first and a
+  database under half of `litestream.sizeLimit`: see ADR 47's upgrade steps.
 - Database migrations are forward only, so rolling back to an older version also needs a restore
   of the database.
 

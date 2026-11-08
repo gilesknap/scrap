@@ -1,0 +1,7 @@
+# The deprecated mode (ADR 47): the database on the data volume, gc and the Claude passes
+# as CronJobs. It will be removed in a later release.
+litestream:
+  enabled: false
+ingest:
+  enabled: true
+  existingSecret: scrap-secrets

@@ -1,0 +1,45 @@
+{{- /* For upgrades from the old mode (ADR 47); removed in a later release. With Litestream,
+gc and the Claude passes run in the scrap pod, so their old CronJobs must not run: one
+an Argo CD sync without pruning would leave behind keeps its old image, and from a chart
+of 1.6.0 or older its gc would delete the files only the new database uses. So in
+Litestream mode the chart renders them under the same names, suspended and running
+nothing, and an upgrade turns each old one into this. Delete them once upgraded. */ -}}
+{{- if .Values.litestream.enabled }}
+{{- range $suffix := list "-gc" "-enrich-related" "-enrich-topics" }}
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "scrap.cronName" (dict "ctx" $ "suffix" $suffix) }}
+  labels:
+    {{- include "scrap.labels" $ | nindent 4 }}
+  annotations:
+    scrap/note: "For upgrades from the old mode: suspended, runs nothing. Removed in a later release."
+spec:
+  suspend: true
+  # Never due (there is no 31 February); suspended anyway.
+  schedule: "0 0 31 2 *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 0
+  failedJobsHistoryLimit: 0
+  jobTemplate:
+    spec:
+      ttlSecondsAfterFinished: 604800
+      backoffLimit: 0
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: {{ include "scrap.cronLabel" (dict "ctx" $ "suffix" $suffix) }}
+            app.kubernetes.io/instance: {{ $.Release.Name }}
+        spec:
+          {{- include "scrap.podCommon" $ | nindent 10 }}
+          restartPolicy: Never
+          containers:
+            - name: stub
+              image: {{ include "scrap.image" $ }}
+              imagePullPolicy: {{ $.Values.image.pullPolicy }}
+              command: ["true"]
+              securityContext:
+                {{- toYaml $.Values.securityContext | nindent 16 }}
+{{- end }}
+{{- end }}

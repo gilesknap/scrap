@@ -58,6 +58,7 @@ on the NetworkPolicy (below) if other workloads share the cluster.
 | ServiceAccount | No API token mounted; scrap never talks to the Kubernetes API. |
 | CronJobs + PVC (on by default) | Nightly `scrap backup` to a second claim, keeping the newest 7 runs, and a monthly copy in its `monthly/` folder, keeping 12. |
 | `jobs` container | gc and, with ingest, the related-pages and topics passes, run on their schedules inside the scrap pod: {ref}`k8s-gc` and [](../reference/scheduled-jobs.md). |
+| Suspended CronJobs `scrap-gc`, `scrap-enrich-related`, `scrap-enrich-topics` | Stubs that never run, on every install for now: they replace the old mode's CronJobs on an upgrade ({ref}`k8s-upgrade-old-mode`), and go in a later release. |
 | `litestream` sidecar | Copies each change to the database to the data volume: {ref}`k8s-litestream`. |
 | Ingress, NetworkPolicy (off by default) | See below. |
 
@@ -644,11 +645,12 @@ back to a chart before 1.7.0 ({ref}`k8s-litestream`).
 
 This applies when you upgrade to chart 1.9.0 or later from an install that never set
 `litestream.enabled`. Such an install has its database at `/data/scrap.db`, and gc and the Claude
-passes as CronJobs. The first `helm upgrade` to 1.9.0 or later moves it across:
+passes as CronJobs. The first `helm upgrade` to 1.9.0 or later moves it across (why:
+[ADR 47](../explanations/decisions/0047-litestream-is-the-default-kubernetes-mode.md)):
 
-- Helm deletes the `scrap-gc` CronJob and, with ingest on, `scrap-enrich-related` and
-  `scrap-enrich-topics`, a running Job included. Their work moves to the pod's `jobs` container.
-  Argo CD deletes them only if it prunes.
+- The CronJobs `scrap-gc`, `scrap-enrich-related` and `scrap-enrich-topics` become suspended
+  stubs of the same names, which run nothing, with helm or Argo CD (pruning or not). Their work
+  moves to the pod's `jobs` container. Suspending stops new runs, not a Job already running.
 - In the new pod, `db-init` copies `/data/scrap.db` (with its WAL) to `/db/scrap.db`, checks it,
   and writes a state file. It refuses, starting nothing, if the database and its WAL are over half
   of `litestream.sizeLimit`.
@@ -674,13 +676,20 @@ The steps:
    kubectl -n scrap wait --for=condition=complete job/scrap-backup-pre-litestream --timeout=30m
    ```
 
-5. **Pick a quiet moment**: `kubectl -n scrap get jobs` shows none running. By default they start
-   between 03:30 and 04:30, and the related pass can run for hours. A Job still writing
-   `/data/scrap.db` after the copy stops the next start.
-6. **Upgrade**: `helm upgrade` as above. With Argo CD, sync with pruning, or delete the three
-   CronJobs by hand:
-   `kubectl -n scrap delete cronjob scrap-gc scrap-enrich-related scrap-enrich-topics`.
-   One left behind keeps writing to the old file.
+5. **Pick a quiet moment**: make sure no gc or enrich Job is still running before you upgrade
+   (suspending stops new runs, not a running one): `kubectl -n scrap get jobs` shows none
+   running. By default they start between 03:30 and 04:30, and the related pass can run for
+   hours. A Job still writing `/data/scrap.db` after the copy stops the next start.
+6. **Upgrade**: `helm upgrade` as above, or an Argo CD sync. Then check that the three old
+   CronJobs are suspended:
+
+   ```
+   kubectl -n scrap get cronjob scrap-gc scrap-enrich-related scrap-enrich-topics
+   ```
+
+   Each shows `SUSPEND` `True`. Delete any that does not (a later sync recreates it suspended):
+   an old one left running keeps its old image, and from a chart of 1.6.0 or older its gc deletes
+   the files only the new database uses.
 7. **Check.** `kubectl -n scrap logs deploy/scrap -c db-init` says it brought `/data/scrap.db`
    across to `/db/scrap.db`; `kubectl -n scrap exec deploy/scrap -c jobs -- scrap schedule status`
    lists the jobs; and a backup completes:
@@ -693,9 +702,11 @@ refuses (a state file but no replica): look, then set `litestream.init.override:
 start.
 
 `helm rollback` to the release before this upgrade is no way back: scrap refuses to start on the
-old file while the state file is there, and with ingest on the Claude-pass CronJobs come back and
-write to it. The way back is a backup and a restore. To stay on the old mode for now, set
-`litestream.enabled: false` **before** upgrading; it is deprecated.
+old file while the state file is there, and with ingest on the old Claude-pass CronJobs come back
+and write to it. The way back is a backup and a restore. To stay on the old mode for now, set
+`litestream.enabled: false` **before** upgrading; it is deprecated. `helm upgrade --reuse-values`
+from a 1.7 or 1.8 release does the same without being asked: it reuses the old chart's
+`enabled: false`, and the install notes say DEPRECATED.
 
 (k8s-backup-restore)=
 ## Backup and restore

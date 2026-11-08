@@ -4,9 +4,9 @@ Date: 2026-11-05
 
 ## Status
 
-Accepted. First opt-in (`litestream.enabled`, off by default), with the DLS installer turning it
-on. Amended 2026-11: it is now the chart's default and the documented Kubernetes install; the
-database on the data volume (with it off) is deprecated.
+Accepted. Opt-in when made (`litestream.enabled`, off by default), with the DLS installer turning
+it on. Amended by [ADR 47](0047-litestream-is-the-default-kubernetes-mode.md): now the chart's
+default and the documented Kubernetes install; the database on the data volume is deprecated.
 
 ## Context
 
