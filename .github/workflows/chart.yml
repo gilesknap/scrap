@@ -54,10 +54,10 @@ jobs:
               echo "kubeconform $KUBECONFORM_VERSION: pinned release binary"
           else
               echo "::warning::kubeconform release download failed; building $KUBECONFORM_VERSION with go install"
-              GOBIN="$RUNNER_TEMP/bin" GOFLAGS='' GOPROXY=https://proxy.golang.org \
+              GOBIN="$RUNNER_TEMP/bin" GOENV=off GOFLAGS='' GOPROXY=https://proxy.golang.org \
                   GOSUMDB=sum.golang.org GONOSUMDB='' GOPRIVATE='' GOTOOLCHAIN=auto \
                   go install "github.com/yannh/kubeconform/cmd/kubeconform@$KUBECONFORM_VERSION"
-              echo "kubeconform $KUBECONFORM_VERSION: built from source (proxy.golang.org, sum.golang.org)"
+              echo "kubeconform $KUBECONFORM_VERSION: built from source (proxy.golang.org, sum.golang.org; reports version \"development\")"
           fi
           bin/kubeconform -v
           echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
