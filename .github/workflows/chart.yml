@@ -42,9 +42,24 @@ jobs:
           curl -fsSLo helm.tgz "https://get.helm.sh/helm-$HELM_VERSION-linux-amd64.tar.gz"
           echo "$HELM_SHA256  helm.tgz" | sha256sum -c
           tar -xzf helm.tgz -C bin --strip-components=1 linux-amd64/helm
-          curl -fsSLo kc.tgz "https://github.com/yannh/kubeconform/releases/download/$KUBECONFORM_VERSION/kubeconform-linux-amd64.tar.gz"
-          echo "$KUBECONFORM_SHA256  kc.tgz" | sha256sum -c
-          tar -xzf kc.tgz -C bin kubeconform
+          # The pinned release binary first. GitHub release downloads can fail
+          # for hours (v0.8.0's returned 504 for hours in Nov 2026), so fall
+          # back to building the same version from source: go install checks
+          # the module against sum.golang.org, and GOTOOLCHAIN=auto fetches the
+          # Go version its go.mod needs (also checksummed).
+          if curl -fsSL --retry 3 --retry-all-errors -o kc.tgz \
+                  "https://github.com/yannh/kubeconform/releases/download/$KUBECONFORM_VERSION/kubeconform-linux-amd64.tar.gz" &&
+              echo "$KUBECONFORM_SHA256  kc.tgz" | sha256sum -c &&
+              tar -xzf kc.tgz -C bin kubeconform; then
+              echo "kubeconform $KUBECONFORM_VERSION: pinned release binary"
+          else
+              echo "::warning::kubeconform release download failed; building $KUBECONFORM_VERSION with go install"
+              GOBIN="$RUNNER_TEMP/bin" GOFLAGS='' GOPROXY=https://proxy.golang.org \
+                  GOSUMDB=sum.golang.org GONOSUMDB='' GOPRIVATE='' GOTOOLCHAIN=auto \
+                  go install "github.com/yannh/kubeconform/cmd/kubeconform@$KUBECONFORM_VERSION"
+              echo "kubeconform $KUBECONFORM_VERSION: built from source (proxy.golang.org, sum.golang.org)"
+          fi
+          bin/kubeconform -v
           echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
 
       - name: Lint, render and validate
