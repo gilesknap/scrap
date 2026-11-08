@@ -23,7 +23,7 @@ the `scrap-…` pod READY `3/3` and `scrap-public-…` `Running`.
 
 ## 3. Ask for the DNS names
 
-Raise a request at <https://jira.diamond.ac.uk/servicedesk/customer/portal/2/create/90> for
+Raise a request at <https://jira.diamond.ac.uk/servicedesk/customer/portal/2/create/91> for
 `scrap-<fedid>.diamond.ac.uk` and `pages-<fedid>.diamond.ac.uk` on the argus ingress for your
 namespace.
 

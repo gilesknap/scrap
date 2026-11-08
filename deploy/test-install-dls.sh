@@ -144,7 +144,7 @@ check "ingest enabled" sh -c "grep -A1 '^ingest:' '$tmp/values.yaml' | grep -q '
 check "token shown" grep -q "bearer token (shown once" "$tmp/out"
 check "service ip shown" grep -q "10.1.2.3" "$tmp/out"
 check "clusterip by default" grep -q "type: ClusterIP" "$tmp/values.yaml"
-check "ticket advice" grep -q "jira.diamond.ac.uk/servicedesk/customer/portal/2/create/90" "$tmp/out"
+check "ticket advice" grep -q "jira.diamond.ac.uk/servicedesk/customer/portal/2/create/91" "$tmp/out"
 check "backup dir made, mode 700" sh -c "[ \"\$(stat -c %a '$tmp/science/scrap')\" = 700 ]"
 check "backups on the host path" grep -q "hostPath: $tmp/science/scrap" "$tmp/values.yaml"
 check "job cpu limits fit argus" [ "$(grep -c 'limits: {cpu: 500m' "$tmp/values.yaml")" = 4 ]

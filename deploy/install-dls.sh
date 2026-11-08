@@ -518,7 +518,7 @@ EOF
     else
         cat <<EOF
   1. Raise a request at
-         https://jira.diamond.ac.uk/servicedesk/customer/portal/2/create/90
+         https://jira.diamond.ac.uk/servicedesk/customer/portal/2/create/91
      asking for these names to be set up on the argus ingress for namespace $ns:
 EOF
         for name in $missing; do
