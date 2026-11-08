@@ -191,6 +191,14 @@ def test_gc_refuses_the_old_database(was_litestream, tmp_path, capsys):
         main(["gc", "--data-dir", str(tmp_path)])
 
 
+@pytest.mark.parametrize("pass_", ["--related", "--topics", "--writeups", "--backfill"])
+def test_enrich_refuses_the_old_database(was_litestream, tmp_path, pass_):
+    before = dbstate.fingerprint(tmp_path / dbstate.LEGACY)
+    with pytest.raises(SystemExit, match="scrap enrich: .*old copy"):
+        main(["enrich", pass_, "--data-dir", str(tmp_path)])
+    assert dbstate.fingerprint(tmp_path / dbstate.LEGACY) == before
+
+
 def test_gc_report_still_reads(was_litestream, tmp_path, capsys):
     main(["gc", "--report", "--data-dir", str(tmp_path)])
     assert capsys.readouterr().out

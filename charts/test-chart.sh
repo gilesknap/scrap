@@ -129,8 +129,14 @@ expect_refused "a four-field schedule with Litestream" --set litestream.enabled=
 expect_refused "a litestream digest that is not one" --set litestream.image.digest=latest
 expect_refused "the jobs' metrics on scrap's port" --set litestream.jobs.metrics.port=8000
 expect_refused "an unknown jobs metrics key" --set litestream.jobs.metrics.path=/m
-expect_refused "litestream without native sidecars" --set litestream.enabled=true --kube-version 1.28.0
-expect_refused "Kubernetes 1.28 (the chart needs 1.29)" --set litestream.enabled=false --kube-version 1.28.0
+# Below 1.29 (native sidecars) Chart.yaml's kubeVersion refuses, in either mode, before any
+# template runs: so _litestream.tpl's own 1.29 check is never reached now.
+for mode in true false; do
+    if helm template scrap "$chart" --set litestream.enabled=$mode --kube-version 1.28.0 2>&1 >/dev/null |
+        grep -q 'requires kubeVersion: >=1.29'; then
+        ok "refuses Kubernetes 1.28 with litestream.enabled=$mode, on kubeVersion"
+    else bad "Kubernetes 1.28 with litestream.enabled=$mode is not refused on kubeVersion"; fi
+done
 expect_refused "litestream with gc but no backups" --set litestream.enabled=true \
     --set backup.enabled=false --set gc.enabled=true
 expect_refused "an unknown authProxy.oidc key" -f "$chart/ci/auth-proxy-values.yaml" \
@@ -337,9 +343,20 @@ else bad "backup.persistence.hostPath still makes a backups claim, or a CronJob 
 def_out=$(helm template scrap "$chart")
 if echo "$def_out" | grep -q 'name: db-init$' && echo "$def_out" | grep -q 'name: jobs$' &&
     echo "$def_out" | grep -A1 'name: SCRAP_DB_PATH$' | grep -q 'value: /db/scrap.db' &&
-    ! echo "$def_out" | grep -q -- '-gc$'; then
+    [ -z "$(echo "$def_out" | awk '/^---/{d=""} {d=d $0 "|"} /^  schedule: /{print d}' |
+        grep -E '\|  name: scrap-(gc|enrich-related|enrich-topics)\|' | grep -v '|  suspend: true|')" ]; then
     ok "litestream is on by default, with gc in the pod"
 else bad "the defaults are not Litestream"; fi
+# The old mode's gc and Claude-pass CronJobs, for upgrades (ADR 47): the same names,
+# suspended, running nothing but `true`, without the data claim.
+stubs=$(echo "$def_out" | awk 'function end_doc() { if (doc != "") print doc; doc = "" }
+    /^---/ { end_doc(); next } { doc = doc $0 "|" } END { end_doc() }' |
+    grep '|kind: CronJob|' | grep -E '\|  name: scrap-(gc|enrich-related|enrich-topics)\|' || true)
+if [ "$(echo "$stubs" | grep -c '|  suspend: true|')" = 3 ] &&
+    [ "$(echo "$stubs" | grep -c 'command: \["true"\]|')" = 3 ] &&
+    ! echo "$stubs" | grep -Eq 'claimName|volumes:|env:|"(gc|enrich)"'; then
+    ok "litestream: the old gc and Claude-pass CronJobs are suspended stubs"
+else bad "litestream: the old gc and Claude-pass CronJobs are not three suspended stubs"; fi
 if helm template scrap "$chart" --set litestream.enabled=false -f "$chart/ci/ingest-values.yaml" |
     grep -Eiq 'litestream|SCRAP_DB_PATH|SCRAP_SCHEDULE|name: db-init|name: jobs'; then
     bad "litestream renders while off"
@@ -371,8 +388,9 @@ else bad "litestream: no extra terminationGracePeriodSeconds"; fi
 if echo "$ls_out" | grep -Eq 'image: litestream/litestream:[0-9]+\.[0-9]+\.[0-9]+@sha256:[0-9a-f]{64}$'; then
     ok "litestream: an exact version and digest"
 else bad "litestream: the image is not pinned"; fi
-ls_crons=$(echo "$ls_out" | grep -A3 '^kind: CronJob$' | grep '^  name: ' | tr -s ' ' | tr '\n' ' ')
-if [ "$ls_crons" = " name: scrap-backup  name: scrap-backup-monthly " ]; then
+ls_crons=$(grep '|kind: CronJob|' "$ls_docs" | grep -v '|  suspend: true|' |
+    grep -o '|  name: [^|]*' | tr -s ' ' | tr '\n' ' ')
+if [ "$ls_crons" = "| name: scrap-backup | name: scrap-backup-monthly " ]; then
     ok "litestream: gc and the Claude passes are not CronJobs"
 else bad "litestream: CronJobs are not just the backups: $ls_crons"; fi
 ls_sched=$(echo "$ls_out" | grep -A1 'name: SCRAP_SCHEDULE$' | grep 'value:')
@@ -386,7 +404,8 @@ else bad "litestream: SCRAP_SCHEDULE lacks a job, a schedule or gc's backup chec
 if [ "$(echo "$ls_out" | grep -c -- '--from-replica "$SCRAP_LITESTREAM_REPLICA"')" = 2 ] &&
     ! grep '|kind: CronJob|' "$ls_docs" | grep -q 'SCRAP_DB_PATH' &&
     [ "$(grep '|kind: CronJob|' "$ls_docs" | grep -c '|                  mountPath: /data|                  readOnly: true|')" = 2 ] &&
-    [ "$(grep '|kind: CronJob|' "$ls_docs" | grep -c 'podAffinity:')" = 2 ]; then
+    [ "$(grep '|kind: CronJob|' "$ls_docs" | grep -c 'podAffinity:')" = 2 ] &&
+    [ "$(grep '|kind: CronJob|' "$ls_docs" | grep -c '|  suspend: true|')" = 3 ]; then
     ok "litestream: both backups from the replica, read only, on the scrap pod's node"
 else bad "litestream: a backup job is not from the replica, read only and beside the pod"; fi
 lhp=$(helm template scrap "$chart" -f "$chart/ci/litestream-hostpath-values.yaml")

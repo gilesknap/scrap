@@ -32,13 +32,25 @@ is deprecated, and `charts/test-chart.sh` keeps checking it (`ci/no-litestream-v
 CronJob checks with `--set litestream.enabled=false`).
 
 **The chart needs Kubernetes 1.29**, in either mode (`kubeVersion: ">=1.29.0-0"`, was 1.27). Litestream
-runs as a native sidecar, which 1.29 has on by default, and `_litestream.tpl` already fails below it.
-The minimum is the chart's, not the mode's, so the old mode is no reason to stay on an older cluster.
+runs as a native sidecar, which 1.29 has on by default. `_litestream.tpl`'s own check for 1.29 is
+now never reached, as `kubeVersion` refuses first; it stays in case the minimum moves. The minimum is the chart's, not the mode's, so the old mode is no reason to stay on an older cluster.
 
 **An existing install moves by itself.** A release that never set `litestream.enabled` gets the
 Litestream mode on its next `helm upgrade`, and `scrap db-init` brings `/data/scrap.db` across on the
-first start (ADR 46, rule 4). Nothing in the app changes for this: only the chart's default, its
-`kubeVersion` and the text around them.
+first start (ADR 46, rule 4).
+
+**The old gc and Claude-pass CronJobs become suspended stubs.** In the Litestream mode the chart
+renders `<fullname>-gc`, `-enrich-related` and `-enrich-topics` under the same names with
+`suspend: true`, running only `true` and mounting nothing (`templates/old-mode-cronjobs.yaml`). Simply
+dropping them would rely on the upgrade deleting them, and Argo CD without pruning does not: the old
+CronJob would keep its old image and spec. From a chart of 1.6.0 or older its gc has no guard
+against the old file, so it would `scrap gc --delete` on `/data/scrap.db` and delete the files only
+the new database uses. Rendered under the same names, helm and Argo CD update them to the suspended
+stubs instead. They are for upgrades from the old mode and go in a later release, with it.
+
+**`scrap enrich` refuses the old file** as `scrap gc` and `scrap serve` already did
+(`refuse_old_database`): run without `SCRAP_DB_PATH` on a data folder with Litestream's state file,
+it stops before writing anything.
 
 ## Consequences
 
@@ -61,7 +73,8 @@ first start (ADR 46, rule 4). Nothing in the app changes for this: only the char
   pod, not only the backup jobs, if the backups are a `hostPath`.
 - Failures of gc and the Claude passes are in the `jobs` container's log and `scrap schedule status`,
   not failed Jobs (ADR 46).
-- When the old mode is removed, the chart loses the gc and Claude-pass CronJob templates, the
+- When the old mode is removed, the chart loses the gc and Claude-pass CronJob templates and their
+  suspended stubs, the
   `gc.resources` and `enrich*.resources` values, and the backup jobs' direct-from-the-database path.
   `scrap db-init`'s rule 4 (bringing `/data/scrap.db` across) stays for as long as installs may still
   upgrade from it.
@@ -71,10 +84,11 @@ first start (ADR 46, rule 4). Nothing in the app changes for this: only the char
 What happens, for a release that never set `litestream.enabled`, on the first `helm upgrade` to a
 chart with this default:
 
-1. Helm deletes the CronJobs the new chart no longer renders: `<fullname>-gc`, and with ingest on
-   `<fullname>-enrich-related` and `<fullname>-enrich-topics`. Their Jobs go with them, a running
-   one included. The two backup CronJobs stay, changed to back up from a restore of the replica, with
-   the data claim read only. Argo CD deletes the three only if it prunes.
+1. The CronJobs `<fullname>-gc`, `<fullname>-enrich-related` and `<fullname>-enrich-topics` (the
+   last two exist only with ingest on) are replaced by suspended stubs of the same names, by helm
+   and by Argo CD with or without pruning. Suspending starts no new Job but does not stop one already running.
+   The two backup CronJobs stay, changed to back up from a restore of the replica, with the data
+   claim read only.
 2. The Deployment's old pod stops before the new one starts (`Recreate`), so `/data/scrap.db` is
    closed when it is copied.
 3. In the new pod, `db-init` finds no database on the emptyDir, no staged restore, no replica and no
@@ -111,10 +125,12 @@ The steps:
    between 03:30 and 04:30 (topics at 04:11 on Sundays), and related pages can run for hours. A gc
    or Claude pass running then is killed, and an old Job still writing `/data/scrap.db` after the
    copy stops the next start.
-6. **Upgrade**: `helm upgrade` as usual. With Argo CD, sync with pruning, or delete the three
-   CronJobs by hand (`kubectl -n scrap delete cronjob scrap-gc scrap-enrich-related
-   scrap-enrich-topics`): one left behind keeps running against `/data/scrap.db`, and while the gc
-   one refuses, the Claude passes would write to the old file and stop the next start.
+6. **Upgrade**: `helm upgrade` as usual, or an Argo CD sync. Then check the three old CronJobs show
+   `SUSPEND True`: `kubectl -n scrap get cronjob scrap-gc scrap-enrich-related scrap-enrich-topics`.
+   Never leave one running its old job: delete any that is not suspended (a sync that skipped it).
+   An old one left running keeps its old image: from a chart of 1.6.0 or older its gc deletes the
+   files the new database added, and any old Claude pass writes to `/data/scrap.db`, which stops the
+   next start.
 7. **Check**: `kubectl -n scrap logs deploy/scrap -c db-init` says it `brought /data/scrap.db across to
    /db/scrap.db, and left it there`; `kubectl -n scrap exec deploy/scrap -c jobs -- scrap schedule
    status` lists the jobs; and a backup from the replica completes:
@@ -123,7 +139,11 @@ The steps:
    `/data/scrap.db-shm` (from a one-off pod, or the `jobs` container). Until then it must not change.
 
 To stay on the old mode for now, set `litestream.enabled: false` in your values **before** upgrading;
-the install notes then say it is deprecated. Turning it off after a start with Litestream does not
+the install notes then say it is deprecated. `helm upgrade --reuse-values` from a 1.7 or 1.8 release
+does the same without being asked: it reuses the old chart's defaults, `enabled: false` among them,
+and the notes say DEPRECATED. If `db-init` refuses the database as too big, nothing has changed yet
+(the size is checked before anything is copied or the state file written), so setting
+`enabled: false` then is safe too. Turning it off after a start with Litestream does not
 bring the database back (`/data/scrap.db` is the old copy): scrap and gc refuse to start on it while
 the state file is there, and the way off is a backup and `scrap restore --force`
 ([Deploy on Kubernetes](../../how-to/deploy-kubernetes.md), its Litestream section). A `helm rollback` to the release before the upgrade is therefore no way back
