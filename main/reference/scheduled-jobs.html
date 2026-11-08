@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Scheduled jobs &#8212; scrap 1.8.2.dev6+g127face67 documentation</title>
+    <title>Scheduled jobs &#8212; scrap 1.8.3.dev4+g8224338e7 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=42becf38"></script>
+    <script src="../_static/documentation_options.js?v=bbafb8ed"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -920,9 +920,11 @@ random delay). Gc looks for the backup before it deletes:</p>
 </tbody>
 </table>
 </div>
-<p>With the chart’s <code class="docutils literal notranslate"><span class="pre">litestream.enabled</span></code>, gc, related pages and topics need the live database, so they
-are not CronJobs: the same values run them in the scrap pod’s <code class="docutils literal notranslate"><span class="pre">jobs</span></code> container
-(<a class="reference internal" href="../how-to/deploy-kubernetes.html#k8s-litestream"><span class="std std-ref">The database on an emptyDir, with Litestream</span></a>). The two backups stay CronJobs. <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">schedule</span> <span class="pre">status</span></code> there, or its
+<p>On Kubernetes the chart runs the database with Litestream by default
+(<a class="reference internal" href="../explanations/decisions/0047-litestream-is-the-default-kubernetes-mode.html"><span class="std std-doc">ADR 47</span></a>), so gc,
+related pages and topics, which need the live database, are not CronJobs: the same values run them in
+the scrap pod’s <code class="docutils literal notranslate"><span class="pre">jobs</span></code> container (<a class="reference internal" href="../how-to/deploy-kubernetes.html#k8s-litestream"><span class="std std-ref">The database on an emptyDir, with Litestream</span></a>). Their CronJob names above apply only to the
+deprecated <code class="docutils literal notranslate"><span class="pre">litestream.enabled:</span> <span class="pre">false</span></code>. The two backups stay CronJobs. <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">schedule</span> <span class="pre">status</span></code> there, or its
 Prometheus metrics, says how each last ran and when the newest backup completed
 (<a class="reference internal" href="../how-to/deploy-kubernetes.html#k8s-litestream-health"><span class="std std-ref">Are the nightly jobs healthy? (Litestream)</span></a>).</p>
 <section id="settings">
