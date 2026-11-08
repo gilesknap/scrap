@@ -40,7 +40,8 @@ LIVE = (  # the references of everything not in the trash: gc.COLUMNS, narrowed
     "SELECT source_sha256 FROM derived WHERE capture_id NOT IN " + TRASHED_CAPTURE,
     "SELECT source_sha256 FROM job WHERE capture_id NOT IN " + TRASHED_CAPTURE,
     "SELECT source_sha256 FROM model_run WHERE capture_id NOT IN " + TRASHED_CAPTURE,
-    "SELECT sent_sha256 FROM model_run WHERE sent_sha256 IS NOT NULL"
+    "SELECT sent_sha256 FROM model_run r WHERE sent_sha256 IS NOT NULL"
+    " AND NOT EXISTS (SELECT 1 FROM blob b WHERE b.sha256 = r.source_sha256)"
     " AND capture_id NOT IN " + TRASHED_CAPTURE,
 )
 assert len(LIVE) == len(COLUMNS)  # keep in step with gc's references

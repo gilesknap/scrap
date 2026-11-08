@@ -7,7 +7,9 @@ refers to it:
   address ``/api/blobs/<sha>`` (see :func:`body_refs`);
 - a capture (``capture_blob``);
 - a derived row, or an ingest job, of a photo (``source_sha256``);
-- a model run: the photo it was about and the JPEG it sent (``sent_sha256``).
+- a model run: the photo it was about; the JPEG it sent (``sent_sha256``, only on runs
+  from before #572) only if that photo's record is gone, as the JPEG is made again from
+  the photo (``preview.rebuild``). Such a JPEG gc deletes clears its ``sent_sha256``.
 
 Files younger than the grace period are kept whatever refers to them: a capture writes
 its files before the transaction that records them, so a file being uploaded right now
@@ -24,8 +26,7 @@ deleted. Old page revisions are not references: only each page's current text is
 Model runs are pruned too (see :func:`scrap.retention.prune_runs`): ``model_run`` and
 ``enrich_run`` rows hold the stored prompts and responses and would otherwise grow for
 ever. A run is kept while anything refers to it, while it is the latest for its page
-(or photo), and while it is younger than ``RUN_DAYS``. Deleting a ``model_run`` frees
-the JPEG it sent, which the same run then finds unused. ``topic_run`` rows (one a
+(or photo), and while it is younger than ``RUN_DAYS``. ``topic_run`` rows (one a
 week) are not pruned.
 
 Files of captures are not deleted while their page lasts: one no page shows any more (an
@@ -45,6 +46,7 @@ refers to.
 """
 
 import fcntl
+import json
 import logging
 import os
 import sqlite3
@@ -99,7 +101,9 @@ COLUMNS = (
     "SELECT source_sha256 FROM derived",
     "SELECT source_sha256 FROM job",
     "SELECT source_sha256 FROM model_run",
-    "SELECT sent_sha256 FROM model_run WHERE sent_sha256 IS NOT NULL",
+    # an old run's sent JPEG, only while its photo's record is gone (#572)
+    "SELECT sent_sha256 FROM model_run r WHERE sent_sha256 IS NOT NULL"
+    " AND NOT EXISTS (SELECT 1 FROM blob b WHERE b.sha256 = r.source_sha256)",
 )
 
 
@@ -417,6 +421,11 @@ def _collect(
                         report.kept += 1
                         continue
                     gone.append(sha)
+                conn.execute(  # an old run's sent JPEG: the run no longer names it
+                    "UPDATE model_run SET sent_sha256 = NULL WHERE sent_sha256 IN"
+                    " (SELECT value FROM json_each(?))",
+                    (json.dumps(gone),),
+                )
                 conn.executemany(
                     "DELETE FROM blob WHERE sha256 = ?",
                     [(sha,) for sha in gone if sha in rows],

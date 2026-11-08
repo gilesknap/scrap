@@ -176,9 +176,12 @@ def test_a_board_is_written_up_then_its_first_related_call_sees_it(store):
     assert call["model"] == claude.model_name() and call["effort"] == claude.EFFORT
     content = call["messages"][0]["content"]
     images = [b for b in content if b["type"] == "image"]
-    assert len(images) == 2  # both board photos, as photo ingest sent them
+    assert len(images) == 2  # both board photos, as photo ingest sent them (#572)
     with closing(connect(store.db)) as conn:
-        sent = {r[0] for r in conn.execute("SELECT sent_sha256 FROM model_run")}
+        sent = {
+            json.loads(r[0])["sent"]["sha256"]
+            for r in conn.execute("SELECT request FROM model_run")
+        }
     assert {b["source"]["sha256"] for b in images} == sent
     assert call["blob"](images[0]["source"]["sha256"])[1] == "image/jpeg"
     page = store.page(ref["page_id"])

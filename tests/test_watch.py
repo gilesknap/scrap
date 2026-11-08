@@ -316,6 +316,41 @@ def test_below_the_floor_deletes(replicated):
     assert len(blobs(replicated)) == 1
 
 
+def test_old_sent_jpegs_over_the_limit_wait_for_allow_large(replicated):
+    """#572 frees the JPEGs old runs sent: on a store with many, the first gc counts
+    only (the limit is not loosened for them) until a person allows it once."""
+    photos = [add_capture(replicated, n) for n in range(3)]
+    add_files(replicated, 2)  # the JPEGs: 2 + 1 below, of 3 photos
+    with closing(connect(replicated.db)) as conn:
+        for n, photo in enumerate(photos):
+            sent = f"{n % 2:064x}"
+            conn.execute(
+                "INSERT INTO blob VALUES (?, 'image/jpeg', 1, '2026-01-01T00:00:00Z')"
+                " ON CONFLICT DO NOTHING",
+                (sent,),
+            )
+            conn.execute(
+                "INSERT INTO model_run (capture_id, source_sha256, purpose, model,"
+                " prompt_version, sent_sha256, request, started_at) VALUES"
+                " (?, ?, 'ingest', 'm', 'v', ?, '{}', '2026-01-01T00:00:00Z')",
+                (f"c{n}", photo, sent),
+            )
+    add_files(replicated, gc_guard.MIN_UNUSED)  # (0 and 1 again) and 2..4: unused
+    report, hold = run_guarded(replicated)
+    assert hold and "over the limit" in hold.why and report.unused == 5
+    assert len(blobs(replicated)) == 8
+    report, hold = run_guarded(replicated, allow=True)
+    assert hold is None and report.deleted and report.unused == 5
+    assert len(blobs(replicated)) == 3  # the photos
+    with closing(connect(replicated.db)) as conn:
+        assert (
+            conn.execute(
+                "SELECT count(*) FROM model_run WHERE sent_sha256 IS NOT NULL"
+            ).fetchone()[0]
+            == 0
+        )
+
+
 def test_a_small_share_deletes(replicated):
     for n in range(60):
         add_capture(replicated, n)
