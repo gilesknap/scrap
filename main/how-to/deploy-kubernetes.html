@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Deploy on Kubernetes &#8212; scrap 1.8.3.dev22+g979292dcd documentation</title>
+    <title>Deploy on Kubernetes &#8212; scrap 1.8.3.dev25+g5e3b6f82a documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=935dbc1a"></script>
+    <script src="../_static/documentation_options.js?v=3eef67e7"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -2206,6 +2206,59 @@ IPv4 where the pod has both. Each scrape reads the records afresh; per job (labe
 pod is down, is worth an <code class="docutils literal notranslate"><span class="pre">absent()</span></code> alert too.</p>
 </section>
 </section>
+<section id="import-a-large-export">
+<span id="k8s-large-import"></span><h2>Import a large export<a class="headerlink" href="#import-a-large-export" title="Link to this heading">#</a></h2>
+<p>The app imports a zip of up to the upload limit (<code class="docutils literal notranslate"><span class="pre">maxUploadMB</span></code>, 50 MB): <a class="reference internal" href="import-your-pages.html#import-your-pages"><span class="std std-ref">Import your pages</span></a>.
+For a bigger one, such as a full export of another store, run <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">import</span></code> in the scrap pod. It
+is safe while scrap runs: the import adds each page in its own transaction to the same database
+the server uses, a page added meanwhile is skipped, and Litestream copies the writes as it copies
+the server’s.</p>
+<section id="with-the-script">
+<h3>With the script<a class="headerlink" href="#with-the-script" title="Link to this heading">#</a></h3>
+<p><a class="reference external" href="https://github.com/gilesknap/scrap/blob/main/deploy/scrap-import.sh"><code class="docutils literal notranslate"><span class="pre">deploy/scrap-import.sh</span></code></a>
+needs only <code class="docutils literal notranslate"><span class="pre">kubectl</span></code>:</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>curl<span class="w"> </span>-fsSLO<span class="w"> </span>https://raw.githubusercontent.com/gilesknap/scrap/main/deploy/scrap-import.sh
+sh<span class="w"> </span>scrap-import.sh<span class="w"> </span>notes.zip<span class="w">            </span><span class="c1"># a dry run: writes nothing</span>
+sh<span class="w"> </span>scrap-import.sh<span class="w"> </span>--apply<span class="w"> </span>notes.zip<span class="w">    </span><span class="c1"># the import</span>
+</pre></div>
+</div>
+<p>It finds the one Ready scrap pod (<code class="docutils literal notranslate"><span class="pre">SCRAP_NAMESPACE</span></code> and <code class="docutils literal notranslate"><span class="pre">SCRAP_RELEASE</span></code>, both <code class="docutils literal notranslate"><span class="pre">scrap</span></code> by
+default), checks that its database is there, streams the zip into the <code class="docutils literal notranslate"><span class="pre">jobs</span></code> container’s <code class="docutils literal notranslate"><span class="pre">/tmp</span></code>
+and checks its size, then runs <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">import</span> <span class="pre">--dry-run</span></code>, or the import with <code class="docutils literal notranslate"><span class="pre">--apply</span></code>. It always
+removes the zip. <code class="docutils literal notranslate"><span class="pre">--enrich</span></code> and <code class="docutils literal notranslate"><span class="pre">--photos</span></code> are passed on: they have Claude tag and summarise the
+new pages, and read their photos, which costs money and counts against <code class="docutils literal notranslate"><span class="pre">ingest.budgetDayUSD</span></code>.
+Without them Claude is not called. Ctrl-C stops the script and removes the zip, but an import
+already running in the pod may finish: that is safe, as it only adds, and a re-run skips the pages
+it did. If the script is killed outright, remove what it left with <code class="docutils literal notranslate"><span class="pre">kubectl</span> <span class="pre">-n</span> <span class="pre">scrap</span> <span class="pre">exec</span> <span class="pre">deploy/scrap</span> <span class="pre">-c</span> <span class="pre">jobs</span> <span class="pre">--</span> <span class="pre">sh</span> <span class="pre">-c</span> <span class="pre">'rm</span> <span class="pre">-f</span> <span class="pre">/tmp/scrap-import-*.zip'</span></code>.</p>
+</section>
+<section id="by-hand">
+<h3>By hand<a class="headerlink" href="#by-hand" title="Link to this heading">#</a></h3>
+<ol class="arabic">
+<li><p>Find the pod, and check that exactly one is Ready:
+<code class="docutils literal notranslate"><span class="pre">kubectl</span> <span class="pre">-n</span> <span class="pre">scrap</span> <span class="pre">get</span> <span class="pre">pods</span> <span class="pre">-l</span> <span class="pre">app.kubernetes.io/instance=scrap,app.kubernetes.io/name=scrap</span></code>.</p></li>
+<li><p>Copy the zip into the <code class="docutils literal notranslate"><span class="pre">jobs</span></code> container’s <code class="docutils literal notranslate"><span class="pre">/tmp</span></code>. The root filesystem is read-only, and <code class="docutils literal notranslate"><span class="pre">/tmp</span></code> is
+an emptyDir limited to 1 Gi, so keep the zip under about 900 MiB, or split the export:</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>kubectl<span class="w"> </span>-n<span class="w"> </span>scrap<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>-i<span class="w"> </span>&lt;pod&gt;<span class="w"> </span>-c<span class="w"> </span><span class="nb">jobs</span><span class="w"> </span>--<span class="w"> </span>sh<span class="w"> </span>-c<span class="w"> </span><span class="s1">'cat &gt; /tmp/notes.zip'</span><span class="w"> </span>&lt;<span class="w"> </span>notes.zip
+</pre></div>
+</div>
+</li>
+<li><p>Run a dry run, read its list of pages and problems, then run it again without <code class="docutils literal notranslate"><span class="pre">--dry-run</span></code>:</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>kubectl<span class="w"> </span>-n<span class="w"> </span>scrap<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>&lt;pod&gt;<span class="w"> </span>-c<span class="w"> </span><span class="nb">jobs</span><span class="w"> </span>--<span class="w"> </span>scrap<span class="w"> </span>import<span class="w"> </span>--dry-run<span class="w"> </span>/tmp/notes.zip
+kubectl<span class="w"> </span>-n<span class="w"> </span>scrap<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>&lt;pod&gt;<span class="w"> </span>-c<span class="w"> </span><span class="nb">jobs</span><span class="w"> </span>--<span class="w"> </span>scrap<span class="w"> </span>import<span class="w"> </span>/tmp/notes.zip
+</pre></div>
+</div>
+</li>
+<li><p>Remove the zip: <code class="docutils literal notranslate"><span class="pre">kubectl</span> <span class="pre">-n</span> <span class="pre">scrap</span> <span class="pre">exec</span> <span class="pre">&lt;pod&gt;</span> <span class="pre">-c</span> <span class="pre">jobs</span> <span class="pre">--</span> <span class="pre">rm</span> <span class="pre">/tmp/notes.zip</span></code>.</p></li>
+</ol>
+<p>The <code class="docutils literal notranslate"><span class="pre">jobs</span></code> container has the same <code class="docutils literal notranslate"><span class="pre">SCRAP_DATA_DIR</span></code> and <code class="docutils literal notranslate"><span class="pre">SCRAP_DB_PATH</span></code> as the server, so pass
+neither. <strong>Do not pass <code class="docutils literal notranslate"><span class="pre">--data-dir</span></code> on its own</strong>: it means the database in that folder,
+<code class="docutils literal notranslate"><span class="pre">/data/scrap.db</span></code>, not the live <code class="docutils literal notranslate"><span class="pre">/db/scrap.db</span></code>. The new pages’ files go on the data volume and the
+pages into the database on <code class="docutils literal notranslate"><span class="pre">/db</span></code>, within <code class="docutils literal notranslate"><span class="pre">litestream.sizeLimit</span></code>: <code class="docutils literal notranslate"><span class="pre">kubectl</span> <span class="pre">-n</span> <span class="pre">scrap</span> <span class="pre">exec</span> <span class="pre">deploy/scrap</span> <span class="pre">-c</span> <span class="pre">jobs</span> <span class="pre">--</span> <span class="pre">scrap</span> <span class="pre">gc</span> <span class="pre">--report</span></code> shows the sizes. In the old mode
+(<code class="docutils literal notranslate"><span class="pre">litestream.enabled:</span> <span class="pre">false</span></code>) there is no <code class="docutils literal notranslate"><span class="pre">jobs</span></code> container: use <code class="docutils literal notranslate"><span class="pre">-c</span> <span class="pre">scrap</span></code>, as the script does.
+The zip then shares the server’s <code class="docutils literal notranslate"><span class="pre">/tmp</span></code> with large uploads, so keep it well under the limit, or
+import when nobody is uploading.</p>
+</section>
+</section>
 <section id="k3s-and-storage-notes">
 <span id="k8s-storage"></span><h2>k3s and storage notes<a class="headerlink" href="#k3s-and-storage-notes" title="Link to this heading">#</a></h2>
 <ul class="simple">
@@ -2412,6 +2465,11 @@ in <a class="reference external" href="https://github.com/gilesknap/tpi-k3s-ansi
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#scheduled-gc-related-pages-and-topics">Scheduled gc, related pages and topics</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#the-database-on-an-emptydir-with-litestream">The database on an emptyDir, with Litestream</a><ul class="nav section-nav flex-column">
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#are-the-nightly-jobs-healthy">Are the nightly jobs healthy?</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#import-a-large-export">Import a large export</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#with-the-script">With the script</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#by-hand">By hand</a></li>
 </ul>
 </li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#k3s-and-storage-notes">k3s and storage notes</a></li>

@@ -45,6 +45,11 @@ and `--photos` are the two choices above, off unless given. The server picks up 
 within a minute. Where scrap runs in a container, see [](deploy-single-server.md) for running a
 `scrap` command against its data.
 
+## From the command line, on Kubernetes
+
+For a zip over the upload limit on Kubernetes, a script streams it into the scrap pod and runs
+`scrap import` there, a dry run first: {ref}`k8s-large-import`.
+
 ## What each page gets
 
 - **Its text** as written. A link to another page in the import becomes `[[slug|label]]`; a link
