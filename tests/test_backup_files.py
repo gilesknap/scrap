@@ -4,6 +4,7 @@ import errno
 import hashlib
 import os
 import shutil
+from pathlib import Path
 
 import pytest
 
@@ -150,3 +151,69 @@ def test_the_cli_says_what_it_linked_and_copied(store, tmp_path, capsys):
     main([*args, str(tmp_path / "bak" / DAY2)])
     out = capsys.readouterr().out
     assert out == f"files: 0 copied (0.0 MB), 1 linked from {DAY1} (0.0 MB)\n"
+
+
+def test_a_damaged_blob_of_the_same_size_is_copied_afresh(store, tmp_path, caplog):
+    blob = put(store, b"the bytes")
+    backup(store, tmp_path / "bak" / DAY1)
+    bad = tmp_path / "bak" / DAY1 / blob.relative_to(store.dir)
+    bad.write_bytes(b"bit rot!!")  # the same size, other bytes
+    with caplog.at_level("WARNING"):
+        counts = backup(store, tmp_path / "bak" / DAY2)
+    assert (counts.linked, counts.copied, counts.damaged) == (0, 1, 1)
+    good = tmp_path / "bak" / DAY2 / blob.relative_to(store.dir)
+    assert good.read_bytes() == b"the bytes" and good.stat().st_nlink == 1
+    assert str(bad) in caplog.text and "does not match its name" in caplog.text
+    assert str(counts).endswith(", 1 damaged there copied afresh")
+
+
+def test_a_file_another_user_owns_is_copied(store, tmp_path, monkeypatch):
+    put(store, b"photo")
+    backup(store, tmp_path / "bak" / DAY1)
+    monkeypatch.setattr(
+        backup_files.os, "getuid", lambda: os.stat(store.dir).st_uid + 1
+    )
+    counts = backup(store, tmp_path / "bak" / DAY2)
+    assert (counts.linked, counts.copied) == (0, 1)
+
+
+@pytest.mark.parametrize("which", ["files", "folder"])
+def test_a_base_with_a_symlinked_folder_is_not_linked_from(store, tmp_path, which):
+    blob = put(store, b"photo")
+    backup(store, tmp_path / "bak" / DAY1)
+    real = tmp_path / "bak" / DAY1 / "files"
+    if which == "folder":
+        real = real / blob.parent.name
+    real.rename(tmp_path / "elsewhere")
+    real.symlink_to(tmp_path / "elsewhere")
+    counts = backup(store, tmp_path / "bak" / DAY2)
+    assert counts.base == tmp_path / "bak" / DAY1
+    assert (counts.linked, counts.copied) == (0, 1)
+
+
+def test_a_symlinked_run_is_not_a_base(store, tmp_path):
+    put(store, b"photo")
+    backup(store, tmp_path / "bak" / DAY1)
+    backup(store, tmp_path / "other" / DAY2)
+    (tmp_path / "bak" / DAY2).symlink_to(tmp_path / "other" / DAY2)
+    assert backup(store, tmp_path / "bak" / DAY3).base == tmp_path / "bak" / DAY1
+
+
+def test_a_copy_cut_short_leaves_nothing_a_re_run_would_skip(
+    store, tmp_path, monkeypatch
+):
+    blob = put(store, b"photo")
+    real = backup_files.shutil.copy2
+
+    def cut_short(src, dst):
+        Path(dst).write_bytes(b"ph")
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(backup_files.shutil, "copy2", cut_short)
+    with pytest.raises(KeyboardInterrupt):
+        backup(store, tmp_path / "bak" / DAY1)
+    folder = tmp_path / "bak" / DAY1 / blob.relative_to(store.dir).parent
+    assert list(folder.iterdir()) == []
+    monkeypatch.setattr(backup_files.shutil, "copy2", real)
+    backup(store, tmp_path / "bak" / DAY1)
+    assert (folder / blob.name).read_bytes() == b"photo"

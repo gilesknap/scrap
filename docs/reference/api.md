@@ -239,9 +239,11 @@ that matters; the single-server timer does, and keeps the newest `SCRAP_BACKUP_K
 
 When `DIR` is named like a run (`20261019T033000Z`), as the backup jobs' runs are, a file the
 newest complete run beside it has (or, for a run in `monthly/`, among the daily runs; and the
-other way round) is hard-linked from that run rather than copied, if it is the same size: stored
-files never change once written. Each run still holds every file and restores alone; a file whose
-link fails (another filesystem, say) is copied. It prints how many files it linked and copied.
+other way round) is hard-linked from that run rather than copied: stored files never change once
+written. It is linked only if it is a regular file of the same size, owned by the user running the
+backup, in no symlinked folder, and its bytes hash to its name; one that does not is copied afresh
+from the data folder, with a warning. Each run still holds every file and restores alone; a file
+whose link fails (another filesystem, say) is copied. It prints how many files it linked and copied.
 `scrap restore` always copies.
 
 `scrap export DIR` writes one `<slug>.md` per page at the top of `DIR`, Claude's notes on a page in
