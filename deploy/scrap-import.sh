@@ -8,12 +8,15 @@
 # every problem and roughly what Claude would cost. Import is add-only: a page already
 # in the store is skipped, never overwritten, and each new page is tagged
 # import/<UTC date>. Claude is only called (and paid for) with --enrich or --photos.
+# Ctrl-C stops the script and removes the zip, but an import already running in the
+# pod may finish: that is safe, as it only adds, and a re-run skips the pages it did.
 #
-# Usage: scrap-import.sh [--apply] [--enrich] [--photos] ZIP
+# Usage: scrap-import.sh [--apply] [--enrich] [--photos] [--] ZIP
 #   --apply    import for real (default: a dry run)
 #   --dry-run  accepted for clarity; it is the default
 #   --enrich   queue the new text pages for Claude to tag and summarise
 #   --photos   queue the new pages' photos for Claude to read (the dearer part)
+#   --         end of options (for a zip whose name starts with -)
 # Environment: SCRAP_NAMESPACE (default scrap), SCRAP_RELEASE (the Helm
 #   release, default scrap).
 set -eu
@@ -37,8 +40,16 @@ apply=false
 enrich=
 photos=
 zip=
+opts=true
 while [ $# -gt 0 ]; do
+    if ! $opts; then
+        [ -z "$zip" ] || usage
+        zip=$1
+        shift
+        continue
+    fi
     case $1 in
+    --) opts=false ;;
     --apply) apply=true ;;
     --dry-run) ;;
     --enrich) enrich=--enrich ;;
@@ -64,11 +75,12 @@ if [ "$size" -gt "$max_bytes" ]; then
 fi
 
 # Exactly one Ready scrap pod, by the chart's selector labels (the CronJobs' pods have
-# other names, so they never match).
+# other names, so they never match), leaving out one being deleted (a rollout's old pod
+# can still be Ready).
 selector="app.kubernetes.io/instance=$release,app.kubernetes.io/name=scrap"
 ready=$(kubectl -n "$namespace" get pods -l "$selector" -o \
-    jsonpath='{range .items[*]}{.metadata.name}{" "}{.status.conditions[?(@.type=="Ready")].status}{"\n"}{end}' |
-    awk '$2 == "True" { print $1 }')
+    jsonpath='{range .items[*]}{.metadata.name}{" "}{.status.conditions[?(@.type=="Ready")].status}{" "}{.metadata.deletionTimestamp}{"\n"}{end}' |
+    awk '$2 == "True" && $3 == "" { print $1 }')
 count=$(printf '%s' "$ready" | grep -c . || true)
 if [ "$count" -ne 1 ]; then
     echo "scrap-import: want exactly one Ready scrap pod in namespace" \
@@ -101,6 +113,7 @@ cleanup() {
     kx -- rm -f "$remote" || echo "scrap-import: could not remove $pod:$remote" >&2
 }
 trap cleanup EXIT
+trap 'exit 129' HUP
 trap 'exit 130' INT TERM
 
 echo "copying $zip ($size bytes) to $remote"

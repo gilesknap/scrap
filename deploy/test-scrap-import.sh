@@ -15,10 +15,10 @@ check() { # check NAME CONDITION-COMMAND...
 }
 
 # kubectl: records each call in $tmp/kubectl.calls. The Ready pods are STUB_PODS (lines
-# of "name Ready-status"), the pod's containers STUB_CONTAINERS. In exec, the pod's /tmp
+# of "name Ready-status [deletionTimestamp]"), the pod's containers STUB_CONTAINERS. In exec, the pod's /tmp
 # is $tmp/pod/tmp; the database check fails with STUB_NODB, the copy stops short with
 # STUB_SHORT, and scrap import (recorded in $tmp/import.calls, with whether the zip was
-# there) fails with STUB_IMPORT_FAIL.
+# there) fails with STUB_IMPORT_FAIL, or hangs up on the script with STUB_IMPORT_HUP.
 cat >"$tmp/bin/kubectl" <<STUB
 #!/bin/sh
 echo "\$*" >>"$tmp/kubectl.calls"
@@ -41,6 +41,7 @@ case "\$*" in
     if [ -f "$tmp/pod\$last" ]; then here=zip-there; else here=zip-missing; fi
     echo "\$* \$here" >>"$tmp/import.calls"
     [ -z "\${STUB_IMPORT_FAIL:-}" ] || exit 1
+    [ -z "\${STUB_IMPORT_HUP:-}" ] || { kill -HUP "\$PPID"; exit 0; }
     echo "import output"; exit 0 ;;
 esac
 echo "stub kubectl: unexpected \$*" >&2
@@ -54,7 +55,7 @@ run() { # run [ARGS...]: the script on a fresh pod, its exit code in $code
     rm -rf "$tmp/pod" "$tmp/kubectl.calls" "$tmp/import.calls" "$tmp/removed"
     mkdir -p "$tmp/pod/tmp"
     code=0
-    PATH="$tmp/bin:$PATH" "$here/scrap-import.sh" "$@" >"$tmp/out" 2>&1 || code=$?
+    (cd "${RUN_DIR:-.}" && PATH="$tmp/bin:$PATH" exec "$here/scrap-import.sh" "$@") >"$tmp/out" 2>&1 || code=$?
 }
 out_has() { grep -q -- "$1" "$tmp/out"; }
 calls_have() { grep -q -- "$1" "$tmp/kubectl.calls"; }
@@ -101,6 +102,11 @@ check "two Ready pods: says found 2" out_has "found 2"
 check "two Ready pods: nothing imported" no_import
 STUB_PODS='scrap-abc False\nscrap-def True\n' run "$tmp/small.zip"
 check "one Ready of two: uses it" calls_have "exec scrap-def -c jobs"
+STUB_PODS='scrap-old True 2026-11-08T10:00:00Z\nscrap-new True\n' run "$tmp/small.zip"
+check "a Ready pod being deleted: left out" [ "$code" = 0 ]
+check "a Ready pod being deleted: the other is used" calls_have "exec scrap-new -c jobs"
+STUB_PODS='scrap-old True 2026-11-08T10:00:00Z\n' run "$tmp/small.zip"
+check "only a pod being deleted: refused" out_has "found 0"
 
 # No database: refused before anything is copied
 STUB_NODB=1 run "$tmp/small.zip"
@@ -130,6 +136,11 @@ STUB_IMPORT_FAIL=1 run --apply "$tmp/small.zip"
 check "failed import: fails" [ "$code" != 0 ]
 check "failed import: zip removed" cleaned
 
+# A closed terminal (SIGHUP) mid-import: the zip still goes
+STUB_IMPORT_HUP=1 run --apply "$tmp/small.zip"
+check "hang-up: exits 129" [ "$code" = 129 ]
+check "hang-up: zip removed" cleaned
+
 # Arguments
 run
 check "no zip: usage" [ "$code" = 2 ]
@@ -139,6 +150,11 @@ check "unknown option: usage" [ "$code" = 2 ]
 check "unknown option: named" out_has "unknown option --bogus"
 run "$tmp/small.zip" "$tmp/small.zip"
 check "two zips: usage" [ "$code" = 2 ]
+cp "$tmp/small.zip" "$tmp/-x.zip"
+RUN_DIR=$tmp run --apply -- -x.zip
+check "-- ends the options: a zip named -x.zip" imported "^scrap import /tmp/scrap-import-.*\.zip zip-there$"
+RUN_DIR=$tmp run -- -x.zip --apply
+check "-- ends the options: no option after it" [ "$code" = 2 ]
 run "$tmp/missing.zip"
 check "missing zip: refused" [ "$code" = 1 ]
 check "missing zip: says so" out_has "no such file"

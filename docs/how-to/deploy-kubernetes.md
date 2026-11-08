@@ -1325,7 +1325,10 @@ default), checks that its database is there, streams the zip into the `jobs` con
 and checks its size, then runs `scrap import --dry-run`, or the import with `--apply`. It always
 removes the zip. `--enrich` and `--photos` are passed on: they have Claude tag and summarise the
 new pages, and read their photos, which costs money and counts against `ingest.budgetDayUSD`.
-Without them Claude is not called.
+Without them Claude is not called. Ctrl-C stops the script and removes the zip, but an import
+already running in the pod may finish: that is safe, as it only adds, and a re-run skips the pages
+it did. If the script is killed outright, remove what it left with `kubectl -n scrap exec
+deploy/scrap -c jobs -- sh -c 'rm -f /tmp/scrap-import-*.zip'`.
 
 ### By hand
 
@@ -1353,6 +1356,8 @@ neither. **Do not pass `--data-dir` on its own**: it means the database in that 
 pages into the database on `/db`, within `litestream.sizeLimit`: `kubectl -n scrap exec
 deploy/scrap -c jobs -- scrap gc --report` shows the sizes. In the old mode
 (`litestream.enabled: false`) there is no `jobs` container: use `-c scrap`, as the script does.
+The zip then shares the server's `/tmp` with large uploads, so keep it well under the limit, or
+import when nobody is uploading.
 
 (k8s-storage)=
 ## k3s and storage notes
