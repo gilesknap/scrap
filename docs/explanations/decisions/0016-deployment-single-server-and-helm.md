@@ -5,7 +5,10 @@ Date: 2026-10-19 (#5, #24)
 ## Status
 
 Accepted. Partly superseded by [](0018-unix-socket-for-single-server-installs.md) for the
-single-server listener: new installs listen on a Unix socket and publish no port.
+single-server listener: new installs listen on a Unix socket and publish no port. Amended by
+[](0046-database-on-an-emptydir-replicated-with-litestream.md) for Kubernetes: the database is
+on an emptyDir replicated by Litestream, and gc and the Claude passes run in the scrap pod's
+`jobs` container instead of CronJobs.
 
 ## Context
 

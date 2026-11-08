@@ -194,9 +194,12 @@ def add_routes(app: FastAPI, store: Store, limit: int, publisher: Publisher) -> 
             files = [
                 f for f in form.getlist("files") if isinstance(f, UploadFile) and f.size
             ]
-            if text or url or files:
+            saved = bool(text or url or files)
+            if saved:
                 await run_in_threadpool(save, data, files, who)
-        return RedirectResponse("/", 303)
+        # Saved: to Capture saying so, as the service worker's share does (on a computer
+        # "/" is Search, but "/?shared=1" is Capture: web/src/home.ts)
+        return RedirectResponse("/?shared=1" if saved else "/", 303)
 
     @app.get("/api/pages")
     def recent(

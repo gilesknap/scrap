@@ -20,7 +20,9 @@ flowchart LR
     end
     subgraph cluster [Your cluster]
         cfd[cloudflared] -->|NetworkPolicy| scrap[scrap pod]
-        scrap --> pvc[(Data volume)]:::store
+        scrap --> db[(Database on node disk)]:::store
+        db -.->|Litestream| pvc[(Data volume)]:::store
+        scrap --> pvc
         job[Backup CronJob] --> bk[(Backup volume)]:::store
     end
     cf -->|outbound tunnel| cfd
@@ -41,9 +43,11 @@ directly. Do not skip either.
 
 ## What you need
 
-- A Kubernetes cluster, version 1.27 or newer, with a StorageClass that gives `ReadWriteOnce`
-  volumes on a **local or block** filesystem, and a CNI that enforces NetworkPolicy (k3s does).
-  SQLite does not work reliably on network filesystems such as NFS. See {ref}`k8s-storage`.
+- A Kubernetes cluster, version 1.29 or newer, with a StorageClass that gives `ReadWriteOnce`
+  volumes, a few GB of free disk on the nodes, and a CNI that enforces NetworkPolicy (k3s does).
+  The database lives on the node's own disk and Litestream copies each change to the data
+  volume, so the data volume may be NFS. See
+  {ref}`k8s-storage`.
 - `kubectl` pointed at that cluster and [Helm](https://helm.sh/docs/intro/install/) 3 or 4.
 - A domain whose DNS is on Cloudflare, and a Cloudflare account with
   [Zero Trust](https://developers.cloudflare.com/cloudflare-one/) enabled (the free plan is enough).
@@ -51,43 +55,27 @@ directly. Do not skip either.
   more happens.
 - A phone to try the web app on.
 
-scrap always runs as **one replica**: SQLite has a single writer. The chart has no replica count
-for that reason, and the Deployment stops the old pod before it starts the new one.
-
 Throughout, `scrap.example.com` is your own hostname. Replace it.
 
-## 1. Choose a release
+## 1. Create the secrets
 
-The chart is published as an OCI artifact, `oci://ghcr.io/gilesknap/charts/scrap`, and its version
-is the release tag (a pre-release such as `1.0.0rc1` is chart `1.0.0-rc.1`). This page installs
-`--version {{ chart_version }}`; use a newer release if there is one (see the
-[releases](https://github.com/gilesknap/scrap/releases)). The chart's `appVersion` is the same tag,
-so it runs `ghcr.io/gilesknap/scrap:{{ release_tag }}` (amd64 and arm64). There is nothing to build
-and nothing to clone.
-
-## 2. Create the secrets
-
-The chart never takes a key as a value and never creates a Secret. You create them, from stdin
-so nothing lands in your shell history.
+The chart never takes a key as a value and never creates a Secret. Make a bearer token for
+`/mcp` (a second lock behind Cloudflare's), then store it and your API key in one Secret. The key
+is read from stdin, so it does not land in your shell history:
 
 ```
 kubectl create namespace scrap
+python3 -c 'import secrets; print(secrets.token_urlsafe(32), end="")' > scrap-mcp-token.txt
 read -rs KEY && printf %s "$KEY" | kubectl -n scrap create secret generic scrap-secrets \
-    --from-file=ANTHROPIC_API_KEY=/dev/stdin; unset KEY
+    --from-file=ANTHROPIC_API_KEY=/dev/stdin --from-file=SCRAP_MCP_TOKEN=scrap-mcp-token.txt; unset KEY
 ```
 
-Add the MCP bearer token to the same Secret. It is a second lock on `/mcp`, behind Cloudflare's.
-Generate it and keep a copy for Claude Code later:
+Check: `kubectl -n scrap get secret scrap-secrets` shows `DATA 2`.
 
-```
-python3 -c 'import secrets; print(secrets.token_urlsafe(32))' > scrap-mcp-token.txt
-kubectl -n scrap patch secret scrap-secrets --type merge \
-    -p "{\"stringData\":{\"SCRAP_MCP_TOKEN\":\"$(cat scrap-mcp-token.txt)\"}}"
-```
+Keep `scrap-mcp-token.txt` until step 6, then move it into your password manager and delete the
+file. Do not commit it.
 
-Move `scrap-mcp-token.txt` into your password manager and delete the file. Do not commit it.
-
-## 3. Install scrap
+## 2. Install scrap
 
 Write `my-values.yaml`:
 
@@ -112,7 +100,7 @@ networkPolicy:
       podSelector:
         matchLabels:
           app: cloudflared
-backup:
+litestream:
   enabled: true
 ```
 
@@ -120,20 +108,19 @@ What each part does:
 
 - `ingest` turns on Claude ingest, reading the API key from `scrap-secrets`.
 - `mcp.tokenSecret` makes `/mcp`, and the downloads under it, require
-  `Authorization: Bearer <token>`. The web app, the API and `/healthz` are not affected.
-- `identityHeader` records the signed-in email, which Cloudflare Access adds to each request,
-  as the author of a change. Changes made through `/mcp` are always author `claude`.
-- `SCRAP_PUBLIC_URL` is the address you reach scrap at. `/mcp`, the web app and the API answer `421`
-  to any other host name (and `403` to a write from another `Origin`), apart from `/healthz`. The
-  web app and the API also accept an IP address as the host; `/mcp` does not.
+  `Authorization: Bearer <token>`.
+- `identityHeader` records the email Cloudflare Access signed in as the author of a change.
+- `SCRAP_PUBLIC_URL` is the address you reach scrap at. `/mcp`, the web app and the API refuse
+  any other host name, apart from `/healthz`.
+- `litestream.enabled` keeps the database on the node's disk, with Litestream copying each change
+  to the data volume ({ref}`k8s-litestream`). It is the default from chart 1.9.0.
 - `networkPolicy` admits only the cloudflared pods, in the `cloudflared` namespace you create in
-  the next step. Without it, any pod in the cluster could reach scrap directly and send its own
-  identity header. With it, and a CNI that enforces NetworkPolicy, other pods and LAN hosts cannot go around
-  Cloudflare. Cluster admins, node access and `kubectl port-forward` are outside that guarantee.
-- `backup.enabled` is already the default. It runs a nightly `scrap backup` onto a second volume,
-  plus a monthly one kept longer.
+  the next step, so other pods and LAN hosts cannot go around Cloudflare.
 
-Install it:
+Nightly and monthly backups onto a second volume are on by default.
+
+Install it. The chart's version is the release tag; this page uses `{{ chart_version }}` (see the
+[releases](https://github.com/gilesknap/scrap/releases) for a newer one):
 
 ```
 helm install scrap oci://ghcr.io/gilesknap/charts/scrap --version {{ chart_version }} \
@@ -141,12 +128,11 @@ helm install scrap oci://ghcr.io/gilesknap/charts/scrap --version {{ chart_versi
 kubectl -n scrap rollout status deploy/scrap
 ```
 
-The NetworkPolicy only lets cloudflared in, so until the next step nothing outside the pod can
-reach scrap. To look at it yourself first, `kubectl -n scrap port-forward svc/scrap 8000:80`
-still works (it goes through the kubelet, not the pod network), then open
-<http://127.0.0.1:8000/>.
+Check: the NetworkPolicy lets only cloudflared in, but `kubectl port-forward` goes round it. Run
+`kubectl -n scrap port-forward svc/scrap 8000:80`, and in another shell
+`curl http://127.0.0.1:8000/healthz` shows `"status":"ok"`.
 
-## 4. Create the tunnel
+## 3. Create the tunnel
 
 In the [Cloudflare dashboard](https://one.dash.cloudflare.com/), open Zero Trust.
 
@@ -163,7 +149,7 @@ In the [Cloudflare dashboard](https://one.dash.cloudflare.com/), open Zero Trust
        --from-file=TUNNEL_TOKEN=/dev/stdin; unset T
    ```
 
-5. Save this as `cloudflared.yaml`:
+5. Save this as `cloudflared.yaml` (use the newest `cloudflare/cloudflared` tag if there is one):
 
    ```yaml
    apiVersion: apps/v1
@@ -216,19 +202,17 @@ In the [Cloudflare dashboard](https://one.dash.cloudflare.com/), open Zero Trust
    kubectl -n cloudflared rollout status deploy/cloudflared
    ```
 
-6. Back in the dashboard the tunnel shows **Healthy** after a few seconds.
-7. Open the tunnel's **Published application routes** (older dashboards: **Public Hostname**) and
+6. Open the tunnel's **Published application routes** (older dashboards: **Public Hostname**) and
    add one:
    - **Hostname**: `scrap.example.com` (pick the domain, leave the path empty).
-   - **Service**: type `HTTP`, URL `scrap.scrap.svc.cluster.local:80`. That is
-     `<service>.<namespace>.svc.cluster.local` and the chart's Service port, 80.
+   - **Service**: type `HTTP`, URL `scrap.scrap.svc.cluster.local:80` (the chart's Service, in
+     namespace `scrap`, port 80).
 
-   Cloudflare creates the DNS record for you.
+   Cloudflare creates the DNS record for you. There is no ingress controller in this setup.
 
-The route goes straight to the Service. There is no ingress controller and no extra login proxy
-in this setup.
+Check: back in the dashboard, the tunnel shows **Healthy**.
 
-## 5. Put Cloudflare Access in front
+## 4. Put Cloudflare Access in front
 
 An Access application is what makes Cloudflare ask who you are. You make two, and the more
 specific one (with the path) wins for `/mcp`.
@@ -245,7 +229,7 @@ specific one (with the path) wins for `/mcp`.
 4. Under login methods, keep **One-time PIN** on. It needs no identity provider.
 
 **The MCP endpoint.** Claude Code cannot fill in a PIN, so `/mcp` gets its own application that
-accepts a machine credential instead.
+accepts a machine credential instead. The path covers the downloads under it too.
 
 1. Create the service token: **Access controls > Service credentials > Service Tokens**, **Create
    Service Token**, name `scrap-mcp`, a long duration. Copy the **Client ID** and **Client
@@ -255,33 +239,7 @@ accepts a machine credential instead.
 3. Add a policy: name `Claude Code`, action **Service Auth**, include **Service Token**
    `scrap-mcp`. Remove any email policy from this application.
 
-Cloudflare matches the most specific application, so `/mcp` uses the service-token policy and
-every other path uses the email PIN. You check that in the next section. The path covers what is
-under it too: the downloads MCP clients fetch (images, files, drawings and page downloads under
-`/mcp/blobs/...`, `/mcp/pages/...` and `/mcp/captures/...`) take the same service token and
-bearer token, with no extra Access application.
-
-## 6. Check it works
-
-First the cluster:
-
-```
-kubectl -n scrap get pods,pvc
-kubectl -n scrap get networkpolicy
-kubectl -n cloudflared get pods
-```
-
-You want `scrap` pods `Running` and ready (the nightly backup and other CronJob pods appear
-later), the data claim `Bound`, the `scrap` NetworkPolicy present, and cloudflared `Running`. The
-backups claim is `Bound` too, unless your storage binds a volume only when a pod first uses it
-(`WaitForFirstConsumer`, as k3s's `local-path` does): then it stays `Pending` until the first
-backup runs. To run one now:
-
-```
-kubectl -n scrap create job --from=cronjob/scrap-backup scrap-backup-now
-```
-
-Then the edge, from your own machine:
+Check, from your own machine:
 
 ```
 curl -sI https://scrap.example.com/                 # redirected to the Cloudflare login
@@ -296,47 +254,50 @@ curl -sI https://scrap.example.com/mcp \
 ```
 
 The last request may answer a plain `HEAD` with a `405` or `406`. That is scrap speaking, not a
-refusal: what matters is that the third is `401` and the fourth is not.
+refusal: what matters is that the third is `401` and the fourth is not. If the second is not
+refused, or the first shows scrap's page, the Access applications do not cover the host: recheck
+this step.
 
-If the second request is not refused, or the first shows scrap's page, the Access applications do
-not cover the host: recheck section 5.
+## 5. Check the cluster and the backups
 
-Now the web app. Open `https://scrap.example.com` in a private window. Cloudflare asks for your
-email, mails you a code, and then scrap opens. Make a change, open its history, and check that
-your email is the author.
+```
+kubectl -n scrap get pods,pvc
+kubectl -n scrap get networkpolicy
+kubectl -n cloudflared get pods
+```
+
+You want the `scrap` pod `Running` with READY `3/3` (the `scrap` and `jobs` containers and the
+`litestream` sidecar), both claims (`scrap-data`, `scrap-backups`) `Bound`, the `scrap`
+NetworkPolicy present, and cloudflared `Running`. If the pod stays in `Init`,
+`kubectl -n scrap logs deploy/scrap -c db-init` says why.
+
+Run the first backup now, rather than waiting for the night, and check the scheduled jobs:
+
+```
+kubectl -n scrap create job --from=cronjob/scrap-backup scrap-backup-now
+kubectl -n scrap wait --for=condition=complete job/scrap-backup-now --timeout=10m
+kubectl -n scrap exec deploy/scrap -c jobs -- scrap schedule status
+```
+
+Check: the last command ends with `All healthy.`
+
+## 6. Use it on your phone and in Claude Code
+
+Open `https://scrap.example.com` in a private window. Cloudflare asks for your email, mails you a
+code, and then scrap opens. Make a change, open its history, and check that your email is the
+author.
 
 On your phone, open the same address, sign in, and install it (Share, Add to Home Screen on iOS;
 the browser's Install on Android). Take a photo and capture it. See [](../how-to/use-the-pwa.md).
 
-## 7. Connect Claude Code
+For Claude Code, set up the `headersHelper` script as in {ref}`mcp-secrets`, with
+`https://scrap.example.com/mcp` as the URL. Its env file holds the service token's
+`CF_ACCESS_CLIENT_ID` and `CF_ACCESS_CLIENT_SECRET` and `SCRAP_MCP_TOKEN` (the contents of
+`scrap-mcp-token.txt`). Other ways to connect are in [](../how-to/connect-claude-code.md).
 
-Claude Code needs three headers: both Cloudflare ones and the bearer token. The recommended way
-is a small `headersHelper` script that reads them from an env file (`~/.config/terminal-config/.env`
-with `CF_ACCESS_CLIENT_ID`, `CF_ACCESS_CLIENT_SECRET` and `SCRAP_MCP_TOKEN`, the token from
-step 2), so it also works in a devcontainer or claude-sandbox. Set it up as in
-{ref}`mcp-secrets`, with `https://scrap.example.com/mcp` as the URL.
+Check: `claude mcp list` shows `scrap` as connected. Ask Claude to search your pages.
 
-If you prefer, and the variables are exported in the shell that starts `claude`, add the server
-with `${VAR}` headers instead. Single quotes keep the shell from expanding the variables, so
-Claude Code reads them at start up:
-
-```sh
-export CF_ACCESS_CLIENT_ID=<client id>
-export CF_ACCESS_CLIENT_SECRET=<client secret>
-export SCRAP_MCP_TOKEN=<the token from step 2>
-
-claude mcp add --transport http --scope user scrap https://scrap.example.com/mcp \
-  --header 'CF-Access-Client-Id: ${CF_ACCESS_CLIENT_ID}' \
-  --header 'CF-Access-Client-Secret: ${CF_ACCESS_CLIENT_SECRET}' \
-  --header 'Authorization: Bearer ${SCRAP_MCP_TOKEN}'
-```
-
-`claude mcp list` should show `scrap` as connected. Ask Claude to search your pages. More in
-[](../how-to/connect-claude-code.md).
-
-```{note}
 Claude.ai's hosted connectors cannot send custom headers, so they cannot reach this `/mcp`.
-```
 
 ## Next steps
 
@@ -344,12 +305,3 @@ Claude.ai's hosted connectors cannot send custom headers, so they cannot reach t
   first: a backup that stays in the cluster is not enough, so copy it off too.
 - Add ingest with a Claude subscription instead of an API key: [](ingest-with-claude-seat.md).
 - Use the web app: [](../how-to/use-the-pwa.md).
-
-```{admonition} How the author runs it
-:class: tip
-The author's home cluster runs scrap behind the same Cloudflare Access and service-token
-design, and adds ingress-nginx, an oauth2-proxy GitHub login on the web app, Argo CD and sealed
-secrets. It is a larger stack than you need to start with. Its write-up is
-[docs/how-to/scrap.md](https://github.com/gilesknap/tpi-k3s-ansible/blob/main/docs/how-to/scrap.md)
-in [tpi-k3s-ansible](https://github.com/gilesknap/tpi-k3s-ansible).
-```

@@ -40,7 +40,7 @@ or one at a time:
 ```sh
 uv run tox -e pre-commit       # ruff lint and format, uv.lock sync, gitleaks, file checks
 uv run tox -e type-checking    # pyright on src and tests
-uv run tox -e tests            # pytest with coverage
+uv run tox -e tests            # pytest with coverage (in parallel, then the timing tests alone)
 uv run tox -e docs             # build the docs into build/html
 uv run tox -e docs-autobuild   # rebuild the docs on change
 ```
@@ -53,10 +53,11 @@ and treats warnings as errors.
 ### Writing the docs
 
 The docs are MyST Markdown under `docs/`, in the Diataxis folders `tutorials/`,
-`how-to/`, `explanations/` and `reference/`. A new file in `tutorials/`,
-`how-to/` or `explanations/` is picked up by the glob in that section's
-toctree. `docs/reference.md` lists its pages one by one, so add a line there
-for a new reference page.
+`how-to/`, `explanations/` and `reference/`. Every section lists its pages one
+by one, so add a new page to its section's toctree (in `docs/how-to.md`, under
+the right caption). A new architecture page goes in the hidden toctree at the
+end of `docs/explanations/design.md` and in its page map. The ADRs are the one
+glob: a new file in `docs/explanations/decisions/` is picked up.
 
 - Use relative links and `{ref}` labels inside `docs/`. In `README.md` and
   this file use absolute GitHub URLs, because `docs/how-to/contribute.md` only
@@ -88,7 +89,8 @@ the API. See the
 
 Capture and search work without Claude. The Claude features (photo ingest and
 page enrichment) need `SCRAP_INGEST=on` and `ANTHROPIC_API_KEY` in the
-environment. The tests do not call Claude.
+environment (or a seat token, see
+[Ingest on a Claude seat](https://gilesknap.github.io/scrap/main/tutorials/ingest-with-claude-seat.html)). The tests do not call Claude.
 
 ## Working on the PWA
 
@@ -147,6 +149,14 @@ when you change `scrap-backup` or `scrap-gc`. `./deploy/test-check-env.sh` does 
 same for `deploy/check-env`, which `install.sh` and `smoke.sh` use to refuse env
 files that systemd and the shell would read differently.
 
+`./deploy/test-install.sh`, `./deploy/test-install-dls.sh` and
+`./deploy/test-auth-proxy.sh` test `install.sh`, `install-dls.sh` and the DLS
+login proxy's installer the same way, with stub `systemctl`, `podman`,
+`kubectl`, `helm` and `claude` (no cluster or systemd needed).
+`test-install-dls.sh` also checks that the headers helper in
+`docs/tutorials/install-dls.md` matches the one the installer writes. CI runs
+every `deploy/test-*.sh`.
+
 After a change to `charts/`, run `./charts/test-chart.sh` (needs `helm` and
 `kubeconform` on your PATH). For every `charts/scrap/ci/*-values.yaml` it:
 
@@ -170,6 +180,12 @@ refuses unknown keys) and add a `ci/<name>-values.yaml` that sets it. A release
 tag sets the chart's `version` and `appVersion` when CI publishes it, so
 `charts/scrap/Chart.yaml` keeps the placeholder `0.0.0`. CI runs the script
 under Helm 3 and Helm 4.
+
+A change to the Litestream path (`_litestream.tpl`, `dbinit.py`, `schedule.py`,
+`watch.py`, the Litestream version) is checked by the `litestream-*-values.yaml`
+cases. Moving the Litestream version is a decision: read its release notes and
+repeat the restore trials of
+[ADR 46](https://github.com/gilesknap/scrap/blob/main/docs/explanations/decisions/0046-database-on-an-emptydir-replicated-with-litestream.md).
 
 ## Pull requests
 

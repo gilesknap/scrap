@@ -5,7 +5,9 @@ are the truth; derived rows cost an LLM call to remake so they are stored; chunk
 are a disposable cache.
 
 Back to [Architecture](../design.md). The schema is `src/scrap/migrations/baseline.sql`, with the numbered
-scripts after it in the same folder. The code is in `src/scrap/store/`.
+scripts after it in the same folder. The code is in `src/scrap/store/`. The database is
+`scrap.db` in the data folder, or at `SCRAP_DB_PATH` (on Kubernetes, `/db/scrap.db` on the node's
+disk, replicated by Litestream: [](deployment.md)); its lock and WAL go with it.
 
 ## Core tables
 
@@ -76,12 +78,12 @@ erDiagram
 
 | Table | Holds |
 | --- | --- |
-| `page` | Title, Markdown body, `kind`, `kind_fixed`, flat `fields`, `deleted_at`, plus the task counts `task_done`, `task_total` |
+| `page` | Title, Markdown body, `kind`, `kind_fixed`, flat `fields`, `deleted_at`, `public` (published on the public site, [ADR 43](../decisions/0043-public-pages-a-static-site-scrap-pushes-to.md)), plus the task counts `task_done`, `task_total` |
 | `page_todo` | A todo's typed `due` and `priority` (and `snoozed_until`, unused since Snooze was retired): one row per page that has at least one set, deleted when the last is cleared; removed with its page |
 | `blob` | Bytes of every original and binary derived artifact at `files/<sha[0:2]>/<sha>`, keyed by SHA-256 so a photo shared twice is stored once |
 | `capture`, `capture_blob` | What arrived, with a client-minted ULID as the retry key; ordered blobs per capture |
 | `derived` | Versioned Claude (or human) results: `ocr`, `description`, `excalidraw` are written (a PDF's or text file's `ocr` is scrap's own reading, `run_id` NULL: {ref}`ingest-files`); `summary` and `fetched` are allowed by the `CHECK` but reserved |
-| `page_rev`, `page_meta_rev` | Text history and kind/tag history (see [Revisions](#revisions-and-conflicts)) |
+| `page_rev`, `page_meta_rev` | Text history and kind/tag history (see [Revisions](#revisions-and-conflicts)); a metadata revision also records the `public` flag before and after, so `revert` undoes it |
 | `page_trash_rev` | Each move of a page into or out of the trash (see [Trash](#trash)) |
 | `tag` | Lower-case tags per page, 1 to 64 characters, `/` allowed |
 
@@ -117,6 +119,11 @@ erDiagram
 | `writeup`, `writeup_guidance` | A board's write-up or a topic's synthesis (one row a page, replaced by the next, [ADR 39](../decisions/0039-generated-content-keeps-only-its-current-version.md)) and the owner's guidance for the next |
 | `image_guidance` | The owner's guidance for Claude's next reading of one image, per (capture, image) (#538); never sent with a write-up, never published |
 | `topic`, `topic_source` | Which pages are topics (with a key never made again) and their sources, with the owner's exclusions |
+
+One more table is not Claude's: `scheduled_job`, on Kubernetes the last run of each `scrap
+schedule` job (gc, related, topics): start, end, result and last success, read by `scrap schedule
+status` and its metrics. It is in the database so it outlives the pod
+([ADR 46](../decisions/0046-database-on-an-emptydir-replicated-with-litestream.md)).
 
 ## Originals, derived, cache
 

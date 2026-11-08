@@ -19,6 +19,7 @@ STATIC = Path(__file__).parent / "static"  # the built PWA (npm --prefix web run
 # Served index.html
 APP_ROUTES = (
     "/",
+    "/capture",
     "/recent",
     "/search",
     "/tags",
