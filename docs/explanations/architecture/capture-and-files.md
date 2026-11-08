@@ -164,22 +164,23 @@ flowchart LR
   captures and deleted. Nothing is
   stored for this: it is derived from page text and revisions. The monthly page rolls over once
   done, cancelled, trashed or 1 MB full.
-- **Scheduling.** On a single server a nightly timer runs gc after the backup and deletes only if
-  a completed backup (integrity checked, `COMPLETE` marker written) is under 26 hours old. See
-  [](deployment.md).
+- **Scheduling.** gc runs nightly after the backup (a systemd timer on a single server, the
+  scrap pod's `jobs` container on Kubernetes) and deletes only if a completed backup (integrity
+  checked, `COMPLETE` marker written) is under 26 hours old. See [](deployment.md).
 
-## Backup, restore and export
+## Backup, restore, export and import
 
 ```mermaid
 flowchart LR
     s[("Store")]:::store -- "scrap backup" --> b[("Backup dir + COMPLETE")]:::store
     b -- "scrap restore" --> s
     s -- "scrap export, Export everything" --> x["Markdown + files"]:::user
+    x -- "scrap import, Settings import" --> s
     classDef store fill:#e8f1ff,stroke:#4a7bd0
     classDef user fill:#e9f7ef,stroke:#2e9d5b
 ```
 
-**Backup, restore, export** (`backup.py`, `export.py`; [](deployment.md)):
+**Backup, restore, export, import** (`backup.py`, `export.py`, `importer/`; [](deployment.md)):
 
 - `backup` takes an online SQLite snapshot, then copies `files/`, safe while serving. Blobs are
   written before the rows that name them, so the copy always holds every blob in the snapshot.
@@ -194,6 +195,10 @@ flowchart LR
   model's words are never mistaken for the owner's ([](../decisions/0020-text-enrichment.md),
   [](../decisions/0027-claude-write-ups-of-boards-apart-from-the-text.md)).
   The pages are read in one transaction, then the files are copied or streamed a chunk at a time.
+- `import` reads Markdown pages with YAML front matter (a scrap export or an Obsidian vault, a
+  folder or a zip) back in through the store (`importer/`), as new pages tagged
+  `import/<date>`; a page already there is skipped, never overwritten, and Claude reads the new
+  pages only when asked (`--enrich`, `--photos`). See [](../../how-to/import-your-pages.md).
 
 ## Invariants
 
@@ -212,6 +217,7 @@ flowchart LR
 - [](../decisions/0006-vanilla-typescript-pwa-with-lazy-chunks.md)
 - [](../decisions/0014-markdown-parsed-by-a-library-on-both-sides.md)
 - [](../decisions/0015-images-in-text-and-gc.md)
-- [](../decisions/0017-thoth-vault-import-through-the-store.md)
+- [](../decisions/0017-thoth-vault-import-through-the-store.md) (the first importer, since
+  removed; `scrap import` follows its rule of going through `Store`)
 - [](../../reference/api.md) for routes and commands; [](../../how-to/use-the-pwa.md) for the
   capture screen.

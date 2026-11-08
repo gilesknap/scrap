@@ -42,6 +42,12 @@ flowchart LR
 
 An empty query finds nothing over HTTP; over MCP it lists the most recently changed pages.
 
+**Raw text.** The index keeps only stemmed words, so it cannot find punctuation or an exact
+string (`|---|`, `foo_bar(`). The `grep` argument of MCP `search` (a case-insensitive substring,
+or an RE2 regex with `regex`) scans the stored text of the pages the query picks: the title, the
+Markdown body and the current text read from its files (`store/grep.py`,
+[](../decisions/0040-search-greps-raw-text.md)). The whole scan has a budget of 2 s.
+
 ## Filters
 
 Generated from `KEYS` in `query.py` and `Store._where` in `store/search.py`. A `-` before a filter
@@ -57,6 +63,7 @@ the tool arguments are in [](../../reference/mcp.md); the user's view is in
 | `is:personal`, `is:work` | `personal` field true / not true |
 | `is:claude`, `is:claude-edited` | Pages whose `made_by` is `claude` (written over MCP); text changed over MCP after the first revision |
 | `is:topic` | Claude's topic pages |
+| `is:public` | Pages made public, published or not ([](../decisions/0043-public-pages-a-static-site-scrap-pushes-to.md)) |
 | `has:image`, `has:drawing` | An image capture; a current drawing. Other `has:` values match nothing |
 | `image:K` | A photo Claude described as kind `K` (`photo`, `whiteboard`, `handwriting`, `diagram`, `screenshot`, `document`, `other`) |
 | `after:D`, `before:D` | Last edited on or after / before `D`: a UTC date `YYYY-MM-DD` or a time ago (`1d`, `2w`, `1m` = 30 days, `1y` = 365, up to `100`). With `date:created`, creation date instead |
@@ -155,6 +162,7 @@ not findings: the nightly related pass and weekly topics pass refresh them
 ## Related
 
 - [](../decisions/0008-search-fts5-only-for-now.md), [](../decisions/0019-kinds-and-tags-editable-with-revisions.md),
-  [](../decisions/0029-store-health-checks-as-search-filters.md)
+  [](../decisions/0029-store-health-checks-as-search-filters.md),
+  [](../decisions/0040-search-greps-raw-text.md)
 - [](data-model.md) for the `chunk`, `derived` and `tag` tables; [](mcp-and-access.md) for the
   tool; [](frontend-pwa.md) for the Search screen; [](../design.md) for the landing page.

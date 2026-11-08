@@ -9,7 +9,9 @@ is changed or overwritten.
 
 ## From the app
 
-For a zip of up to the upload limit (`SCRAP_MAX_UPLOAD_MB`, 50 MB by default):
+This is the way on Kubernetes ([](../tutorials/install-kubernetes.md),
+[](../tutorials/install-dls.md)), and works on every install, for a zip of up to the upload
+limit (`SCRAP_MAX_UPLOAD_MB`, 50 MB by default):
 
 1. Open **Settings** (the cog).
 2. Under **Store**, tap **Import Markdown…** and pick the zip.
@@ -28,9 +30,10 @@ Settings then says how many pages were imported, how many were here already, the
 given and what was queued for Claude. The fold below it lists what could not be done as
 written, such as a link to a page that is not in the zip.
 
-## From the command line
+## From the command line, on a single server
 
-For a zip over the upload limit, or a folder, run it on the machine that holds the data:
+On a single server ([](deploy-single-server.md)) or a trial on your LAN, for a zip over the
+upload limit, or a folder, run it on the machine that holds the data:
 
 ```sh
 scrap import --data-dir /path/to/data --dry-run ~/notes.zip   # what would happen; writes nothing
@@ -39,8 +42,8 @@ scrap import --data-dir /path/to/data ~/notes.zip
 
 `--dry-run` lists every page, every problem found and roughly what Claude would cost. `--enrich`
 and `--photos` are the two choices above, off unless given. The server picks up what was queued
-within a minute. Where scrap runs in a container, see [](deploy-kubernetes.md) or
-[](deploy-single-server.md) for running a `scrap` command against its data.
+within a minute. Where scrap runs in a container, see [](deploy-single-server.md) for running a
+`scrap` command against its data.
 
 ## What each page gets
 
@@ -52,7 +55,8 @@ within a minute. Where scrap runs in a container, see [](deploy-kubernetes.md) o
   linked; PDFs and text files are read for search, which is free. The files in a scrap export's
   `attachments` are added to the page too.
 - **Its title**: `title`, else the first `# heading`, else the file name.
-- **Its kind** from `kind` (`note`, `todo`, `consume`, `whiteboard` or `document`), else a note.
+- **Its kind** from `kind`: `note`, `todo`, `consume` (Later), `whiteboard` (board) or `document`
+  (doc), as a scrap export writes them; anything else is a note.
 - **Its tags** from `tags` (a list, or a string of tags split at commas and spaces), as scrap keeps
   tags (lower case, no `#`), plus `import/YYYY-MM-DD`, the UTC date of the import, so you can
   find, review or trash what one import brought in.

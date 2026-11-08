@@ -10,16 +10,20 @@ the exact rules are in [](../reference/public-site.md).
 ## Set it up
 
 The site is the `scrap-public` image: nginx serving the files, and a small receiver that only
-scrap can write to. Install it with the chart's `public` section: see {ref}`k8s-public-pages`.
-That gives scrap three settings ([](../reference/api.md)):
+scrap can write to. On Kubernetes, install it with the chart's `public` section: see
+{ref}`k8s-public-pages`. The DLS installer sets it up for you, at
+`https://pages-<fedid>.diamond.ac.uk/`, readable by anyone on the DLS network
+([](../tutorials/install-dls.md)). The single-server and LAN installs have no public site.
+The chart gives scrap three settings ([](../reference/api.md)):
 
 - `SCRAP_PUBLISH_TO`, the receiver's address inside the cluster;
 - `SCRAP_PUBLISH_SITE`, the site's public address, for the links scrap shows;
 - `SCRAP_PUBLISH_TOKEN_FILE`, the file holding the receiver's token (a mounted Secret; scrap
   never reads the token from an environment variable).
 
-Without `SCRAP_PUBLISH_TO` and the token, publishing is off: pages can still be marked public
-or private, and nothing is pushed. `GET /healthz` has a `publish` block saying whether
+Without `SCRAP_PUBLISH_TO` and the token, publishing is off: the app has no **Make public…**
+and no **Public pages** in Settings, and nothing is pushed (over MCP, `edit_meta` can still mark
+a page public). `GET /healthz` has a `publish` block saying whether
 publishing is on and how the last check of the site went; it never fails the health check.
 
 ## Make a page public

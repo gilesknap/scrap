@@ -15,7 +15,8 @@ pages under it go deep on each part.
 
 ## The whole system
 
-Everything runs in one process; the only things outside it are the disk and the internet.
+Everything runs in one process; the only things outside it are the disk, the internet and, when
+pages are made public, the public site scrap pushes them to.
 
 ```mermaid
 flowchart LR
@@ -37,6 +38,7 @@ flowchart LR
     subgraph ext["External"]
         anth["Anthropic API"]
         web["Fetched web pages"]
+        pub["Public site receiver"]
     end
 
     pwa --> api
@@ -49,6 +51,7 @@ flowchart LR
     store --> files
     worker --> anth
     worker --> web
+    store -->|"publish/"| pub
 
     classDef user fill:#e9f7ef,stroke:#2e9d5b
     classDef claude fill:#fff3e0,stroke:#e08a00
@@ -63,11 +66,21 @@ flowchart LR
   off). Capture, search and everything else work without it.
 - The API and the worker both write, so every connection sets `PRAGMA foreign_keys = ON` and
   `PRAGMA busy_timeout = 5000` on open; the database is in WAL mode.
-- The CLI (`scrap backup`, `restore`, `export`, `gc`, `enrich`) opens the
-  same data folder directly; `scrap serve` migrates, then serves.
-- No login code. Tailscale Serve is the way in; on Kubernetes a proxy fronts it, with an optional
-  bearer token on `/mcp` ([](decisions/0007-tailscale-serve-for-access-and-identity.md),
+- The CLI (`scrap backup`, `restore`, `export`, `import`, `gc`, `enrich`, and on Kubernetes
+  `db-init`, `schedule` and `db-hold`) opens the same data folder and database directly;
+  `scrap serve` migrates, then serves.
+- No login code. Tailscale Serve is the way in on a single server; on Kubernetes an
+  authenticating proxy fronts it (Cloudflare Access, or the DLS login proxy, whose token scrap
+  verifies: [](decisions/0045-scrap-verifies-the-login-proxys-keycloak-token.md)), with an
+  optional bearer token on `/mcp` ([](decisions/0007-tailscale-serve-for-access-and-identity.md),
   [](decisions/0023-bearer-token-on-mcp-and-an-identity-header-setting.md)).
+- Public pages are the one thing that leaves: a page the owner makes public is pushed to a
+  separate static site (`publish/`, [](decisions/0043-public-pages-a-static-site-scrap-pushes-to.md),
+  [](../reference/public-site.md)). scrap itself is never public.
+- On Kubernetes the database is on the node's disk and a Litestream sidecar replicates it into
+  the data folder, and a `jobs` container beside the service runs gc and the Claude passes
+  ([](architecture/deployment.md),
+  [](decisions/0046-database-on-an-emptydir-replicated-with-litestream.md)).
 
 ## Who touches the database
 
@@ -78,6 +91,8 @@ flowchart TD
     subgraph entry["Entry points"]
         app["app.py, *_api.py, api_models.py, middleware.py, uploads.py, pwa.py, public.py"]
         mcpt["mcp_server.py, mcp_tools/"]
+        pubm["publish/"]
+        imp["importer/"]
     end
     subgraph bg["Background work"]
         ing["ingest/"]
@@ -93,6 +108,8 @@ flowchart TD
 
     app --> st
     mcpt --> st
+    pubm --> st
+    imp --> st
     ing --> st
     enr --> st
     ing --> cl
@@ -114,6 +131,10 @@ flowchart TD
 | `enrich/` | Claude's reading of text pages: summary, tags, related pages, board write-ups, topic pages. |
 | `claude.py`, `claude_cli.py` | The Messages API client and the Claude seat (`claude -p`) backend. |
 | `mcp_tools/` | The tools served at `/mcp`. |
+| `publish/` | Public pages: checking what the PWA uploads and pushing it to the public site's receiver. |
+| `importer/` | `scrap import`: Markdown pages (a scrap export, an Obsidian vault) read in through `store/`. |
+| `dbinit.py`, `schedule.py`, `cron.py`, `watch.py` | Kubernetes: putting the database in place at start, and the `jobs` container's scheduler and replication watch. |
+| `oidc.py` | The check of the DLS login proxy's token. |
 
 ## One capture becomes one page
 
@@ -148,12 +169,12 @@ by hand or through MCP `write`. Details are in
 | --- | --- |
 | [Scope and stack](overview.md) | What scrap is and is not; the tools it uses. |
 | [Data model and storage](architecture/data-model.md) | Tables, page identity, kinds, revisions, migrations. |
-| [Capture, files and backup](architecture/capture-and-files.md) | Capture routes, blobs, images in text, `scrap gc`, backup and export. |
+| [Capture, files and backup](architecture/capture-and-files.md) | Capture routes, blobs, images in text, `scrap gc`, backup, export and import. |
 | [Job queue and Claude features](architecture/claude-pipeline.md) | Jobs, pausing, enrich, write-ups, topics, budget. |
 | [Search](architecture/search.md) | FTS5 index, query syntax, filters. |
 | [MCP server and access](architecture/mcp-and-access.md) | Tools, revisions over MCP, bearer token, security. |
-| [The PWA](architecture/frontend-pwa.md) | Offline queue, share target, bundles, CSP. |
-| [Deployment and operations](architecture/deployment.md) | Single server, Helm, backup, timers, settings. |
+| [The PWA](architecture/frontend-pwa.md) | Offline queue, share target, bundles, CSP, public pages. |
+| [Deployment and operations](architecture/deployment.md) | Single server, Kubernetes with Litestream, backup, timers and scheduled jobs. |
 
 Related: [](design-system.md) (UI), [](ingest.md) (photo ingest in depth), [](llm-calls.md),
 [](../reference/api.md), [](../reference/mcp.md), [](../reference/scheduled-jobs.md).

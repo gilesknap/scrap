@@ -2,6 +2,7 @@
 import { kept, send, stallLimit } from "./api";
 import { nameAt } from "./crumbs";
 import { idb } from "./db";
+import { capturePath } from "./home";
 import { Queue } from "./queue";
 import { keepScroll } from "./scroll";
 
@@ -16,6 +17,7 @@ export const queue = new Queue(
 /** The screens a page is opened from: the name the top bar's Back gives each. */
 export const LISTS: Record<string, string> = {
   "/": "Capture",
+  "/capture": "Capture", // on a computer, where "/" is Search (home.ts)
   "/search": "Search",
   "/todos": "Todos",
   "/topics": "Topics",
@@ -66,8 +68,10 @@ export const rerender = () => window.dispatchEvent(new PopStateEvent("popstate")
 /** Aborted when the view changes: views pass it to their event listeners. */
 export const view = { signal: new AbortController().signal };
 
-/** Mark the nav's tab for what is on screen (/search, with or without a query, is Search). */
+/** Mark the nav's tab for what is on screen (/search, with or without a query, is Search).
+ * Capture's tab (the first) links to where Capture is now: "/", or /capture on a computer. */
 export function markNav() {
-  for (const a of document.querySelectorAll<HTMLAnchorElement>("nav a"))
-    a.toggleAttribute("aria-current", a.pathname === location.pathname);
+  const tabs = document.querySelectorAll<HTMLAnchorElement>("nav a");
+  tabs[0]?.setAttribute("href", capturePath());
+  for (const a of tabs) a.toggleAttribute("aria-current", a.pathname === location.pathname);
 }

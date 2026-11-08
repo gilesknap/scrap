@@ -11,11 +11,11 @@ never on a public ingress: only nginx is.
 ## Settings
 
 The `scrap-public` image has two commands, `web` (nginx, port 8080) and `receive` (the
-receiver). In Kubernetes they are two containers of one pod, sharing the site volume at `/site`.
+receiver). They run as two containers of one pod, sharing the site volume at `/site`.
 
 | Variable | Read by | Default | Meaning |
 | --- | --- | --- | --- |
-| `RECEIVER_LISTEN` | `receive` | `tcp:0.0.0.0:8081` | Where it listens, `tcp:<host>:<port>` (a Unix socket may be added for the later single-server install) |
+| `RECEIVER_LISTEN` | `receive` | `tcp:0.0.0.0:8081` | Where it listens, `tcp:<host>:<port>`. Any other form stops `receive` at start |
 | `RECEIVER_TOKEN_FILE` | `receive` | unset | A file holding the token (its content, stripped). Wins over `RECEIVER_TOKEN`. This is how the receiver gets it in a deployment: the chart mounts the Secret as a file, never as an environment variable |
 | `RECEIVER_TOKEN` | `receive` | unset | The token itself, for tests and development only |
 | `RECEIVER_SITE` | `receive` | `/site` | The site folder ([layout](#the-site-folder)) |
@@ -23,7 +23,7 @@ receiver). In Kubernetes they are two containers of one pod, sharing the site vo
 | `INDEXING` | `web` | `off` | `on` lets search engines index the site; `off` sends `X-Robots-Tag: noindex, nofollow` and a `robots.txt` of `Disallow: /`. Anything else stops `web` at start |
 
 The receiver does not start without a token, with one shorter than 32 characters, or with one
-holding whitespace.
+holding whitespace. Nor with a `RECEIVER_QUOTA_BYTES` that is not a whole number of bytes.
 
 scrap:
 
@@ -34,13 +34,14 @@ scrap:
 | `SCRAP_PUBLISH_TOKEN_FILE` | A file holding the same token (its content, stripped). scrap reads the token only from a file, never from an environment variable |
 
 Without `SCRAP_PUBLISH_TO` and a token, publishing is off. A token file that is set but
-unreadable, shorter than 32 characters or holding whitespace, or a `SCRAP_PUBLISH_TO` that
-is not an `http(s)` URL, stops scrap starting.
+unreadable, shorter than 32 characters or holding whitespace, or a `SCRAP_PUBLISH_TO` or
+`SCRAP_PUBLISH_SITE` that is not an `http(s)` URL, stops scrap starting.
 
 ## Transport and auth
 
 - HTTP/1.1 with keep-alive. Receiving a request, its headers and body, has 30 seconds (`408`);
-  the fsync and swap after it are not counted.
+  the fsync and swap after it are not counted. A connection idle for 30 seconds between requests
+  is closed.
 - A client should send `Expect: 100-continue` with every request that has a body, where the
   client library supports it, so a refusal that needs only the headers (`401`, `411`, `413`,
   `415`, `422 bad_unit`, and `503 busy`, since the write lock is tried from the headers before
@@ -102,8 +103,8 @@ A unit's body is a tar:
   unit's own rule above;
 - each path **once**, and no path that is also a folder of another (`a` and `a/b.html`);
 - **not empty** (`422 empty_unit`);
-- with no pax extended header, or GNU long-name or long-link header, over 64 KiB
-  (`400 bad_tar`).
+- with no pax extended header, or GNU long-name or long-link header, over 64 KiB, and no more
+  than 32 pax header blocks in a row (`400 bad_tar`).
 
 The extension is what follows the last `.` of the last segment, compared in lower case. The
 receiver reads the tar member by member as it streams in, writing each file itself; it never
@@ -199,15 +200,16 @@ Remove a unit. `204`, also when it was not there, or `503 busy`.
 list. It needs `Content-Type: application/json` (`415`) and `Content-Length` (`411`), with a body
 of at most 1 MiB. `200 {"deleted": [...]}`. Refused: a body that is not `{"keep": [strings]}`
 (`400 bad_request`), an empty list (`422 empty_keep`), a list without `home` (`422 no_home`),
-and an entry that is not a unit (`422 bad_unit`).
+and an entry that is not a unit (`422 bad_unit`). Over 1 MiB is `413 body_too_large`; another
+write holding the lock is `503 busy`.
 
 ## Errors
 
 | Status | `error` | When |
 | --- | --- | --- |
-| `400` | `bad_request` | A malformed `Content-Length`, or a `sync` body that is not `{"keep": [...]}` |
+| `400` | `bad_request` | A malformed request line, headers or `Content-Length`, or a `sync` body that is not `{"keep": [...]}` |
 | `400` | `short_body` | The body ended before `Content-Length` |
-| `400` | `bad_tar` | The body is not a readable tar, has a GNU or sparse member, or a header over 64 KiB |
+| `400` | `bad_tar` | The body is not a readable tar, has a GNU or sparse member, a header over 64 KiB, or more than 32 pax header blocks in a row |
 | `400` | `digest_mismatch` | `Scrap-Digest` missing or wrong |
 | `401` | `unauthorized` | No token, or the wrong one |
 | `404` | `not_found` | No such route |
@@ -241,8 +243,8 @@ and an entry that is not a unit (`422 bad_unit`).
 
 `units/` and `staging/` are outside nginx's root, so they are never served. At start the receiver
 empties `staging/`, rebuilds its index of live units from the symlinks, and removes every copy no
-symlink refers to and anything else in `www/`. In Kubernetes the folder is an `emptyDir`: a
-restarted pod starts empty and scrap fills it again ([](#reconciling)).
+symlink refers to and anything else in `www/`. The folder is the pod's `emptyDir` (the chart's
+`public.sizeLimit`, 3Gi): a restarted pod starts empty and scrap fills it again ([](#reconciling)).
 
 ## nginx
 
@@ -314,7 +316,7 @@ drawing that a reader opens there ([](#drawings)). No other answer has the heade
   unpublished page is gone on its next load. A `304` for a page says `no-cache` too (nginx
   knows HTML there by its file, `.html`, as a `304` has no `Content-Type`).
 - The site's own CSS and script, `/assets/*.css` and `/assets/*.js` (`page.css`, `katex.css`,
-  `prefs.js`): `Cache-Control: no-cache` too. Every page names them at the same addresses, so a
+  `pagefind-ui.css`, `prefs.js`): `Cache-Control: no-cache` too. Every page names them at the same addresses, so a
   browser asks again on each load, with the `ETag` nginx sends, and gets a short `304` when
   nothing changed; a page republished by a new release never shows with the last release's
   stylesheet (#534). It is `no-cache`, not `no-store`, so browsers and Cloudflare still keep a
@@ -330,10 +332,9 @@ Nothing the site does reaches copies people saved, or caches that ignore these h
 
 ## What the publish mode writes
 
-`pagehtml.ts` has a publish mode beside Share as HTML. It reads the page as the PWA shows it and
-writes one HTML file, which scrap then checks ([](#what-scrap-sends-for-a-page)). The design of
-the PWA's side (the toggle, the badge, the dialogs) is on the sim's design branch,
-`design/497-public-pages`.
+`publish.ts` is a publish mode beside Share as HTML (`pagehtml.ts`). It reads the page as the PWA
+shows it and writes one HTML file, which scrap then checks ([](#what-scrap-sends-for-a-page)).
+`publicpages.ts` decides when a page is published and draws its drawings and diagrams.
 
 Marked *default* below: a choice the owner may still change, kept in one place so it is easy to change.
 
@@ -437,7 +438,7 @@ site's icons (#527), `<link rel="icon" href="/assets/icon.svg" type="image/svg+x
 `<script src="/assets/prefs.js" defer blocking="render"></script>`
 ([](#the-html-scrap-accepts)).
 
-**The PWA's dialogs** (the sim's wording on the design branch is the final text):
+**The PWA's dialogs**:
 
 - Making a page public asks every time, Cancel or Make public, saying that anyone with the
   address can read the page, and listing what goes public with it: its tags, Claude's
@@ -467,10 +468,10 @@ bearer token cannot reach them: MCP never publishes HTML. Errors are scrap's usu
 ### The flag
 
 `PATCH /api/pages/{key}` with `{"public": true}` or `{"public": false}`, or MCP
-`edit_meta(public=...)`, sets `page.public`, as a revision that `revert` can undo. Making pages
-private works in bulk through the same routes; `public: true` that matches more than one page
-(by list or by query) is refused with `422 one_at_a_time`; a query that matches exactly one page
-is allowed. (A revert of a bulk "make private" batch puts every page's flag back; each still
+`edit_meta(public=...)`, sets `page.public`, as a revision that `revert` can undo. `PATCH` sets
+one page's flag; MCP `edit_meta(public=false)` can make any number private, but `public: true`
+that matches more than one page (by list or by query) is refused with `422 one_at_a_time`; a
+query that matches exactly one page is allowed. (A revert of a bulk "make private" batch puts every page's flag back; each still
 waits for a confirmed first publish.) Nothing after the flag change has committed answers
 `500`: an error then is logged, and the answer is `200` with `"unpublish": "pending"`.
 
@@ -480,7 +481,9 @@ waits for a confirmed first publish.) Nothing after the flag change has committe
 - **Off** unpublishes at once, whichever route turned it off, and so does the page going to the
   trash. The unpublish runs after the flag change (or the trash) has committed
   ([](#scraps-copies)). If the receiver cannot be reached, the change still succeeds, the answer
-  (`200`) carries `"unpublish": "pending"`, and the next reconcile finishes the deletion.
+  (`200`) carries `"unpublish": "pending"`, and the next reconcile finishes the deletion. A trash
+  from the PWA (`DELETE`, `204`) reports nothing; over MCP, `trash_pages` carries
+  `"unpublish": "pending"`.
 - Undelete and revert keep the flag as it is.
 
 `GET /api/pages/{key}` includes `public` (`true` or `false`), `published_at` and `public_url`
@@ -524,17 +527,18 @@ page's unit is pushed (Pagefind failing or timing out, say): it is logged, never
 
 | Status | `error` | When |
 | --- | --- | --- |
+| `404` | (none) | No such page: `{"detail": ...}` only |
 | `409` | `not_public` | The page is not `public`, or it is in the trash |
 | `409` | `unconfirmed` | A first publish (no kept copy) without `"confirmed": true` |
 | `409` | `stale` | `base_rev` is not the page's current revision (the answer has `rev`, the current one) |
 | `413` | `too_large` | The body is over 25 MiB |
 | `422` | `bad_request` | The body is not JSON `{"html", "base_rev", "defer", "confirmed", "drawings", "diagrams"}`, or a drawing or diagram is sent twice |
-| `422` | `bad_html`, `bad_placeholder` | The HTML fails a rule, or a placeholder names a file that is not on the page (or an `img` a file that is not an image), a drawing that is not one of the page's, or Open in Excalidraw without an `https` `SCRAP_PUBLISH_SITE`; `detail` says which |
+| `422` | `bad_html`, `bad_placeholder` | The HTML fails a rule, or a placeholder names a file that is not on the page (or an `img` a file that is not an image), a drawing that is not one of the page's, an SVG or image on the page that cannot be made safe or has no preview, an Open in Excalidraw link for a drawing the page does not show, or Open in Excalidraw without an `https` `SCRAP_PUBLISH_SITE`; `detail` says which |
 | `422` | `bad_drawing` | A drawing the page shows was not sent, one was sent that it does not show, or one's SVG has no single Excalidraw scene, one that cannot be read, or cannot be made safe ([](#drawings)) |
 | `422` | `bad_diagram` | A diagram the page shows was not sent, or not shown in both themes, one was sent that it does not show, or one's SVG cannot be made safe or names scrap in its style ([](#diagrams)) |
-| `422` | `too_many_files`, `file_too_large`, `unit_too_large` | Over a cap ([](#placeholders-and-files)) |
+| `422` | `too_many_files`, `file_too_large`, `unit_too_large` | Over a cap ([](#placeholders-and-files)); `file_too_large` also for a drawing's SVG over 20 MiB or a diagram's over 2 MiB |
 | `422` | `stale_tags` | A `scrap-tag:` names a tag the page no longer has (a tag edit raced the render); the PWA renders again |
-| `502` | `publish_failed` | The receiver refused or failed; `detail` holds its `error` code |
+| `502` | `publish_failed` | The receiver refused or failed; `detail` holds its `error` code, `unreachable`, or `http_<status>` for an answer that was not the receiver's JSON |
 | `503` | `not_configured` | Publishing is off (no `SCRAP_PUBLISH_TO` or token) |
 | `503` | `busy` | A photo's preview is being made; try again (`Retry-After: 5`) |
 
@@ -543,8 +547,9 @@ photo's preview still being made answers `503 {"error": "busy"}` with `Retry-Aft
 
 ### `GET /api/public`
 
-The public pages not in the trash: `[{"id", "slug", "title", "published_at"}]`, with
-`published_at` null for a page not published yet. `?links_to=<slug>` lists only the public pages
+The public pages not in the trash, ordered by title, then slug:
+`[{"id", "slug", "title", "published_at"}]`, with `published_at` null for a page not published
+yet. `?links_to=<slug>` lists only the public pages
 that refer to that page, from scrap's own link data, not the published HTML (where a link to a
 private page is only a label): those whose text or current write-up links to it (wiki links
 and `/p/` addresses: its Linked from), and those related to it either way (Claude's picks).
@@ -554,8 +559,9 @@ the pages to render again when a page is made public or private, and for Refresh
 ### `POST /api/public/rebuild`
 
 Build `home`, every tag unit, `pagefind` and `assets` once, and push those whose digest
-changed: `200` with `{"units": [<each unit pushed>]}` (and `"derived": "pending"` when the
-search index could not be built), or `502` and `503` as for a publish. Refresh all sends
+changed, and delete the tag units no public page has any more: `200` with
+`{"units": [<each unit pushed>]}` (and `"derived": "pending"` when the search index could not be
+built), `502 publish_failed` or `503 not_configured`. Refresh all sends
 each public page with `defer: true`, then calls this once.
 
 ## What scrap sends for a page
@@ -581,8 +587,8 @@ cleans the HTML), **replaces** its placeholders, adds the page's files, and push
 
 ### The HTML scrap accepts
 
-The document is `<!DOCTYPE html>` with `html`, `head`, `title` and `body`; `html`, `head` and
-`body` may have only `lang` and `dir`. In `head`, only:
+The document is `<!DOCTYPE html>` with `html`, `head`, `title` and `body`; `html` and `body` may
+have only `lang` and `dir`, and `head` none. In `head`, only:
 
 - `<meta charset="utf-8">`;
 - `<meta name="viewport" content="...">`;
@@ -601,6 +607,10 @@ The document is `<!DOCTYPE html>` with `html`, `head`, `title` and `body`; `html
   head or the body, is refused.
 
 There is **no `<style>` element** anywhere: every one is refused.
+
+Elements nested more than 256 deep are refused. Each placeholder must be written plainly in the raw
+HTML, as the publish mode writes it (no character of it entity-encoded): the placeholders found
+in the raw text must be exactly those in the parsed tree.
 
 Text never holds a private address. Text, tails and comments, lower-cased, are refused if they
 contain `/api/blobs/` anywhere, or one of scrap's own hosts (`public.public_origins()`, lower
@@ -661,7 +671,9 @@ An `a`'s `href` must fully match one of:
 - an absolute `http:` or `https:` URL, unless:
   - its host is one of **scrap's own origins** (`public.public_origins()`: the addresses in
     `SCRAP_PUBLIC_URL` and the like), compared case-insensitively with a trailing `.` removed;
-  - its path starts with `/api/`, whatever the host;
+  - its path, percent-decoded with repeated `/` collapsed and dot segments removed, is `/api` or
+    starts with `/api/`, whatever the host;
+  - it has `%` in its host;
   - it has userinfo (`user@` or `user:pass@` before the host);
 - `mailto:...`, or `#<id>`;
 - `/p/<slug>` of a page that is public, `/t/<key>`, or the site's own `/` and `/tags`;
@@ -986,8 +998,10 @@ For each published page scrap keeps the unit exactly as it last pushed it, under
 ```
 
 `tags` are the page's tags in the database at publish time. It is derived data, not
-backed up. scrap also stores the digest it last pushed for every unit; a kept copy is damaged
-when the digest of its files, computed again, differs from that stored digest.
+backed up. scrap also stores the digest it last pushed for every unit, in
+`<data>/cache/publish/digests.json`, and keeps its last Pagefind build in
+`<data>/cache/publish/search/`; a kept copy is damaged when the digest of its files, computed
+again, differs from that stored digest.
 
 **One lock in scrap** is held over every publish, unpublish and reconcile step, so they never
 interleave.
@@ -995,7 +1009,8 @@ interleave.
 - **Publish:** read the page again and refuse unless it is public and not in the trash (`409
   not_public`); check and build the page unit, push it, write the copy, `meta.json` and the
   digest; then, unless deferred, build `home`, the page's tag units (before and after) and
-  `pagefind`, and push those whose digest changed.
+  `pagefind`, and push those whose digest changed. A copy and unit under the page's old slug
+  (it was renamed) are deleted too.
 - **Unpublish** (Public off in the PWA or over MCP, a revert, the page going to the trash),
   after that change has committed: delete scrap's copy first, then `DELETE /v1/units/p/<slug>`,
   then build and push `home`, the page's tag units (deleting a tag unit no public page has any
@@ -1004,21 +1019,26 @@ interleave.
 
 ## Reconciling
 
-At startup and every 10 minutes, under the lock, scrap does the following. After a failure it
+While publishing is on, at startup and every 10 minutes, under the lock, scrap does the
+following. After a failure it
 tries again sooner, backing off: 30 seconds, doubling up to 10 minutes, and back to every 10
 minutes after a success (so a receiver still starting is caught quickly).
 
-1. **prunes**: deletes the kept copy, and its unit, of every page that is not public or is in
-   the trash, and the kept copy and unit of every damaged copy ([](#scraps-copies));
-2. **builds** every derived unit fresh (`home`, every `t/*`, `pagefind`, `assets`) from the kept
-   copies that remain. This also picks up a new KaTeX, new templates or a new Pagefind after an
-   upgrade, and a prune always leads to it;
-3. reads `GET /v1/manifest` and **pushes** every unit that is missing or whose digest differs:
-   a page unit from its kept bytes (the manifest's digest is compared with the digest scrap
-   last pushed and stored first, and the copy's files are read only when they differ), a
-   derived unit from the fresh build. A page's copy is re-read under the lock before its `PUT`;
+1. **prunes**: deletes the kept copy, and its unit, of every page that is gone, not public, in
+   the trash or now under another slug, and every copy missing its `meta.json`, digest or
+   `index.html`;
+2. reads `GET /v1/manifest` and **pushes** every page unit that is missing or whose digest
+   differs, from its kept bytes (the manifest's digest is compared with the digest scrap last
+   pushed and stored first, and the copy's files are read only when they differ). A copy whose
+   files, read then, no longer match its stored digest is damaged ([](#scraps-copies)): it is
+   pruned, and its unit deleted, instead;
+3. **builds** every derived unit fresh (`home`, every `t/*`, `pagefind`, `assets`) from the kept
+   copies that remain, and pushes those the site does not have. This also picks up a new KaTeX,
+   new templates or a new Pagefind after an upgrade;
 4. ends with `POST /v1/sync` listing the units to keep, which deletes any stray.
 
 No rendering is involved, so a site that lost its files (a restarted pod's `emptyDir`) is
 refilled at the next run without the PWA. A page whose damaged copy was pruned comes back at the
-next Refresh all. A `503` is retried; any other failure is logged and left to the next run.
+next Refresh all. A `503` is retried; any other failure is logged and left to the next run, and
+an unreachable receiver ends the pass. The outcome is the `publish` block of `/healthz` and
+`GET /api/health`.

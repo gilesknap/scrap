@@ -1,9 +1,11 @@
 # Deployment and operations
 
-scrap is one process over one data folder, so both supported installs are the same container with
-different supervisors: systemd and rootless podman on a single server, or a Helm chart on
-Kubernetes. Scheduled work (backup, gc, enrichment) runs as timers or CronJobs around that one
-folder; step-by-step is in the [how-to guides](../../how-to/deploy-single-server.md).
+scrap is one service over one data folder, run from the same container image either way:
+systemd and rootless podman on a single server, or the Helm chart on Kubernetes, where the
+database sits on the node's disk and Litestream replicates it into the data folder. On a single
+server, scheduled work (backup, gc, enrichment) runs as systemd timers. On Kubernetes, backups are
+CronJobs, and gc and the Claude passes run in a `jobs` container in the scrap pod. Step by step:
+[](../../how-to/deploy-single-server.md), [](../../how-to/deploy-kubernetes.md).
 
 Colours: blue is storage, orange is work that calls Claude, green is the person using scrap.
 
@@ -67,53 +69,78 @@ its command, and says so when it does not.
 ## Kubernetes
 
 The chart runs exactly one replica with the `Recreate` strategy, because SQLite has a single
-writer ([](../decisions/0003-one-process-sqlite-and-a-folder.md)).
+writer ([](../decisions/0003-one-process-sqlite-and-a-folder.md)). The database is not on the
+data volume: it is on an emptyDir on the node's disk, and Litestream replicates it into the data
+volume, because SQLite's WAL is not safe on NFS or another network filesystem
+([](../decisions/0046-database-on-an-emptydir-replicated-with-litestream.md)).
 
 ```mermaid
 flowchart TD
     me(["Browser"]):::user
     subgraph edge["Edge (your choice)"]
-        ing["Ingress<br/>Tailscale operator or<br/>Cloudflare Access"]
+        ing["Ingress<br/>Cloudflare Access or<br/>the DLS login proxy"]
     end
     subgraph ns["Release namespace"]
         np["NetworkPolicy<br/>(optional)"]
         svc["Service :80"]
-        dep["Deployment<br/>1 replica, Recreate"]
-        pvc[("PVC /data<br/>scrap.db + files/")]:::store
-        subgraph jobs["CronJobs (beside the pod)"]
-            cb["backup 03:30<br/>+ monthly 1st"]
-            cr["enrich-related 03:41"]:::claude
-            ct["enrich-topics Sun 04:11"]:::claude
-            cg["gc 04:30"]
+        subgraph pod["scrap pod (1 replica, Recreate)"]
+            init["init: litestream-tool,<br/>db-init"]
+            app["scrap serve"]
+            ls["litestream<br/>(native sidecar)"]
+            jobs["jobs: scrap schedule<br/>gc 04:30, enrich-related 03:41,<br/>enrich-topics Sun 04:11"]
+            db[("emptyDir /db<br/>scrap.db")]:::store
         end
-        bpvc[("Backup PVC<br/>timestamped runs + monthly/")]:::store
+        pvc[("Data volume /data<br/>files/ + litestream/")]:::store
+        cb["Backup CronJobs<br/>03:30 + monthly 1st"]
+        bk[("Backups<br/>timestamped runs + monthly/")]:::store
     end
-    me --> ing --> np --> svc --> dep
-    dep --- pvc
-    cb --> bpvc
+    me --> ing --> np --> svc --> app
+    init -->|"restore or place"| db
+    app --- db
+    app --- pvc
+    ls -->|"replicates"| pvc
+    jobs -.-> db
+    jobs -.->|"gc needs recent<br/>COMPLETE"| bk
+    cb -->|"restore of the replica<br/>+ files/"| bk
     cb -.-> pvc
-    cr & ct & cg -.-> pvc
-    cg -.->|"needs recent<br/>COMPLETE"| bpvc
     classDef store fill:#e8f1ff,stroke:#4a7bd0
     classDef claude fill:#fff3e0,stroke:#e08a00
     classDef user fill:#e9f7ef,stroke:#2e9d5b
 ```
 
-- **Same data shape.** `/data` holds `scrap.db`, `files/` and the regenerable preview cache; the
-  cache is never backed up.
-- **No login in scrap.** Reach it only through a private network or an authenticating proxy;
-  `identityHeader` names the header recorded as the author and `mcp.tokenSecret` can require a
-  bearer token on `/mcp` ([](../decisions/0007-tailscale-serve-for-access-and-identity.md),
-  [](../decisions/0023-bearer-token-on-mcp-and-an-identity-header-setting.md)).
-- **CronJobs share the claim.** The data PVC is `ReadWriteOnce`, so jobs schedule onto the pod's
-  node. The two enrich jobs exist only when `ingest.enabled`; gc needs `backup.enabled` unless
-  `gc.requireBackup` is false.
-- **Secrets are never values.** The chart names an existing Secret for the API key, notify URL and
-  MCP token and never creates one. Both PVCs carry `helm.sh/resource-policy: keep`.
+- **Where the data is.** `/db/scrap.db` (`SCRAP_DB_PATH`) is on an emptyDir capped by
+  `litestream.sizeLimit` (2Gi). `/data` keeps `files/`, the regenerable preview cache (never
+  backed up) and the replica, `/data/litestream`. The data volume may be NFS.
+- **Starting.** An init container copies the Litestream binary in; `scrap db-init` then keeps a
+  database already on the emptyDir, takes up a staged restore, or restores the replica, and
+  refuses to start when an install with history (a state file, files, backups) has no replica.
+  Litestream runs as a native sidecar (Kubernetes 1.29 or newer), so it starts before scrap and
+  stops after it.
+- **What can be lost.** About a second of writes if the node dies; none on a clean stop. If
+  replication stalls for 20 minutes, the `jobs` container's readiness probe fails and the pod
+  leaves its Service, so scrap stops taking writes it could lose.
+- **Scheduled work.** gc and, with ingest on, the related and topics passes run in the pod's
+  `jobs` container (`scrap schedule`), on the live database. `scrap schedule status` (and opt-in
+  Prometheus metrics) report each job's last run. The backups stay CronJobs: `scrap backup
+  --from-replica` checks and backs up a restore of the replica with `/data/files`. They run on
+  the scrap pod's node, as the data claim is `ReadWriteOnce`.
+- **No login in scrap.** Reach it only through an authenticating proxy: Cloudflare Access, or
+  the DLS login proxy (oauth2-proxy and Keycloak, the chart's `authProxy`), whose token scrap
+  verifies. `identityHeader` names the header recorded as the author and `mcp.tokenSecret` can
+  require a bearer token on `/mcp`
+  ([](../decisions/0023-bearer-token-on-mcp-and-an-identity-header-setting.md),
+  [](../decisions/0045-scrap-verifies-the-login-proxys-keycloak-token.md)).
+- **Public pages** (optional, `public.enabled`) run in a pod of their own, nginx and the upload
+  receiver from the `scrap-public` image; scrap pushes to the receiver and the public site never
+  talks to scrap ([](../../reference/public-site.md)).
+- **Secrets are never values.** The chart names an existing Secret for the API key, notify URL
+  and MCP token and never creates one. The PVCs carry `helm.sh/resource-policy: keep`.
 - **Hardening.** Restricted Pod Security: non-root uid 10001, read-only root filesystem, all
   capabilities dropped, `RuntimeDefault` seccomp.
-- **Health.** `GET /healthz` returns 200 with `status`, `version`, `max_upload_bytes` and `paused`
-  (why the Claude queue is paused, else null); 503 if the ingest worker has stopped.
+- **Health.** `GET /healthz` returns 200 with `status`, `version`, `max_upload_bytes`, `paused`
+  (why the Claude queue is paused, else null) and `publish` (the public site's state); 503 if
+  the ingest worker has stopped. The pod is ready only while the `jobs` container sees
+  replication working.
 
 Settings are in [](../../reference/api.md); every chart value is in `charts/scrap/values.yaml`,
 checked by `values.schema.json`.
@@ -143,24 +170,34 @@ flowchart LR
   file.
 - **`COMPLETE` marks a good run.** Only a checked snapshot gets one; a failed run's directory is
   removed and older runs are untouched.
-- **Retention** (`SCRAP_BACKUP_KEEP` on a single server, `backup.keep` in Helm; install.sh writes 14, the chart defaults to 7)
+- **Retention** (`SCRAP_BACKUP_KEEP` on a single server, `backup.keep` in the chart; install.sh writes 14, the chart defaults to 7)
   deletes only directories named like a run (`20261019T033000Z`); symlinks and other files are
   never touched. Both add a monthly tier in `monthly/` (`backup.monthly` in Helm, `SCRAP_BACKUP_MONTHLY_KEEP` on a
   single server; newest 12) for changes noticed late.
 - **gc follows backup.** It takes the same lock, so a file removed mid-backup cannot be one the
   backup's database names. Without a recent `COMPLETE` run it only counts and exits non-zero, so a
   missing backup shows up as a failed job.
+- **On Kubernetes the backup reads the replica.** `scrap backup --from-replica` restores the
+  replica to a temporary file and backs that up with `/data/files`. It refuses a replica whose
+  heartbeat (stamped every 15 minutes by `scrap schedule`) is over 3 hours old, so a stalled
+  replica fails the job rather than writing a `COMPLETE` run that gc would trust. gc there also
+  only counts, and fails, when the files it would delete are over 10% of them and at least 5, or
+  the database has no captures beside stored files (`--allow-large` after a person has looked),
+  and after an override, until `scrap db-hold --clear`. For 14 days after a restore it only counts
+  without failing; that hold ends by itself, or sooner with `scrap db-hold --clear`.
 - **Restore** copies the backup database beside the live one and opens only the copy, so
   read-only media work. The copy must pass `integrity_check` and not be from a newer schema
   than the code; it is then migrated and swapped in. Files are only added. A refusal leaves the
-  data folder as it was, and a non-empty folder needs `--force` with scrap stopped.
-- **A local copy is not an off-site copy.** Copy `SCRAP_BACKUPS` (or the backup PVC) elsewhere.
+  data folder as it was, and a non-empty folder needs `--force` with scrap stopped. On
+  Kubernetes a restore is staged instead (`scrap restore --stage`): the next pod start takes it
+  up in place of the replica.
+- **A local copy is not an off-site copy.** Copy `SCRAP_BACKUPS` (or the backup volume) elsewhere.
 
 ## See also
 
 - [](../design.md), the architecture landing page; [](data-model.md) for the database and
-  files; [](mcp-and-access.md) for tokens and identity; [](claude-pipeline.md) for the jobs
-  the timers start.
+  files; [](mcp-and-access.md) for tokens and identity; [](claude-pipeline.md) for the Claude
+  passes the schedules start.
 - [](../../reference/scheduled-jobs.md) and [](../../reference/api.md) for commands and
   settings.
 - How-to: [](../../how-to/deploy-single-server.md), [](../../how-to/deploy-kubernetes.md).
@@ -169,4 +206,6 @@ flowchart LR
   [](../decisions/0016-deployment-single-server-and-helm.md),
   [](../decisions/0018-unix-socket-for-single-server-installs.md),
   [](../decisions/0021-ingest-on-a-claude-seat-through-claude-p.md),
-  [](../decisions/0023-bearer-token-on-mcp-and-an-identity-header-setting.md).
+  [](../decisions/0023-bearer-token-on-mcp-and-an-identity-header-setting.md),
+  [](../decisions/0045-scrap-verifies-the-login-proxys-keycloak-token.md),
+  [](../decisions/0046-database-on-an-emptydir-replicated-with-litestream.md).

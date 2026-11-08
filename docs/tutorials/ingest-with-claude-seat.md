@@ -3,8 +3,11 @@
 
 By the end of this page scrap reads your photos, and tags and summarises your notes, through
 your Claude seat rather than an API key. It is a change to an install you already have, not an
-install of its own: do one of [](install-lan.md), [](install-server.md) or
-[](install-kubernetes.md) first.
+install of its own: do [](install-kubernetes.md) first. It also works on a single server
+([](install-server.md)) or a trial on your LAN ([](install-lan.md)).
+
+Not for the DLS install ([](install-dls.md)) yet: its installer has no seat option, and a
+`helm upgrade` with your own values would replace the installer's settings.
 
 ```{important}
 **An API key is the encouraged default.** Use this page only if you have a Claude seat (Team or
@@ -43,8 +46,8 @@ podman run --rm --entrypoint claude localhost/scrap-claude:{{ release_tag }} --v
 The last command should print a Claude Code version. The image is about 240 MB larger than
 scrap's. Build it again, with the new release as `BASE`, each time you update scrap.
 
-On Kubernetes, build the same way, then tag the image for your own registry, push it, and set
-`image.repository` and `image.tag` in your values to it.
+On Kubernetes, build the same way, then tag the image for your own registry and push it; the
+Kubernetes section below sets your values to it.
 
 ## Get the token
 
@@ -61,7 +64,61 @@ it out of shell history, notes and anything you commit.
 
 Use the one section for your install.
 
-### Container on a LAN, or single server
+### Kubernetes
+
+The chart has no first-class option for the token, so pass it through `extraEnv`. The chart still
+reads `ANTHROPIC_API_KEY` from `ingest.existingSecret` whenever ingest is on, so put an empty
+one in the same Secret:
+
+```
+read -rs TOKEN && printf %s "$TOKEN" | kubectl -n scrap create secret generic scrap-claude \
+    --from-literal=ANTHROPIC_API_KEY= --from-file=CLAUDE_CODE_OAUTH_TOKEN=/dev/stdin; unset TOKEN
+```
+
+The token goes in on standard input, so it is not on `kubectl`'s command line.
+
+If you set `ingest.notifyUrlKey`, add that key to `scrap-claude` too: the chart reads it from
+`ingest.existingSecret`.
+
+If your registry needs credentials, create an image pull Secret and list it under
+`imagePullSecrets` in the values. Then edit your values file (`my-values.yaml` from the
+tutorial, which holds all your settings) to match this, with your own image from the build
+section: add `image`, change `ingest.existingSecret`, and add the two entries to the `extraEnv`
+list already there, keeping `SCRAP_PUBLIC_URL`. Do not repeat a key, and do not put these in a
+second values file: one would replace the whole `extraEnv` list.
+
+```yaml
+image:
+  repository: registry.example.com/me/scrap-claude
+  tag: {{ release_tag }}
+ingest:
+  enabled: true
+  existingSecret: scrap-claude
+extraEnv:
+  - name: SCRAP_PUBLIC_URL
+    value: https://scrap.example.com
+  - name: SCRAP_LLM_BACKEND
+    value: cli
+  - name: CLAUDE_CODE_OAUTH_TOKEN
+    valueFrom:
+      secretKeyRef:
+        name: scrap-claude
+        key: CLAUDE_CODE_OAUTH_TOKEN
+```
+
+Then upgrade with the whole file, so nothing you set before is lost:
+
+```
+helm upgrade scrap oci://ghcr.io/gilesknap/charts/scrap --version {{ chart_version }} \
+    -n scrap -f my-values.yaml
+```
+
+The pod's `jobs` container, which runs the nightly related-pages and weekly topics passes, gets
+the same environment. The CLI takes about 250 MB while it runs: if a container is killed for
+memory, raise `resources.limits.memory` (the web app) or `litestream.jobs.resources.limits.memory`
+(the `jobs` container).
+
+### On a single server, or a trial on your LAN
 
 `SCRAP_LLM_BACKEND` is `api` (the default) or `cli`. Set it with the token and drop
 `ANTHROPIC_API_KEY`:
@@ -93,54 +150,12 @@ Use the one section for your install.
 `podman inspect scrap` shows the container's environment, token included: do not paste it
 anywhere.
 
-### Kubernetes
-
-The chart has no first-class option for the token, so pass it through `extraEnv`. The chart still
-reads `ANTHROPIC_API_KEY` from `ingest.existingSecret` whenever ingest is on, so put an empty
-one in the same Secret:
-
-```
-read -rs TOKEN && printf %s "$TOKEN" | kubectl -n scrap create secret generic scrap-claude \
-    --from-literal=ANTHROPIC_API_KEY= --from-file=CLAUDE_CODE_OAUTH_TOKEN=/dev/stdin; unset TOKEN
-```
-
-The token goes in on standard input, so it is not on `kubectl`'s command line.
-
-If your registry needs credentials, create an image pull Secret and list it under
-`imagePullSecrets` in the values. Add to your values, with your own image from the build section:
-
-```yaml
-image:
-  repository: registry.example.com/me/scrap-claude
-  tag: {{ release_tag }}
-ingest:
-  enabled: true
-  existingSecret: scrap-claude
-extraEnv:
-  - name: SCRAP_LLM_BACKEND
-    value: cli
-  - name: CLAUDE_CODE_OAUTH_TOKEN
-    valueFrom:
-      secretKeyRef:
-        name: scrap-claude
-        key: CLAUDE_CODE_OAUTH_TOKEN
-```
-
-Then upgrade with the new values:
-
-```
-helm upgrade scrap oci://ghcr.io/gilesknap/charts/scrap --version {{ chart_version }} \
-    -n scrap -f my-values.yaml
-```
-
-The nightly related-pages and weekly topics CronJobs get the same environment. Raise
-`resources.limits.memory` if the pod is killed: the CLI takes about 250 MB.
-
 ## Check a photo is read
 
 Capture a photo in the app. Within about a minute its page shows a kind, a description and tags
-instead of waiting. If it does not, read scrap's log (`podman logs scrap`, `journalctl` or
-`kubectl logs` as in your install). Without the token or the `claude` binary, ingest pauses with
+instead of waiting. If it does not, read scrap's log
+(`kubectl -n scrap logs deploy/scrap -c scrap`; on a single server or LAN, `podman logs scrap` or
+`journalctl` as in your install). Without the token or the `claude` binary, ingest pauses with
 reason `auth` until you press **Resume**, and the log says which is missing. Nothing is lost while
 it is paused. A `401 ... invalid` means the token was copied wrongly: fix it, restart scrap, then
 **Resume**.

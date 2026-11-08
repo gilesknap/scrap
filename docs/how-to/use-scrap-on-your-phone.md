@@ -1,4 +1,8 @@
-# Use scrap on your phone over Tailscale
+# Try scrap on your phone over Tailscale
+
+This is a trial on your LAN: the "Try it" container from the README, on one computer, reached
+from your phone. For a lasting install, with a login in front and the app on your phone, see
+[](../tutorials/install-kubernetes.md) or, at DLS, [](../tutorials/install-dls.md).
 
 [Tailscale](https://tailscale.com) gives scrap a private HTTPS address that only your own devices
 can open, which is what lets your phone install it as an app ([how to use the PWA](use-the-pwa.md)).
@@ -49,5 +53,6 @@ Never use `tailscale funnel`: it publishes scrap to the internet.
 
 Claude Code on the same computer needs nothing: it keeps using `http://localhost:8000/mcp`.
 
-This is a trial setup for one computer and your phone. For a lasting install that other devices and
-Claude Code can use, see [](../tutorials/install-server.md).
+This is a trial setup for one computer and your phone. For a lasting install, with a login in
+front, see [](../tutorials/install-kubernetes.md) or, at DLS, [](../tutorials/install-dls.md); on
+a single server of your own, [](../tutorials/install-server.md).

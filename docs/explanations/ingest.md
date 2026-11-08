@@ -87,7 +87,8 @@ not check the key at start, so a wrong key shows up as failed or paused photos.
   timers.
 - **Kubernetes (Helm).** `ingest.enabled`, `ingest.existingSecret` (the chart never takes the key
   itself) and the optional `visionModel`, `budgetDayUSD` and `notifyUrlKey`: {ref}`k8s-ingest`.
-  The `enrichRelated` and `enrichTopics` CronJobs are created while ingest is enabled. The chart
+  While ingest is enabled the related and topics passes run on their schedules (`enrichRelated`,
+  `enrichTopics`) in the scrap pod's `jobs` container. The chart
   has no value of its own for the text model, effort, debounce or `SCRAP_ENRICH`; set them with
   `extraEnv`.
 
@@ -734,7 +735,7 @@ answers with up to 5 index numbers, so it cannot name a page that is not there.
   stopped. On a single server, `deploy/scrap-enrich-related.{service,timer}` run it nightly
   (03:41) in the service's container, and `install.sh` enables the timer if the image has the
   command. While ingest or enrich is off, or no key (or, with `SCRAP_LLM_BACKEND=cli`, no seat
-  token) is set, the command prints a note and exits 0. On Kubernetes the `enrichRelated` CronJob does the same (`41 3 * * *`).
+  token) is set, the command prints a note and exits 0. On Kubernetes the scrap pod's `jobs` container does the same (`enrichRelated.schedule`, `41 3 * * *`).
 - **Both ways.** A page's Related merges its picks, pages that picked it, pages linking here
   with `[[slug]]` (marked "links here"), and pages its current write-up links to or whose current
   write-up links here (`via: writeup`, marked "in a write-up"), each once (a page that is both
@@ -973,26 +974,31 @@ exception, under `ingest worker`, `ingest job N` or `enrich job N`; API errors, 
 failures are not logged (apart from a failed pause notification); they are in the database.
 
 **Detail.** Read `scrap.db` with Python's `sqlite3`, because the image has no `sqlite3` command.
-Open it read-only, inside the container where the data is at `/data`:
+Open it read-only, inside the container (`SCRAP_DB_PATH` is set on Kubernetes, where the
+database is `/db/scrap.db`; on a single server it is `/data/scrap.db`):
 
 ```
 podman exec scrap python -c '
-import sqlite3
-c = sqlite3.connect("file:/data/scrap.db?mode=ro", uri=True)
+import os, sqlite3
+db = os.environ.get("SCRAP_DB_PATH", "/data/scrap.db")
+c = sqlite3.connect(f"file:{db}?mode=ro", uri=True)
 for row in c.execute("SELECT ..."):
     print(row)'
 ```
 
-(on Kubernetes, `kubectl -n scrap exec deploy/scrap -- python -c '...'`). The `SELECT`s below were
+(on Kubernetes, `kubectl -n scrap exec deploy/scrap -c scrap -- python -c '...'` with the same
+script). The `SELECT`s below were
 run against a database made by scrap's own code.
 
-Cost per day, photos and text together (the budget's own sum):
+Cost per day, photos, text and topic discovery together (the budget's own sum):
 
 ```sql
 SELECT day, round(sum(usd), 4) FROM (
   SELECT substr(started_at, 1, 10) AS day, cost_microusd / 1e6 AS usd FROM model_run
   UNION ALL
-  SELECT substr(started_at, 1, 10), cost_microusd / 1e6 FROM enrich_run)
+  SELECT substr(started_at, 1, 10), cost_microusd / 1e6 FROM enrich_run
+  UNION ALL
+  SELECT substr(started_at, 1, 10), cost_microusd / 1e6 FROM topic_run)
 GROUP BY day ORDER BY day DESC LIMIT 14;
 ```
 
