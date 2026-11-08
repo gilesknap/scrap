@@ -17,7 +17,7 @@ from typing import Any
 from .. import claude, preview
 from ..ingest import svgread
 from ..ingest.constants import budget_day_micros
-from ..runs import failed, start_run
+from ..runs import failed, prompt_digest, start_run
 from ..store import NotFoundError, Store, now, roles, transaction, writeups
 from .checking import checked_writeup
 from .constants import BOARDS, MAX_BOARDS, WRITEUP_SCHEMA
@@ -94,7 +94,7 @@ def write_up(
     model = claude.model_name()
     request = {
         "purpose": "writeup", "model": model, "max_tokens": claude.MAX_TOKENS,
-        "effort": claude.EFFORT, "system": system, "messages": messages,
+        "effort": claude.EFFORT, **prompt_digest(system), "messages": messages,
         "schema": WRITEUP_SCHEMA, "candidates": [p["id"] for p in pages],
         "guidance": guidance, "backend": claude.backend(),
     }  # fmt: skip
@@ -118,7 +118,7 @@ def write_up(
             raise claude.CallError("invalid", str(error), completion=done) from None
     except claude.CallError as error:
         with store.connect() as conn, transaction(conn):
-            failed(conn, "enrich_run", run_id, error)
+            failed(conn, "enrich_run", run_id, error, system)
         return error
     written(store, run_id, page_id, done, version, out, guidance)
     return None

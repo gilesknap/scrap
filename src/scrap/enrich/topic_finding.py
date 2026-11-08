@@ -17,7 +17,7 @@ from typing import Any
 from .. import claude
 from ..ingest import resume
 from ..ingest.constants import budget_day_micros
-from ..runs import failed, record, start_run
+from ..runs import failed, prompt_digest, record, start_run
 from ..store import Store, now, queue_topic, roles, topics, transaction
 from .checking import checked_topics
 from .constants import DISCOVERY_SCHEMA, TOPIC_DUE, TOPIC_INDEX
@@ -68,7 +68,7 @@ def discover(
     model = claude.model_name()
     request = {
         "purpose": "topics", "model": model, "max_tokens": claude.MAX_TOKENS,
-        "effort": claude.EFFORT, "system": system, "messages": messages,
+        "effort": claude.EFFORT, **prompt_digest(system), "messages": messages,
         "schema": DISCOVERY_SCHEMA, "pages": [p["id"] for p in pages],
         "topics": [t["id"] for t in alive], "dry_run": dry_run,
         "backend": claude.backend(),
@@ -88,7 +88,7 @@ def discover(
             raise claude.CallError("invalid", str(error), completion=done) from None
     except claude.CallError as error:
         with store.connect() as conn, transaction(conn):
-            failed(conn, "topic_run", run_id, error)
+            failed(conn, "topic_run", run_id, error, system)
         return error, found
 
     def cited(ns: list[int]) -> list[dict[str, str]]:

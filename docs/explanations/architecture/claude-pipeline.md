@@ -149,7 +149,7 @@ flowchart LR
 - **Model output is data, not instructions.** Elements, tags and links are sanitised and checked
   before storing ({ref}`ingest-sanitising`).
 - **Every call is recorded** (`model_run`, `enrich_run`, `topic_run`) with the request, response,
-  usage and cost.
+  usage and cost (an enrich or topic request with its system prompt's digest, not its text).
 
 ## Results are versions, not edits
 

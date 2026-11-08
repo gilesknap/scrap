@@ -12,7 +12,7 @@ import json
 from typing import Any
 
 from .. import claude
-from ..runs import failed, start_run
+from ..runs import failed, prompt_digest, start_run
 from ..store import (
     Store,
     model_summary,
@@ -85,7 +85,7 @@ def synthesise(
     model = claude.model_name()
     request = {
         "purpose": "topic", "model": model, "max_tokens": claude.MAX_TOKENS,
-        "effort": claude.EFFORT, "system": system, "messages": messages,
+        "effort": claude.EFFORT, **prompt_digest(system), "messages": messages,
         "schema": TOPIC_SCHEMA, "sources": [s["id"] for s in sources],
         "guidance": guidance, "backend": claude.backend(),
     }  # fmt: skip
@@ -104,7 +104,7 @@ def synthesise(
             raise claude.CallError("invalid", str(error), completion=done) from None
     except claude.CallError as error:
         with store.connect() as conn, transaction(conn):
-            failed(conn, "enrich_run", run_id, error)
+            failed(conn, "enrich_run", run_id, error, system)
         return error
     written(store, run_id, page_id, done, version, out, guidance)
     return None
