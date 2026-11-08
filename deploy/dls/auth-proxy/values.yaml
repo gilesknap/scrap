@@ -56,7 +56,11 @@ config:
     # below fails and the user logs in again.
     cookie_expire = "168h"
     # Keycloak's access tokens last 5 minutes and scrap refuses an expired one, so the
-    # session is refreshed (with its refresh token) well inside that.
+    # session is refreshed (with its refresh token) well inside that. The session is in
+    # Redis (sessionStorage below), so a refresh rewrites it there and the cookie is only
+    # a small ticket that does not change: concurrent requests cannot carry a mix of old
+    # and new cookie chunks, as they did when the whole session (over 4 KB with DLS
+    # Keycloak's tokens) was split across cookies.
     cookie_refresh = "1m"
 
 ingress:
@@ -75,3 +79,134 @@ resources:
     # argus caps a CPU limit at 10 times the request.
     cpu: 500m
     memory: 128Mi
+
+# Sessions are kept server side, in the Redis below. Its password is in the Secret
+# oauth2-proxy-redis (key redis-password), made by install.sh.
+sessionStorage:
+  type: redis
+  redis:
+    existingSecret: oauth2-proxy-redis
+    passwordKey: redis-password
+    clientType: standalone
+    standalone:
+      connectionUrl: redis://oauth2-proxy-redis:6379
+
+# One plain Redis from the official image, as extra objects of this release, rather than
+# the chart's redis-ha subchart: that is a StatefulSet with Sentinel, three replicas and
+# volumes by default, far more than a session cache needs. Nothing is persisted (argus
+# has no block storage, and none is needed): a Redis restart loses the sessions and
+# everyone logs in once more. It has a Service inside this namespace only and no Ingress,
+# but argus users cannot make NetworkPolicies, so any pod in the cluster could reach that
+# Service: hence the password.
+extraObjects:
+  - apiVersion: v1
+    kind: Service
+    metadata:
+      name: oauth2-proxy-redis
+      labels:
+        app.kubernetes.io/name: oauth2-proxy-redis
+        app.kubernetes.io/instance: "{{ .Release.Name }}"
+    spec:
+      type: ClusterIP
+      selector:
+        app.kubernetes.io/name: oauth2-proxy-redis
+        app.kubernetes.io/instance: "{{ .Release.Name }}"
+      ports:
+        - name: redis
+          port: 6379
+          targetPort: redis
+  - apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: oauth2-proxy-redis
+      labels:
+        app.kubernetes.io/name: oauth2-proxy-redis
+        app.kubernetes.io/instance: "{{ .Release.Name }}"
+    spec:
+      replicas: 1
+      revisionHistoryLimit: 2
+      # Never two at once: each would hold different sessions behind the one Service.
+      strategy:
+        type: Recreate
+      selector:
+        matchLabels:
+          app.kubernetes.io/name: oauth2-proxy-redis
+          app.kubernetes.io/instance: "{{ .Release.Name }}"
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: oauth2-proxy-redis
+            app.kubernetes.io/instance: "{{ .Release.Name }}"
+        spec:
+          automountServiceAccountToken: false
+          enableServiceLinks: false
+          securityContext:
+            runAsUser: 2000
+            runAsGroup: 2000
+            fsGroup: 2000
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+          containers:
+            - name: redis
+              # The official image, pinned. Bump it deliberately.
+              image: docker.io/library/redis:8.10.3-alpine
+              command: ["redis-server"]
+              # No snapshots and no append-only file. A memory cap below the limit,
+              # evicting the least recently used sessions rather than running out.
+              args:
+                - --requirepass
+                - $(REDIS_PASSWORD)
+                - --save
+                - ""
+                - --appendonly
+                - "no"
+                - --maxmemory
+                - 96mb
+                - --maxmemory-policy
+                - allkeys-lru
+              env:
+                - name: REDIS_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: oauth2-proxy-redis
+                      key: redis-password
+              ports:
+                - name: redis
+                  containerPort: 6379
+              readinessProbe:
+                tcpSocket:
+                  port: redis
+                periodSeconds: 10
+              livenessProbe:
+                tcpSocket:
+                  port: redis
+                initialDelaySeconds: 10
+                periodSeconds: 20
+              securityContext:
+                privileged: false
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                runAsNonRoot: true
+                runAsUser: 2000
+                runAsGroup: 2000
+                capabilities:
+                  drop: [ALL]
+                seccompProfile:
+                  type: RuntimeDefault
+              resources:
+                requests:
+                  cpu: 50m
+                  memory: 64Mi
+                limits:
+                  # argus caps a CPU limit at 10 times the request.
+                  cpu: 500m
+                  memory: 128Mi
+              volumeMounts:
+                - name: data
+                  mountPath: /data
+          volumes:
+            # Redis's working directory; nothing is saved in it.
+            - name: data
+              emptyDir:
+                sizeLimit: 64Mi
