@@ -7,7 +7,6 @@ import sqlite3
 import threading
 from collections.abc import Callable
 from datetime import UTC, date, datetime
-from io import BytesIO
 from typing import Any
 
 from .. import actions, claude, claude_cli, preview, sanitise, svg
@@ -171,6 +170,19 @@ class Worker:
         path, mime = self.store.blob(sha)
         return path.read_bytes(), mime
 
+    def _sending(
+        self, sent: dict[str, Any] | None, jpeg: bytes
+    ) -> Callable[[str], tuple[bytes, str]]:
+        """The call's blob(sha): the JPEG made for it, held here and never stored
+        (#572), else a stored blob."""
+
+        def blob(sha: str) -> tuple[bytes, str]:
+            if sent is not None and sha == sent["sha256"]:
+                return jpeg, "image/jpeg"
+            return self._blob(sha)
+
+        return blob
+
     def process(self, job: sqlite3.Row) -> None:
         jid, cid, photo = job["id"], job["capture_id"], job["source_sha256"]
         with self.store.connect() as conn:
@@ -196,7 +208,7 @@ class Worker:
             notify("budget")
         if over:
             return
-        width = height = size = 0  # an SVG's run has no image size (NULL)
+        width = height = 0  # an SVG's run has no image size (NULL)
         jpeg, sent = b"", None
         if words is None:
             try:
@@ -214,9 +226,9 @@ class Worker:
         taken = captured_on(base and base[1])
         model = claude.model_name()
         system, version = claude.prompt()
-        if words is None:
-            sent, size = self.store.put_blob(BytesIO(jpeg))
-            messages = claude.photo_messages(sent, width, height, taken)
+        if words is None:  # the JPEG is not kept: how to make it again is (#572)
+            sent = preview.sent_record(photo, jpeg, width, height)
+            messages = claude.photo_messages(sent["sha256"], width, height, taken)
         else:  # an SVG: its markup as text, no image (svgread)
             messages = svgread.messages(markup, taken)
         messages = with_guidance(messages, guided)
@@ -230,21 +242,19 @@ class Worker:
             "schema": claude.SCHEMA,
             "guidance": guided,  # kept with the run, as a write-up's is
         }
+        if sent is not None:
+            request["sent"] = sent  # preview.rebuild makes the JPEG again from it
         with self.store.connect() as conn, transaction(conn):
-            if sent is not None:
-                conn.execute(
-                    "INSERT INTO blob VALUES (?, 'image/jpeg', ?, ?)"
-                    " ON CONFLICT DO NOTHING",
-                    (sent, size, now()),
-                )
             run_id = start_run(
                 conn, "model_run", capture_id=cid, source_sha256=photo, job_id=jid,
                 purpose="ingest", model=model, prompt_version=version,
-                sent_sha256=sent, image_width=width or None,
+                image_width=width or None,
                 image_height=height or None, request=json.dumps(request),
             )  # fmt: skip
         try:
-            done = self.call(model, system, messages, claude.SCHEMA, self._blob)
+            done = self.call(
+                model, system, messages, claude.SCHEMA, self._sending(sent, jpeg)
+            )
             raw = done.output if words is None else {**done.output, "elements": []}
             try:
                 output = sanitise.model_output(raw, width or 1, height or 1)

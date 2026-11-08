@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import IO
 from urllib.parse import quote, unquote
 
+from .backup_files import FileCounts, copy_files
 from .drawing import excalidraw_file
 from .page_notes import Extras, file_text, gather
 from .preview import preview, raster
@@ -44,13 +45,28 @@ RUN = re.compile(r"\d{8}T\d{6}Z")  # a backup run's folder
 Namer = Callable[[sqlite3.Row, set[str]], str]
 
 
-def _copy_files(src: Path, dest: Path) -> None:
-    # Blobs are content-addressed: a file already there holds the same bytes.
-    for path in src.rglob("*"):
-        target = dest / path.relative_to(src)
-        if path.is_file() and not path.name.startswith(".") and not target.exists():
-            target.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(path, target)
+def _previous_run(dest: Path) -> Path | None:
+    """The newest complete run to link a run's files from (backup_files): beside dest,
+    or in its monthly/ folder, or for a monthly run among the daily runs; never dest.
+    None if dest is not named like a run, or there is none."""
+    dest = dest.resolve()
+    if not RUN.fullmatch(dest.name):
+        return None
+    root = dest.parent.parent if dest.parent.name == "monthly" else dest.parent
+    runs: list[Path] = []
+    for folder in (root, root / "monthly"):
+        try:
+            runs += [
+                run
+                for run in folder.iterdir()
+                if RUN.fullmatch(run.name)
+                and run != dest
+                and not run.is_symlink()
+                and (run / COMPLETE).is_file()
+            ]
+        except OSError:  # no monthly/ folder, or one that cannot be read
+            pass
+    return max(runs, key=lambda run: run.name, default=None)
 
 
 def _snapshot(src: Path, dest: Path) -> None:
@@ -78,8 +94,10 @@ def _check(db: Path) -> None:
         raise SystemExit(f"backup in {db.parent} is damaged: integrity_check: {check}")
 
 
-def backup(store: Store, dest: Path) -> None:
-    """Snapshot the database, then copy files/; safe while scrap is serving.
+def backup(store: Store, dest: Path) -> FileCounts:
+    """Snapshot the database, then copy files/; safe while scrap is serving. Returns
+    what the files took: each blob the newest complete run beside dest has is
+    hard-linked from it, not copied (backup_files).
 
     Blobs are written before the transaction that records them, so every blob the
     snapshot names is already in files/ when the copy starts. The snapshot is then
@@ -91,11 +109,12 @@ def backup(store: Store, dest: Path) -> None:
     dest.mkdir(parents=True, exist_ok=True)
     (dest / COMPLETE).unlink(missing_ok=True)  # a re-run into a run dir starts unproven
     _snapshot(store.db, dest / "scrap.db")
-    _copy_files(store.files, dest / "files")
+    counts = copy_files(store.files, dest / "files", _previous_run(dest))
     _check(dest / "scrap.db")
     part = dest / f"{COMPLETE}.part"
     part.write_text(f"{datetime.now(UTC).isoformat()}\n")
     part.replace(dest / COMPLETE)
+    return counts
 
 
 def restore(src: Path, store: Store, force: bool = False) -> None:
@@ -146,7 +165,7 @@ def _restore_into(src: Path, store: Store, part: Path) -> None:
         reason = str(error).replace(str(part), str(src))
         raise SystemExit(f"{what}: {reason}") from None
     store.files.mkdir(parents=True, exist_ok=True)
-    _copy_files(src / "files", store.files)
+    copy_files(src / "files", store.files)  # copies: never linked into a backup
     migrate(part)
     Path(f"{part}.lock").unlink()
     for suffix in ("-wal", "-shm"):

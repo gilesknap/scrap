@@ -141,7 +141,7 @@ flowchart LR
 | the address `/api/blobs/<sha>` in any page's current text, trash included | `store.body_refs` (plain search, not the Markdown parser) |
 | a capture | `capture_blob` |
 | a derived row or an ingest job | `source_sha256` |
-| a model run | its photo or `sent_sha256` |
+| a model run | its photo (a run from before #572 also names the JPEG it sent, `sent_sha256`: in use only if that photo's record or file is gone) |
 
 - **Grace period** `--grace-hours`, default 24, protects uploads in flight: a capture writes files
   before it records them. `put_blob` touches a file it finds already stored.
@@ -150,8 +150,7 @@ flowchart LR
   the file aside; the next run restores it first. If references cannot be read, nothing is deleted.
 - **Old revisions are not references.** Only each page's current text counts.
 - **Model runs** (`model_run`, `enrich_run`) are pruned too, so their stored prompts do not grow
-  without bound; a run's sent JPEG is then unused and goes in the same run. `topic_run` is not
-  pruned.
+  without bound. `topic_run` is not pruned.
 - **Retention first.** With `--delete`, the trash purge (pages in it more than `--trash-days`,
   topics aside), finished job pruning and run pruning commit in a transaction of their own
   before the references are read, so a file is never unlinked while they could roll back. A dry

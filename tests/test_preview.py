@@ -14,7 +14,7 @@ from PIL import Image, ImageCms
 
 from scrap import backup, preview
 from scrap.app import create_app
-from scrap.store import Store, new_ulid
+from scrap.store import InvalidError, NotFoundError, Store, new_ulid
 
 
 def image(fmt: str, size=(300, 100), exif_orientation: int | None = None) -> bytes:
@@ -287,3 +287,62 @@ def test_a_webp_over_the_budget_is_refused_and_a_normal_one_previews(client, upl
     response = client.get(f"/api/blobs/{small}/preview?size=480")
     assert response.status_code == 200
     assert Image.open(io.BytesIO(response.content)).width == 480
+
+
+def noisy(fmt: str, size=(3000, 2000)) -> bytes:
+    """A photo-like image (noise compresses as a photo does, not as flat colour)."""
+    im = Image.effect_noise(size, 64).convert("RGB")
+    out = io.BytesIO()
+    im.save(out, fmt)
+    return out.getvalue()
+
+
+@pytest.mark.parametrize(
+    ("fmt", "name", "mime"),
+    [("JPEG", "p.jpg", "image/jpeg"), ("HEIF", "p.heic", "image/heic")],
+)
+def test_the_jpeg_sent_to_claude_is_made_again_from_its_record(
+    client, upload, tmp_path, fmt, name, mime
+):
+    """#572: a run keeps how its JPEG was made, not the JPEG; the same Pillow makes
+    the same bytes again."""
+    store = Store(tmp_path / "data")
+    sha = upload(noisy(fmt), name, mime)
+    jpeg, width, height = preview.for_claude(store, sha)
+    sent = preview.sent_record(sha, jpeg, width, height)
+    assert sent["source_sha256"] == sha and (sent["width"], sent["height"]) == (
+        width,
+        height,
+    )
+    assert sent["for_claude"] == preview.FOR_CLAUDE and sent["quality"] == 85
+    assert sent["bytes"] == len(jpeg) and sent["pillow"] == Image.__version__
+    assert preview.rebuild(store, sent) == jpeg
+    assert preview.backend() == "api" and max(width, height) == preview.CLAUDE_EDGE
+
+
+def test_a_rebuild_keeps_the_recorded_size_on_another_backend(
+    client, upload, tmp_path, monkeypatch
+):
+    """claude -p caps the edge lower (CLI_EDGE): a JPEG sent by the API is still made
+    again at the size it was sent, so its drawing's frame still fits."""
+    store = Store(tmp_path / "data")
+    sha = upload(noisy("JPEG"))
+    jpeg, width, height = preview.for_claude(store, sha)
+    sent = preview.sent_record(sha, jpeg, width, height)
+    monkeypatch.setattr(preview, "backend", lambda: "cli")
+    assert preview.for_claude(store, sha)[1] == preview.CLI_EDGE
+    assert preview.rebuild(store, sent) == jpeg
+
+
+def test_a_rebuild_refuses_a_jpeg_made_another_way_or_a_gone_photo(
+    client, upload, tmp_path
+):
+    store = Store(tmp_path / "data")
+    sha = upload(image("JPEG"))
+    sent = preview.sent_record(sha, *preview.for_claude(store, sha))
+    with pytest.raises(InvalidError, match="made in a way"):
+        preview.rebuild(store, {**sent, "for_claude": preview.FOR_CLAUDE + 1})
+    with pytest.raises(InvalidError, match="made in a way"):
+        preview.rebuild(store, {**sent, "quality": 90})
+    with pytest.raises(NotFoundError):
+        preview.rebuild(store, {**sent, "source_sha256": "f" * 64})

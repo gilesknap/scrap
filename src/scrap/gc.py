@@ -7,7 +7,10 @@ refers to it:
   address ``/api/blobs/<sha>`` (see :func:`body_refs`);
 - a capture (``capture_blob``);
 - a derived row, or an ingest job, of a photo (``source_sha256``);
-- a model run: the photo it was about and the JPEG it sent (``sent_sha256``).
+- a model run: the photo it was about; the JPEG it sent (``sent_sha256``, only on runs
+  from before #572) only if that photo's record or file is gone, as the JPEG is made
+  again from the photo (see :func:`needed_sent`). Such a JPEG gc deletes clears its
+  ``sent_sha256``.
 
 Files younger than the grace period are kept whatever refers to them: a capture writes
 its files before the transaction that records them, so a file being uploaded right now
@@ -24,8 +27,7 @@ deleted. Old page revisions are not references: only each page's current text is
 Model runs are pruned too (see :func:`scrap.retention.prune_runs`): ``model_run`` and
 ``enrich_run`` rows hold the stored prompts and responses and would otherwise grow for
 ever. A run is kept while anything refers to it, while it is the latest for its page
-(or photo), and while it is younger than ``RUN_DAYS``. Deleting a ``model_run`` frees
-the JPEG it sent, which the same run then finds unused. ``topic_run`` rows (one a
+(or photo), and while it is younger than ``RUN_DAYS``. ``topic_run`` rows (one a
 week) are not pruned.
 
 Files of captures are not deleted while their page lasts: one no page shows any more (an
@@ -45,11 +47,12 @@ refers to.
 """
 
 import fcntl
+import json
 import logging
 import os
 import sqlite3
 import time
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
@@ -99,15 +102,42 @@ COLUMNS = (
     "SELECT source_sha256 FROM derived",
     "SELECT source_sha256 FROM job",
     "SELECT source_sha256 FROM model_run",
-    "SELECT sent_sha256 FROM model_run WHERE sent_sha256 IS NOT NULL",
+)
+# An old run's sent JPEG (from before #572), and its photo's recorded size (NULL: no
+# record)
+SENT = (
+    "SELECT r.sent_sha256, r.source_sha256,"
+    " (SELECT b.size FROM blob b WHERE b.sha256 = r.source_sha256)"
+    " FROM model_run r WHERE r.sent_sha256 IS NOT NULL"
 )
 
 
-def in_use(conn: sqlite3.Connection) -> set[str]:
-    """Every file something refers to, read on conn (in its transaction, if open)."""
+def needed_sent(
+    conn: sqlite3.Connection, files: Mapping[str, Path] | None, sql: str = SENT
+) -> set[str]:
+    """The JPEGs old runs sent that are still needed: each is made again from its
+    photo (#572), so only one whose photo has no record, or no file in files (the
+    stored files by SHA-256, as _files lists them), or one not of its recorded size
+    (cut short), is. files None: every one is (nothing is known of the files). Only
+    these runs' photos are looked at, and there are fewer as gc deletes their JPEGs."""
+    needed = set()
+    for sent, photo, size in conn.execute(sql):
+        whole = files is not None and photo in files and _size(files[photo]) == size
+        if size is None or not whole:
+            needed.add(sent)
+    return needed
+
+
+def in_use(
+    conn: sqlite3.Connection, files: Mapping[str, Path] | None = None
+) -> set[str]:
+    """Every file something refers to, read on conn (in its transaction, if open);
+    files: the stored files (_files), to tell which old sent JPEGs are needed
+    (needed_sent)."""
     used: set[str] = set()
     for sql in COLUMNS:
         used.update(row[0] for row in conn.execute(sql))
+    used |= needed_sent(conn, files)
     for (body,) in conn.execute("SELECT body FROM page"):  # deleted_at too: the trash
         used |= body_refs(body)
     return used
@@ -366,6 +396,9 @@ def _collect(
                     f"cannot purge the trash or prune old records, so nothing was"
                     f" deleted: {error}"
                 ) from None
+        # Listed first, for needed_sent: a file stored after this is young (its row's
+        # created_at, if it has one), so it is kept whatever the references say.
+        files, temps = _files(store)
         with store.connect() as conn:
             # One consistent snapshot of every reference. A dry run sees them as
             # retention would leave them: purged and pruned here, then rolled back
@@ -375,11 +408,10 @@ def _collect(
                 if not delete:
                     report.orphans = len(orphans.find(conn, stamp))
                     _retain(conn, report, run_days, stamp, False, True)
-                used = in_use(conn)
+                used = in_use(conn, files)
                 rows = dict(conn.execute("SELECT sha256, created_at FROM blob"))
             finally:
                 conn.execute("ROLLBACK")
-        files, temps = _files(store)
     except (sqlite3.Error, OSError, RuntimeError) as error:
         raise GcError(
             f"cannot read what is in use, so nothing was deleted: {error}"
@@ -408,7 +440,7 @@ def _collect(
     with store.connect() as conn:
         try:
             with transaction(conn):  # no capture, edit or ingest commits meanwhile
-                used = in_use(conn)
+                used = in_use(conn, files)
                 again = set(unused(old))
                 report.kept = len(old) - len(again)
                 gone: list[str] = []
@@ -417,6 +449,11 @@ def _collect(
                         report.kept += 1
                         continue
                     gone.append(sha)
+                conn.execute(  # an old run's sent JPEG: the run no longer names it
+                    "UPDATE model_run SET sent_sha256 = NULL WHERE sent_sha256 IN"
+                    " (SELECT value FROM json_each(?))",
+                    (json.dumps(gone),),
+                )
                 conn.executemany(
                     "DELETE FROM blob WHERE sha256 = ?",
                     [(sha,) for sha in gone if sha in rows],

@@ -178,7 +178,7 @@ inside them is silently ignored. The main ones:
 | `enrichRelated.enabled`, `.schedule`, `.timeZone` | `true`, `41 3 * * *`, UTC | The related-pages job, in the `jobs` container. It runs only while `ingest.enabled` is true. Every scheduled job: [](../reference/scheduled-jobs.md). |
 | `enrichTopics.enabled`, `.schedule`, `.timeZone` | `true`, `11 4 * * 0`, UTC | The topics job (Sundays), in the `jobs` container. It runs only while `ingest.enabled` is true. |
 | `backup.monthly.enabled`, `.schedule`, `.timeZone`, `.keep` | `true`, `50 3 1 * *`, the cluster's default, `12` | The monthly copy CronJob (needs `backup.enabled`; see Backup and restore). |
-| `backup.persistence.size`, `.storageClass`, `.existingClaim` | `20Gi`, default class, none | The backups volume. Each run is a full copy: allow about `keep + monthly.keep + 1` times the data (or lower `keep` and `monthly.keep`). |
+| `backup.persistence.size`, `.storageClass`, `.existingClaim` | `20Gi`, default class, none | The backups volume. Allow about `keep + monthly.keep + 1` times the database, plus the files once: a file an earlier run has is hard-linked, not copied ({ref}`scrap-backup-restore`). |
 | `backup.persistence.hostPath` | none | An absolute directory on every node (a shared filesystem) to keep the backups in, instead of a claim. It must exist and be writable by the `podSecurityContext` user. A namespace that enforces the `baseline` or `restricted` Pod Security Standard rejects hostPath volumes, so the backup jobs never start there: use the claim. |
 | `resources.limits.memory` | `1Gi` | scrap's photo decoding is budgeted for a 1 GB container; a lower limit risks the pod being OOM-killed on large photos. |
 | `ingress.*`, `service.annotations` | off | Exposure, below. |
@@ -1153,6 +1153,16 @@ Claude's results, whose files then go as unused ones; and finished job records o
 purge date from `trashDays` (`SCRAP_TRASH_DAYS`, `off` while the job does not delete). Set
 `gc.delete: false` to have it only count until you trust it. To see what the store holds by size,
 `kubectl -n scrap exec deploy/scrap -c jobs -- scrap gc --report` (it reads only).
+
+**After upgrading to a scrap with #572.** The JPEG a photo's reading sends to Claude is no
+longer kept (it is made from the photo, which is), and gc now deletes the ones older runs stored
+(`sent_sha256`) as unused. On a store with many, that is over gc's safety limit (more than 10 % of
+the files, see {ref}`k8s-litestream`), so on a Litestream install the nightly gc only
+counts and exits 1, pushing `scrap: scheduled job gc failed` to `SCRAP_NOTIFY_URL` every night;
+while it is held, the trash purge, the pruning of runs and jobs and the gathering of orphaned
+files wait too. After a backup and a look at `scrap gc` (a dry run), run
+`kubectl -n scrap exec deploy/scrap -c jobs -- scrap gc --delete --allow-large` once; the nightly
+gc then deletes as before, with its limit.
 
 - **Turn one off** with `gc.enabled: false`, `enrichRelated.enabled: false` or
   `enrichTopics.enabled: false` (or `ingest.enabled: false` for both Claude jobs).

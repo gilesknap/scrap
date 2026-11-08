@@ -10,13 +10,16 @@ more than DECODE_BUDGET are refused (the app shows the original instead), and on
 photo is decoded at a time.
 """
 
+import hashlib
 import io
 import math
 import os
 import tempfile
 import threading
 from pathlib import Path
+from typing import Any
 
+import PIL
 from PIL import Image, ImageOps, UnidentifiedImageError
 from pillow_heif import register_heif_opener
 
@@ -25,6 +28,7 @@ from .store import InvalidError, Store
 from .svg import is_svg
 
 __all__ = [
+    "FOR_CLAUDE",
     "SIZES",
     "BusyError",
     "cached",
@@ -34,6 +38,8 @@ __all__ = [
     "own",
     "preview",
     "raster",
+    "rebuild",
+    "sent_record",
 ]
 
 SIZES = (480, 2048)  # longest side: lists, and the page and viewer
@@ -45,6 +51,10 @@ SIZES = (480, 2048)  # longest side: lists, and the page and viewer
 DECODE_BUDGET = 400 * 2**20
 CLAUDE_EDGE, CLAUDE_TOKENS = 2048, 4784  # the high-resolution image cap
 CLI_EDGE = 2000  # claude -p rescales a longer edge, so none is sent (ADR 0021)
+CLAUDE_QUALITY = 85  # the JPEG quality of an image sent to Claude
+# How claude_jpeg makes the JPEG sent to Claude: raise it when that changes (the decode,
+# the resize or the encoding), so a run's record says how its JPEG was made (#572)
+FOR_CLAUDE = 1
 WAIT = 20  # seconds a request waits for the decoder before a 503
 Image.MAX_IMAGE_PIXELS = 200_000_000  # Pillow's own bomb check: far past the budget
 register_heif_opener()  # iPhone HEIC photos
@@ -150,16 +160,50 @@ def for_claude(store: Store, sha: str) -> tuple[bytes, int, int]:
     return claude_jpeg(src)
 
 
-def claude_jpeg(src: Path) -> tuple[bytes, int, int]:
-    """An image file as the JPEG sent to Claude, and its width and height."""
+def claude_jpeg(
+    src: Path, size: tuple[int, int] | None = None
+) -> tuple[bytes, int, int]:
+    """An image file as the JPEG sent to Claude, and its width and height: sized by
+    claude_size, or to size (a recorded one, so the backend's cap now does not
+    matter)."""
     with _decoder:
         im, extra = _decode(src, CLAUDE_EDGE)
-        size = claude_size(*im.size)
+        size = size or claude_size(*im.size)
         if size != im.size:
             im = im.resize(size, Image.Resampling.LANCZOS)
         out = io.BytesIO()
-        im.save(out, "JPEG", quality=85, **extra)
+        im.save(out, "JPEG", quality=CLAUDE_QUALITY, **extra)
     return out.getvalue(), *size
+
+
+def sent_record(source: str, jpeg: bytes, width: int, height: int) -> dict[str, Any]:
+    """What a run keeps of the JPEG it sent instead of the bytes (#572): enough to make
+    it again (rebuild), and its SHA-256 and length to tell whether that gave the same
+    bytes. The same Pillow (and its libjpeg and libheif) makes the same bytes; another
+    version may not, so it is recorded too."""
+    return {
+        "source_sha256": source,
+        "width": width,
+        "height": height,
+        "quality": CLAUDE_QUALITY,
+        "for_claude": FOR_CLAUDE,
+        "sha256": hashlib.sha256(jpeg).hexdigest(),
+        "bytes": len(jpeg),
+        "pillow": PIL.__version__,
+    }
+
+
+def rebuild(store: Store, sent: dict[str, Any]) -> bytes:
+    """The JPEG a run sent to Claude, made again from its original by its record
+    (sent_record). Waits for the decoder. Byte for byte the same with the same Pillow;
+    compare sent["sha256"] to know. InvalidError if it was made in a way this scrap
+    no longer makes; NotFoundError if the original is gone."""
+    if sent.get("for_claude") != FOR_CLAUDE or sent.get("quality") != CLAUDE_QUALITY:
+        raise InvalidError("the sent JPEG was made in a way this scrap does not")
+    src, mime = store.blob(sent["source_sha256"])
+    if not raster(mime):
+        raise InvalidError("not an image" if not is_svg(mime) else "an SVG is text")
+    return claude_jpeg(src, (sent["width"], sent["height"]))[0]
 
 
 def _paths(store: Store, sha: str, size: int) -> tuple[Path, Path]:
