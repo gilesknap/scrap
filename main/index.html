@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>scrap &#8212; scrap 1.8.3.dev11+ge626bdd8c documentation</title>
+    <title>scrap &#8212; scrap 1.8.3.dev22+g979292dcd documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="_static/documentation_options.js?v=3b410661"></script>
+    <script src="_static/documentation_options.js?v=935dbc1a"></script>
     <script src="_static/doctools.js?v=fd6eb6e6"></script>
     <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="_static/clipboard.min.js?v=a7894cd8"></script>
@@ -226,17 +226,6 @@
           
           <a href="https://github.com/gilesknap/scrap" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-square-github fa-lg" aria-hidden="true"></i><span class="visually-hidden">GitHub</span></a>
         </li>
-        <li class="nav-item">
-          
-          
-          
-          
-          
-          
-          
-          
-          <a href="https://pypi.org/project/scrap" title="PyPI" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fas fa-cube fa-lg" aria-hidden="true"></i><span class="visually-hidden">PyPI</span></a>
-        </li>
 </ul></div>
       
         <div class="navbar-item">
@@ -368,17 +357,6 @@
           
           <a href="https://github.com/gilesknap/scrap" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-square-github fa-lg" aria-hidden="true"></i><span class="visually-hidden">GitHub</span></a>
         </li>
-        <li class="nav-item">
-          
-          
-          
-          
-          
-          
-          
-          
-          <a href="https://pypi.org/project/scrap" title="PyPI" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fas fa-cube fa-lg" aria-hidden="true"></i><span class="visually-hidden">PyPI</span></a>
-        </li>
 </ul></div>
         
           <div class="navbar-item">
@@ -487,7 +465,7 @@ podman run -d --name scrap --network=host -v scrap-data:/data \
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">search</span> <span class="n">scrap</span> <span class="k">for</span> <span class="o">...</span>
 </pre></div>
 </div>
-<p>Connect your phone for quick capture. See <a class="reference external" href="https://gilesknap.github.io/scrap/main/how-to/use-scrap-on-your-phone.html">use scrap on your phone over Tailscale</a>.</p>
+<p>To try this container from your phone, see <a class="reference external" href="https://gilesknap.github.io/scrap/main/how-to/use-scrap-on-your-phone.html">try scrap on your phone over Tailscale</a>.</p>
 <p>Claude Code in a sandbox? See <a class="reference external" href="https://gilesknap.github.io/scrap/main/how-to/connect-claude-sandbox.html">connecting Claude Code in claude-sandbox</a>.</p>
 <p>More: <a class="reference external" href="https://gilesknap.github.io/scrap/main/how-to/connect-claude-code.html">connect Claude Code and the <code class="docutils literal notranslate"><span class="pre">sc</span></code> commands</a>, <a class="reference external" href="https://gilesknap.github.io/scrap/main/reference/mcp.html">MCP reference</a>.</p>
 </section>
@@ -508,10 +486,14 @@ and redraw a drawing, and undo each change: see <a class="reference internal" hr
 and <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">restore</span></code> copy it, <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">export</span></code> writes Markdown, <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">import</span></code> reads it back (or an
 Obsidian vault), and <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">gc</span></code> finds files nothing uses and purges the
 trash (after 30 days by default).</p></li>
+<li><p><strong>Public pages, opt-in.</strong> Make a page public and scrap pushes it to a static site of your own,
+which anyone can read without a login while scrap itself stays private: see
+<a class="reference internal" href="how-to/publish-pages.html"><span class="std std-doc">Publish pages</span></a> and <a class="reference internal" href="reference/public-site.html"><span class="std std-doc">Public site</span></a>.</p></li>
 </ul>
 <p>Search is full-text only (SQLite FTS5); semantic search was deferred, see
 <a class="reference internal" href="explanations/decisions/0008-search-fts5-only-for-now.html"><span class="std std-doc">8. Search is SQLite FTS5 with a shared query syntax; embeddings are deferred</span></a>. scrap has no login code of its own:
-access is the network (Tailscale) or an authenticating proxy (Cloudflare Access), with an optional
+access is the network (Tailscale) or an authenticating proxy (Cloudflare Access, or at DLS the
+DLS login proxy), with an optional
 bearer token on <code class="docutils literal notranslate"><span class="pre">/mcp</span></code> (<a class="reference internal" href="explanations/decisions/0023-bearer-token-on-mcp-and-an-identity-header-setting.html"><span class="std std-doc">23. Bearer token on /mcp and an identity-header setting</span></a>).
 Never expose it on a public address without one of them.</p>
 </section>
@@ -539,7 +521,7 @@ container image. Each tutorial is one short path from nothing to a running scrap
 </table>
 </div>
 <div class="sd-container-fluid sd-sphinx-override sd-mb-4 docutils">
-<div class="sd-row sd-row-cols-1 sd-row-cols-xs-1 sd-row-cols-sm-1 sd-row-cols-md-3 sd-row-cols-lg-3 sd-g-3 sd-g-xs-3 sd-g-sm-3 sd-g-md-3 sd-g-lg-3 docutils">
+<div class="sd-row sd-row-cols-1 sd-row-cols-xs-1 sd-row-cols-sm-1 sd-row-cols-md-2 sd-row-cols-lg-2 sd-g-3 sd-g-xs-3 sd-g-sm-3 sd-g-md-3 sd-g-lg-3 docutils">
 <div class="sd-col sd-d-flex-row docutils">
 <div class="sd-card sd-sphinx-override sd-w-100 sd-shadow-sm sd-card-hover docutils">
 <div class="sd-card-body docutils">
@@ -565,9 +547,19 @@ for HTTPS. Claude Code on the same box.</p>
 <div class="sd-card-body docutils">
 <div class="sd-card-title sd-font-weight-bold docutils">
 Kubernetes with Cloudflare</div>
-<p class="sd-card-text">The Helm chart behind a cloudflared tunnel and Cloudflare Access, with a bearer token on <code class="docutils literal notranslate"><span class="pre">/mcp</span></code>.</p>
+<p class="sd-card-text">The Helm chart with Litestream keeping the database, behind a cloudflared tunnel and Cloudflare
+Access, with a bearer token on <code class="docutils literal notranslate"><span class="pre">/mcp</span></code>.</p>
 </div>
 <a class="sd-stretched-link sd-hide-link-text reference internal" href="tutorials/install-kubernetes.html"><span class="doc">Install scrap on Kubernetes</span></a></div>
+</div>
+<div class="sd-col sd-d-flex-row docutils">
+<div class="sd-card sd-sphinx-override sd-w-100 sd-shadow-sm sd-card-hover docutils">
+<div class="sd-card-body docutils">
+<div class="sd-card-title sd-font-weight-bold docutils">
+At DLS</div>
+<p class="sd-card-text">One script installs your own scrap on the argus cluster, behind your DLS login.</p>
+</div>
+<a class="sd-stretched-link sd-hide-link-text reference internal" href="tutorials/install-dls.html"><span class="doc">Install scrap at DLS</span></a></div>
 </div>
 </div>
 </div>
@@ -599,7 +591,7 @@ Kubernetes with Cloudflare</div>
 </div>
 </div>
 <div class="sd-card-footer docutils">
-<p class="sd-card-text">Three install tutorials, from a quick LAN try-out to Kubernetes, and one for ingest on a Claude seat. New users start here.</p>
+<p class="sd-card-text">Four install tutorials, from a quick LAN try-out to Kubernetes and DLS, and one for ingest on a Claude seat. New users start here.</p>
 </div>
 </div>
 </div>
@@ -611,20 +603,20 @@ Kubernetes with Cloudflare</div>
 <div class="toctree-wrapper compound">
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="how-to.html">How-to Guides</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="how-to/auto-summary-on-compact.html">Post a summary to scrap when Claude Code compacts</a></li>
-<li class="toctree-l2"><a class="reference internal" href="how-to/connect-claude-code.html">Connect a Claude Code session</a></li>
-<li class="toctree-l2"><a class="reference internal" href="how-to/connect-claude-sandbox.html">Connect Claude Code in claude-sandbox</a></li>
-<li class="toctree-l2"><a class="reference internal" href="how-to/contribute.html">Contribute to the project</a></li>
-<li class="toctree-l2"><a class="reference internal" href="how-to/deploy-kubernetes.html">Deploy on Kubernetes</a></li>
-<li class="toctree-l2"><a class="reference internal" href="how-to/deploy-single-server.html">Deploy on a single server</a></li>
+<li class="toctree-l2"><a class="reference internal" href="how-to/use-the-pwa.html">Capture from your phone (the PWA)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="how-to/use-scrap-on-your-phone.html">Try scrap on your phone over Tailscale</a></li>
+<li class="toctree-l2"><a class="reference internal" href="how-to/publish-pages.html">Publish pages</a></li>
 <li class="toctree-l2"><a class="reference internal" href="how-to/export-your-pages.html">Export your pages</a></li>
 <li class="toctree-l2"><a class="reference internal" href="how-to/import-your-pages.html">Import your pages</a></li>
-<li class="toctree-l2"><a class="reference internal" href="how-to/keep-an-index.html">Keep an index of your pages</a></li>
 <li class="toctree-l2"><a class="reference internal" href="how-to/make-your-own-lists.html">Make your own lists: a contacts directory</a></li>
-<li class="toctree-l2"><a class="reference internal" href="how-to/publish-pages.html">Publish pages</a></li>
+<li class="toctree-l2"><a class="reference internal" href="how-to/connect-claude-code.html">Connect a Claude Code session</a></li>
+<li class="toctree-l2"><a class="reference internal" href="how-to/connect-claude-sandbox.html">Connect Claude Code in claude-sandbox</a></li>
+<li class="toctree-l2"><a class="reference internal" href="how-to/auto-summary-on-compact.html">Post a summary to scrap when Claude Code compacts</a></li>
+<li class="toctree-l2"><a class="reference internal" href="how-to/keep-an-index.html">Keep an index of your pages</a></li>
+<li class="toctree-l2"><a class="reference internal" href="how-to/deploy-kubernetes.html">Deploy on Kubernetes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="how-to/deploy-single-server.html">Deploy on a single server</a></li>
 <li class="toctree-l2"><a class="reference internal" href="how-to/run-the-dls-login-proxy.html">Run the DLS login proxy</a></li>
-<li class="toctree-l2"><a class="reference internal" href="how-to/use-scrap-on-your-phone.html">Use scrap on your phone over Tailscale</a></li>
-<li class="toctree-l2"><a class="reference internal" href="how-to/use-the-pwa.html">Capture from your phone (the PWA)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="how-to/contribute.html">Contribute to the project</a></li>
 <li class="toctree-l2"><a class="reference internal" href="how-to/work-with-claude.html">Work on scrap with Claude</a></li>
 </ul>
 </li>
@@ -632,7 +624,7 @@ Kubernetes with Cloudflare</div>
 </div>
 </div>
 <div class="sd-card-footer docutils">
-<p class="sd-card-text">Practical step-by-step guides for the more experienced user.</p>
+<p class="sd-card-text">Guides for one task each, once scrap is installed: using it, connecting Claude Code, running the server, and working on scrap.</p>
 </div>
 </div>
 </div>
@@ -644,12 +636,12 @@ Kubernetes with Cloudflare</div>
 <div class="toctree-wrapper compound">
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="explanations.html">Explanations</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="explanations/decisions.html">Architectural Decision Records</a></li>
+<li class="toctree-l2"><a class="reference internal" href="explanations/overview.html">Scope and stack</a></li>
 <li class="toctree-l2"><a class="reference internal" href="explanations/design.html">Architecture</a></li>
-<li class="toctree-l2"><a class="reference internal" href="explanations/design-system.html">The PWA’s design system</a></li>
 <li class="toctree-l2"><a class="reference internal" href="explanations/ingest.html">Claude ingest</a></li>
 <li class="toctree-l2"><a class="reference internal" href="explanations/llm-calls.html">What Claude is asked, per page</a></li>
-<li class="toctree-l2"><a class="reference internal" href="explanations/overview.html">Scope and stack</a></li>
+<li class="toctree-l2"><a class="reference internal" href="explanations/design-system.html">The PWA’s design system</a></li>
+<li class="toctree-l2"><a class="reference internal" href="explanations/decisions.html">Architectural Decision Records</a></li>
 </ul>
 </li>
 </ul>
@@ -682,7 +674,7 @@ Kubernetes with Cloudflare</div>
 </div>
 </div>
 <div class="sd-card-footer docutils">
-<p class="sd-card-text">Technical reference material: the HTTP API, CLI and settings, the MCP tools, and release notes.</p>
+<p class="sd-card-text">Technical reference material: the HTTP API, CLI and settings, the MCP tools, the export format, the public site, scheduled jobs and release notes.</p>
 </div>
 </div>
 </div>

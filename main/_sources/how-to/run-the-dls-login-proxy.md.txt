@@ -75,8 +75,8 @@ that their ingress-nginx allows the `auth-url` and `auth-signin` annotations (it
 
 ## 2. Install the proxy
 
-You need the namespace (`scrap`, or another that only the admins use) and the right to make
-Secrets and Deployments in it. On a DLS machine:
+You need the namespace (`scrap`, or another that only the admins use), which must exist already
+(the script does not create it), and the right to make Secrets and Deployments in it. On a DLS machine:
 
 ```sh
 module load argus
@@ -108,6 +108,9 @@ team in batches, to add to the client's valid redirect URIs. Until a user's addr
 login fails with Keycloak's "Invalid parameter: redirect_uri".
 
 ## Rotate the client secret
+
+The commands here and under "Check it" use the namespace `scrap`: use yours in its place if you
+set `SCRAP_AUTH_NAMESPACE`.
 
 Ask the Keycloak team for a new client secret, then put it in the Secret from a private file and
 restart the proxy:

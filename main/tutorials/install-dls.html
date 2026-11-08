@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Install scrap at DLS &#8212; scrap 1.8.3.dev11+ge626bdd8c documentation</title>
+    <title>Install scrap at DLS &#8212; scrap 1.8.3.dev22+g979292dcd documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=3b410661"></script>
+    <script src="../_static/documentation_options.js?v=935dbc1a"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -227,17 +227,6 @@
           
           <a href="https://github.com/gilesknap/scrap" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-square-github fa-lg" aria-hidden="true"></i><span class="visually-hidden">GitHub</span></a>
         </li>
-        <li class="nav-item">
-          
-          
-          
-          
-          
-          
-          
-          
-          <a href="https://pypi.org/project/scrap" title="PyPI" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fas fa-cube fa-lg" aria-hidden="true"></i><span class="visually-hidden">PyPI</span></a>
-        </li>
 </ul></div>
       
         <div class="navbar-item">
@@ -371,17 +360,6 @@
           
           <a href="https://github.com/gilesknap/scrap" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-square-github fa-lg" aria-hidden="true"></i><span class="visually-hidden">GitHub</span></a>
         </li>
-        <li class="nav-item">
-          
-          
-          
-          
-          
-          
-          
-          
-          <a href="https://pypi.org/project/scrap" title="PyPI" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fas fa-cube fa-lg" aria-hidden="true"></i><span class="visually-hidden">PyPI</span></a>
-        </li>
 </ul></div>
         
           <div class="navbar-item">
@@ -489,94 +467,67 @@
                   
   <section id="install-scrap-at-dls">
 <h1>Install scrap at DLS<a class="headerlink" href="#install-scrap-at-dls" title="Link to this heading">#</a></h1>
-<p>In this tutorial you run scrap in your own namespace on the DLS argus Kubernetes cluster, with one
-script. At the end the web app answers on <code class="docutils literal notranslate"><span class="pre">scrap-&lt;fedid&gt;.diamond.ac.uk</span></code>, your public pages on
-<code class="docutils literal notranslate"><span class="pre">pages-&lt;fedid&gt;.diamond.ac.uk</span></code>, and Claude Code is connected to scrap.</p>
-<p>Who can get in:</p>
-<ul class="simple">
-<li><p><strong>The web app</strong>: only your own DLS login. Another DLS user who logs in gets <code class="docutils literal notranslate"><span class="pre">401</span></code>.</p></li>
-<li><p><strong><code class="docutils literal notranslate"><span class="pre">/mcp</span></code></strong> (Claude Code): whoever has your bearer token, which the installer makes.</p></li>
-<li><p><strong>Your public pages</strong>: anyone on the DLS network. Only the pages you make public are there.</p></li>
-</ul>
-<p>You need a DLS account. Your namespace is named after your fedid, which is also your Linux
-username. A Claude API key is optional: scrap uses it to read photos and tag pages.</p>
+<p>You get scrap in your own namespace on the DLS argus cluster, behind your DLS login, with Claude
+Code connected and your public pages on <code class="docutils literal notranslate"><span class="pre">pages-&lt;fedid&gt;.diamond.ac.uk</span></code>.</p>
 <section id="load-argus">
 <h2>1. Load argus<a class="headerlink" href="#load-argus" title="Link to this heading">#</a></h2>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">module</span> <span class="n">load</span> <span class="n">argus</span>
 </pre></div>
 </div>
-<p>This puts <code class="docutils literal notranslate"><span class="pre">kubectl</span></code> and <code class="docutils literal notranslate"><span class="pre">helm</span></code> on your path and selects your own namespace.</p>
+<p>This puts <code class="docutils literal notranslate"><span class="pre">kubectl</span></code> and <code class="docutils literal notranslate"><span class="pre">helm</span></code> on your path and selects your namespace (your fedid).</p>
 </section>
 <section id="run-the-installer">
 <h2>2. Run the installer<a class="headerlink" href="#run-the-installer" title="Link to this heading">#</a></h2>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">curl</span> <span class="o">-</span><span class="n">fsSL</span> <span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">raw</span><span class="o">.</span><span class="n">githubusercontent</span><span class="o">.</span><span class="n">com</span><span class="o">/</span><span class="n">gilesknap</span><span class="o">/</span><span class="n">scrap</span><span class="o">/</span><span class="n">main</span><span class="o">/</span><span class="n">deploy</span><span class="o">/</span><span class="n">install</span><span class="o">-</span><span class="n">dls</span><span class="o">.</span><span class="n">sh</span> <span class="o">|</span> <span class="n">sh</span>
 </pre></div>
 </div>
-<p>It asks for your Claude API key (input hidden; Enter skips it), installs scrap, connects Claude
-Code, and shows your <code class="docutils literal notranslate"><span class="pre">/mcp</span></code> bearer token once. Keep the token in a password manager.</p>
+<p>It asks for your Claude API key (optional; Enter skips) and shows your <code class="docutils literal notranslate"><span class="pre">/mcp</span></code> bearer token once:
+keep it in a password manager.</p>
+<p>Check: it prints <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">&lt;version&gt;</span> <span class="pre">is</span> <span class="pre">running</span> <span class="pre">in</span> <span class="pre">namespace</span> <span class="pre">&lt;fedid&gt;.</span></code>, and <code class="docutils literal notranslate"><span class="pre">kubectl</span> <span class="pre">get</span> <span class="pre">pods</span></code> shows
+the <code class="docutils literal notranslate"><span class="pre">scrap-…</span></code> pod READY <code class="docutils literal notranslate"><span class="pre">3/3</span></code> and <code class="docutils literal notranslate"><span class="pre">scrap-public-…</span></code> <code class="docutils literal notranslate"><span class="pre">Running</span></code>.</p>
 </section>
 <section id="ask-for-the-dns-names">
 <h2>3. Ask for the DNS names<a class="headerlink" href="#ask-for-the-dns-names" title="Link to this heading">#</a></h2>
-<p>Raise a request at <a class="reference external" href="https://jira.diamond.ac.uk/servicedesk/customer/portal/2/create/156">https://jira.diamond.ac.uk/servicedesk/customer/portal/2/create/156</a> asking for
-<code class="docutils literal notranslate"><span class="pre">scrap-&lt;fedid&gt;.diamond.ac.uk</span></code> and <code class="docutils literal notranslate"><span class="pre">pages-&lt;fedid&gt;.diamond.ac.uk</span></code> to be set up on the argus ingress
-for your namespace. The installer lists only the names that do not resolve yet.</p>
+<p>Raise a request at <a class="reference external" href="https://jira.diamond.ac.uk/servicedesk/customer/portal/2/create/156">https://jira.diamond.ac.uk/servicedesk/customer/portal/2/create/156</a> for
+<code class="docutils literal notranslate"><span class="pre">scrap-&lt;fedid&gt;.diamond.ac.uk</span></code> and <code class="docutils literal notranslate"><span class="pre">pages-&lt;fedid&gt;.diamond.ac.uk</span></code> on the argus ingress for your
+namespace. The installer lists the names that do not resolve yet; step 4 waits for them.</p>
+<p>Check: <code class="docutils literal notranslate"><span class="pre">getent</span> <span class="pre">hosts</span> <span class="pre">scrap-&lt;fedid&gt;.diamond.ac.uk</span></code> prints an address.</p>
 </section>
 <section id="open-it">
 <h2>4. Open it<a class="headerlink" href="#open-it" title="Link to this heading">#</a></h2>
-<ul class="simple">
-<li><p><strong>Phone:</strong> add the phone to the DLS VPN first (follow DLS IT’s VPN instructions). Then, on the
-VPN, open <code class="docutils literal notranslate"><span class="pre">https://scrap-&lt;fedid&gt;.diamond.ac.uk/</span></code>, log in with your DLS account (the login page
-shows the first time), and install the app.</p></li>
-<li><p><strong>Browser:</strong> on a DLS machine, open <code class="docutils literal notranslate"><span class="pre">https://scrap-&lt;fedid&gt;.diamond.ac.uk/</span></code> and log in.</p></li>
-</ul>
-<p>Claude Code is connected (once the DNS names exist; <code class="docutils literal notranslate"><span class="pre">claude</span> <span class="pre">mcp</span> <span class="pre">list</span></code> shows <code class="docutils literal notranslate"><span class="pre">scrap-dls</span></code>), if
-<code class="docutils literal notranslate"><span class="pre">claude</span></code> was on your PATH when you ran the installer, else run the command it printed. Ask Claude
-to search your pages. To add the <code class="docutils literal notranslate"><span class="pre">sc</span></code> commands and skills, see <a class="reference internal" href="../how-to/connect-claude-code.html"><span class="std std-doc">Connect a Claude Code session</span></a>.</p>
-<p>That is all. The rest of this page is details.</p>
+<p>On a DLS machine, open <code class="docutils literal notranslate"><span class="pre">https://scrap-&lt;fedid&gt;.diamond.ac.uk/</span></code> and log in with your DLS account.
+On your phone, join the DLS VPN first, open the same address, log in and install the app.</p>
+<p>Check: <code class="docutils literal notranslate"><span class="pre">claude</span> <span class="pre">mcp</span> <span class="pre">list</span></code> shows <code class="docutils literal notranslate"><span class="pre">scrap-dls</span></code> as connected. Ask Claude to search your pages. For the
+<code class="docutils literal notranslate"><span class="pre">sc</span></code> commands and skills, see <a class="reference internal" href="../how-to/connect-claude-code.html"><span class="std std-doc">Connect a Claude Code session</span></a>.</p>
 </section>
 <section id="details">
 <h2>Details<a class="headerlink" href="#details" title="Link to this heading">#</a></h2>
 <section id="what-the-installer-does">
 <h3>What the installer does<a class="headerlink" href="#what-the-installer-does" title="Link to this heading">#</a></h3>
-<ol class="arabic simple">
-<li><p>It asks for your Claude API key. Without one, photos queue and nothing more happens.</p></li>
-<li><p>It creates a Secret <code class="docutils literal notranslate"><span class="pre">scrap-secrets</span></code> holding the key, a generated <code class="docutils literal notranslate"><span class="pre">/mcp</span></code> bearer token and a
-generated upload token for your public pages.</p></li>
-<li><p>It installs the latest scrap release with Helm, with Ingresses for <code class="docutils literal notranslate"><span class="pre">scrap-&lt;fedid&gt;</span></code> and
-<code class="docutils literal notranslate"><span class="pre">pages-&lt;fedid&gt;</span></code> on argus’s <code class="docutils literal notranslate"><span class="pre">nginx</span></code> ingress, served over HTTPS by its <code class="docutils literal notranslate"><span class="pre">*.diamond.ac.uk</span></code>
-certificate.</p></li>
-<li><p>It puts the web app behind the DLS login (Keycloak), letting in only your fedid, which is
-your namespace’s name (in lower case). Pods in the cluster can reach scrap’s Service directly,
-but scrap checks the login’s token itself, so without your login they get <code class="docutils literal notranslate"><span class="pre">401</span></code>. You stay
-logged in as long as your DLS Keycloak session lasts; when it ends, the web app and the phone
-app take you to the DLS login again.</p></li>
-<li><p>It makes <code class="docutils literal notranslate"><span class="pre">/dls/science/users/&lt;fedid&gt;/scrap</span></code> (mode 700, if it is new) for the nightly backups.
-scrap’s pods run as you, so the backups are your files.</p></li>
-<li><p>It puts scrap’s database on the pod’s own disk, not on your NFS volume, where SQLite is not
-safe, with Litestream copying each change to that volume (<a class="reference internal" href="../how-to/deploy-kubernetes.html#k8s-litestream"><span class="std std-ref">The database on an emptyDir, with Litestream</span></a>).</p></li>
-<li><p>It connects Claude Code (below).</p></li>
-<li><p>It prints the Service IP, your bearer token (once), and what to do next.</p></li>
-</ol>
-<p><strong>What can be lost.</strong> While it is working, the copy follows each write by about a second, so if the
-node dies, the last moments of writes are lost. A normal restart or upgrade loses nothing: the new
-pod restores the database first. If the copy stops working (scrap notices by itself within about
-20 minutes), scrap leaves the network until it works again, so the app shows it as unreachable;
-writes in those minutes are at risk, and a later restart refuses to start without someone looking.
-An install from before this moves over by itself when you re-run the installer, leaving the old
-<code class="docutils literal notranslate"><span class="pre">/data/scrap.db</span></code> in place. If a pod ever stays in <code class="docutils literal notranslate"><span class="pre">Init</span></code>, it is refusing to start without your
-data rather than starting empty: <code class="docutils literal notranslate"><span class="pre">kubectl</span> <span class="pre">logs</span> <span class="pre">deploy/scrap</span> <span class="pre">-c</span> <span class="pre">db-init</span></code> says why.</p>
+<ul class="simple">
+<li><p>Makes the Secret <code class="docutils literal notranslate"><span class="pre">scrap-secrets</span></code>: your API key, a generated <code class="docutils literal notranslate"><span class="pre">/mcp</span></code> bearer token and an upload
+token for your public pages.</p></li>
+<li><p>Installs the latest scrap release with Helm, with Ingresses for <code class="docutils literal notranslate"><span class="pre">scrap-&lt;fedid&gt;</span></code> and
+<code class="docutils literal notranslate"><span class="pre">pages-&lt;fedid&gt;</span></code> on argus’s <code class="docutils literal notranslate"><span class="pre">nginx</span></code> ingress (HTTPS, <code class="docutils literal notranslate"><span class="pre">*.diamond.ac.uk</span></code> certificate).</p></li>
+<li><p>Puts the web app behind the DLS login (Keycloak), letting in only your fedid. Another DLS user
+gets <code class="docutils literal notranslate"><span class="pre">401</span></code>, and so does a pod that calls scrap’s Service directly. <code class="docutils literal notranslate"><span class="pre">/mcp</span></code> takes your bearer
+token. Your public pages are open to anyone on the DLS network.</p></li>
+<li><p>Keeps the database on the pod’s own disk, with Litestream copying each change to your NFS
+volume within about a second (<a class="reference internal" href="../how-to/deploy-kubernetes.html#k8s-litestream"><span class="std std-ref">The database on an emptyDir, with Litestream</span></a>). A normal restart or upgrade loses
+nothing; if the node dies, the last moments of writes are lost. If a pod stays in <code class="docutils literal notranslate"><span class="pre">Init</span></code>, it is
+refusing to start without your data: <code class="docutils literal notranslate"><span class="pre">kubectl</span> <span class="pre">logs</span> <span class="pre">deploy/scrap</span> <span class="pre">-c</span> <span class="pre">db-init</span></code> says why.</p></li>
+<li><p>Connects Claude Code (<a class="reference internal" href="#install-dls-claude"><span class="std std-ref">Claude Code</span></a>).</p></li>
+</ul>
 </section>
 <section id="re-running-and-settings">
 <h3>Re-running and settings<a class="headerlink" href="#re-running-and-settings" title="Link to this heading">#</a></h3>
-<p>It is safe to re-run: a re-run upgrades to the latest release and never overwrites the Secret. A
-Secret made by an older installer gets only the upload token added. Settings go in the
-environment, after the pipe (<code class="docutils literal notranslate"><span class="pre">curl</span> <span class="pre">...</span> <span class="pre">|</span> <span class="pre">SCRAP_VERSION=1.7.0</span> <span class="pre">sh</span></code>):</p>
+<p>Re-running is safe: it upgrades to the latest release and never overwrites the Secret. Settings
+go after the pipe (<code class="docutils literal notranslate"><span class="pre">curl</span> <span class="pre">...</span> <span class="pre">|</span> <span class="pre">SCRAP_VERSION=1.7.0</span> <span class="pre">sh</span></code>):</p>
 <ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">SCRAP_VERSION</span></code> installs a particular release. The script and chart go together, so an older
-release needs that version’s script.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">SCRAP_BACKUP_DIR</span></code> moves the backups (empty keeps them on a volume in the cluster).</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">SCRAP_USER</span></code> is your fedid, for a namespace not named after it.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">SCRAP_CLAUDE=off</span></code> leaves Claude Code alone.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">SCRAP_VERSION</span></code>: a particular release (with that version’s script).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">SCRAP_BACKUP_DIR</span></code>: where the backups go (empty keeps them on a volume in the cluster).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">SCRAP_USER</span></code>: your fedid, for a namespace not named after it.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">SCRAP_CLAUDE=off</span></code>: leave Claude Code alone.</p></li>
 </ul>
 <p>The header of the script lists every setting. To see your bearer token again:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">kubectl</span> <span class="n">get</span> <span class="n">secret</span> <span class="n">scrap</span><span class="o">-</span><span class="n">secrets</span> <span class="o">-</span><span class="n">o</span> <span class="n">jsonpath</span><span class="o">=</span><span class="s1">'{.data.SCRAP_MCP_TOKEN}'</span> <span class="o">|</span> <span class="n">base64</span> <span class="o">-</span><span class="n">d</span><span class="p">;</span> <span class="n">echo</span>
@@ -585,13 +536,11 @@ release needs that version’s script.</p></li>
 </section>
 <section id="claude-code">
 <span id="install-dls-claude"></span><h3>Claude Code<a class="headerlink" href="#claude-code" title="Link to this heading">#</a></h3>
-<p>Claude Code reaches scrap at <code class="docutils literal notranslate"><span class="pre">/mcp</span></code> with your bearer token. It runs a small helper script each
-time it connects, and the helper reads the token from a private file. The installer:</p>
+<p>The installer:</p>
 <ol class="arabic">
-<li><p>puts the token in <code class="docutils literal notranslate"><span class="pre">~/.config/terminal-config/.env</span></code> (mode 600, private before the token goes
-in), as <code class="docutils literal notranslate"><span class="pre">SCRAP_DLS_MCP_TOKEN=...</span></code>, replacing a line already there and keeping the others
-(a token you set by hand must be only letters, digits and <code class="docutils literal notranslate"><span class="pre">._+/=-</span></code>, as other tools may read
-the file as shell);</p></li>
+<li><p>puts the token in <code class="docutils literal notranslate"><span class="pre">~/.config/terminal-config/.env</span></code> (mode 600) as <code class="docutils literal notranslate"><span class="pre">SCRAP_DLS_MCP_TOKEN=...</span></code>,
+replacing that line and keeping the others (a token set by hand must be only letters, digits
+and <code class="docutils literal notranslate"><span class="pre">._+/=-</span></code>);</p></li>
 <li><p>writes the helper <code class="docutils literal notranslate"><span class="pre">~/.claude/scrap-dls-headers.sh</span></code> (mode 700):</p>
 <div class="highlight-sh notranslate"><div class="highlight"><pre><span></span><span class="ch">#!/bin/sh</span>
 <span class="c1"># Headers for scrap's /mcp at DLS: the bearer token, from the .env on the host, or where</span>
@@ -612,96 +561,83 @@ the file as shell);</p></li>
 </pre></div>
 </div>
 </li>
-<li><p>adds the server <code class="docutils literal notranslate"><span class="pre">scrap-dls</span></code> to Claude Code for all your projects, replacing a <code class="docutils literal notranslate"><span class="pre">scrap-dls</span></code>
-already there (with your <code class="docutils literal notranslate"><span class="pre">SCRAP_HOST</span></code> in the URL, if you set one):</p>
+<li><p>adds the server <code class="docutils literal notranslate"><span class="pre">scrap-dls</span></code> for all your projects (with your <code class="docutils literal notranslate"><span class="pre">SCRAP_HOST</span></code>, if you set one):</p>
 <div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>claude<span class="w"> </span>mcp<span class="w"> </span>add-json<span class="w"> </span>--scope<span class="w"> </span>user<span class="w"> </span>scrap-dls<span class="w"> </span><span class="se">\</span>
 <span class="w">  </span><span class="s2">"{\"type\":\"http\",\"url\":\"https://scrap-</span><span class="nv">$USER</span><span class="s2">.diamond.ac.uk/mcp\",\"headersHelper\":\"</span><span class="nv">$HOME</span><span class="s2">/.claude/scrap-dls-headers.sh\"}"</span>
 </pre></div>
 </div>
 </li>
 </ol>
-<p>A server named <code class="docutils literal notranslate"><span class="pre">scrap</span></code> for another scrap, with its <code class="docutils literal notranslate"><span class="pre">scrap-headers.sh</span></code> and <code class="docutils literal notranslate"><span class="pre">SCRAP_MCP_TOKEN</span></code>, is
-left alone. The <code class="docutils literal notranslate"><span class="pre">sc</span></code> commands use <code class="docutils literal notranslate"><span class="pre">scrap</span></code> if it is there, else <code class="docutils literal notranslate"><span class="pre">scrap-dls</span></code>. If you followed the
-earlier tutorial and have a <code class="docutils literal notranslate"><span class="pre">scrap</span></code> server pointing at your DLS scrap, remove it (<code class="docutils literal notranslate"><span class="pre">claude</span> <span class="pre">mcp</span> <span class="pre">remove</span> <span class="pre">--scope</span> <span class="pre">user</span> <span class="pre">scrap</span></code>, and delete <code class="docutils literal notranslate"><span class="pre">~/.claude/scrap-headers.sh</span></code>), or every tool appears twice.</p>
-<p>If <code class="docutils literal notranslate"><span class="pre">claude</span></code> is not on your path, or this step fails, the installer still succeeds and prints the
-command to run. <code class="docutils literal notranslate"><span class="pre">SCRAP_CLAUDE=off</span></code> skips all three.</p>
-<p>claude-sandbox has its own <code class="docutils literal notranslate"><span class="pre">~/.claude</span></code> and <code class="docutils literal notranslate"><span class="pre">~/.claude.json</span></code>, so the installer does not reach it.
-Run the installer on the host (or a DLS machine), so the token is in the .env that claude-sandbox
-mounts at <code class="docutils literal notranslate"><span class="pre">/user-terminal-config/.env</span></code>. Then, inside the container, save the same helper as
-<code class="docutils literal notranslate"><span class="pre">~/.claude/scrap-dls-headers.sh</span></code> (mode 700; it finds that .env by itself), and add the server,
-with your fedid (or your <code class="docutils literal notranslate"><span class="pre">SCRAP_HOST</span></code>, if you set one; and the container’s home, if it is
-not <code class="docutils literal notranslate"><span class="pre">/root</span></code>):</p>
+<p>If <code class="docutils literal notranslate"><span class="pre">claude</span></code> is not on your path, or this fails, the installer still succeeds and prints the
+command to run. Only Claude Code on the DLS network can reach <code class="docutils literal notranslate"><span class="pre">/mcp</span></code>; claude.ai’s connectors and
+cloud sessions cannot.</p>
+<p><strong>An old <code class="docutils literal notranslate"><span class="pre">scrap</span></code> server.</strong> A server named <code class="docutils literal notranslate"><span class="pre">scrap</span></code> for another scrap is left alone, and the <code class="docutils literal notranslate"><span class="pre">sc</span></code>
+commands use <code class="docutils literal notranslate"><span class="pre">scrap</span></code> if it is there, else <code class="docutils literal notranslate"><span class="pre">scrap-dls</span></code>. If your <code class="docutils literal notranslate"><span class="pre">scrap</span></code> server points at this DLS
+scrap (from an earlier version of this page), remove it, or every tool appears twice:
+<code class="docutils literal notranslate"><span class="pre">claude</span> <span class="pre">mcp</span> <span class="pre">remove</span> <span class="pre">--scope</span> <span class="pre">user</span> <span class="pre">scrap</span></code>, and delete <code class="docutils literal notranslate"><span class="pre">~/.claude/scrap-headers.sh</span></code>.</p>
+</section>
+<section id="claude-code-in-claude-sandbox">
+<h3>Claude Code in claude-sandbox<a class="headerlink" href="#claude-code-in-claude-sandbox" title="Link to this heading">#</a></h3>
+<p>The installer does not reach claude-sandbox’s own <code class="docutils literal notranslate"><span class="pre">~/.claude</span></code>. Run the installer on the host, so
+the token is in the .env that claude-sandbox mounts at <code class="docutils literal notranslate"><span class="pre">/user-terminal-config/.env</span></code>. Inside the
+container, save the same helper as <code class="docutils literal notranslate"><span class="pre">~/.claude/scrap-dls-headers.sh</span></code> (mode 700), then add the
+server with your fedid (or <code class="docutils literal notranslate"><span class="pre">SCRAP_HOST</span></code>; and the container’s home, if not <code class="docutils literal notranslate"><span class="pre">/root</span></code>):</p>
 <div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>claude<span class="w"> </span>mcp<span class="w"> </span>add-json<span class="w"> </span>--scope<span class="w"> </span>user<span class="w"> </span>scrap-dls<span class="w"> </span><span class="se">\</span>
 <span class="w">  </span><span class="s1">'{"type":"http","url":"https://scrap-&lt;fedid&gt;.diamond.ac.uk/mcp","headersHelper":"/root/.claude/scrap-dls-headers.sh"}'</span>
 </pre></div>
 </div>
-<div class="admonition note">
-<p class="admonition-title">Note</p>
-<p>Only Claude Code on the DLS network can reach scrap’s <code class="docutils literal notranslate"><span class="pre">/mcp</span></code>. Claude.ai’s hosted connectors and
-cloud sessions cannot reach a DLS-internal address.</p>
-</div>
 </section>
 <section id="before-the-dns-names-exist">
 <h3>Before the DNS names exist<a class="headerlink" href="#before-the-dns-names-exist" title="Link to this heading">#</a></h3>
-<p>Check scrap is up with a port-forward:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">kubectl</span> <span class="n">port</span><span class="o">-</span><span class="n">forward</span> <span class="n">svc</span><span class="o">/</span><span class="n">scrap</span> <span class="mi">8000</span><span class="p">:</span><span class="mi">80</span>
-</pre></div>
-</div>
-<p>and open <a class="reference external" href="http://127.0.0.1:8000/healthz">http://127.0.0.1:8000/healthz</a>. The web app answers only with your login’s token, which
-comes through the Ingress, so it and the phone app need the DNS names.</p>
+<p><code class="docutils literal notranslate"><span class="pre">kubectl</span> <span class="pre">port-forward</span> <span class="pre">svc/scrap</span> <span class="pre">8000:80</span></code>, then <a class="reference external" href="http://127.0.0.1:8000/healthz">http://127.0.0.1:8000/healthz</a> shows
+<code class="docutils literal notranslate"><span class="pre">&quot;status&quot;:&quot;ok&quot;</span></code>. The web app needs your login’s token, which comes through the Ingress, so it
+waits for the names.</p>
 </section>
-<section id="if-logging-in-fails">
-<h3>If logging in fails<a class="headerlink" href="#if-logging-in-fails" title="Link to this heading">#</a></h3>
-<p>If logging in fails with an invalid redirect error, ask a scrap admin to add
-<code class="docutils literal notranslate"><span class="pre">https://scrap-&lt;fedid&gt;.diamond.ac.uk/oauth2/callback</span></code> to the Keycloak client. <code class="docutils literal notranslate"><span class="pre">/mcp</span></code> does not need
-it. Admins: see <a class="reference internal" href="../how-to/run-the-dls-login-proxy.html"><span class="std std-doc">Run the DLS login proxy</span></a>.</p>
+<section id="logging-in">
+<h3>Logging in<a class="headerlink" href="#logging-in" title="Link to this heading">#</a></h3>
+<p>You stay logged in as long as your DLS Keycloak session lasts; when it ends, the web app and the
+phone app take you to the DLS login again. If logging in fails with an invalid redirect error, ask
+a scrap admin to add <code class="docutils literal notranslate"><span class="pre">https://scrap-&lt;fedid&gt;.diamond.ac.uk/oauth2/callback</span></code> to the Keycloak client
+(admins: <a class="reference internal" href="../how-to/run-the-dls-login-proxy.html"><span class="std std-doc">Run the DLS login proxy</span></a>).</p>
 </section>
 <section id="without-a-login-for-testing">
 <span id="install-dls-no-login"></span><h3>Without a login, for testing<a class="headerlink" href="#without-a-login-for-testing" title="Link to this heading">#</a></h3>
 <div class="admonition warning">
 <p class="admonition-title">Warning</p>
-<p>This is for trying scrap out, with test data only. With the login off, the web app has <strong>no login
-at all</strong>: <strong>anyone on the DLS network can read and change every page</strong>, and any pod in the cluster
-can too. Your bearer token still guards <code class="docutils literal notranslate"><span class="pre">/mcp</span></code>, but that does not protect the web app or its API.</p>
+<p>With the login off, <strong>anyone on the DLS network, and any pod in the cluster, can read and change
+every page</strong>. Your bearer token still guards <code class="docutils literal notranslate"><span class="pre">/mcp</span></code>. Test data only.</p>
 </div>
-<p>To try scrap without the login, with test data only, set <code class="docutils literal notranslate"><span class="pre">SCRAP_LOGIN=off</span></code>:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">curl</span> <span class="o">-</span><span class="n">fsSL</span> <span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">raw</span><span class="o">.</span><span class="n">githubusercontent</span><span class="o">.</span><span class="n">com</span><span class="o">/</span><span class="n">gilesknap</span><span class="o">/</span><span class="n">scrap</span><span class="o">/</span><span class="n">main</span><span class="o">/</span><span class="n">deploy</span><span class="o">/</span><span class="n">install</span><span class="o">-</span><span class="n">dls</span><span class="o">.</span><span class="n">sh</span> <span class="o">|</span> <span class="n">SCRAP_LOGIN</span><span class="o">=</span><span class="n">off</span> <span class="n">sh</span>
 </pre></div>
 </div>
-<p>It checks no fedid (<code class="docutils literal notranslate"><span class="pre">SCRAP_USER</span></code> is not used), and everything else is as normal: the bearer token
-on <code class="docutils literal notranslate"><span class="pre">/mcp</span></code>, Claude Code, backups, public pages and the database. The installer warns you up front
-and again in its summary. Only exactly <code class="docutils literal notranslate"><span class="pre">off</span></code> does this: anything but <code class="docutils literal notranslate"><span class="pre">on</span></code> or <code class="docutils literal notranslate"><span class="pre">off</span></code> stops the
-installer before it touches anything.</p>
-<p><strong>To turn the login on</strong>, re-run the installer without it. Your Secret and your data are kept. If
-that run fails, nothing has been turned on: the web app still has no login until it succeeds.</p>
+<p>Everything else is as normal. Only exactly <code class="docutils literal notranslate"><span class="pre">off</span></code> does this; anything but <code class="docutils literal notranslate"><span class="pre">on</span></code> or <code class="docutils literal notranslate"><span class="pre">off</span></code> stops the
+installer before it touches anything. To turn the login on, re-run without it: your Secret and
+data are kept, and until that run succeeds the web app still has no login.</p>
 </section>
-<section id="your-backups">
-<h3>Your backups<a class="headerlink" href="#your-backups" title="Link to this heading">#</a></h3>
-<p>scrap backs up every night at 03:30 (UTC) to <code class="docutils literal notranslate"><span class="pre">/dls/science/users/&lt;fedid&gt;/scrap</span></code> on the DLS
-filesystem, one folder per run, named for its time (like <code class="docutils literal notranslate"><span class="pre">20261104T033000Z</span></code>). It keeps the last 7
-daily runs, and on the 1st of each month a copy in the <code class="docutils literal notranslate"><span class="pre">monthly/</span></code> folder, keeping the last 12 of
-those. The folder is yours (mode 700 when the installer makes it) and the backup pods run as you, so
-the backups are your files. To put them elsewhere, set <code class="docutils literal notranslate"><span class="pre">SCRAP_BACKUP_DIR</span></code> before you run the
-installer. Backups work from Litestream’s copy of the database, not the live one, but still
-run on the same node as the scrap pod. To restore from them, see <a class="reference internal" href="#install-dls-restore">below</a>.</p>
+<section id="backups">
+<h3>Backups<a class="headerlink" href="#backups" title="Link to this heading">#</a></h3>
+<p>Every night at 03:30 (UTC) to <code class="docutils literal notranslate"><span class="pre">/dls/science/users/&lt;fedid&gt;/scrap</span></code>, one folder per run (like
+<code class="docutils literal notranslate"><span class="pre">20261104T033000Z</span></code>). It keeps the last 7, plus a copy on the 1st of each month in <code class="docutils literal notranslate"><span class="pre">monthly/</span></code>,
+keeping the last 12. The folder is yours (mode 700 when the installer makes it) and the pods run as
+you, so the backups are your files. <code class="docutils literal notranslate"><span class="pre">SCRAP_BACKUP_DIR</span></code> moves them.</p>
 </section>
 <section id="publish-pages">
 <h3>Publish pages<a class="headerlink" href="#publish-pages" title="Link to this heading">#</a></h3>
-<p>A page you make public is copied to your own static site, <code class="docutils literal notranslate"><span class="pre">https://pages-&lt;fedid&gt;.diamond.ac.uk/</span></code>,
-where anyone on the DLS network can read it without logging in. scrap itself stays private. In the
-app, open a page’s <strong>Share</strong> menu and choose <strong>Make public…</strong>. To take a page down, make it private
-again (<strong>Make private</strong> in the Share menu). What goes public with a page is in <a class="reference internal" href="../how-to/publish-pages.html"><span class="std std-doc">Publish pages</span></a>.</p>
+<p>In the app, a page’s <strong>Share</strong> menu, <strong>Make public…</strong> copies it to
+<code class="docutils literal notranslate"><span class="pre">https://pages-&lt;fedid&gt;.diamond.ac.uk/</span></code>, readable by anyone on the DLS network without a login;
+<strong>Make private</strong> takes it down. See <a class="reference internal" href="../how-to/publish-pages.html"><span class="std std-doc">Publish pages</span></a>.</p>
 </section>
 <section id="restore">
 <span id="install-dls-restore"></span><h3>Restore<a class="headerlink" href="#restore" title="Link to this heading">#</a></h3>
-<p>To restore from the backups in your directory, follow the restore steps in
-<a class="reference internal" href="../how-to/deploy-kubernetes.html"><span class="std std-doc">Deploy on Kubernetes</span></a> with the changes in
-<a class="reference internal" href="../how-to/deploy-kubernetes.html#k8s-restore-litestream"><span class="std std-ref">with Litestream</span></a> and <a class="reference internal" href="../how-to/deploy-kubernetes.html#k8s-restore-hostpath"><span class="std std-ref">backups in a hostPath</span></a>,
-and your namespace in place of <code class="docutils literal notranslate"><span class="pre">-n</span> <span class="pre">scrap</span></code>.</p>
-</section>
-<section id="more">
-<h3>More<a class="headerlink" href="#more" title="Link to this heading">#</a></h3>
-<p>For everything the chart can do (backups, restore, upgrades), see <a class="reference internal" href="../how-to/deploy-kubernetes.html"><span class="std std-doc">Deploy on Kubernetes</span></a>.</p>
+<p>Follow the restore steps in <a class="reference internal" href="../how-to/deploy-kubernetes.html"><span class="std std-doc">Deploy on Kubernetes</span></a> (they restore with
+<code class="docutils literal notranslate"><span class="pre">--stage</span> <span class="pre">--force</span></code>), with your uid and gid from <code class="docutils literal notranslate"><span class="pre">id</span></code> in the pod’s <code class="docutils literal notranslate"><span class="pre">securityContext</span></code>, and leave out
+<code class="docutils literal notranslate"><span class="pre">-n</span> <span class="pre">scrap</span></code> (argus selects your namespace). Your backups are in a hostPath, so also make the
+changes for <a class="reference internal" href="../how-to/deploy-kubernetes.html#k8s-restore-hostpath"><span class="std std-ref">backups in a hostPath</span></a>, with the path
+<code class="docutils literal notranslate"><span class="pre">/dls/science/users/&lt;fedid&gt;/scrap</span></code> (or your <code class="docutils literal notranslate"><span class="pre">SCRAP_BACKUP_DIR</span></code>). If you set <code class="docutils literal notranslate"><span class="pre">SCRAP_BACKUP_DIR</span></code>
+empty, the backups are on a claim in the cluster instead: keep the how-to’s <code class="docutils literal notranslate"><span class="pre">scrap-backups</span></code>
+claim. argus accepts the pod as it is: it fills in the container’s <code class="docutils literal notranslate"><span class="pre">privileged:</span> <span class="pre">false</span></code>, user and
+resources itself.</p>
+<p>For everything else the chart can do, see <a class="reference internal" href="../how-to/deploy-kubernetes.html"><span class="std std-doc">Deploy on Kubernetes</span></a>.</p>
 </section>
 </section>
 </section>
@@ -761,13 +697,13 @@ and your namespace in place of <code class="docutils literal notranslate"><span 
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#what-the-installer-does">What the installer does</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#re-running-and-settings">Re-running and settings</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#claude-code">Claude Code</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#claude-code-in-claude-sandbox">Claude Code in claude-sandbox</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#before-the-dns-names-exist">Before the DNS names exist</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#if-logging-in-fails">If logging in fails</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#logging-in">Logging in</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#without-a-login-for-testing">Without a login, for testing</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#your-backups">Your backups</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#backups">Backups</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#publish-pages">Publish pages</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#restore">Restore</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#more">More</a></li>
 </ul>
 </li>
 </ul>

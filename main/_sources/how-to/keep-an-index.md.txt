@@ -25,9 +25,9 @@ link per line:
 A slug is the last part of a page's address (`/p/garden-plan` is `garden-plan`), and it never
 changes when a page is retitled, so the links survive renames. Only lower-case letters, digits
 and hyphens make a link: `[[Garden plan]]` stays as typed. The label after `|` is what shows.
-See [](use-the-pwa.md) (Linking pages).
+See [Linking pages](use-the-pwa.md#linking-pages).
 
-Tag the page `index`: tap **+ Tag** under its title. Tags are lower case, at
+Tag the page `index`: **Edit**, then its **Tags** line, then **Save**. Tags are lower case, at
 most 64 characters. If only this page carries the tag, a search for `tag:index` finds it at once. Use `index/projects`, `index/people` and so on for a page per topic: a search
 for `tag:index` finds them all.
 
@@ -42,10 +42,11 @@ Index page, tap **Share**, then **Pin to Search**, which pins the page itself an
 list. The pin goes on the **Pinned** page, an ordinary page of links, described in
 [](make-your-own-lists.md).
 
-**Pins do not show on launch.** The app opens on the capture screen, and pins appear only in
-the Search view: tap **Search**, then tap the empty search box, and **Pinned** is listed above
-Recent. So from launch, a pinned page is three taps away (**Search**, the box, the pin) and a
-pinned search four (the results list the Index, which you then tap). From the Search view it is
+**Pins do not show on launch.** On a phone the app opens on the capture screen (a computer opens
+on Search), and pins appear only in the Search view: tap **Search**, then tap the empty search
+box, and **Pinned** is listed above Recent. So from a phone's launch, a pinned page is three taps
+away (**Search**, the box, the pin) and a pinned search four (the results list the Index, which
+you then tap). From the Search view it is
 two and three.
 
 ### A home-screen icon for the page
@@ -71,5 +72,5 @@ and each edit is a revision you can undo with `revert`. A server run with
 itself, so let it write the Index (*make me an Index page*) and it can append to it afterwards (an append lands at the end of the page, not under a chosen
 heading, so you move the lines yourself).
 
-To see what an index links to, and what links back, open the page and look under **Related**:
-every page in the index lists the Index among its backlinks.
+Each page the Index links to lists the Index under **Related** (*· links here*), in its
+**About this page** card.

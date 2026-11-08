@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Ingest on a Claude seat instead of an API key &#8212; scrap 1.8.3.dev11+ge626bdd8c documentation</title>
+    <title>Ingest on a Claude seat instead of an API key &#8212; scrap 1.8.3.dev22+g979292dcd documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=3b410661"></script>
+    <script src="../_static/documentation_options.js?v=935dbc1a"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -227,17 +227,6 @@
           
           <a href="https://github.com/gilesknap/scrap" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-square-github fa-lg" aria-hidden="true"></i><span class="visually-hidden">GitHub</span></a>
         </li>
-        <li class="nav-item">
-          
-          
-          
-          
-          
-          
-          
-          
-          <a href="https://pypi.org/project/scrap" title="PyPI" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fas fa-cube fa-lg" aria-hidden="true"></i><span class="visually-hidden">PyPI</span></a>
-        </li>
 </ul></div>
       
         <div class="navbar-item">
@@ -371,17 +360,6 @@
           
           <a href="https://github.com/gilesknap/scrap" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-square-github fa-lg" aria-hidden="true"></i><span class="visually-hidden">GitHub</span></a>
         </li>
-        <li class="nav-item">
-          
-          
-          
-          
-          
-          
-          
-          
-          <a href="https://pypi.org/project/scrap" title="PyPI" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fas fa-cube fa-lg" aria-hidden="true"></i><span class="visually-hidden">PyPI</span></a>
-        </li>
 </ul></div>
         
           <div class="navbar-item">
@@ -491,8 +469,10 @@
 <span id="scrap-ingest-seat"></span><h1>Ingest on a Claude seat instead of an API key<a class="headerlink" href="#ingest-on-a-claude-seat-instead-of-an-api-key" title="Link to this heading">#</a></h1>
 <p>By the end of this page scrap reads your photos, and tags and summarises your notes, through
 your Claude seat rather than an API key. It is a change to an install you already have, not an
-install of its own: do one of <a class="reference internal" href="install-lan.html"><span class="std std-doc">Try scrap on your LAN</span></a>, <a class="reference internal" href="install-server.html"><span class="std std-doc">Install on a server with Tailscale</span></a> or
-<a class="reference internal" href="install-kubernetes.html"><span class="std std-doc">Install scrap on Kubernetes</span></a> first.</p>
+install of its own: do <a class="reference internal" href="install-kubernetes.html"><span class="std std-doc">Install scrap on Kubernetes</span></a> first. It also works on a single server
+(<a class="reference internal" href="install-server.html"><span class="std std-doc">Install on a server with Tailscale</span></a>) or a trial on your LAN (<a class="reference internal" href="install-lan.html"><span class="std std-doc">Try scrap on your LAN</span></a>).</p>
+<p>Not for the DLS install (<a class="reference internal" href="install-dls.html"><span class="std std-doc">Install scrap at DLS</span></a>) yet: its installer has no seat option, and a
+<code class="docutils literal notranslate"><span class="pre">helm</span> <span class="pre">upgrade</span></code> with your own values would replace the installer’s settings.</p>
 <div class="admonition important">
 <p class="admonition-title">Important</p>
 <p><strong>An API key is the encouraged default.</strong> Use this page only if you have a Claude seat (Team or
@@ -526,8 +506,8 @@ on top of a scrap image. It is from the release you run, so fetch it in an empty
 </div>
 <p>The last command should print a Claude Code version. The image is about 240 MB larger than
 scrap’s. Build it again, with the new release as <code class="docutils literal notranslate"><span class="pre">BASE</span></code>, each time you update scrap.</p>
-<p>On Kubernetes, build the same way, then tag the image for your own registry, push it, and set
-<code class="docutils literal notranslate"><span class="pre">image.repository</span></code> and <code class="docutils literal notranslate"><span class="pre">image.tag</span></code> in your values to it.</p>
+<p>On Kubernetes, build the same way, then tag the image for your own registry and push it; the
+Kubernetes section below sets your values to it.</p>
 </section>
 <section id="get-the-token">
 <h2>Get the token<a class="headerlink" href="#get-the-token" title="Link to this heading">#</a></h2>
@@ -541,8 +521,54 @@ it out of shell history, notes and anything you commit.</p>
 <section id="give-scrap-the-token">
 <h2>Give scrap the token<a class="headerlink" href="#give-scrap-the-token" title="Link to this heading">#</a></h2>
 <p>Use the one section for your install.</p>
-<section id="container-on-a-lan-or-single-server">
-<h3>Container on a LAN, or single server<a class="headerlink" href="#container-on-a-lan-or-single-server" title="Link to this heading">#</a></h3>
+<section id="kubernetes">
+<h3>Kubernetes<a class="headerlink" href="#kubernetes" title="Link to this heading">#</a></h3>
+<p>The chart has no first-class option for the token, so pass it through <code class="docutils literal notranslate"><span class="pre">extraEnv</span></code>. The chart still
+reads <code class="docutils literal notranslate"><span class="pre">ANTHROPIC_API_KEY</span></code> from <code class="docutils literal notranslate"><span class="pre">ingest.existingSecret</span></code> whenever ingest is on, so put an empty
+one in the same Secret:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">read</span> <span class="o">-</span><span class="n">rs</span> <span class="n">TOKEN</span> <span class="o">&amp;&amp;</span> <span class="n">printf</span> <span class="o">%</span><span class="n">s</span> <span class="s2">"$TOKEN"</span> <span class="o">|</span> <span class="n">kubectl</span> <span class="o">-</span><span class="n">n</span> <span class="n">scrap</span> <span class="n">create</span> <span class="n">secret</span> <span class="n">generic</span> <span class="n">scrap</span><span class="o">-</span><span class="n">claude</span> \
+    <span class="o">--</span><span class="n">from</span><span class="o">-</span><span class="n">literal</span><span class="o">=</span><span class="n">ANTHROPIC_API_KEY</span><span class="o">=</span> <span class="o">--</span><span class="n">from</span><span class="o">-</span><span class="n">file</span><span class="o">=</span><span class="n">CLAUDE_CODE_OAUTH_TOKEN</span><span class="o">=/</span><span class="n">dev</span><span class="o">/</span><span class="n">stdin</span><span class="p">;</span> <span class="n">unset</span> <span class="n">TOKEN</span>
+</pre></div>
+</div>
+<p>The token goes in on standard input, so it is not on <code class="docutils literal notranslate"><span class="pre">kubectl</span></code>’s command line.</p>
+<p>If you set <code class="docutils literal notranslate"><span class="pre">ingest.notifyUrlKey</span></code>, add that key to <code class="docutils literal notranslate"><span class="pre">scrap-claude</span></code> too: the chart reads it from
+<code class="docutils literal notranslate"><span class="pre">ingest.existingSecret</span></code>.</p>
+<p>If your registry needs credentials, create an image pull Secret and list it under
+<code class="docutils literal notranslate"><span class="pre">imagePullSecrets</span></code> in the values. Then edit your values file (<code class="docutils literal notranslate"><span class="pre">my-values.yaml</span></code> from the
+tutorial, which holds all your settings) to match this, with your own image from the build
+section: add <code class="docutils literal notranslate"><span class="pre">image</span></code>, change <code class="docutils literal notranslate"><span class="pre">ingest.existingSecret</span></code>, and add the two entries to the <code class="docutils literal notranslate"><span class="pre">extraEnv</span></code>
+list already there, keeping <code class="docutils literal notranslate"><span class="pre">SCRAP_PUBLIC_URL</span></code>. Do not repeat a key, and do not put these in a
+second values file: one would replace the whole <code class="docutils literal notranslate"><span class="pre">extraEnv</span></code> list.</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">image</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">repository</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">registry.example.com/me/scrap-claude</span>
+<span class="w">  </span><span class="nt">tag</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1.8.2</span>
+<span class="nt">ingest</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<span class="w">  </span><span class="nt">existingSecret</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">scrap-claude</span>
+<span class="nt">extraEnv</span><span class="p">:</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">SCRAP_PUBLIC_URL</span>
+<span class="w">    </span><span class="nt">value</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">https://scrap.example.com</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">SCRAP_LLM_BACKEND</span>
+<span class="w">    </span><span class="nt">value</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">cli</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">CLAUDE_CODE_OAUTH_TOKEN</span>
+<span class="w">    </span><span class="nt">valueFrom</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">secretKeyRef</span><span class="p">:</span>
+<span class="w">        </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">scrap-claude</span>
+<span class="w">        </span><span class="nt">key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">CLAUDE_CODE_OAUTH_TOKEN</span>
+</pre></div>
+</div>
+<p>Then upgrade with the whole file, so nothing you set before is lost:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">helm</span> <span class="n">upgrade</span> <span class="n">scrap</span> <span class="n">oci</span><span class="p">:</span><span class="o">//</span><span class="n">ghcr</span><span class="o">.</span><span class="n">io</span><span class="o">/</span><span class="n">gilesknap</span><span class="o">/</span><span class="n">charts</span><span class="o">/</span><span class="n">scrap</span> <span class="o">--</span><span class="n">version</span> <span class="mf">1.8.2</span> \
+    <span class="o">-</span><span class="n">n</span> <span class="n">scrap</span> <span class="o">-</span><span class="n">f</span> <span class="n">my</span><span class="o">-</span><span class="n">values</span><span class="o">.</span><span class="n">yaml</span>
+</pre></div>
+</div>
+<p>The pod’s <code class="docutils literal notranslate"><span class="pre">jobs</span></code> container, which runs the nightly related-pages and weekly topics passes, gets
+the same environment. The CLI takes about 250 MB while it runs: if a container is killed for
+memory, raise <code class="docutils literal notranslate"><span class="pre">resources.limits.memory</span></code> (the web app) or <code class="docutils literal notranslate"><span class="pre">litestream.jobs.resources.limits.memory</span></code>
+(the <code class="docutils literal notranslate"><span class="pre">jobs</span></code> container).</p>
+</section>
+<section id="on-a-single-server-or-a-trial-on-your-lan">
+<h3>On a single server, or a trial on your LAN<a class="headerlink" href="#on-a-single-server-or-a-trial-on-your-lan" title="Link to this heading">#</a></h3>
 <p><code class="docutils literal notranslate"><span class="pre">SCRAP_LLM_BACKEND</span></code> is <code class="docutils literal notranslate"><span class="pre">api</span></code> (the default) or <code class="docutils literal notranslate"><span class="pre">cli</span></code>. Set it with the token and drop
 <code class="docutils literal notranslate"><span class="pre">ANTHROPIC_API_KEY</span></code>:</p>
 <ul>
@@ -571,48 +597,13 @@ there too, for example to <code class="docutils literal notranslate"><span class
 <p><code class="docutils literal notranslate"><span class="pre">podman</span> <span class="pre">inspect</span> <span class="pre">scrap</span></code> shows the container’s environment, token included: do not paste it
 anywhere.</p>
 </section>
-<section id="kubernetes">
-<h3>Kubernetes<a class="headerlink" href="#kubernetes" title="Link to this heading">#</a></h3>
-<p>The chart has no first-class option for the token, so pass it through <code class="docutils literal notranslate"><span class="pre">extraEnv</span></code>. The chart still
-reads <code class="docutils literal notranslate"><span class="pre">ANTHROPIC_API_KEY</span></code> from <code class="docutils literal notranslate"><span class="pre">ingest.existingSecret</span></code> whenever ingest is on, so put an empty
-one in the same Secret:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">read</span> <span class="o">-</span><span class="n">rs</span> <span class="n">TOKEN</span> <span class="o">&amp;&amp;</span> <span class="n">printf</span> <span class="o">%</span><span class="n">s</span> <span class="s2">"$TOKEN"</span> <span class="o">|</span> <span class="n">kubectl</span> <span class="o">-</span><span class="n">n</span> <span class="n">scrap</span> <span class="n">create</span> <span class="n">secret</span> <span class="n">generic</span> <span class="n">scrap</span><span class="o">-</span><span class="n">claude</span> \
-    <span class="o">--</span><span class="n">from</span><span class="o">-</span><span class="n">literal</span><span class="o">=</span><span class="n">ANTHROPIC_API_KEY</span><span class="o">=</span> <span class="o">--</span><span class="n">from</span><span class="o">-</span><span class="n">file</span><span class="o">=</span><span class="n">CLAUDE_CODE_OAUTH_TOKEN</span><span class="o">=/</span><span class="n">dev</span><span class="o">/</span><span class="n">stdin</span><span class="p">;</span> <span class="n">unset</span> <span class="n">TOKEN</span>
-</pre></div>
-</div>
-<p>The token goes in on standard input, so it is not on <code class="docutils literal notranslate"><span class="pre">kubectl</span></code>’s command line.</p>
-<p>If your registry needs credentials, create an image pull Secret and list it under
-<code class="docutils literal notranslate"><span class="pre">imagePullSecrets</span></code> in the values. Add to your values, with your own image from the build section:</p>
-<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">image</span><span class="p">:</span>
-<span class="w">  </span><span class="nt">repository</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">registry.example.com/me/scrap-claude</span>
-<span class="w">  </span><span class="nt">tag</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1.8.2</span>
-<span class="nt">ingest</span><span class="p">:</span>
-<span class="w">  </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
-<span class="w">  </span><span class="nt">existingSecret</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">scrap-claude</span>
-<span class="nt">extraEnv</span><span class="p">:</span>
-<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">SCRAP_LLM_BACKEND</span>
-<span class="w">    </span><span class="nt">value</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">cli</span>
-<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">CLAUDE_CODE_OAUTH_TOKEN</span>
-<span class="w">    </span><span class="nt">valueFrom</span><span class="p">:</span>
-<span class="w">      </span><span class="nt">secretKeyRef</span><span class="p">:</span>
-<span class="w">        </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">scrap-claude</span>
-<span class="w">        </span><span class="nt">key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">CLAUDE_CODE_OAUTH_TOKEN</span>
-</pre></div>
-</div>
-<p>Then upgrade with the new values:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">helm</span> <span class="n">upgrade</span> <span class="n">scrap</span> <span class="n">oci</span><span class="p">:</span><span class="o">//</span><span class="n">ghcr</span><span class="o">.</span><span class="n">io</span><span class="o">/</span><span class="n">gilesknap</span><span class="o">/</span><span class="n">charts</span><span class="o">/</span><span class="n">scrap</span> <span class="o">--</span><span class="n">version</span> <span class="mf">1.8.2</span> \
-    <span class="o">-</span><span class="n">n</span> <span class="n">scrap</span> <span class="o">-</span><span class="n">f</span> <span class="n">my</span><span class="o">-</span><span class="n">values</span><span class="o">.</span><span class="n">yaml</span>
-</pre></div>
-</div>
-<p>The nightly related-pages and weekly topics CronJobs get the same environment. Raise
-<code class="docutils literal notranslate"><span class="pre">resources.limits.memory</span></code> if the pod is killed: the CLI takes about 250 MB.</p>
-</section>
 </section>
 <section id="check-a-photo-is-read">
 <h2>Check a photo is read<a class="headerlink" href="#check-a-photo-is-read" title="Link to this heading">#</a></h2>
 <p>Capture a photo in the app. Within about a minute its page shows a kind, a description and tags
-instead of waiting. If it does not, read scrap’s log (<code class="docutils literal notranslate"><span class="pre">podman</span> <span class="pre">logs</span> <span class="pre">scrap</span></code>, <code class="docutils literal notranslate"><span class="pre">journalctl</span></code> or
-<code class="docutils literal notranslate"><span class="pre">kubectl</span> <span class="pre">logs</span></code> as in your install). Without the token or the <code class="docutils literal notranslate"><span class="pre">claude</span></code> binary, ingest pauses with
+instead of waiting. If it does not, read scrap’s log
+(<code class="docutils literal notranslate"><span class="pre">kubectl</span> <span class="pre">-n</span> <span class="pre">scrap</span> <span class="pre">logs</span> <span class="pre">deploy/scrap</span> <span class="pre">-c</span> <span class="pre">scrap</span></code>; on a single server or LAN, <code class="docutils literal notranslate"><span class="pre">podman</span> <span class="pre">logs</span> <span class="pre">scrap</span></code> or
+<code class="docutils literal notranslate"><span class="pre">journalctl</span></code> as in your install). Without the token or the <code class="docutils literal notranslate"><span class="pre">claude</span></code> binary, ingest pauses with
 reason <code class="docutils literal notranslate"><span class="pre">auth</span></code> until you press <strong>Resume</strong>, and the log says which is missing. Nothing is lost while
 it is paused. A <code class="docutils literal notranslate"><span class="pre">401</span> <span class="pre">...</span> <span class="pre">invalid</span></code> means the token was copied wrongly: fix it, restart scrap, then
 <strong>Resume</strong>.</p>
@@ -671,8 +662,8 @@ anything you are charged. Set <code class="docutils literal notranslate"><span c
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#build-the-image-with-the-claude-cli">Build the image with the Claude CLI</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#get-the-token">Get the token</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#give-scrap-the-token">Give scrap the token</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#container-on-a-lan-or-single-server">Container on a LAN, or single server</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#kubernetes">Kubernetes</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#on-a-single-server-or-a-trial-on-your-lan">On a single server, or a trial on your LAN</a></li>
 </ul>
 </li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#check-a-photo-is-read">Check a photo is read</a></li>

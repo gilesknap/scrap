@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Scope and stack &#8212; scrap 1.8.3.dev11+ge626bdd8c documentation</title>
+    <title>Scope and stack &#8212; scrap 1.8.3.dev22+g979292dcd documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=3b410661"></script>
+    <script src="../_static/documentation_options.js?v=935dbc1a"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -58,8 +58,8 @@
     <link rel="icon" href="../_static/dls-logo.svg"/>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="Reference" href="../reference.html" />
-    <link rel="prev" title="What Claude is asked, per page" href="llm-calls.html" />
+    <link rel="next" title="Architecture" href="design.html" />
+    <link rel="prev" title="Explanations" href="../explanations.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="color-scheme" content="light dark"/>
   <meta name="docsearch:language" content="en"/>
@@ -227,17 +227,6 @@
           
           <a href="https://github.com/gilesknap/scrap" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-square-github fa-lg" aria-hidden="true"></i><span class="visually-hidden">GitHub</span></a>
         </li>
-        <li class="nav-item">
-          
-          
-          
-          
-          
-          
-          
-          
-          <a href="https://pypi.org/project/scrap" title="PyPI" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fas fa-cube fa-lg" aria-hidden="true"></i><span class="visually-hidden">PyPI</span></a>
-        </li>
 </ul></div>
       
         <div class="navbar-item">
@@ -371,17 +360,6 @@
           
           <a href="https://github.com/gilesknap/scrap" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-square-github fa-lg" aria-hidden="true"></i><span class="visually-hidden">GitHub</span></a>
         </li>
-        <li class="nav-item">
-          
-          
-          
-          
-          
-          
-          
-          
-          <a href="https://pypi.org/project/scrap" title="PyPI" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fas fa-cube fa-lg" aria-hidden="true"></i><span class="visually-hidden">PyPI</span></a>
-        </li>
 </ul></div>
         
           <div class="navbar-item">
@@ -421,7 +399,28 @@
 <nav class="bd-docs-nav bd-links"
      aria-label="Section Navigation">
   <p class="bd-links__title" role="heading" aria-level="1">Section Navigation</p>
-  <div class="bd-toc-item navbar-nav"><ul class="current nav bd-sidenav">
+  <div class="bd-toc-item navbar-nav"><p aria-level="2" class="caption" role="heading"><span class="caption-text">Scope and architecture</span></p>
+<ul class="current nav bd-sidenav">
+<li class="toctree-l1 current active"><a aria-current="page" class="current reference internal" href="#">Scope and stack</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="design.html">Architecture</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="architecture/data-model.html">Data model and storage</a></li>
+<li class="toctree-l2"><a class="reference internal" href="architecture/capture-and-files.html">Capture, files and backup</a></li>
+<li class="toctree-l2"><a class="reference internal" href="architecture/claude-pipeline.html">Job queue and Claude features</a></li>
+<li class="toctree-l2"><a class="reference internal" href="architecture/search.html">Search</a></li>
+<li class="toctree-l2"><a class="reference internal" href="architecture/mcp-and-access.html">MCP server and access</a></li>
+<li class="toctree-l2"><a class="reference internal" href="architecture/frontend-pwa.html">The PWA</a></li>
+<li class="toctree-l2"><a class="reference internal" href="architecture/deployment.html">Deployment and operations</a></li>
+</ul>
+</details></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Claude and the PWA</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="ingest.html">Claude ingest</a></li>
+<li class="toctree-l1"><a class="reference internal" href="llm-calls.html">What Claude is asked, per page</a></li>
+<li class="toctree-l1"><a class="reference internal" href="design-system.html">The PWA’s design system</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Decisions</span></p>
+<ul class="nav bd-sidenav">
 <li class="toctree-l1 has-children"><a class="reference internal" href="decisions.html">Architectural Decision Records</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l2"><a class="reference internal" href="decisions/0001-record-architecture-decisions.html">1. Record architecture decisions</a></li>
 <li class="toctree-l2"><a class="reference internal" href="decisions/0002-switched-to-python-copier-template.html">2. Adopt python-copier-template for project structure</a></li>
@@ -473,20 +472,6 @@
 <li class="toctree-l2"><a class="reference internal" href="decisions/0047-litestream-is-the-default-kubernetes-mode.html">47. Litestream is the default Kubernetes mode</a></li>
 </ul>
 </details></li>
-<li class="toctree-l1 has-children"><a class="reference internal" href="design.html">Architecture</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
-<li class="toctree-l2"><a class="reference internal" href="architecture/data-model.html">Data model and storage</a></li>
-<li class="toctree-l2"><a class="reference internal" href="architecture/capture-and-files.html">Capture, files and backup</a></li>
-<li class="toctree-l2"><a class="reference internal" href="architecture/claude-pipeline.html">Job queue and Claude features</a></li>
-<li class="toctree-l2"><a class="reference internal" href="architecture/search.html">Search</a></li>
-<li class="toctree-l2"><a class="reference internal" href="architecture/mcp-and-access.html">MCP server and access</a></li>
-<li class="toctree-l2"><a class="reference internal" href="architecture/frontend-pwa.html">The PWA</a></li>
-<li class="toctree-l2"><a class="reference internal" href="architecture/deployment.html">Deployment and operations</a></li>
-</ul>
-</details></li>
-<li class="toctree-l1"><a class="reference internal" href="design-system.html">The PWA’s design system</a></li>
-<li class="toctree-l1"><a class="reference internal" href="ingest.html">Claude ingest</a></li>
-<li class="toctree-l1"><a class="reference internal" href="llm-calls.html">What Claude is asked, per page</a></li>
-<li class="toctree-l1 current active"><a aria-current="page" class="current reference internal" href="#">Scope and stack</a></li>
 </ul>
 </div>
 </nav></div>
@@ -558,8 +543,8 @@ principles and how it works; the <a class="reference internal" href="decisions.h
 of every page as Markdown (<code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">export</span></code>, or Settings, <strong>Export everything</strong>) opens as an
 Obsidian vault, but nothing is kept in step with it.</p></li>
 <li><p>No login code of its own and no user management. Access is the network: Tailscale (Serve
-supplies the identity header) or an authenticating proxy such as Cloudflare Access, with an
-optional bearer token on <code class="docutils literal notranslate"><span class="pre">/mcp</span></code> only
+supplies the identity header) or an authenticating proxy such as Cloudflare Access or the DLS
+login proxy (whose token scrap checks), with an optional bearer token on <code class="docutils literal notranslate"><span class="pre">/mcp</span></code> only
 (<a class="reference internal" href="decisions/0007-tailscale-serve-for-access-and-identity.html"><span class="std std-doc">7. Tailscale Serve is the only way in; no login code</span></a>,
 <a class="reference internal" href="decisions/0023-bearer-token-on-mcp-and-an-identity-header-setting.html"><span class="std std-doc">23. Bearer token on /mcp and an identity-header setting</span></a>).</p></li>
 <li><p>No collection of microservices or paid-API integration layers.</p></li>
@@ -579,7 +564,7 @@ optional bearer token on <code class="docutils literal notranslate"><span class=
 <td><p>One Python process: FastAPI serving the PWA, a JSON API and an MCP server (<a class="reference internal" href="decisions/0013-mcp-server-inside-the-app.html"><span class="std std-doc">13. The MCP server is part of the app: streamable HTTP, add-only writes</span></a>)</p></td>
 </tr>
 <tr class="row-odd"><td><p>Storage</p></td>
-<td><p>SQLite, plus a folder of content-addressed files</p></td>
+<td><p>SQLite, plus a folder of content-addressed files; on Kubernetes the database is on the node’s disk, replicated by Litestream into that folder (<a class="reference internal" href="decisions/0046-database-on-an-emptydir-replicated-with-litestream.html"><span class="std std-doc">46. The database on an emptyDir, replicated with Litestream</span></a>)</p></td>
 </tr>
 <tr class="row-even"><td><p>Search</p></td>
 <td><p>SQLite FTS5 (BM25, prefix matching) with a filter syntax shared by the PWA and MCP; embeddings deferred (<a class="reference internal" href="decisions/0008-search-fts5-only-for-now.html"><span class="std std-doc">8. Search is SQLite FTS5 with a shared query syntax; embeddings are deferred</span></a>)</p></td>
@@ -588,10 +573,13 @@ optional bearer token on <code class="docutils literal notranslate"><span class=
 <td><p>TypeScript PWA with the Excalidraw component</p></td>
 </tr>
 <tr class="row-even"><td><p>Access</p></td>
-<td><p>No login. Bind loopback or a Unix socket and publish with Tailscale Serve (<a class="reference internal" href="decisions/0007-tailscale-serve-for-access-and-identity.html"><span class="std std-doc">7. Tailscale Serve is the only way in; no login code</span></a>, <a class="reference internal" href="decisions/0018-unix-socket-for-single-server-installs.html"><span class="std std-doc">18. Single-server installs listen on a Unix socket, reached only through Tailscale Serve</span></a>), or put an authenticating proxy in front on Kubernetes, with an optional <code class="docutils literal notranslate"><span class="pre">SCRAP_MCP_TOKEN</span></code> on <code class="docutils literal notranslate"><span class="pre">/mcp</span></code> (<a class="reference internal" href="decisions/0023-bearer-token-on-mcp-and-an-identity-header-setting.html"><span class="std std-doc">23. Bearer token on /mcp and an identity-header setting</span></a>)</p></td>
+<td><p>No login. Bind loopback or a Unix socket and publish with Tailscale Serve (<a class="reference internal" href="decisions/0007-tailscale-serve-for-access-and-identity.html"><span class="std std-doc">7. Tailscale Serve is the only way in; no login code</span></a>, <a class="reference internal" href="decisions/0018-unix-socket-for-single-server-installs.html"><span class="std std-doc">18. Single-server installs listen on a Unix socket, reached only through Tailscale Serve</span></a>), or put an authenticating proxy in front on Kubernetes (Cloudflare Access, or the DLS login proxy, whose Keycloak token scrap checks: <a class="reference internal" href="decisions/0045-scrap-verifies-the-login-proxys-keycloak-token.html"><span class="std std-doc">45. scrap verifies the login proxy’s Keycloak token</span></a>), with an optional <code class="docutils literal notranslate"><span class="pre">SCRAP_MCP_TOKEN</span></code> on <code class="docutils literal notranslate"><span class="pre">/mcp</span></code> (<a class="reference internal" href="decisions/0023-bearer-token-on-mcp-and-an-identity-header-setting.html"><span class="std std-doc">23. Bearer token on /mcp and an identity-header setting</span></a>)</p></td>
 </tr>
 <tr class="row-odd"><td><p>Deployment</p></td>
-<td><p>Multi-arch (amd64, arm64) container image: a plain container to try it, rootless podman and systemd on one server, or the Helm chart on Kubernetes (<a class="reference internal" href="decisions/0016-deployment-single-server-and-helm.html"><span class="std std-doc">16. Deployment: rootless podman units for one server, a Helm chart for Kubernetes</span></a>)</p></td>
+<td><p>Multi-arch (amd64, arm64) container image: a plain container to try it, rootless podman and systemd on one server, or the Helm chart on Kubernetes, with Litestream replicating the database (<a class="reference internal" href="decisions/0016-deployment-single-server-and-helm.html"><span class="std std-doc">16. Deployment: rootless podman units for one server, a Helm chart for Kubernetes</span></a>, <a class="reference internal" href="decisions/0046-database-on-an-emptydir-replicated-with-litestream.html"><span class="std std-doc">46. The database on an emptyDir, replicated with Litestream</span></a>)</p></td>
+</tr>
+<tr class="row-even"><td><p>Public pages</p></td>
+<td><p>A static site (nginx and an upload receiver, the <code class="docutils literal notranslate"><span class="pre">scrap-public</span></code> image) that scrap pushes the pages the owner makes public to; scrap itself stays private (<a class="reference internal" href="decisions/0043-public-pages-a-static-site-scrap-pushes-to.html"><span class="std std-doc">43. Public pages: a static site scrap pushes to</span></a>)</p></td>
 </tr>
 </tbody>
 </table>
@@ -610,20 +598,20 @@ optional bearer token on <code class="docutils literal notranslate"><span class=
                   
 <div class="prev-next-area">
     <a class="left-prev"
-       href="llm-calls.html"
+       href="../explanations.html"
        title="previous page">
       <i class="fa-solid fa-angle-left"></i>
       <div class="prev-next-info">
         <p class="prev-next-subtitle">previous</p>
-        <p class="prev-next-title">What Claude is asked, per page</p>
+        <p class="prev-next-title">Explanations</p>
       </div>
     </a>
     <a class="right-next"
-       href="../reference.html"
+       href="design.html"
        title="next page">
       <div class="prev-next-info">
         <p class="prev-next-subtitle">next</p>
-        <p class="prev-next-title">Reference</p>
+        <p class="prev-next-title">Architecture</p>
       </div>
       <i class="fa-solid fa-angle-right"></i>
     </a>

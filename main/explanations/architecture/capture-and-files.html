@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Capture, files and backup &#8212; scrap 1.8.3.dev11+ge626bdd8c documentation</title>
+    <title>Capture, files and backup &#8212; scrap 1.8.3.dev22+g979292dcd documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../../_static/documentation_options.js?v=3b410661"></script>
+    <script src="../../_static/documentation_options.js?v=935dbc1a"></script>
     <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -585,17 +585,6 @@ window.runMermaid = runMermaid;</script>
           
           <a href="https://github.com/gilesknap/scrap" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-square-github fa-lg" aria-hidden="true"></i><span class="visually-hidden">GitHub</span></a>
         </li>
-        <li class="nav-item">
-          
-          
-          
-          
-          
-          
-          
-          
-          <a href="https://pypi.org/project/scrap" title="PyPI" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fas fa-cube fa-lg" aria-hidden="true"></i><span class="visually-hidden">PyPI</span></a>
-        </li>
 </ul></div>
       
         <div class="navbar-item">
@@ -729,17 +718,6 @@ window.runMermaid = runMermaid;</script>
           
           <a href="https://github.com/gilesknap/scrap" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-square-github fa-lg" aria-hidden="true"></i><span class="visually-hidden">GitHub</span></a>
         </li>
-        <li class="nav-item">
-          
-          
-          
-          
-          
-          
-          
-          
-          <a href="https://pypi.org/project/scrap" title="PyPI" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fas fa-cube fa-lg" aria-hidden="true"></i><span class="visually-hidden">PyPI</span></a>
-        </li>
 </ul></div>
         
           <div class="navbar-item">
@@ -779,7 +757,28 @@ window.runMermaid = runMermaid;</script>
 <nav class="bd-docs-nav bd-links"
      aria-label="Section Navigation">
   <p class="bd-links__title" role="heading" aria-level="1">Section Navigation</p>
-  <div class="bd-toc-item navbar-nav"><ul class="current nav bd-sidenav">
+  <div class="bd-toc-item navbar-nav"><p aria-level="2" class="caption" role="heading"><span class="caption-text">Scope and architecture</span></p>
+<ul class="current nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../overview.html">Scope and stack</a></li>
+<li class="toctree-l1 current active has-children"><a class="reference internal" href="../design.html">Architecture</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="data-model.html">Data model and storage</a></li>
+<li class="toctree-l2 current active"><a aria-current="page" class="current reference internal" href="#">Capture, files and backup</a></li>
+<li class="toctree-l2"><a class="reference internal" href="claude-pipeline.html">Job queue and Claude features</a></li>
+<li class="toctree-l2"><a class="reference internal" href="search.html">Search</a></li>
+<li class="toctree-l2"><a class="reference internal" href="mcp-and-access.html">MCP server and access</a></li>
+<li class="toctree-l2"><a class="reference internal" href="frontend-pwa.html">The PWA</a></li>
+<li class="toctree-l2"><a class="reference internal" href="deployment.html">Deployment and operations</a></li>
+</ul>
+</details></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Claude and the PWA</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../ingest.html">Claude ingest</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../llm-calls.html">What Claude is asked, per page</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../design-system.html">The PWA’s design system</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Decisions</span></p>
+<ul class="nav bd-sidenav">
 <li class="toctree-l1 has-children"><a class="reference internal" href="../decisions.html">Architectural Decision Records</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l2"><a class="reference internal" href="../decisions/0001-record-architecture-decisions.html">1. Record architecture decisions</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../decisions/0002-switched-to-python-copier-template.html">2. Adopt python-copier-template for project structure</a></li>
@@ -831,20 +830,6 @@ window.runMermaid = runMermaid;</script>
 <li class="toctree-l2"><a class="reference internal" href="../decisions/0047-litestream-is-the-default-kubernetes-mode.html">47. Litestream is the default Kubernetes mode</a></li>
 </ul>
 </details></li>
-<li class="toctree-l1 current active has-children"><a class="reference internal" href="../design.html">Architecture</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
-<li class="toctree-l2"><a class="reference internal" href="data-model.html">Data model and storage</a></li>
-<li class="toctree-l2 current active"><a aria-current="page" class="current reference internal" href="#">Capture, files and backup</a></li>
-<li class="toctree-l2"><a class="reference internal" href="claude-pipeline.html">Job queue and Claude features</a></li>
-<li class="toctree-l2"><a class="reference internal" href="search.html">Search</a></li>
-<li class="toctree-l2"><a class="reference internal" href="mcp-and-access.html">MCP server and access</a></li>
-<li class="toctree-l2"><a class="reference internal" href="frontend-pwa.html">The PWA</a></li>
-<li class="toctree-l2"><a class="reference internal" href="deployment.html">Deployment and operations</a></li>
-</ul>
-</details></li>
-<li class="toctree-l1"><a class="reference internal" href="../design-system.html">The PWA’s design system</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../ingest.html">Claude ingest</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../llm-calls.html">What Claude is asked, per page</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../overview.html">Scope and stack</a></li>
 </ul>
 </div>
 </nav></div>
@@ -1124,21 +1109,22 @@ until the page is purged: then the files it showed that no page shows are taken 
 captures and deleted. Nothing is
 stored for this: it is derived from page text and revisions. The monthly page rolls over once
 done, cancelled, trashed or 1 MB full.</p></li>
-<li><p><strong>Scheduling.</strong> On a single server a nightly timer runs gc after the backup and deletes only if
-a completed backup (integrity checked, <code class="docutils literal notranslate"><span class="pre">COMPLETE</span></code> marker written) is under 26 hours old. See
-<a class="reference internal" href="deployment.html"><span class="std std-doc">Deployment and operations</span></a>.</p></li>
+<li><p><strong>Scheduling.</strong> gc runs nightly after the backup (a systemd timer on a single server, the
+scrap pod’s <code class="docutils literal notranslate"><span class="pre">jobs</span></code> container on Kubernetes) and deletes only if a completed backup (integrity
+checked, <code class="docutils literal notranslate"><span class="pre">COMPLETE</span></code> marker written) is under 26 hours old. See <a class="reference internal" href="deployment.html"><span class="std std-doc">Deployment and operations</span></a>.</p></li>
 </ul>
 </section>
-<section id="backup-restore-and-export">
-<h2>Backup, restore and export<a class="headerlink" href="#backup-restore-and-export" title="Link to this heading">#</a></h2>
+<section id="backup-restore-export-and-import">
+<h2>Backup, restore, export and import<a class="headerlink" href="#backup-restore-export-and-import" title="Link to this heading">#</a></h2>
 <pre  class="mermaid">
         flowchart LR
     s[(&quot;Store&quot;)]:::store -- &quot;scrap backup&quot; --&gt; b[(&quot;Backup dir + COMPLETE&quot;)]:::store
     b -- &quot;scrap restore&quot; --&gt; s
     s -- &quot;scrap export, Export everything&quot; --&gt; x[&quot;Markdown + files&quot;]:::user
+    x -- &quot;scrap import, Settings import&quot; --&gt; s
     classDef store fill:#e8f1ff,stroke:#4a7bd0
     classDef user fill:#e9f7ef,stroke:#2e9d5b
-    </pre><p><strong>Backup, restore, export</strong> (<code class="docutils literal notranslate"><span class="pre">backup.py</span></code>, <code class="docutils literal notranslate"><span class="pre">export.py</span></code>; <a class="reference internal" href="deployment.html"><span class="std std-doc">Deployment and operations</span></a>):</p>
+    </pre><p><strong>Backup, restore, export, import</strong> (<code class="docutils literal notranslate"><span class="pre">backup.py</span></code>, <code class="docutils literal notranslate"><span class="pre">export.py</span></code>, <code class="docutils literal notranslate"><span class="pre">importer/</span></code>; <a class="reference internal" href="deployment.html"><span class="std std-doc">Deployment and operations</span></a>):</p>
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">backup</span></code> takes an online SQLite snapshot, then copies <code class="docutils literal notranslate"><span class="pre">files/</span></code>, safe while serving. Blobs are
 written before the rows that name them, so the copy always holds every blob in the snapshot.
@@ -1153,6 +1139,10 @@ only the owner’s text and data; what a model wrote about it goes in <code clas
 model’s words are never mistaken for the owner’s (<a class="reference internal" href="../decisions/0020-text-enrichment.html"><span class="std std-doc">20. Text enrichment: Claude tags, summarises and relates text pages, apart from the text</span></a>,
 <a class="reference internal" href="../decisions/0027-claude-write-ups-of-boards-apart-from-the-text.html"><span class="std std-doc">27. Claude’s write-ups of boards, apart from the text</span></a>).
 The pages are read in one transaction, then the files are copied or streamed a chunk at a time.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">import</span></code> reads Markdown pages with YAML front matter (a scrap export or an Obsidian vault, a
+folder or a zip) back in through the store (<code class="docutils literal notranslate"><span class="pre">importer/</span></code>), as new pages tagged
+<code class="docutils literal notranslate"><span class="pre">import/&lt;date&gt;</span></code>; a page already there is skipped, never overwritten, and Claude reads the new
+pages only when asked (<code class="docutils literal notranslate"><span class="pre">--enrich</span></code>, <code class="docutils literal notranslate"><span class="pre">--photos</span></code>). See <a class="reference internal" href="../../how-to/import-your-pages.html"><span class="std std-doc">Import your pages</span></a>.</p></li>
 </ul>
 </section>
 <section id="invariants">
@@ -1175,7 +1165,8 @@ and only once what freed it is committed.</p></li>
 <li><p><a class="reference internal" href="../decisions/0006-vanilla-typescript-pwa-with-lazy-chunks.html"><span class="std std-doc">6. A vanilla TypeScript PWA with a size budget and lazy chunks</span></a></p></li>
 <li><p><a class="reference internal" href="../decisions/0014-markdown-parsed-by-a-library-on-both-sides.html"><span class="std std-doc">14. Page text is Markdown, parsed by a library on both sides</span></a></p></li>
 <li><p><a class="reference internal" href="../decisions/0015-images-in-text-and-gc.html"><span class="std std-doc">15. Images are embedded in the page text; scrap gc is conservative</span></a></p></li>
-<li><p><a class="reference internal" href="../decisions/0017-thoth-vault-import-through-the-store.html"><span class="std std-doc">17. Import from a Thoth vault goes through Store and is idempotent</span></a></p></li>
+<li><p><a class="reference internal" href="../decisions/0017-thoth-vault-import-through-the-store.html"><span class="std std-doc">17. Import from a Thoth vault goes through Store and is idempotent</span></a> (the first importer, since
+removed; <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">import</span></code> follows its rule of going through <code class="docutils literal notranslate"><span class="pre">Store</span></code>)</p></li>
 <li><p><a class="reference internal" href="../../reference/api.html"><span class="std std-doc">HTTP API and CLI</span></a> for routes and commands; <a class="reference internal" href="../../how-to/use-the-pwa.html"><span class="std std-doc">Capture from your phone (the PWA)</span></a> for the
 capture screen.</p></li>
 </ul>
@@ -1235,7 +1226,7 @@ capture screen.</p></li>
 </li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#images-in-the-text">Images in the text</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#unused-files">Unused files</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#backup-restore-and-export">Backup, restore and export</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#backup-restore-export-and-import">Backup, restore, export and import</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#invariants">Invariants</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#decisions-and-reference">Decisions and reference</a></li>
 </ul>

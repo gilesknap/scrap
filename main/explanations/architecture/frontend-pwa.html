@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>The PWA &#8212; scrap 1.8.3.dev11+ge626bdd8c documentation</title>
+    <title>The PWA &#8212; scrap 1.8.3.dev22+g979292dcd documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../../_static/documentation_options.js?v=3b410661"></script>
+    <script src="../../_static/documentation_options.js?v=935dbc1a"></script>
     <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -585,17 +585,6 @@ window.runMermaid = runMermaid;</script>
           
           <a href="https://github.com/gilesknap/scrap" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-square-github fa-lg" aria-hidden="true"></i><span class="visually-hidden">GitHub</span></a>
         </li>
-        <li class="nav-item">
-          
-          
-          
-          
-          
-          
-          
-          
-          <a href="https://pypi.org/project/scrap" title="PyPI" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fas fa-cube fa-lg" aria-hidden="true"></i><span class="visually-hidden">PyPI</span></a>
-        </li>
 </ul></div>
       
         <div class="navbar-item">
@@ -729,17 +718,6 @@ window.runMermaid = runMermaid;</script>
           
           <a href="https://github.com/gilesknap/scrap" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-square-github fa-lg" aria-hidden="true"></i><span class="visually-hidden">GitHub</span></a>
         </li>
-        <li class="nav-item">
-          
-          
-          
-          
-          
-          
-          
-          
-          <a href="https://pypi.org/project/scrap" title="PyPI" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fas fa-cube fa-lg" aria-hidden="true"></i><span class="visually-hidden">PyPI</span></a>
-        </li>
 </ul></div>
         
           <div class="navbar-item">
@@ -779,7 +757,28 @@ window.runMermaid = runMermaid;</script>
 <nav class="bd-docs-nav bd-links"
      aria-label="Section Navigation">
   <p class="bd-links__title" role="heading" aria-level="1">Section Navigation</p>
-  <div class="bd-toc-item navbar-nav"><ul class="current nav bd-sidenav">
+  <div class="bd-toc-item navbar-nav"><p aria-level="2" class="caption" role="heading"><span class="caption-text">Scope and architecture</span></p>
+<ul class="current nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../overview.html">Scope and stack</a></li>
+<li class="toctree-l1 current active has-children"><a class="reference internal" href="../design.html">Architecture</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="data-model.html">Data model and storage</a></li>
+<li class="toctree-l2"><a class="reference internal" href="capture-and-files.html">Capture, files and backup</a></li>
+<li class="toctree-l2"><a class="reference internal" href="claude-pipeline.html">Job queue and Claude features</a></li>
+<li class="toctree-l2"><a class="reference internal" href="search.html">Search</a></li>
+<li class="toctree-l2"><a class="reference internal" href="mcp-and-access.html">MCP server and access</a></li>
+<li class="toctree-l2 current active"><a aria-current="page" class="current reference internal" href="#">The PWA</a></li>
+<li class="toctree-l2"><a class="reference internal" href="deployment.html">Deployment and operations</a></li>
+</ul>
+</details></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Claude and the PWA</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../ingest.html">Claude ingest</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../llm-calls.html">What Claude is asked, per page</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../design-system.html">The PWA’s design system</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Decisions</span></p>
+<ul class="nav bd-sidenav">
 <li class="toctree-l1 has-children"><a class="reference internal" href="../decisions.html">Architectural Decision Records</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l2"><a class="reference internal" href="../decisions/0001-record-architecture-decisions.html">1. Record architecture decisions</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../decisions/0002-switched-to-python-copier-template.html">2. Adopt python-copier-template for project structure</a></li>
@@ -831,20 +830,6 @@ window.runMermaid = runMermaid;</script>
 <li class="toctree-l2"><a class="reference internal" href="../decisions/0047-litestream-is-the-default-kubernetes-mode.html">47. Litestream is the default Kubernetes mode</a></li>
 </ul>
 </details></li>
-<li class="toctree-l1 current active has-children"><a class="reference internal" href="../design.html">Architecture</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
-<li class="toctree-l2"><a class="reference internal" href="data-model.html">Data model and storage</a></li>
-<li class="toctree-l2"><a class="reference internal" href="capture-and-files.html">Capture, files and backup</a></li>
-<li class="toctree-l2"><a class="reference internal" href="claude-pipeline.html">Job queue and Claude features</a></li>
-<li class="toctree-l2"><a class="reference internal" href="search.html">Search</a></li>
-<li class="toctree-l2"><a class="reference internal" href="mcp-and-access.html">MCP server and access</a></li>
-<li class="toctree-l2 current active"><a aria-current="page" class="current reference internal" href="#">The PWA</a></li>
-<li class="toctree-l2"><a class="reference internal" href="deployment.html">Deployment and operations</a></li>
-</ul>
-</details></li>
-<li class="toctree-l1"><a class="reference internal" href="../design-system.html">The PWA’s design system</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../ingest.html">Claude ingest</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../llm-calls.html">What Claude is asked, per page</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../overview.html">Scope and stack</a></li>
 </ul>
 </div>
 </nav></div>
@@ -986,7 +971,7 @@ precached by the service worker, so they work offline.</p>
 view’s signal on each navigation. <code class="docutils literal notranslate"><span class="pre">go()</span></code> in <code class="docutils literal notranslate"><span class="pre">app.ts</span></code> records Back marks in <code class="docutils literal notranslate"><span class="pre">history.state</span></code>;
 Back in the top bar goes to the linking page, else the list, else a parent (<code class="docutils literal notranslate"><span class="pre">back.ts</span></code>).</p></li>
 <li><p><strong>Precached chunks</strong> (<code class="docutils literal notranslate"><span class="pre">OFFLINE</span></code> in <code class="docutils literal notranslate"><span class="pre">web/vite.config.ts</span></code>): <code class="docutils literal notranslate"><span class="pre">back</span></code>, <code class="docutils literal notranslate"><span class="pre">composer</span></code>, <code class="docutils literal notranslate"><span class="pre">downscale</span></code>,
-<code class="docutils literal notranslate"><span class="pre">editor</span></code>, <code class="docutils literal notranslate"><span class="pre">figure</span></code> (a photo’s panel and its drawing preview; it imports <code class="docutils literal notranslate"><span class="pre">ingest</span></code>), <code class="docutils literal notranslate"><span class="pre">math</span></code>
+<code class="docutils literal notranslate"><span class="pre">editor</span></code>, <code class="docutils literal notranslate"><span class="pre">figure</span></code> (a photo’s panel and its drawing preview; it imports <code class="docutils literal notranslate"><span class="pre">ingest</span></code>), <code class="docutils literal notranslate"><span class="pre">linkpick</span></code>, <code class="docutils literal notranslate"><span class="pre">math</span></code>
 (KaTeX, its CSS and WOFF2 fonts), <code class="docutils literal notranslate"><span class="pre">page</span></code>, <code class="docutils literal notranslate"><span class="pre">pageedit</span></code>, <code class="docutils literal notranslate"><span class="pre">render</span></code>, <code class="docutils literal notranslate"><span class="pre">sharing</span></code>, <code class="docutils literal notranslate"><span class="pre">refine</span></code>, <code class="docutils literal notranslate"><span class="pre">search</span></code>, <code class="docutils literal notranslate"><span class="pre">searches</span></code>.</p></li>
 <li><p><strong>Not precached</strong>: the Excalidraw board chunk and its fonts (served from <code class="docutils literal notranslate"><span class="pre">/excalidraw/fonts/</span></code>,
 not a CDN) and Mermaid. Offline, a drawing does not open and a Mermaid block stays as code.</p></li>
@@ -1099,6 +1084,21 @@ opens a full-screen viewer where view and edit are one scene. Drawings are versi
 save carries its <code class="docutils literal notranslate"><span class="pre">base_version</span></code>, a stale one gets <code class="docutils literal notranslate"><span class="pre">409</span></code>. Server side:
 <a class="reference internal" href="data-model.html"><span class="std std-doc">Data model and storage</span></a> and <a class="reference internal" href="claude-pipeline.html"><span class="std std-doc">Job queue and Claude features</span></a>.</p>
 </section>
+<section id="public-pages">
+<h2>Public pages<a class="headerlink" href="#public-pages" title="Link to this heading">#</a></h2>
+<p>A page the owner makes public is rendered by the PWA itself. <code class="docutils literal notranslate"><span class="pre">publicpages.ts</span></code> is what the app
+does with public pages: Share’s <strong>Make public…</strong> and <strong>Make private</strong>, publishing a public page
+again when it is saved, publishing the public pages that link to one again when it is made public
+or private, and Settings’ <strong>Refresh all</strong>. It draws a page’s drawings and Mermaid diagrams as
+SVGs. <code class="docutils literal notranslate"><span class="pre">publish.ts</span></code> is the publish mode beside Share as HTML (<code class="docutils literal notranslate"><span class="pre">pagehtml.ts</span></code>): it reads the page as
+the app shows it and writes static HTML with placeholders for its files, tags and drawings. The app
+uploads that to scrap (<code class="docutils literal notranslate"><span class="pre">PUT</span> <span class="pre">/api/pages/{key}/published</span></code>), and scrap checks it, fills in the
+placeholders and pushes it to the public site’s receiver. The public site has its own small
+stylesheet and script (<code class="docutils literal notranslate"><span class="pre">web/src/public/</span></code>) and never talks to scrap. The contract is
+<a class="reference internal" href="../../reference/public-site.html"><span class="std std-doc">Public site</span></a>; why, <a class="reference internal" href="../decisions/0043-public-pages-a-static-site-scrap-pushes-to.html"><span class="std std-doc">43. Public pages: a static site scrap pushes to</span></a>.</p>
+<p>The page view also reports each page it opens (<code class="docutils literal notranslate"><span class="pre">POST</span> <span class="pre">/api/pages/{key}/viewed</span></code>), so MCP
+<code class="docutils literal notranslate"><span class="pre">current_page</span></code> can tell Claude what the owner is looking at.</p>
+</section>
 <section id="invariants">
 <h2>Invariants<a class="headerlink" href="#invariants" title="Link to this heading">#</a></h2>
 <ul class="simple">
@@ -1176,6 +1176,7 @@ Filters panel’s query model; <a class="reference internal" href="../design.htm
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#talking-to-the-api">Talking to the API</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#markdown-and-diagrams">Markdown and diagrams</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#excalidraw">Excalidraw</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#public-pages">Public pages</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#invariants">Invariants</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#see-also">See also</a></li>
 </ul>

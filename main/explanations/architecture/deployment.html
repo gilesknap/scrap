@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Deployment and operations &#8212; scrap 1.8.3.dev11+ge626bdd8c documentation</title>
+    <title>Deployment and operations &#8212; scrap 1.8.3.dev22+g979292dcd documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../../_static/documentation_options.js?v=3b410661"></script>
+    <script src="../../_static/documentation_options.js?v=935dbc1a"></script>
     <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -416,7 +416,7 @@ window.runMermaid = runMermaid;</script>
     <link rel="icon" href="../../_static/dls-logo.svg"/>
     <link rel="index" title="Index" href="../../genindex.html" />
     <link rel="search" title="Search" href="../../search.html" />
-    <link rel="next" title="The PWA’s design system" href="../design-system.html" />
+    <link rel="next" title="Claude ingest" href="../ingest.html" />
     <link rel="prev" title="The PWA" href="frontend-pwa.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="color-scheme" content="light dark"/>
@@ -585,17 +585,6 @@ window.runMermaid = runMermaid;</script>
           
           <a href="https://github.com/gilesknap/scrap" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-square-github fa-lg" aria-hidden="true"></i><span class="visually-hidden">GitHub</span></a>
         </li>
-        <li class="nav-item">
-          
-          
-          
-          
-          
-          
-          
-          
-          <a href="https://pypi.org/project/scrap" title="PyPI" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fas fa-cube fa-lg" aria-hidden="true"></i><span class="visually-hidden">PyPI</span></a>
-        </li>
 </ul></div>
       
         <div class="navbar-item">
@@ -729,17 +718,6 @@ window.runMermaid = runMermaid;</script>
           
           <a href="https://github.com/gilesknap/scrap" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-square-github fa-lg" aria-hidden="true"></i><span class="visually-hidden">GitHub</span></a>
         </li>
-        <li class="nav-item">
-          
-          
-          
-          
-          
-          
-          
-          
-          <a href="https://pypi.org/project/scrap" title="PyPI" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fas fa-cube fa-lg" aria-hidden="true"></i><span class="visually-hidden">PyPI</span></a>
-        </li>
 </ul></div>
         
           <div class="navbar-item">
@@ -779,7 +757,28 @@ window.runMermaid = runMermaid;</script>
 <nav class="bd-docs-nav bd-links"
      aria-label="Section Navigation">
   <p class="bd-links__title" role="heading" aria-level="1">Section Navigation</p>
-  <div class="bd-toc-item navbar-nav"><ul class="current nav bd-sidenav">
+  <div class="bd-toc-item navbar-nav"><p aria-level="2" class="caption" role="heading"><span class="caption-text">Scope and architecture</span></p>
+<ul class="current nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../overview.html">Scope and stack</a></li>
+<li class="toctree-l1 current active has-children"><a class="reference internal" href="../design.html">Architecture</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="data-model.html">Data model and storage</a></li>
+<li class="toctree-l2"><a class="reference internal" href="capture-and-files.html">Capture, files and backup</a></li>
+<li class="toctree-l2"><a class="reference internal" href="claude-pipeline.html">Job queue and Claude features</a></li>
+<li class="toctree-l2"><a class="reference internal" href="search.html">Search</a></li>
+<li class="toctree-l2"><a class="reference internal" href="mcp-and-access.html">MCP server and access</a></li>
+<li class="toctree-l2"><a class="reference internal" href="frontend-pwa.html">The PWA</a></li>
+<li class="toctree-l2 current active"><a aria-current="page" class="current reference internal" href="#">Deployment and operations</a></li>
+</ul>
+</details></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Claude and the PWA</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../ingest.html">Claude ingest</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../llm-calls.html">What Claude is asked, per page</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../design-system.html">The PWA’s design system</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Decisions</span></p>
+<ul class="nav bd-sidenav">
 <li class="toctree-l1 has-children"><a class="reference internal" href="../decisions.html">Architectural Decision Records</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l2"><a class="reference internal" href="../decisions/0001-record-architecture-decisions.html">1. Record architecture decisions</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../decisions/0002-switched-to-python-copier-template.html">2. Adopt python-copier-template for project structure</a></li>
@@ -831,20 +830,6 @@ window.runMermaid = runMermaid;</script>
 <li class="toctree-l2"><a class="reference internal" href="../decisions/0047-litestream-is-the-default-kubernetes-mode.html">47. Litestream is the default Kubernetes mode</a></li>
 </ul>
 </details></li>
-<li class="toctree-l1 current active has-children"><a class="reference internal" href="../design.html">Architecture</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
-<li class="toctree-l2"><a class="reference internal" href="data-model.html">Data model and storage</a></li>
-<li class="toctree-l2"><a class="reference internal" href="capture-and-files.html">Capture, files and backup</a></li>
-<li class="toctree-l2"><a class="reference internal" href="claude-pipeline.html">Job queue and Claude features</a></li>
-<li class="toctree-l2"><a class="reference internal" href="search.html">Search</a></li>
-<li class="toctree-l2"><a class="reference internal" href="mcp-and-access.html">MCP server and access</a></li>
-<li class="toctree-l2"><a class="reference internal" href="frontend-pwa.html">The PWA</a></li>
-<li class="toctree-l2 current active"><a aria-current="page" class="current reference internal" href="#">Deployment and operations</a></li>
-</ul>
-</details></li>
-<li class="toctree-l1"><a class="reference internal" href="../design-system.html">The PWA’s design system</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../ingest.html">Claude ingest</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../llm-calls.html">What Claude is asked, per page</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../overview.html">Scope and stack</a></li>
 </ul>
 </div>
 </nav></div>
@@ -910,10 +895,12 @@ window.runMermaid = runMermaid;</script>
                   
   <section id="deployment-and-operations">
 <h1>Deployment and operations<a class="headerlink" href="#deployment-and-operations" title="Link to this heading">#</a></h1>
-<p>scrap is one process over one data folder, so both supported installs are the same container with
-different supervisors: systemd and rootless podman on a single server, or a Helm chart on
-Kubernetes. Scheduled work (backup, gc, enrichment) runs as timers or CronJobs around that one
-folder; step-by-step is in the <a class="reference internal" href="../../how-to/deploy-single-server.html"><span class="std std-doc">how-to guides</span></a>.</p>
+<p>scrap is one service over one data folder, run from the same container image either way:
+systemd and rootless podman on a single server, or the Helm chart on Kubernetes, where the
+database sits on the node’s disk and Litestream replicates it into the data folder. On a single
+server, scheduled work (backup, gc, enrichment) runs as systemd timers. On Kubernetes, backups are
+CronJobs, and gc and the Claude passes run in a <code class="docutils literal notranslate"><span class="pre">jobs</span></code> container in the scrap pod. Step by step:
+<a class="reference internal" href="../../how-to/deploy-single-server.html"><span class="std std-doc">Deploy on a single server</span></a>, <a class="reference internal" href="../../how-to/deploy-kubernetes.html"><span class="std std-doc">Deploy on Kubernetes</span></a>.</p>
 <p>Colours: blue is storage, orange is work that calls Claude, green is the person using scrap.</p>
 <section id="single-server">
 <h2>Single server<a class="headerlink" href="#single-server" title="Link to this heading">#</a></h2>
@@ -1011,51 +998,75 @@ its command, and says so when it does not.</p>
 <section id="kubernetes">
 <h2>Kubernetes<a class="headerlink" href="#kubernetes" title="Link to this heading">#</a></h2>
 <p>The chart runs exactly one replica with the <code class="docutils literal notranslate"><span class="pre">Recreate</span></code> strategy, because SQLite has a single
-writer (<a class="reference internal" href="../decisions/0003-one-process-sqlite-and-a-folder.html"><span class="std std-doc">3. One process, one SQLite database, one folder of files</span></a>).</p>
+writer (<a class="reference internal" href="../decisions/0003-one-process-sqlite-and-a-folder.html"><span class="std std-doc">3. One process, one SQLite database, one folder of files</span></a>). The database is not on the
+data volume: it is on an emptyDir on the node’s disk, and Litestream replicates it into the data
+volume, because SQLite’s WAL is not safe on NFS or another network filesystem
+(<a class="reference internal" href="../decisions/0046-database-on-an-emptydir-replicated-with-litestream.html"><span class="std std-doc">46. The database on an emptyDir, replicated with Litestream</span></a>).</p>
 <pre  class="mermaid">
         flowchart TD
     me([&quot;Browser&quot;]):::user
     subgraph edge[&quot;Edge (your choice)&quot;]
-        ing[&quot;Ingress&lt;br/&gt;Tailscale operator or&lt;br/&gt;Cloudflare Access&quot;]
+        ing[&quot;Ingress&lt;br/&gt;Cloudflare Access or&lt;br/&gt;the DLS login proxy&quot;]
     end
     subgraph ns[&quot;Release namespace&quot;]
         np[&quot;NetworkPolicy&lt;br/&gt;(optional)&quot;]
         svc[&quot;Service :80&quot;]
-        dep[&quot;Deployment&lt;br/&gt;1 replica, Recreate&quot;]
-        pvc[(&quot;PVC /data&lt;br/&gt;scrap.db + files/&quot;)]:::store
-        subgraph jobs[&quot;CronJobs (beside the pod)&quot;]
-            cb[&quot;backup 03:30&lt;br/&gt;+ monthly 1st&quot;]
-            cr[&quot;enrich-related 03:41&quot;]:::claude
-            ct[&quot;enrich-topics Sun 04:11&quot;]:::claude
-            cg[&quot;gc 04:30&quot;]
+        subgraph pod[&quot;scrap pod (1 replica, Recreate)&quot;]
+            init[&quot;init: litestream-tool,&lt;br/&gt;db-init&quot;]
+            app[&quot;scrap serve&quot;]
+            ls[&quot;litestream&lt;br/&gt;(native sidecar)&quot;]
+            jobs[&quot;jobs: scrap schedule&lt;br/&gt;gc 04:30, enrich-related 03:41,&lt;br/&gt;enrich-topics Sun 04:11&quot;]
+            db[(&quot;emptyDir /db&lt;br/&gt;scrap.db&quot;)]:::store
         end
-        bpvc[(&quot;Backup PVC&lt;br/&gt;timestamped runs + monthly/&quot;)]:::store
+        pvc[(&quot;Data volume /data&lt;br/&gt;files/ + litestream/&quot;)]:::store
+        cb[&quot;Backup CronJobs&lt;br/&gt;03:30 + monthly 1st&quot;]
+        bk[(&quot;Backups&lt;br/&gt;timestamped runs + monthly/&quot;)]:::store
     end
-    me --&gt; ing --&gt; np --&gt; svc --&gt; dep
-    dep --- pvc
-    cb --&gt; bpvc
+    me --&gt; ing --&gt; np --&gt; svc --&gt; app
+    init --&gt;|&quot;restore or place&quot;| db
+    app --- db
+    app --- pvc
+    ls --&gt;|&quot;replicates&quot;| pvc
+    jobs -.-&gt; db
+    jobs -.-&gt;|&quot;gc needs recent&lt;br/&gt;COMPLETE&quot;| bk
+    cb --&gt;|&quot;restore of the replica&lt;br/&gt;+ files/&quot;| bk
     cb -.-&gt; pvc
-    cr &amp; ct &amp; cg -.-&gt; pvc
-    cg -.-&gt;|&quot;needs recent&lt;br/&gt;COMPLETE&quot;| bpvc
     classDef store fill:#e8f1ff,stroke:#4a7bd0
     classDef claude fill:#fff3e0,stroke:#e08a00
     classDef user fill:#e9f7ef,stroke:#2e9d5b
     </pre><ul class="simple">
-<li><p><strong>Same data shape.</strong> <code class="docutils literal notranslate"><span class="pre">/data</span></code> holds <code class="docutils literal notranslate"><span class="pre">scrap.db</span></code>, <code class="docutils literal notranslate"><span class="pre">files/</span></code> and the regenerable preview cache; the
-cache is never backed up.</p></li>
-<li><p><strong>No login in scrap.</strong> Reach it only through a private network or an authenticating proxy;
-<code class="docutils literal notranslate"><span class="pre">identityHeader</span></code> names the header recorded as the author and <code class="docutils literal notranslate"><span class="pre">mcp.tokenSecret</span></code> can require a
-bearer token on <code class="docutils literal notranslate"><span class="pre">/mcp</span></code> (<a class="reference internal" href="../decisions/0007-tailscale-serve-for-access-and-identity.html"><span class="std std-doc">7. Tailscale Serve is the only way in; no login code</span></a>,
-<a class="reference internal" href="../decisions/0023-bearer-token-on-mcp-and-an-identity-header-setting.html"><span class="std std-doc">23. Bearer token on /mcp and an identity-header setting</span></a>).</p></li>
-<li><p><strong>CronJobs share the claim.</strong> The data PVC is <code class="docutils literal notranslate"><span class="pre">ReadWriteOnce</span></code>, so jobs schedule onto the pod’s
-node. The two enrich jobs exist only when <code class="docutils literal notranslate"><span class="pre">ingest.enabled</span></code>; gc needs <code class="docutils literal notranslate"><span class="pre">backup.enabled</span></code> unless
-<code class="docutils literal notranslate"><span class="pre">gc.requireBackup</span></code> is false.</p></li>
-<li><p><strong>Secrets are never values.</strong> The chart names an existing Secret for the API key, notify URL and
-MCP token and never creates one. Both PVCs carry <code class="docutils literal notranslate"><span class="pre">helm.sh/resource-policy:</span> <span class="pre">keep</span></code>.</p></li>
+<li><p><strong>Where the data is.</strong> <code class="docutils literal notranslate"><span class="pre">/db/scrap.db</span></code> (<code class="docutils literal notranslate"><span class="pre">SCRAP_DB_PATH</span></code>) is on an emptyDir capped by
+<code class="docutils literal notranslate"><span class="pre">litestream.sizeLimit</span></code> (2Gi). <code class="docutils literal notranslate"><span class="pre">/data</span></code> keeps <code class="docutils literal notranslate"><span class="pre">files/</span></code>, the regenerable preview cache (never
+backed up) and the replica, <code class="docutils literal notranslate"><span class="pre">/data/litestream</span></code>. The data volume may be NFS.</p></li>
+<li><p><strong>Starting.</strong> An init container copies the Litestream binary in; <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">db-init</span></code> then keeps a
+database already on the emptyDir, takes up a staged restore, or restores the replica, and
+refuses to start when an install with history (a state file, files, backups) has no replica.
+Litestream runs as a native sidecar (Kubernetes 1.29 or newer), so it starts before scrap and
+stops after it.</p></li>
+<li><p><strong>What can be lost.</strong> About a second of writes if the node dies; none on a clean stop. If
+replication stalls for 20 minutes, the <code class="docutils literal notranslate"><span class="pre">jobs</span></code> container’s readiness probe fails and the pod
+leaves its Service, so scrap stops taking writes it could lose.</p></li>
+<li><p><strong>Scheduled work.</strong> gc and, with ingest on, the related and topics passes run in the pod’s
+<code class="docutils literal notranslate"><span class="pre">jobs</span></code> container (<code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">schedule</span></code>), on the live database. <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">schedule</span> <span class="pre">status</span></code> (and opt-in
+Prometheus metrics) report each job’s last run. The backups stay CronJobs: <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">backup</span> <span class="pre">--from-replica</span></code> checks and backs up a restore of the replica with <code class="docutils literal notranslate"><span class="pre">/data/files</span></code>. They run on
+the scrap pod’s node, as the data claim is <code class="docutils literal notranslate"><span class="pre">ReadWriteOnce</span></code>.</p></li>
+<li><p><strong>No login in scrap.</strong> Reach it only through an authenticating proxy: Cloudflare Access, or
+the DLS login proxy (oauth2-proxy and Keycloak, the chart’s <code class="docutils literal notranslate"><span class="pre">authProxy</span></code>), whose token scrap
+verifies. <code class="docutils literal notranslate"><span class="pre">identityHeader</span></code> names the header recorded as the author and <code class="docutils literal notranslate"><span class="pre">mcp.tokenSecret</span></code> can
+require a bearer token on <code class="docutils literal notranslate"><span class="pre">/mcp</span></code>
+(<a class="reference internal" href="../decisions/0023-bearer-token-on-mcp-and-an-identity-header-setting.html"><span class="std std-doc">23. Bearer token on /mcp and an identity-header setting</span></a>,
+<a class="reference internal" href="../decisions/0045-scrap-verifies-the-login-proxys-keycloak-token.html"><span class="std std-doc">45. scrap verifies the login proxy’s Keycloak token</span></a>).</p></li>
+<li><p><strong>Public pages</strong> (optional, <code class="docutils literal notranslate"><span class="pre">public.enabled</span></code>) run in a pod of their own, nginx and the upload
+receiver from the <code class="docutils literal notranslate"><span class="pre">scrap-public</span></code> image; scrap pushes to the receiver and the public site never
+talks to scrap (<a class="reference internal" href="../../reference/public-site.html"><span class="std std-doc">Public site</span></a>).</p></li>
+<li><p><strong>Secrets are never values.</strong> The chart names an existing Secret for the API key, notify URL
+and MCP token and never creates one. The PVCs carry <code class="docutils literal notranslate"><span class="pre">helm.sh/resource-policy:</span> <span class="pre">keep</span></code>.</p></li>
 <li><p><strong>Hardening.</strong> Restricted Pod Security: non-root uid 10001, read-only root filesystem, all
 capabilities dropped, <code class="docutils literal notranslate"><span class="pre">RuntimeDefault</span></code> seccomp.</p></li>
-<li><p><strong>Health.</strong> <code class="docutils literal notranslate"><span class="pre">GET</span> <span class="pre">/healthz</span></code> returns 200 with <code class="docutils literal notranslate"><span class="pre">status</span></code>, <code class="docutils literal notranslate"><span class="pre">version</span></code>, <code class="docutils literal notranslate"><span class="pre">max_upload_bytes</span></code> and <code class="docutils literal notranslate"><span class="pre">paused</span></code>
-(why the Claude queue is paused, else null); 503 if the ingest worker has stopped.</p></li>
+<li><p><strong>Health.</strong> <code class="docutils literal notranslate"><span class="pre">GET</span> <span class="pre">/healthz</span></code> returns 200 with <code class="docutils literal notranslate"><span class="pre">status</span></code>, <code class="docutils literal notranslate"><span class="pre">version</span></code>, <code class="docutils literal notranslate"><span class="pre">max_upload_bytes</span></code>, <code class="docutils literal notranslate"><span class="pre">paused</span></code>
+(why the Claude queue is paused, else null) and <code class="docutils literal notranslate"><span class="pre">publish</span></code> (the public site’s state); 503 if
+the ingest worker has stopped. The pod is ready only while the <code class="docutils literal notranslate"><span class="pre">jobs</span></code> container sees
+replication working.</p></li>
 </ul>
 <p>Settings are in <a class="reference internal" href="../../reference/api.html"><span class="std std-doc">HTTP API and CLI</span></a>; every chart value is in <code class="docutils literal notranslate"><span class="pre">charts/scrap/values.yaml</span></code>,
 checked by <code class="docutils literal notranslate"><span class="pre">values.schema.json</span></code>.</p>
@@ -1083,26 +1094,36 @@ Blobs are written before the transaction that names them, so the snapshot never 
 file.</p></li>
 <li><p><strong><code class="docutils literal notranslate"><span class="pre">COMPLETE</span></code> marks a good run.</strong> Only a checked snapshot gets one; a failed run’s directory is
 removed and older runs are untouched.</p></li>
-<li><p><strong>Retention</strong> (<code class="docutils literal notranslate"><span class="pre">SCRAP_BACKUP_KEEP</span></code> on a single server, <code class="docutils literal notranslate"><span class="pre">backup.keep</span></code> in Helm; install.sh writes 14, the chart defaults to 7)
+<li><p><strong>Retention</strong> (<code class="docutils literal notranslate"><span class="pre">SCRAP_BACKUP_KEEP</span></code> on a single server, <code class="docutils literal notranslate"><span class="pre">backup.keep</span></code> in the chart; install.sh writes 14, the chart defaults to 7)
 deletes only directories named like a run (<code class="docutils literal notranslate"><span class="pre">20261019T033000Z</span></code>); symlinks and other files are
 never touched. Both add a monthly tier in <code class="docutils literal notranslate"><span class="pre">monthly/</span></code> (<code class="docutils literal notranslate"><span class="pre">backup.monthly</span></code> in Helm, <code class="docutils literal notranslate"><span class="pre">SCRAP_BACKUP_MONTHLY_KEEP</span></code> on a
 single server; newest 12) for changes noticed late.</p></li>
 <li><p><strong>gc follows backup.</strong> It takes the same lock, so a file removed mid-backup cannot be one the
 backup’s database names. Without a recent <code class="docutils literal notranslate"><span class="pre">COMPLETE</span></code> run it only counts and exits non-zero, so a
 missing backup shows up as a failed job.</p></li>
+<li><p><strong>On Kubernetes the backup reads the replica.</strong> <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">backup</span> <span class="pre">--from-replica</span></code> restores the
+replica to a temporary file and backs that up with <code class="docutils literal notranslate"><span class="pre">/data/files</span></code>. It refuses a replica whose
+heartbeat (stamped every 15 minutes by <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">schedule</span></code>) is over 3 hours old, so a stalled
+replica fails the job rather than writing a <code class="docutils literal notranslate"><span class="pre">COMPLETE</span></code> run that gc would trust. gc there also
+only counts, and fails, when the files it would delete are over 10% of them and at least 5, or
+the database has no captures beside stored files (<code class="docutils literal notranslate"><span class="pre">--allow-large</span></code> after a person has looked),
+and after an override, until <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">db-hold</span> <span class="pre">--clear</span></code>. For 14 days after a restore it only counts
+without failing; that hold ends by itself, or sooner with <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">db-hold</span> <span class="pre">--clear</span></code>.</p></li>
 <li><p><strong>Restore</strong> copies the backup database beside the live one and opens only the copy, so
 read-only media work. The copy must pass <code class="docutils literal notranslate"><span class="pre">integrity_check</span></code> and not be from a newer schema
 than the code; it is then migrated and swapped in. Files are only added. A refusal leaves the
-data folder as it was, and a non-empty folder needs <code class="docutils literal notranslate"><span class="pre">--force</span></code> with scrap stopped.</p></li>
-<li><p><strong>A local copy is not an off-site copy.</strong> Copy <code class="docutils literal notranslate"><span class="pre">SCRAP_BACKUPS</span></code> (or the backup PVC) elsewhere.</p></li>
+data folder as it was, and a non-empty folder needs <code class="docutils literal notranslate"><span class="pre">--force</span></code> with scrap stopped. On
+Kubernetes a restore is staged instead (<code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">restore</span> <span class="pre">--stage</span></code>): the next pod start takes it
+up in place of the replica.</p></li>
+<li><p><strong>A local copy is not an off-site copy.</strong> Copy <code class="docutils literal notranslate"><span class="pre">SCRAP_BACKUPS</span></code> (or the backup volume) elsewhere.</p></li>
 </ul>
 </section>
 <section id="see-also">
 <h2>See also<a class="headerlink" href="#see-also" title="Link to this heading">#</a></h2>
 <ul class="simple">
 <li><p><a class="reference internal" href="../design.html"><span class="std std-doc">Architecture</span></a>, the architecture landing page; <a class="reference internal" href="data-model.html"><span class="std std-doc">Data model and storage</span></a> for the database and
-files; <a class="reference internal" href="mcp-and-access.html"><span class="std std-doc">MCP server and access</span></a> for tokens and identity; <a class="reference internal" href="claude-pipeline.html"><span class="std std-doc">Job queue and Claude features</span></a> for the jobs
-the timers start.</p></li>
+files; <a class="reference internal" href="mcp-and-access.html"><span class="std std-doc">MCP server and access</span></a> for tokens and identity; <a class="reference internal" href="claude-pipeline.html"><span class="std std-doc">Job queue and Claude features</span></a> for the Claude
+passes the schedules start.</p></li>
 <li><p><a class="reference internal" href="../../reference/scheduled-jobs.html"><span class="std std-doc">Scheduled jobs</span></a> and <a class="reference internal" href="../../reference/api.html"><span class="std std-doc">HTTP API and CLI</span></a> for commands and
 settings.</p></li>
 <li><p>How-to: <a class="reference internal" href="../../how-to/deploy-single-server.html"><span class="std std-doc">Deploy on a single server</span></a>, <a class="reference internal" href="../../how-to/deploy-kubernetes.html"><span class="std std-doc">Deploy on Kubernetes</span></a>.</p></li>
@@ -1111,7 +1132,9 @@ settings.</p></li>
 <a class="reference internal" href="../decisions/0016-deployment-single-server-and-helm.html"><span class="std std-doc">16. Deployment: rootless podman units for one server, a Helm chart for Kubernetes</span></a>,
 <a class="reference internal" href="../decisions/0018-unix-socket-for-single-server-installs.html"><span class="std std-doc">18. Single-server installs listen on a Unix socket, reached only through Tailscale Serve</span></a>,
 <a class="reference internal" href="../decisions/0021-ingest-on-a-claude-seat-through-claude-p.html"><span class="std std-doc">21. Ingest on a Claude seat: claude -p with a long-lived token</span></a>,
-<a class="reference internal" href="../decisions/0023-bearer-token-on-mcp-and-an-identity-header-setting.html"><span class="std std-doc">23. Bearer token on /mcp and an identity-header setting</span></a>.</p></li>
+<a class="reference internal" href="../decisions/0023-bearer-token-on-mcp-and-an-identity-header-setting.html"><span class="std std-doc">23. Bearer token on /mcp and an identity-header setting</span></a>,
+<a class="reference internal" href="../decisions/0045-scrap-verifies-the-login-proxys-keycloak-token.html"><span class="std std-doc">45. scrap verifies the login proxy’s Keycloak token</span></a>,
+<a class="reference internal" href="../decisions/0046-database-on-an-emptydir-replicated-with-litestream.html"><span class="std std-doc">46. The database on an emptyDir, replicated with Litestream</span></a>.</p></li>
 </ul>
 </section>
 </section>
@@ -1136,11 +1159,11 @@ settings.</p></li>
       </div>
     </a>
     <a class="right-next"
-       href="../design-system.html"
+       href="../ingest.html"
        title="next page">
       <div class="prev-next-info">
         <p class="prev-next-subtitle">next</p>
-        <p class="prev-next-title">The PWA’s design system</p>
+        <p class="prev-next-title">Claude ingest</p>
       </div>
       <i class="fa-solid fa-angle-right"></i>
     </a>

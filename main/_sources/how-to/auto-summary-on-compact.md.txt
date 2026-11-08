@@ -23,6 +23,9 @@ not worth it, skip the hook, or see [](#turn-it-off).
   tool calls and tool output left out.
 - Runs `claude -p` headless over that dialogue. It may use only `mcp__scrap__tags`, `search`,
   `read` and `write`.
+- It currently works with a server named `scrap` only. With only the DLS install's `scrap-dls`
+  it has no scrap tools and cannot write; the `sc` commands are not affected (they fall back to
+  `scrap-dls`).
 - Writes **one page per Claude session**. The first compaction creates it, titled
   `[auto-compact] <topic>`, tagged `scrap` and `auto-compact` plus topic tags, with the working
   directory and date as origin. Later compactions of the same session append a section,
@@ -46,8 +49,8 @@ report its slug, the next compaction starts a second page.
 
 ## Install
 
-1. Connect Claude Code to scrap as in [](connect-claude-code.md) (the `claude mcp add` line, user
-   scope, so the headless call sees it).
+1. Connect Claude Code to scrap as in [](connect-claude-code.md), as the server named `scrap`
+   at user scope, so the headless call sees it.
 2. Copy `hooks/scrap-precompact.py` somewhere stable (for example `~/.claude/hooks/`), keeping it
    executable. It needs only Python 3.
 3. Add the hook to `~/.claude/settings.json` (all projects) or `.claude/settings.json` (one
@@ -73,7 +76,8 @@ report its slug, the next compaction starts a second page.
 
 The headless call runs with `--permission-mode dontAsk`, `--allowedTools` limited to the four scrap
 tools (tags, search, read, write), `--tools ""` (no built-in tool at all: no Bash, Edit or web
-fetch) and `--disallowedTools` for the scrap tools that edit or trash pages. The last two matter
+fetch) and `--disallowedTools` for `edit_page`, `edit_meta`, `edit_drawing`, `rename_tag`, `revert`,
+`trash_pages` and `undelete`. The last two matter
 because `--allowedTools` only approves tools: an allow rule in your own `settings.json` (say
 `Bash(git:*)`) would still apply in the child, and the dialogue it reads can hold text from web pages
 or files. `--tools` and `--disallowedTools` are not widened by your settings. MCP tools of

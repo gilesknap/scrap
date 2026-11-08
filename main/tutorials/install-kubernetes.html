@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Install scrap on Kubernetes &#8212; scrap 1.8.3.dev11+ge626bdd8c documentation</title>
+    <title>Install scrap on Kubernetes &#8212; scrap 1.8.3.dev22+g979292dcd documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=3b410661"></script>
+    <script src="../_static/documentation_options.js?v=935dbc1a"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -585,17 +585,6 @@ window.runMermaid = runMermaid;</script>
           
           <a href="https://github.com/gilesknap/scrap" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-square-github fa-lg" aria-hidden="true"></i><span class="visually-hidden">GitHub</span></a>
         </li>
-        <li class="nav-item">
-          
-          
-          
-          
-          
-          
-          
-          
-          <a href="https://pypi.org/project/scrap" title="PyPI" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fas fa-cube fa-lg" aria-hidden="true"></i><span class="visually-hidden">PyPI</span></a>
-        </li>
 </ul></div>
       
         <div class="navbar-item">
@@ -729,17 +718,6 @@ window.runMermaid = runMermaid;</script>
           
           <a href="https://github.com/gilesknap/scrap" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-square-github fa-lg" aria-hidden="true"></i><span class="visually-hidden">GitHub</span></a>
         </li>
-        <li class="nav-item">
-          
-          
-          
-          
-          
-          
-          
-          
-          <a href="https://pypi.org/project/scrap" title="PyPI" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fas fa-cube fa-lg" aria-hidden="true"></i><span class="visually-hidden">PyPI</span></a>
-        </li>
 </ul></div>
         
           <div class="navbar-item">
@@ -864,7 +842,9 @@ connected to it.</p>
     end
     subgraph cluster [Your cluster]
         cfd[cloudflared] --&gt;|NetworkPolicy| scrap[scrap pod]
-        scrap --&gt; pvc[(Data volume)]:::store
+        scrap --&gt; db[(Database on node disk)]:::store
+        db -.-&gt;|Litestream| pvc[(Data volume)]:::store
+        scrap --&gt; pvc
         job[Backup CronJob] --&gt; bk[(Backup volume)]:::store
     end
     cf --&gt;|outbound tunnel| cfd
@@ -883,9 +863,11 @@ directly. Do not skip either.</p>
 <section id="what-you-need">
 <h2>What you need<a class="headerlink" href="#what-you-need" title="Link to this heading">#</a></h2>
 <ul class="simple">
-<li><p>A Kubernetes cluster, version 1.27 or newer, with a StorageClass that gives <code class="docutils literal notranslate"><span class="pre">ReadWriteOnce</span></code>
-volumes on a <strong>local or block</strong> filesystem, and a CNI that enforces NetworkPolicy (k3s does).
-SQLite does not work reliably on network filesystems such as NFS. See <a class="reference internal" href="../how-to/deploy-kubernetes.html#k8s-storage"><span class="std std-ref">k3s and storage notes</span></a>.</p></li>
+<li><p>A Kubernetes cluster, version 1.29 or newer, with a StorageClass that gives <code class="docutils literal notranslate"><span class="pre">ReadWriteOnce</span></code>
+volumes, a few GB of free disk on the nodes, and a CNI that enforces NetworkPolicy (k3s does).
+The database lives on the node’s own disk and Litestream copies each change to the data
+volume, so the data volume may be NFS. See
+<a class="reference internal" href="../how-to/deploy-kubernetes.html#k8s-storage"><span class="std std-ref">k3s and storage notes</span></a>.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">kubectl</span></code> pointed at that cluster and <a class="reference external" href="https://helm.sh/docs/intro/install/">Helm</a> 3 or 4.</p></li>
 <li><p>A domain whose DNS is on Cloudflare, and a Cloudflare account with
 <a class="reference external" href="https://developers.cloudflare.com/cloudflare-one/">Zero Trust</a> enabled (the free plan is enough).</p></li>
@@ -893,39 +875,25 @@ SQLite does not work reliably on network filesystems such as NFS. See <a class="
 more happens.</p></li>
 <li><p>A phone to try the web app on.</p></li>
 </ul>
-<p>scrap always runs as <strong>one replica</strong>: SQLite has a single writer. The chart has no replica count
-for that reason, and the Deployment stops the old pod before it starts the new one.</p>
 <p>Throughout, <code class="docutils literal notranslate"><span class="pre">scrap.example.com</span></code> is your own hostname. Replace it.</p>
 </section>
-<section id="choose-a-release">
-<h2>1. Choose a release<a class="headerlink" href="#choose-a-release" title="Link to this heading">#</a></h2>
-<p>The chart is published as an OCI artifact, <code class="docutils literal notranslate"><span class="pre">oci://ghcr.io/gilesknap/charts/scrap</span></code>, and its version
-is the release tag (a pre-release such as <code class="docutils literal notranslate"><span class="pre">1.0.0rc1</span></code> is chart <code class="docutils literal notranslate"><span class="pre">1.0.0-rc.1</span></code>). This page installs
-<code class="docutils literal notranslate"><span class="pre">--version</span> <span class="pre">1.8.2</span></code>; use a newer release if there is one (see the
-<a class="reference external" href="https://github.com/gilesknap/scrap/releases">releases</a>). The chart’s <code class="docutils literal notranslate"><span class="pre">appVersion</span></code> is the same tag,
-so it runs <code class="docutils literal notranslate"><span class="pre">ghcr.io/gilesknap/scrap:1.8.2</span></code> (amd64 and arm64). There is nothing to build
-and nothing to clone.</p>
-</section>
 <section id="create-the-secrets">
-<h2>2. Create the secrets<a class="headerlink" href="#create-the-secrets" title="Link to this heading">#</a></h2>
-<p>The chart never takes a key as a value and never creates a Secret. You create them, from stdin
-so nothing lands in your shell history.</p>
+<h2>1. Create the secrets<a class="headerlink" href="#create-the-secrets" title="Link to this heading">#</a></h2>
+<p>The chart never takes a key as a value and never creates a Secret. Make a bearer token for
+<code class="docutils literal notranslate"><span class="pre">/mcp</span></code> (a second lock behind Cloudflare’s), then store it and your API key in one Secret. The key
+is read from stdin, so it does not land in your shell history:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">kubectl</span> <span class="n">create</span> <span class="n">namespace</span> <span class="n">scrap</span>
+<span class="n">python3</span> <span class="o">-</span><span class="n">c</span> <span class="s1">'import secrets; print(secrets.token_urlsafe(32), end="")'</span> <span class="o">&gt;</span> <span class="n">scrap</span><span class="o">-</span><span class="n">mcp</span><span class="o">-</span><span class="n">token</span><span class="o">.</span><span class="n">txt</span>
 <span class="n">read</span> <span class="o">-</span><span class="n">rs</span> <span class="n">KEY</span> <span class="o">&amp;&amp;</span> <span class="n">printf</span> <span class="o">%</span><span class="n">s</span> <span class="s2">"$KEY"</span> <span class="o">|</span> <span class="n">kubectl</span> <span class="o">-</span><span class="n">n</span> <span class="n">scrap</span> <span class="n">create</span> <span class="n">secret</span> <span class="n">generic</span> <span class="n">scrap</span><span class="o">-</span><span class="n">secrets</span> \
-    <span class="o">--</span><span class="n">from</span><span class="o">-</span><span class="n">file</span><span class="o">=</span><span class="n">ANTHROPIC_API_KEY</span><span class="o">=/</span><span class="n">dev</span><span class="o">/</span><span class="n">stdin</span><span class="p">;</span> <span class="n">unset</span> <span class="n">KEY</span>
+    <span class="o">--</span><span class="n">from</span><span class="o">-</span><span class="n">file</span><span class="o">=</span><span class="n">ANTHROPIC_API_KEY</span><span class="o">=/</span><span class="n">dev</span><span class="o">/</span><span class="n">stdin</span> <span class="o">--</span><span class="n">from</span><span class="o">-</span><span class="n">file</span><span class="o">=</span><span class="n">SCRAP_MCP_TOKEN</span><span class="o">=</span><span class="n">scrap</span><span class="o">-</span><span class="n">mcp</span><span class="o">-</span><span class="n">token</span><span class="o">.</span><span class="n">txt</span><span class="p">;</span> <span class="n">unset</span> <span class="n">KEY</span>
 </pre></div>
 </div>
-<p>Add the MCP bearer token to the same Secret. It is a second lock on <code class="docutils literal notranslate"><span class="pre">/mcp</span></code>, behind Cloudflare’s.
-Generate it and keep a copy for Claude Code later:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">python3</span> <span class="o">-</span><span class="n">c</span> <span class="s1">'import secrets; print(secrets.token_urlsafe(32))'</span> <span class="o">&gt;</span> <span class="n">scrap</span><span class="o">-</span><span class="n">mcp</span><span class="o">-</span><span class="n">token</span><span class="o">.</span><span class="n">txt</span>
-<span class="n">kubectl</span> <span class="o">-</span><span class="n">n</span> <span class="n">scrap</span> <span class="n">patch</span> <span class="n">secret</span> <span class="n">scrap</span><span class="o">-</span><span class="n">secrets</span> <span class="o">--</span><span class="nb">type</span> <span class="n">merge</span> \
-    <span class="o">-</span><span class="n">p</span> <span class="s2">"{</span><span class="se">\"</span><span class="s2">stringData</span><span class="se">\"</span><span class="s2">:{</span><span class="se">\"</span><span class="s2">SCRAP_MCP_TOKEN</span><span class="se">\"</span><span class="s2">:</span><span class="se">\"</span><span class="s2">$(cat scrap-mcp-token.txt)</span><span class="se">\"</span><span class="s2">}}"</span>
-</pre></div>
-</div>
-<p>Move <code class="docutils literal notranslate"><span class="pre">scrap-mcp-token.txt</span></code> into your password manager and delete the file. Do not commit it.</p>
+<p>Check: <code class="docutils literal notranslate"><span class="pre">kubectl</span> <span class="pre">-n</span> <span class="pre">scrap</span> <span class="pre">get</span> <span class="pre">secret</span> <span class="pre">scrap-secrets</span></code> shows <code class="docutils literal notranslate"><span class="pre">DATA</span> <span class="pre">2</span></code>.</p>
+<p>Keep <code class="docutils literal notranslate"><span class="pre">scrap-mcp-token.txt</span></code> until step 6, then move it into your password manager and delete the
+file. Do not commit it.</p>
 </section>
 <section id="install-scrap">
-<h2>3. Install scrap<a class="headerlink" href="#install-scrap" title="Link to this heading">#</a></h2>
+<h2>2. Install scrap<a class="headerlink" href="#install-scrap" title="Link to this heading">#</a></h2>
 <p>Write <code class="docutils literal notranslate"><span class="pre">my-values.yaml</span></code>:</p>
 <div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">ingest</span><span class="p">:</span>
 <span class="w">  </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
@@ -947,7 +915,7 @@ Generate it and keep a copy for Claude Code later:</p>
 <span class="w">      </span><span class="nt">podSelector</span><span class="p">:</span>
 <span class="w">        </span><span class="nt">matchLabels</span><span class="p">:</span>
 <span class="w">          </span><span class="nt">app</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">cloudflared</span>
-<span class="nt">backup</span><span class="p">:</span>
+<span class="nt">litestream</span><span class="p">:</span>
 <span class="w">  </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
 </pre></div>
 </div>
@@ -955,32 +923,29 @@ Generate it and keep a copy for Claude Code later:</p>
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">ingest</span></code> turns on Claude ingest, reading the API key from <code class="docutils literal notranslate"><span class="pre">scrap-secrets</span></code>.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">mcp.tokenSecret</span></code> makes <code class="docutils literal notranslate"><span class="pre">/mcp</span></code>, and the downloads under it, require
-<code class="docutils literal notranslate"><span class="pre">Authorization:</span> <span class="pre">Bearer</span> <span class="pre">&lt;token&gt;</span></code>. The web app, the API and <code class="docutils literal notranslate"><span class="pre">/healthz</span></code> are not affected.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">identityHeader</span></code> records the signed-in email, which Cloudflare Access adds to each request,
-as the author of a change. Changes made through <code class="docutils literal notranslate"><span class="pre">/mcp</span></code> are always author <code class="docutils literal notranslate"><span class="pre">claude</span></code>.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">SCRAP_PUBLIC_URL</span></code> is the address you reach scrap at. <code class="docutils literal notranslate"><span class="pre">/mcp</span></code>, the web app and the API answer <code class="docutils literal notranslate"><span class="pre">421</span></code>
-to any other host name (and <code class="docutils literal notranslate"><span class="pre">403</span></code> to a write from another <code class="docutils literal notranslate"><span class="pre">Origin</span></code>), apart from <code class="docutils literal notranslate"><span class="pre">/healthz</span></code>. The
-web app and the API also accept an IP address as the host; <code class="docutils literal notranslate"><span class="pre">/mcp</span></code> does not.</p></li>
+<code class="docutils literal notranslate"><span class="pre">Authorization:</span> <span class="pre">Bearer</span> <span class="pre">&lt;token&gt;</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">identityHeader</span></code> records the email Cloudflare Access signed in as the author of a change.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">SCRAP_PUBLIC_URL</span></code> is the address you reach scrap at. <code class="docutils literal notranslate"><span class="pre">/mcp</span></code>, the web app and the API refuse
+any other host name, apart from <code class="docutils literal notranslate"><span class="pre">/healthz</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">litestream.enabled</span></code> keeps the database on the node’s disk, with Litestream copying each change
+to the data volume (<a class="reference internal" href="../how-to/deploy-kubernetes.html#k8s-litestream"><span class="std std-ref">The database on an emptyDir, with Litestream</span></a>). It is the default from chart 1.9.0.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">networkPolicy</span></code> admits only the cloudflared pods, in the <code class="docutils literal notranslate"><span class="pre">cloudflared</span></code> namespace you create in
-the next step. Without it, any pod in the cluster could reach scrap directly and send its own
-identity header. With it, and a CNI that enforces NetworkPolicy, other pods and LAN hosts cannot go around
-Cloudflare. Cluster admins, node access and <code class="docutils literal notranslate"><span class="pre">kubectl</span> <span class="pre">port-forward</span></code> are outside that guarantee.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">backup.enabled</span></code> is already the default. It runs a nightly <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">backup</span></code> onto a second volume,
-plus a monthly one kept longer.</p></li>
+the next step, so other pods and LAN hosts cannot go around Cloudflare.</p></li>
 </ul>
-<p>Install it:</p>
+<p>Nightly and monthly backups onto a second volume are on by default.</p>
+<p>Install it. The chart’s version is the release tag; this page uses <code class="docutils literal notranslate"><span class="pre">1.8.2</span></code> (see the
+<a class="reference external" href="https://github.com/gilesknap/scrap/releases">releases</a> for a newer one):</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">helm</span> <span class="n">install</span> <span class="n">scrap</span> <span class="n">oci</span><span class="p">:</span><span class="o">//</span><span class="n">ghcr</span><span class="o">.</span><span class="n">io</span><span class="o">/</span><span class="n">gilesknap</span><span class="o">/</span><span class="n">charts</span><span class="o">/</span><span class="n">scrap</span> <span class="o">--</span><span class="n">version</span> <span class="mf">1.8.2</span> \
     <span class="o">--</span><span class="n">namespace</span> <span class="n">scrap</span> <span class="o">-</span><span class="n">f</span> <span class="n">my</span><span class="o">-</span><span class="n">values</span><span class="o">.</span><span class="n">yaml</span>
 <span class="n">kubectl</span> <span class="o">-</span><span class="n">n</span> <span class="n">scrap</span> <span class="n">rollout</span> <span class="n">status</span> <span class="n">deploy</span><span class="o">/</span><span class="n">scrap</span>
 </pre></div>
 </div>
-<p>The NetworkPolicy only lets cloudflared in, so until the next step nothing outside the pod can
-reach scrap. To look at it yourself first, <code class="docutils literal notranslate"><span class="pre">kubectl</span> <span class="pre">-n</span> <span class="pre">scrap</span> <span class="pre">port-forward</span> <span class="pre">svc/scrap</span> <span class="pre">8000:80</span></code>
-still works (it goes through the kubelet, not the pod network), then open
-<a class="reference external" href="http://127.0.0.1:8000/">http://127.0.0.1:8000/</a>.</p>
+<p>Check: the NetworkPolicy lets only cloudflared in, but <code class="docutils literal notranslate"><span class="pre">kubectl</span> <span class="pre">port-forward</span></code> goes round it. Run
+<code class="docutils literal notranslate"><span class="pre">kubectl</span> <span class="pre">-n</span> <span class="pre">scrap</span> <span class="pre">port-forward</span> <span class="pre">svc/scrap</span> <span class="pre">8000:80</span></code>, and in another shell
+<code class="docutils literal notranslate"><span class="pre">curl</span> <span class="pre">http://127.0.0.1:8000/healthz</span></code> shows <code class="docutils literal notranslate"><span class="pre">&quot;status&quot;:&quot;ok&quot;</span></code>.</p>
 </section>
 <section id="create-the-tunnel">
-<h2>4. Create the tunnel<a class="headerlink" href="#create-the-tunnel" title="Link to this heading">#</a></h2>
+<h2>3. Create the tunnel<a class="headerlink" href="#create-the-tunnel" title="Link to this heading">#</a></h2>
 <p>In the <a class="reference external" href="https://one.dash.cloudflare.com/">Cloudflare dashboard</a>, open Zero Trust.</p>
 <ol class="arabic">
 <li><p>Go to <strong>Networks &gt; Tunnels</strong> (named <strong>Connectors</strong> in newer dashboards) and choose <strong>Create a
@@ -995,7 +960,7 @@ token that follows <code class="docutils literal notranslate"><span class="pre">
 </pre></div>
 </div>
 </li>
-<li><p>Save this as <code class="docutils literal notranslate"><span class="pre">cloudflared.yaml</span></code>:</p>
+<li><p>Save this as <code class="docutils literal notranslate"><span class="pre">cloudflared.yaml</span></code> (use the newest <code class="docutils literal notranslate"><span class="pre">cloudflare/cloudflared</span></code> tag if there is one):</p>
 <div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">apps/v1</span>
 <span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Deployment</span>
 <span class="nt">metadata</span><span class="p">:</span>
@@ -1045,22 +1010,20 @@ token that follows <code class="docutils literal notranslate"><span class="pre">
 </pre></div>
 </div>
 </li>
-<li><p>Back in the dashboard the tunnel shows <strong>Healthy</strong> after a few seconds.</p></li>
 <li><p>Open the tunnel’s <strong>Published application routes</strong> (older dashboards: <strong>Public Hostname</strong>) and
 add one:</p>
 <ul class="simple">
 <li><p><strong>Hostname</strong>: <code class="docutils literal notranslate"><span class="pre">scrap.example.com</span></code> (pick the domain, leave the path empty).</p></li>
-<li><p><strong>Service</strong>: type <code class="docutils literal notranslate"><span class="pre">HTTP</span></code>, URL <code class="docutils literal notranslate"><span class="pre">scrap.scrap.svc.cluster.local:80</span></code>. That is
-<code class="docutils literal notranslate"><span class="pre">&lt;service&gt;.&lt;namespace&gt;.svc.cluster.local</span></code> and the chart’s Service port, 80.</p></li>
+<li><p><strong>Service</strong>: type <code class="docutils literal notranslate"><span class="pre">HTTP</span></code>, URL <code class="docutils literal notranslate"><span class="pre">scrap.scrap.svc.cluster.local:80</span></code> (the chart’s Service, in
+namespace <code class="docutils literal notranslate"><span class="pre">scrap</span></code>, port 80).</p></li>
 </ul>
-<p>Cloudflare creates the DNS record for you.</p>
+<p>Cloudflare creates the DNS record for you. There is no ingress controller in this setup.</p>
 </li>
 </ol>
-<p>The route goes straight to the Service. There is no ingress controller and no extra login proxy
-in this setup.</p>
+<p>Check: back in the dashboard, the tunnel shows <strong>Healthy</strong>.</p>
 </section>
 <section id="put-cloudflare-access-in-front">
-<h2>5. Put Cloudflare Access in front<a class="headerlink" href="#put-cloudflare-access-in-front" title="Link to this heading">#</a></h2>
+<h2>4. Put Cloudflare Access in front<a class="headerlink" href="#put-cloudflare-access-in-front" title="Link to this heading">#</a></h2>
 <p>An Access application is what makes Cloudflare ask who you are. You make two, and the more
 specific one (with the path) wins for <code class="docutils literal notranslate"><span class="pre">/mcp</span></code>.</p>
 <p><strong>The web app.</strong> Go to <strong>Access controls &gt; Applications</strong> (older: <strong>Access &gt; Applications</strong>),
@@ -1075,7 +1038,7 @@ that meets a login page instead of scrap is not delivered.</p></li>
 <li><p>Under login methods, keep <strong>One-time PIN</strong> on. It needs no identity provider.</p></li>
 </ol>
 <p><strong>The MCP endpoint.</strong> Claude Code cannot fill in a PIN, so <code class="docutils literal notranslate"><span class="pre">/mcp</span></code> gets its own application that
-accepts a machine credential instead.</p>
+accepts a machine credential instead. The path covers the downloads under it too.</p>
 <ol class="arabic simple">
 <li><p>Create the service token: <strong>Access controls &gt; Service credentials &gt; Service Tokens</strong>, <strong>Create
 Service Token</strong>, name <code class="docutils literal notranslate"><span class="pre">scrap-mcp</span></code>, a long duration. Copy the <strong>Client ID</strong> and <strong>Client
@@ -1085,29 +1048,7 @@ Secret</strong> now. The secret is shown once.</p></li>
 <li><p>Add a policy: name <code class="docutils literal notranslate"><span class="pre">Claude</span> <span class="pre">Code</span></code>, action <strong>Service Auth</strong>, include <strong>Service Token</strong>
 <code class="docutils literal notranslate"><span class="pre">scrap-mcp</span></code>. Remove any email policy from this application.</p></li>
 </ol>
-<p>Cloudflare matches the most specific application, so <code class="docutils literal notranslate"><span class="pre">/mcp</span></code> uses the service-token policy and
-every other path uses the email PIN. You check that in the next section. The path covers what is
-under it too: the downloads MCP clients fetch (images, files, drawings and page downloads under
-<code class="docutils literal notranslate"><span class="pre">/mcp/blobs/...</span></code>, <code class="docutils literal notranslate"><span class="pre">/mcp/pages/...</span></code> and <code class="docutils literal notranslate"><span class="pre">/mcp/captures/...</span></code>) take the same service token and
-bearer token, with no extra Access application.</p>
-</section>
-<section id="check-it-works">
-<h2>6. Check it works<a class="headerlink" href="#check-it-works" title="Link to this heading">#</a></h2>
-<p>First the cluster:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">kubectl</span> <span class="o">-</span><span class="n">n</span> <span class="n">scrap</span> <span class="n">get</span> <span class="n">pods</span><span class="p">,</span><span class="n">pvc</span>
-<span class="n">kubectl</span> <span class="o">-</span><span class="n">n</span> <span class="n">scrap</span> <span class="n">get</span> <span class="n">networkpolicy</span>
-<span class="n">kubectl</span> <span class="o">-</span><span class="n">n</span> <span class="n">cloudflared</span> <span class="n">get</span> <span class="n">pods</span>
-</pre></div>
-</div>
-<p>You want <code class="docutils literal notranslate"><span class="pre">scrap</span></code> pods <code class="docutils literal notranslate"><span class="pre">Running</span></code> and ready (the nightly backup and other CronJob pods appear
-later), the data claim <code class="docutils literal notranslate"><span class="pre">Bound</span></code>, the <code class="docutils literal notranslate"><span class="pre">scrap</span></code> NetworkPolicy present, and cloudflared <code class="docutils literal notranslate"><span class="pre">Running</span></code>. The
-backups claim is <code class="docutils literal notranslate"><span class="pre">Bound</span></code> too, unless your storage binds a volume only when a pod first uses it
-(<code class="docutils literal notranslate"><span class="pre">WaitForFirstConsumer</span></code>, as k3s’s <code class="docutils literal notranslate"><span class="pre">local-path</span></code> does): then it stays <code class="docutils literal notranslate"><span class="pre">Pending</span></code> until the first
-backup runs. To run one now:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">kubectl</span> <span class="o">-</span><span class="n">n</span> <span class="n">scrap</span> <span class="n">create</span> <span class="n">job</span> <span class="o">--</span><span class="n">from</span><span class="o">=</span><span class="n">cronjob</span><span class="o">/</span><span class="n">scrap</span><span class="o">-</span><span class="n">backup</span> <span class="n">scrap</span><span class="o">-</span><span class="n">backup</span><span class="o">-</span><span class="n">now</span>
-</pre></div>
-</div>
-<p>Then the edge, from your own machine:</p>
+<p>Check, from your own machine:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">curl</span> <span class="o">-</span><span class="n">sI</span> <span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">scrap</span><span class="o">.</span><span class="n">example</span><span class="o">.</span><span class="n">com</span><span class="o">/</span>                 <span class="c1"># redirected to the Cloudflare login</span>
 <span class="n">curl</span> <span class="o">-</span><span class="n">sI</span> <span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">scrap</span><span class="o">.</span><span class="n">example</span><span class="o">.</span><span class="n">com</span><span class="o">/</span><span class="n">mcp</span>              <span class="c1"># refused by Cloudflare (302 or 403), scrap never sees it</span>
 <span class="n">curl</span> <span class="o">-</span><span class="n">sI</span> <span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">scrap</span><span class="o">.</span><span class="n">example</span><span class="o">.</span><span class="n">com</span><span class="o">/</span><span class="n">mcp</span> \
@@ -1120,41 +1061,42 @@ backup runs. To run one now:</p>
 </pre></div>
 </div>
 <p>The last request may answer a plain <code class="docutils literal notranslate"><span class="pre">HEAD</span></code> with a <code class="docutils literal notranslate"><span class="pre">405</span></code> or <code class="docutils literal notranslate"><span class="pre">406</span></code>. That is scrap speaking, not a
-refusal: what matters is that the third is <code class="docutils literal notranslate"><span class="pre">401</span></code> and the fourth is not.</p>
-<p>If the second request is not refused, or the first shows scrap’s page, the Access applications do
-not cover the host: recheck section 5.</p>
-<p>Now the web app. Open <code class="docutils literal notranslate"><span class="pre">https://scrap.example.com</span></code> in a private window. Cloudflare asks for your
-email, mails you a code, and then scrap opens. Make a change, open its history, and check that
-your email is the author.</p>
-<p>On your phone, open the same address, sign in, and install it (Share, Add to Home Screen on iOS;
-the browser’s Install on Android). Take a photo and capture it. See <a class="reference internal" href="../how-to/use-the-pwa.html"><span class="std std-doc">Capture from your phone (the PWA)</span></a>.</p>
+refusal: what matters is that the third is <code class="docutils literal notranslate"><span class="pre">401</span></code> and the fourth is not. If the second is not
+refused, or the first shows scrap’s page, the Access applications do not cover the host: recheck
+this step.</p>
 </section>
-<section id="connect-claude-code">
-<h2>7. Connect Claude Code<a class="headerlink" href="#connect-claude-code" title="Link to this heading">#</a></h2>
-<p>Claude Code needs three headers: both Cloudflare ones and the bearer token. The recommended way
-is a small <code class="docutils literal notranslate"><span class="pre">headersHelper</span></code> script that reads them from an env file (<code class="docutils literal notranslate"><span class="pre">~/.config/terminal-config/.env</span></code>
-with <code class="docutils literal notranslate"><span class="pre">CF_ACCESS_CLIENT_ID</span></code>, <code class="docutils literal notranslate"><span class="pre">CF_ACCESS_CLIENT_SECRET</span></code> and <code class="docutils literal notranslate"><span class="pre">SCRAP_MCP_TOKEN</span></code>, the token from
-step 2), so it also works in a devcontainer or claude-sandbox. Set it up as in
-<a class="reference internal" href="../how-to/connect-claude-code.html#mcp-secrets"><span class="std std-ref">If /mcp needs a token</span></a>, with <code class="docutils literal notranslate"><span class="pre">https://scrap.example.com/mcp</span></code> as the URL.</p>
-<p>If you prefer, and the variables are exported in the shell that starts <code class="docutils literal notranslate"><span class="pre">claude</span></code>, add the server
-with <code class="docutils literal notranslate"><span class="pre">${VAR}</span></code> headers instead. Single quotes keep the shell from expanding the variables, so
-Claude Code reads them at start up:</p>
-<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span><span class="nb">export</span><span class="w"> </span><span class="nv">CF_ACCESS_CLIENT_ID</span><span class="o">=</span>&lt;client<span class="w"> </span>id&gt;
-<span class="nb">export</span><span class="w"> </span><span class="nv">CF_ACCESS_CLIENT_SECRET</span><span class="o">=</span>&lt;client<span class="w"> </span>secret&gt;
-<span class="nb">export</span><span class="w"> </span><span class="nv">SCRAP_MCP_TOKEN</span><span class="o">=</span>&lt;the<span class="w"> </span>token<span class="w"> </span>from<span class="w"> </span>step<span class="w"> </span><span class="m">2</span>&gt;
-
-claude<span class="w"> </span>mcp<span class="w"> </span>add<span class="w"> </span>--transport<span class="w"> </span>http<span class="w"> </span>--scope<span class="w"> </span>user<span class="w"> </span>scrap<span class="w"> </span>https://scrap.example.com/mcp<span class="w"> </span><span class="se">\</span>
-<span class="w">  </span>--header<span class="w"> </span><span class="s1">'CF-Access-Client-Id: ${CF_ACCESS_CLIENT_ID}'</span><span class="w"> </span><span class="se">\</span>
-<span class="w">  </span>--header<span class="w"> </span><span class="s1">'CF-Access-Client-Secret: ${CF_ACCESS_CLIENT_SECRET}'</span><span class="w"> </span><span class="se">\</span>
-<span class="w">  </span>--header<span class="w"> </span><span class="s1">'Authorization: Bearer ${SCRAP_MCP_TOKEN}'</span>
+<section id="check-the-cluster-and-the-backups">
+<h2>5. Check the cluster and the backups<a class="headerlink" href="#check-the-cluster-and-the-backups" title="Link to this heading">#</a></h2>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">kubectl</span> <span class="o">-</span><span class="n">n</span> <span class="n">scrap</span> <span class="n">get</span> <span class="n">pods</span><span class="p">,</span><span class="n">pvc</span>
+<span class="n">kubectl</span> <span class="o">-</span><span class="n">n</span> <span class="n">scrap</span> <span class="n">get</span> <span class="n">networkpolicy</span>
+<span class="n">kubectl</span> <span class="o">-</span><span class="n">n</span> <span class="n">cloudflared</span> <span class="n">get</span> <span class="n">pods</span>
 </pre></div>
 </div>
-<p><code class="docutils literal notranslate"><span class="pre">claude</span> <span class="pre">mcp</span> <span class="pre">list</span></code> should show <code class="docutils literal notranslate"><span class="pre">scrap</span></code> as connected. Ask Claude to search your pages. More in
-<a class="reference internal" href="../how-to/connect-claude-code.html"><span class="std std-doc">Connect a Claude Code session</span></a>.</p>
-<div class="admonition note">
-<p class="admonition-title">Note</p>
-<p>Claude.ai’s hosted connectors cannot send custom headers, so they cannot reach this <code class="docutils literal notranslate"><span class="pre">/mcp</span></code>.</p>
+<p>You want the <code class="docutils literal notranslate"><span class="pre">scrap</span></code> pod <code class="docutils literal notranslate"><span class="pre">Running</span></code> with READY <code class="docutils literal notranslate"><span class="pre">3/3</span></code> (the <code class="docutils literal notranslate"><span class="pre">scrap</span></code> and <code class="docutils literal notranslate"><span class="pre">jobs</span></code> containers and the
+<code class="docutils literal notranslate"><span class="pre">litestream</span></code> sidecar), both claims (<code class="docutils literal notranslate"><span class="pre">scrap-data</span></code>, <code class="docutils literal notranslate"><span class="pre">scrap-backups</span></code>) <code class="docutils literal notranslate"><span class="pre">Bound</span></code>, the <code class="docutils literal notranslate"><span class="pre">scrap</span></code>
+NetworkPolicy present, and cloudflared <code class="docutils literal notranslate"><span class="pre">Running</span></code>. If the pod stays in <code class="docutils literal notranslate"><span class="pre">Init</span></code>,
+<code class="docutils literal notranslate"><span class="pre">kubectl</span> <span class="pre">-n</span> <span class="pre">scrap</span> <span class="pre">logs</span> <span class="pre">deploy/scrap</span> <span class="pre">-c</span> <span class="pre">db-init</span></code> says why.</p>
+<p>Run the first backup now, rather than waiting for the night, and check the scheduled jobs:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">kubectl</span> <span class="o">-</span><span class="n">n</span> <span class="n">scrap</span> <span class="n">create</span> <span class="n">job</span> <span class="o">--</span><span class="n">from</span><span class="o">=</span><span class="n">cronjob</span><span class="o">/</span><span class="n">scrap</span><span class="o">-</span><span class="n">backup</span> <span class="n">scrap</span><span class="o">-</span><span class="n">backup</span><span class="o">-</span><span class="n">now</span>
+<span class="n">kubectl</span> <span class="o">-</span><span class="n">n</span> <span class="n">scrap</span> <span class="n">wait</span> <span class="o">--</span><span class="k">for</span><span class="o">=</span><span class="n">condition</span><span class="o">=</span><span class="n">complete</span> <span class="n">job</span><span class="o">/</span><span class="n">scrap</span><span class="o">-</span><span class="n">backup</span><span class="o">-</span><span class="n">now</span> <span class="o">--</span><span class="n">timeout</span><span class="o">=</span><span class="mi">10</span><span class="n">m</span>
+<span class="n">kubectl</span> <span class="o">-</span><span class="n">n</span> <span class="n">scrap</span> <span class="n">exec</span> <span class="n">deploy</span><span class="o">/</span><span class="n">scrap</span> <span class="o">-</span><span class="n">c</span> <span class="n">jobs</span> <span class="o">--</span> <span class="n">scrap</span> <span class="n">schedule</span> <span class="n">status</span>
+</pre></div>
 </div>
+<p>Check: the last command ends with <code class="docutils literal notranslate"><span class="pre">All</span> <span class="pre">healthy.</span></code></p>
+</section>
+<section id="use-it-on-your-phone-and-in-claude-code">
+<h2>6. Use it on your phone and in Claude Code<a class="headerlink" href="#use-it-on-your-phone-and-in-claude-code" title="Link to this heading">#</a></h2>
+<p>Open <code class="docutils literal notranslate"><span class="pre">https://scrap.example.com</span></code> in a private window. Cloudflare asks for your email, mails you a
+code, and then scrap opens. Make a change, open its history, and check that your email is the
+author.</p>
+<p>On your phone, open the same address, sign in, and install it (Share, Add to Home Screen on iOS;
+the browser’s Install on Android). Take a photo and capture it. See <a class="reference internal" href="../how-to/use-the-pwa.html"><span class="std std-doc">Capture from your phone (the PWA)</span></a>.</p>
+<p>For Claude Code, set up the <code class="docutils literal notranslate"><span class="pre">headersHelper</span></code> script as in <a class="reference internal" href="../how-to/connect-claude-code.html#mcp-secrets"><span class="std std-ref">If /mcp needs a token</span></a>, with
+<code class="docutils literal notranslate"><span class="pre">https://scrap.example.com/mcp</span></code> as the URL. Its env file holds the service token’s
+<code class="docutils literal notranslate"><span class="pre">CF_ACCESS_CLIENT_ID</span></code> and <code class="docutils literal notranslate"><span class="pre">CF_ACCESS_CLIENT_SECRET</span></code> and <code class="docutils literal notranslate"><span class="pre">SCRAP_MCP_TOKEN</span></code> (the contents of
+<code class="docutils literal notranslate"><span class="pre">scrap-mcp-token.txt</span></code>). Other ways to connect are in <a class="reference internal" href="../how-to/connect-claude-code.html"><span class="std std-doc">Connect a Claude Code session</span></a>.</p>
+<p>Check: <code class="docutils literal notranslate"><span class="pre">claude</span> <span class="pre">mcp</span> <span class="pre">list</span></code> shows <code class="docutils literal notranslate"><span class="pre">scrap</span></code> as connected. Ask Claude to search your pages.</p>
+<p>Claude.ai’s hosted connectors cannot send custom headers, so they cannot reach this <code class="docutils literal notranslate"><span class="pre">/mcp</span></code>.</p>
 </section>
 <section id="next-steps">
 <h2>Next steps<a class="headerlink" href="#next-steps" title="Link to this heading">#</a></h2>
@@ -1164,14 +1106,6 @@ first: a backup that stays in the cluster is not enough, so copy it off too.</p>
 <li><p>Add ingest with a Claude subscription instead of an API key: <a class="reference internal" href="ingest-with-claude-seat.html"><span class="std std-doc">Ingest on a Claude seat instead of an API key</span></a>.</p></li>
 <li><p>Use the web app: <a class="reference internal" href="../how-to/use-the-pwa.html"><span class="std std-doc">Capture from your phone (the PWA)</span></a>.</p></li>
 </ul>
-<div class="tip admonition">
-<p class="admonition-title">How the author runs it</p>
-<p>The author’s home cluster runs scrap behind the same Cloudflare Access and service-token
-design, and adds ingress-nginx, an oauth2-proxy GitHub login on the web app, Argo CD and sealed
-secrets. It is a larger stack than you need to start with. Its write-up is
-<a class="reference external" href="https://github.com/gilesknap/tpi-k3s-ansible/blob/main/docs/how-to/scrap.md">docs/how-to/scrap.md</a>
-in <a class="reference external" href="https://github.com/gilesknap/tpi-k3s-ansible">tpi-k3s-ansible</a>.</p>
-</div>
 </section>
 </section>
 
@@ -1223,13 +1157,12 @@ in <a class="reference external" href="https://github.com/gilesknap/tpi-k3s-ansi
   <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
     <ul class="pst-show_toc_level nav section-nav flex-column">
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#what-you-need">What you need</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#choose-a-release">1. Choose a release</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#create-the-secrets">2. Create the secrets</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#install-scrap">3. Install scrap</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#create-the-tunnel">4. Create the tunnel</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#put-cloudflare-access-in-front">5. Put Cloudflare Access in front</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#check-it-works">6. Check it works</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#connect-claude-code">7. Connect Claude Code</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#create-the-secrets">1. Create the secrets</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#install-scrap">2. Install scrap</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#create-the-tunnel">3. Create the tunnel</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#put-cloudflare-access-in-front">4. Put Cloudflare Access in front</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#check-the-cluster-and-the-backups">5. Check the cluster and the backups</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#use-it-on-your-phone-and-in-claude-code">6. Use it on your phone and in Claude Code</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#next-steps">Next steps</a></li>
 </ul>
   </nav></div>

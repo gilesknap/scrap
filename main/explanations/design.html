@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Architecture &#8212; scrap 1.8.3.dev11+ge626bdd8c documentation</title>
+    <title>Architecture &#8212; scrap 1.8.3.dev22+g979292dcd documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=3b410661"></script>
+    <script src="../_static/documentation_options.js?v=935dbc1a"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -417,7 +417,7 @@ window.runMermaid = runMermaid;</script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
     <link rel="next" title="Data model and storage" href="architecture/data-model.html" />
-    <link rel="prev" title="47. Litestream is the default Kubernetes mode" href="decisions/0047-litestream-is-the-default-kubernetes-mode.html" />
+    <link rel="prev" title="Scope and stack" href="overview.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="color-scheme" content="light dark"/>
   <meta name="docsearch:language" content="en"/>
@@ -585,17 +585,6 @@ window.runMermaid = runMermaid;</script>
           
           <a href="https://github.com/gilesknap/scrap" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-square-github fa-lg" aria-hidden="true"></i><span class="visually-hidden">GitHub</span></a>
         </li>
-        <li class="nav-item">
-          
-          
-          
-          
-          
-          
-          
-          
-          <a href="https://pypi.org/project/scrap" title="PyPI" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fas fa-cube fa-lg" aria-hidden="true"></i><span class="visually-hidden">PyPI</span></a>
-        </li>
 </ul></div>
       
         <div class="navbar-item">
@@ -729,17 +718,6 @@ window.runMermaid = runMermaid;</script>
           
           <a href="https://github.com/gilesknap/scrap" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-square-github fa-lg" aria-hidden="true"></i><span class="visually-hidden">GitHub</span></a>
         </li>
-        <li class="nav-item">
-          
-          
-          
-          
-          
-          
-          
-          
-          <a href="https://pypi.org/project/scrap" title="PyPI" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fas fa-cube fa-lg" aria-hidden="true"></i><span class="visually-hidden">PyPI</span></a>
-        </li>
 </ul></div>
         
           <div class="navbar-item">
@@ -779,7 +757,28 @@ window.runMermaid = runMermaid;</script>
 <nav class="bd-docs-nav bd-links"
      aria-label="Section Navigation">
   <p class="bd-links__title" role="heading" aria-level="1">Section Navigation</p>
-  <div class="bd-toc-item navbar-nav"><ul class="current nav bd-sidenav">
+  <div class="bd-toc-item navbar-nav"><p aria-level="2" class="caption" role="heading"><span class="caption-text">Scope and architecture</span></p>
+<ul class="current nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="overview.html">Scope and stack</a></li>
+<li class="toctree-l1 current active has-children"><a aria-current="page" class="current reference internal" href="#">Architecture</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="architecture/data-model.html">Data model and storage</a></li>
+<li class="toctree-l2"><a class="reference internal" href="architecture/capture-and-files.html">Capture, files and backup</a></li>
+<li class="toctree-l2"><a class="reference internal" href="architecture/claude-pipeline.html">Job queue and Claude features</a></li>
+<li class="toctree-l2"><a class="reference internal" href="architecture/search.html">Search</a></li>
+<li class="toctree-l2"><a class="reference internal" href="architecture/mcp-and-access.html">MCP server and access</a></li>
+<li class="toctree-l2"><a class="reference internal" href="architecture/frontend-pwa.html">The PWA</a></li>
+<li class="toctree-l2"><a class="reference internal" href="architecture/deployment.html">Deployment and operations</a></li>
+</ul>
+</details></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Claude and the PWA</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="ingest.html">Claude ingest</a></li>
+<li class="toctree-l1"><a class="reference internal" href="llm-calls.html">What Claude is asked, per page</a></li>
+<li class="toctree-l1"><a class="reference internal" href="design-system.html">The PWA’s design system</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Decisions</span></p>
+<ul class="nav bd-sidenav">
 <li class="toctree-l1 has-children"><a class="reference internal" href="decisions.html">Architectural Decision Records</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l2"><a class="reference internal" href="decisions/0001-record-architecture-decisions.html">1. Record architecture decisions</a></li>
 <li class="toctree-l2"><a class="reference internal" href="decisions/0002-switched-to-python-copier-template.html">2. Adopt python-copier-template for project structure</a></li>
@@ -831,20 +830,6 @@ window.runMermaid = runMermaid;</script>
 <li class="toctree-l2"><a class="reference internal" href="decisions/0047-litestream-is-the-default-kubernetes-mode.html">47. Litestream is the default Kubernetes mode</a></li>
 </ul>
 </details></li>
-<li class="toctree-l1 current active has-children"><a aria-current="page" class="current reference internal" href="#">Architecture</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
-<li class="toctree-l2"><a class="reference internal" href="architecture/data-model.html">Data model and storage</a></li>
-<li class="toctree-l2"><a class="reference internal" href="architecture/capture-and-files.html">Capture, files and backup</a></li>
-<li class="toctree-l2"><a class="reference internal" href="architecture/claude-pipeline.html">Job queue and Claude features</a></li>
-<li class="toctree-l2"><a class="reference internal" href="architecture/search.html">Search</a></li>
-<li class="toctree-l2"><a class="reference internal" href="architecture/mcp-and-access.html">MCP server and access</a></li>
-<li class="toctree-l2"><a class="reference internal" href="architecture/frontend-pwa.html">The PWA</a></li>
-<li class="toctree-l2"><a class="reference internal" href="architecture/deployment.html">Deployment and operations</a></li>
-</ul>
-</details></li>
-<li class="toctree-l1"><a class="reference internal" href="design-system.html">The PWA’s design system</a></li>
-<li class="toctree-l1"><a class="reference internal" href="ingest.html">Claude ingest</a></li>
-<li class="toctree-l1"><a class="reference internal" href="llm-calls.html">What Claude is asked, per page</a></li>
-<li class="toctree-l1"><a class="reference internal" href="overview.html">Scope and stack</a></li>
 </ul>
 </div>
 </nav></div>
@@ -945,7 +930,8 @@ pages under it go deep on each part.</p>
 </section>
 <section id="the-whole-system">
 <h2>The whole system<a class="headerlink" href="#the-whole-system" title="Link to this heading">#</a></h2>
-<p>Everything runs in one process; the only things outside it are the disk and the internet.</p>
+<p>Everything runs in one process; the only things outside it are the disk, the internet and, when
+pages are made public, the public site scrap pushes them to.</p>
 <pre  class="mermaid">
         flowchart LR
     subgraph clients[&quot;Clients&quot;]
@@ -966,6 +952,7 @@ pages under it go deep on each part.</p>
     subgraph ext[&quot;External&quot;]
         anth[&quot;Anthropic API&quot;]
         web[&quot;Fetched web pages&quot;]
+        pub[&quot;Public site receiver&quot;]
     end
 
     pwa --&gt; api
@@ -978,6 +965,7 @@ pages under it go deep on each part.</p>
     store --&gt; files
     worker --&gt; anth
     worker --&gt; web
+    store --&gt;|&quot;publish/&quot;| pub
 
     classDef user fill:#e9f7ef,stroke:#2e9d5b
     classDef claude fill:#fff3e0,stroke:#e08a00
@@ -991,11 +979,21 @@ pages under it go deep on each part.</p>
 off). Capture, search and everything else work without it.</p></li>
 <li><p>The API and the worker both write, so every connection sets <code class="docutils literal notranslate"><span class="pre">PRAGMA</span> <span class="pre">foreign_keys</span> <span class="pre">=</span> <span class="pre">ON</span></code> and
 <code class="docutils literal notranslate"><span class="pre">PRAGMA</span> <span class="pre">busy_timeout</span> <span class="pre">=</span> <span class="pre">5000</span></code> on open; the database is in WAL mode.</p></li>
-<li><p>The CLI (<code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">backup</span></code>, <code class="docutils literal notranslate"><span class="pre">restore</span></code>, <code class="docutils literal notranslate"><span class="pre">export</span></code>, <code class="docutils literal notranslate"><span class="pre">gc</span></code>, <code class="docutils literal notranslate"><span class="pre">enrich</span></code>) opens the
-same data folder directly; <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">serve</span></code> migrates, then serves.</p></li>
-<li><p>No login code. Tailscale Serve is the way in; on Kubernetes a proxy fronts it, with an optional
-bearer token on <code class="docutils literal notranslate"><span class="pre">/mcp</span></code> (<a class="reference internal" href="decisions/0007-tailscale-serve-for-access-and-identity.html"><span class="std std-doc">7. Tailscale Serve is the only way in; no login code</span></a>,
+<li><p>The CLI (<code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">backup</span></code>, <code class="docutils literal notranslate"><span class="pre">restore</span></code>, <code class="docutils literal notranslate"><span class="pre">export</span></code>, <code class="docutils literal notranslate"><span class="pre">import</span></code>, <code class="docutils literal notranslate"><span class="pre">gc</span></code>, <code class="docutils literal notranslate"><span class="pre">enrich</span></code>, and on Kubernetes
+<code class="docutils literal notranslate"><span class="pre">db-init</span></code>, <code class="docutils literal notranslate"><span class="pre">schedule</span></code> and <code class="docutils literal notranslate"><span class="pre">db-hold</span></code>) opens the same data folder and database directly;
+<code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">serve</span></code> migrates, then serves.</p></li>
+<li><p>No login code. Tailscale Serve is the way in on a single server; on Kubernetes an
+authenticating proxy fronts it (Cloudflare Access, or the DLS login proxy, whose token scrap
+verifies: <a class="reference internal" href="decisions/0045-scrap-verifies-the-login-proxys-keycloak-token.html"><span class="std std-doc">45. scrap verifies the login proxy’s Keycloak token</span></a>), with an
+optional bearer token on <code class="docutils literal notranslate"><span class="pre">/mcp</span></code> (<a class="reference internal" href="decisions/0007-tailscale-serve-for-access-and-identity.html"><span class="std std-doc">7. Tailscale Serve is the only way in; no login code</span></a>,
 <a class="reference internal" href="decisions/0023-bearer-token-on-mcp-and-an-identity-header-setting.html"><span class="std std-doc">23. Bearer token on /mcp and an identity-header setting</span></a>).</p></li>
+<li><p>Public pages are the one thing that leaves: a page the owner makes public is pushed to a
+separate static site (<code class="docutils literal notranslate"><span class="pre">publish/</span></code>, <a class="reference internal" href="decisions/0043-public-pages-a-static-site-scrap-pushes-to.html"><span class="std std-doc">43. Public pages: a static site scrap pushes to</span></a>,
+<a class="reference internal" href="../reference/public-site.html"><span class="std std-doc">Public site</span></a>). scrap itself is never public.</p></li>
+<li><p>On Kubernetes the database is on the node’s disk and a Litestream sidecar replicates it into
+the data folder, and a <code class="docutils literal notranslate"><span class="pre">jobs</span></code> container beside the service runs gc and the Claude passes
+(<a class="reference internal" href="architecture/deployment.html"><span class="std std-doc">Deployment and operations</span></a>,
+<a class="reference internal" href="decisions/0046-database-on-an-emptydir-replicated-with-litestream.html"><span class="std std-doc">46. The database on an emptyDir, replicated with Litestream</span></a>).</p></li>
 </ul>
 </section>
 <section id="who-touches-the-database">
@@ -1006,6 +1004,8 @@ bearer token on <code class="docutils literal notranslate"><span class="pre">/mc
     subgraph entry[&quot;Entry points&quot;]
         app[&quot;app.py, *_api.py, api_models.py, middleware.py, uploads.py, pwa.py, public.py&quot;]
         mcpt[&quot;mcp_server.py, mcp_tools/&quot;]
+        pubm[&quot;publish/&quot;]
+        imp[&quot;importer/&quot;]
     end
     subgraph bg[&quot;Background work&quot;]
         ing[&quot;ingest/&quot;]
@@ -1021,6 +1021,8 @@ bearer token on <code class="docutils literal notranslate"><span class="pre">/mc
 
     app --&gt; st
     mcpt --&gt; st
+    pubm --&gt; st
+    imp --&gt; st
     ing --&gt; st
     enr --&gt; st
     ing --&gt; cl
@@ -1054,6 +1056,18 @@ bearer token on <code class="docutils literal notranslate"><span class="pre">/mc
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">mcp_tools/</span></code></p></td>
 <td><p>The tools served at <code class="docutils literal notranslate"><span class="pre">/mcp</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">publish/</span></code></p></td>
+<td><p>Public pages: checking what the PWA uploads and pushing it to the public site’s receiver.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">importer/</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">import</span></code>: Markdown pages (a scrap export, an Obsidian vault) read in through <code class="docutils literal notranslate"><span class="pre">store/</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">dbinit.py</span></code>, <code class="docutils literal notranslate"><span class="pre">schedule.py</span></code>, <code class="docutils literal notranslate"><span class="pre">cron.py</span></code>, <code class="docutils literal notranslate"><span class="pre">watch.py</span></code></p></td>
+<td><p>Kubernetes: putting the database in place at start, and the <code class="docutils literal notranslate"><span class="pre">jobs</span></code> container’s scheduler and replication watch.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">oidc.py</span></code></p></td>
+<td><p>The check of the DLS login proxy’s token.</p></td>
 </tr>
 </tbody>
 </table>
@@ -1098,7 +1112,7 @@ by hand or through MCP <code class="docutils literal notranslate"><span class="p
 <td><p>Tables, page identity, kinds, revisions, migrations.</p></td>
 </tr>
 <tr class="row-even"><td><p><a class="reference internal" href="architecture/capture-and-files.html"><span class="std std-doc">Capture, files and backup</span></a></p></td>
-<td><p>Capture routes, blobs, images in text, <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">gc</span></code>, backup and export.</p></td>
+<td><p>Capture routes, blobs, images in text, <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">gc</span></code>, backup, export and import.</p></td>
 </tr>
 <tr class="row-odd"><td><p><a class="reference internal" href="architecture/claude-pipeline.html"><span class="std std-doc">Job queue and Claude features</span></a></p></td>
 <td><p>Jobs, pausing, enrich, write-ups, topics, budget.</p></td>
@@ -1110,10 +1124,10 @@ by hand or through MCP <code class="docutils literal notranslate"><span class="p
 <td><p>Tools, revisions over MCP, bearer token, security.</p></td>
 </tr>
 <tr class="row-even"><td><p><a class="reference internal" href="architecture/frontend-pwa.html"><span class="std std-doc">The PWA</span></a></p></td>
-<td><p>Offline queue, share target, bundles, CSP.</p></td>
+<td><p>Offline queue, share target, bundles, CSP, public pages.</p></td>
 </tr>
 <tr class="row-odd"><td><p><a class="reference internal" href="architecture/deployment.html"><span class="std std-doc">Deployment and operations</span></a></p></td>
-<td><p>Single server, Helm, backup, timers, settings.</p></td>
+<td><p>Single server, Kubernetes with Litestream, backup, timers and scheduled jobs.</p></td>
 </tr>
 </tbody>
 </table>
@@ -1164,12 +1178,12 @@ source says it does, not yet verified (<a class="reference internal" href="../ho
                   
 <div class="prev-next-area">
     <a class="left-prev"
-       href="decisions/0047-litestream-is-the-default-kubernetes-mode.html"
+       href="overview.html"
        title="previous page">
       <i class="fa-solid fa-angle-left"></i>
       <div class="prev-next-info">
         <p class="prev-next-subtitle">previous</p>
-        <p class="prev-next-title">47. Litestream is the default Kubernetes mode</p>
+        <p class="prev-next-title">Scope and stack</p>
       </div>
     </a>
     <a class="right-next"

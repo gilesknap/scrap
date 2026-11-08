@@ -9,7 +9,9 @@ write-up kept apart from the text) and [](0020-text-enrichment.md) (the enrich q
 pages). Stage 3 of the #104 roadmap ("Claude-written derived pages"), part of scrap as an LLM wiki
 with a strict human/LLM split (#263). Partly superseded by
 [](0039-generated-content-keeps-only-its-current-version.md): a synthesis keeps only its current
-version, so there is no Restore.
+version, so there is no Restore. See also
+[](0046-database-on-an-emptydir-replicated-with-litestream.md): on Kubernetes this pass
+runs in the scrap pod's `jobs` container, not as a CronJob.
 
 ## Context
 

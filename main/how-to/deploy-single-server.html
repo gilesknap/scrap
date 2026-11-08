@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Deploy on a single server &#8212; scrap 1.8.3.dev11+ge626bdd8c documentation</title>
+    <title>Deploy on a single server &#8212; scrap 1.8.3.dev22+g979292dcd documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=3b410661"></script>
+    <script src="../_static/documentation_options.js?v=935dbc1a"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -416,7 +416,7 @@ window.runMermaid = runMermaid;</script>
     <link rel="icon" href="../_static/dls-logo.svg"/>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="Export your pages" href="export-your-pages.html" />
+    <link rel="next" title="Run the DLS login proxy" href="run-the-dls-login-proxy.html" />
     <link rel="prev" title="Deploy on Kubernetes" href="deploy-kubernetes.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="color-scheme" content="light dark"/>
@@ -585,17 +585,6 @@ window.runMermaid = runMermaid;</script>
           
           <a href="https://github.com/gilesknap/scrap" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-square-github fa-lg" aria-hidden="true"></i><span class="visually-hidden">GitHub</span></a>
         </li>
-        <li class="nav-item">
-          
-          
-          
-          
-          
-          
-          
-          
-          <a href="https://pypi.org/project/scrap" title="PyPI" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fas fa-cube fa-lg" aria-hidden="true"></i><span class="visually-hidden">PyPI</span></a>
-        </li>
 </ul></div>
       
         <div class="navbar-item">
@@ -729,17 +718,6 @@ window.runMermaid = runMermaid;</script>
           
           <a href="https://github.com/gilesknap/scrap" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-square-github fa-lg" aria-hidden="true"></i><span class="visually-hidden">GitHub</span></a>
         </li>
-        <li class="nav-item">
-          
-          
-          
-          
-          
-          
-          
-          
-          <a href="https://pypi.org/project/scrap" title="PyPI" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fas fa-cube fa-lg" aria-hidden="true"></i><span class="visually-hidden">PyPI</span></a>
-        </li>
 </ul></div>
         
           <div class="navbar-item">
@@ -779,21 +757,31 @@ window.runMermaid = runMermaid;</script>
 <nav class="bd-docs-nav bd-links"
      aria-label="Section Navigation">
   <p class="bd-links__title" role="heading" aria-level="1">Section Navigation</p>
-  <div class="bd-toc-item navbar-nav"><ul class="current nav bd-sidenav">
-<li class="toctree-l1"><a class="reference internal" href="auto-summary-on-compact.html">Post a summary to scrap when Claude Code compacts</a></li>
-<li class="toctree-l1"><a class="reference internal" href="connect-claude-code.html">Connect a Claude Code session</a></li>
-<li class="toctree-l1"><a class="reference internal" href="connect-claude-sandbox.html">Connect Claude Code in claude-sandbox</a></li>
-<li class="toctree-l1"><a class="reference internal" href="contribute.html">Contribute to the project</a></li>
-<li class="toctree-l1"><a class="reference internal" href="deploy-kubernetes.html">Deploy on Kubernetes</a></li>
-<li class="toctree-l1 current active"><a aria-current="page" class="current reference internal" href="#">Deploy on a single server</a></li>
+  <div class="bd-toc-item navbar-nav"><p aria-level="2" class="caption" role="heading"><span class="caption-text">Use scrap</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="use-the-pwa.html">Capture from your phone (the PWA)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="use-scrap-on-your-phone.html">Try scrap on your phone over Tailscale</a></li>
+<li class="toctree-l1"><a class="reference internal" href="publish-pages.html">Publish pages</a></li>
 <li class="toctree-l1"><a class="reference internal" href="export-your-pages.html">Export your pages</a></li>
 <li class="toctree-l1"><a class="reference internal" href="import-your-pages.html">Import your pages</a></li>
-<li class="toctree-l1"><a class="reference internal" href="keep-an-index.html">Keep an index of your pages</a></li>
 <li class="toctree-l1"><a class="reference internal" href="make-your-own-lists.html">Make your own lists: a contacts directory</a></li>
-<li class="toctree-l1"><a class="reference internal" href="publish-pages.html">Publish pages</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Use it from Claude Code</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="connect-claude-code.html">Connect a Claude Code session</a></li>
+<li class="toctree-l1"><a class="reference internal" href="connect-claude-sandbox.html">Connect Claude Code in claude-sandbox</a></li>
+<li class="toctree-l1"><a class="reference internal" href="auto-summary-on-compact.html">Post a summary to scrap when Claude Code compacts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="keep-an-index.html">Keep an index of your pages</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Run a server</span></p>
+<ul class="current nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="deploy-kubernetes.html">Deploy on Kubernetes</a></li>
+<li class="toctree-l1 current active"><a aria-current="page" class="current reference internal" href="#">Deploy on a single server</a></li>
 <li class="toctree-l1"><a class="reference internal" href="run-the-dls-login-proxy.html">Run the DLS login proxy</a></li>
-<li class="toctree-l1"><a class="reference internal" href="use-scrap-on-your-phone.html">Use scrap on your phone over Tailscale</a></li>
-<li class="toctree-l1"><a class="reference internal" href="use-the-pwa.html">Capture from your phone (the PWA)</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Work on scrap</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="contribute.html">Contribute to the project</a></li>
 <li class="toctree-l1"><a class="reference internal" href="work-with-claude.html">Work on scrap with Claude</a></li>
 </ul>
 </div>
@@ -861,7 +849,9 @@ window.runMermaid = runMermaid;</script>
 cluster would run, under rootless podman, as a systemd user service. scrap listens only on a Unix
 socket that only its own user (and root) can open;
 <a class="reference external" href="https://tailscale.com/kb/1312/serve">Tailscale Serve</a> publishes it over HTTPS to your tailnet and
-nowhere else. Why: <a class="reference internal" href="../explanations/decisions/0018-unix-socket-for-single-server-installs.html"><span class="std std-doc">18. Single-server installs listen on a Unix socket, reached only through Tailscale Serve</span></a>.</p>
+nowhere else. Why: <a class="reference internal" href="../explanations/decisions/0018-unix-socket-for-single-server-installs.html"><span class="std std-doc">18. Single-server installs listen on a Unix socket, reached only through Tailscale Serve</span></a>.
+The tutorial <a class="reference internal" href="../tutorials/install-server.html"><span class="std std-doc">Install on a server with Tailscale</span></a> walks through the install; this page has every
+option and the upkeep.</p>
 <p>How the pieces fit:</p>
 <pre  class="mermaid">
         flowchart LR
@@ -955,7 +945,7 @@ release from <a class="reference external" href="https://github.com/gilesknap/sc
 </pre></div>
 </div>
 <p>The image is public (no login needed) and built for amd64 and arm64. Pin an exact version rather
-than <code class="docutils literal notranslate"><span class="pre">latest</span></code>, which moves with every release, pre-releases included.</p>
+than <code class="docutils literal notranslate"><span class="pre">latest</span></code>, which moves with every release.</p>
 <p>The install script and its units are not in the image: they come from the repo’s <code class="docutils literal notranslate"><span class="pre">deploy/</span></code>
 folder. So, as <code class="docutils literal notranslate"><span class="pre">scrap</span></code>, clone the release too, into the user’s home directory so that the clone
 is <code class="docutils literal notranslate"><span class="pre">~/scrap</span></code>: the <code class="docutils literal notranslate"><span class="pre">./deploy/...</span></code> commands below run from it, and the update steps refer to it by
@@ -1944,11 +1934,11 @@ from a backup taken before the update (see <a class="reference internal" href="#
       </div>
     </a>
     <a class="right-next"
-       href="export-your-pages.html"
+       href="run-the-dls-login-proxy.html"
        title="next page">
       <div class="prev-next-info">
         <p class="prev-next-subtitle">next</p>
-        <p class="prev-next-title">Export your pages</p>
+        <p class="prev-next-title">Run the DLS login proxy</p>
       </div>
       <i class="fa-solid fa-angle-right"></i>
     </a>

@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Scheduled jobs &#8212; scrap 1.8.3.dev11+ge626bdd8c documentation</title>
+    <title>Scheduled jobs &#8212; scrap 1.8.3.dev22+g979292dcd documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=3b410661"></script>
+    <script src="../_static/documentation_options.js?v=935dbc1a"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -585,17 +585,6 @@ window.runMermaid = runMermaid;</script>
           
           <a href="https://github.com/gilesknap/scrap" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-square-github fa-lg" aria-hidden="true"></i><span class="visually-hidden">GitHub</span></a>
         </li>
-        <li class="nav-item">
-          
-          
-          
-          
-          
-          
-          
-          
-          <a href="https://pypi.org/project/scrap" title="PyPI" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fas fa-cube fa-lg" aria-hidden="true"></i><span class="visually-hidden">PyPI</span></a>
-        </li>
 </ul></div>
       
         <div class="navbar-item">
@@ -729,17 +718,6 @@ window.runMermaid = runMermaid;</script>
           
           <a href="https://github.com/gilesknap/scrap" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-square-github fa-lg" aria-hidden="true"></i><span class="visually-hidden">GitHub</span></a>
         </li>
-        <li class="nav-item">
-          
-          
-          
-          
-          
-          
-          
-          
-          <a href="https://pypi.org/project/scrap" title="PyPI" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fas fa-cube fa-lg" aria-hidden="true"></i><span class="visually-hidden">PyPI</span></a>
-        </li>
 </ul></div>
         
           <div class="navbar-item">
@@ -850,10 +828,15 @@ window.runMermaid = runMermaid;</script>
                   
   <section id="scheduled-jobs">
 <h1>Scheduled jobs<a class="headerlink" href="#scheduled-jobs" title="Link to this heading">#</a></h1>
-<p>What runs on a schedule, on both deployments: a Kubernetes CronJob from the Helm chart
-(<a class="reference internal" href="../how-to/deploy-kubernetes.html"><span class="std std-doc">Deploy on Kubernetes</span></a>), or a systemd user timer on a single server
-(<a class="reference internal" href="../how-to/deploy-single-server.html"><span class="std std-doc">Deploy on a single server</span></a>). <code class="docutils literal notranslate"><span class="pre">&lt;fullname&gt;</span></code> is the release’s full name (<code class="docutils literal notranslate"><span class="pre">scrap</span></code> for a
-release named <code class="docutils literal notranslate"><span class="pre">scrap</span></code>), shortened with a hash when it is long.</p>
+<p>What runs on a schedule, on both deployments:</p>
+<ul class="simple">
+<li><p><strong>Kubernetes</strong>, the Helm chart (<a class="reference internal" href="../how-to/deploy-kubernetes.html"><span class="std std-doc">Deploy on Kubernetes</span></a>): the two backups are
+CronJobs. gc and the two Claude passes need the live database, which is on the scrap pod’s
+emptyDir, so they run in the pod’s <code class="docutils literal notranslate"><span class="pre">jobs</span></code> container (<code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">schedule</span></code>), on the same kind of cron
+schedule (<a class="reference internal" href="../how-to/deploy-kubernetes.html#k8s-litestream"><span class="std std-ref">The database on an emptyDir, with Litestream</span></a>). <code class="docutils literal notranslate"><span class="pre">&lt;fullname&gt;</span></code> is the release’s full name (<code class="docutils literal notranslate"><span class="pre">scrap</span></code> for a
+release named <code class="docutils literal notranslate"><span class="pre">scrap</span></code>), shortened with a hash when it is long.</p></li>
+<li><p><strong>A single server</strong> (<a class="reference internal" href="../how-to/deploy-single-server.html"><span class="std std-doc">Deploy on a single server</span></a>): a systemd user timer for each job.</p></li>
+</ul>
 <p>The default night, in order (times are the chart’s; each single-server timer adds up to 15 minutes of
 random delay). Gc looks for the backup before it deletes:</p>
 <pre  class="mermaid">
@@ -868,7 +851,7 @@ random delay). Gc looks for the backup before it deletes:</p>
     </pre><div class="pst-scrollable-table-container"><table class="table">
 <thead>
 <tr class="row-odd"><th class="head"><p>Job</p></th>
-<th class="head"><p>Kubernetes CronJob</p></th>
+<th class="head"><p>Kubernetes</p></th>
 <th class="head"><p>Single-server units</p></th>
 <th class="head"><p>Default schedule</p></th>
 <th class="head"><p>What it does</p></th>
@@ -878,55 +861,89 @@ random delay). Gc looks for the backup before it deletes:</p>
 </thead>
 <tbody>
 <tr class="row-even"><td><p>Backup</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">&lt;fullname&gt;-backup</span></code></p></td>
+<td><p>CronJob <code class="docutils literal notranslate"><span class="pre">&lt;fullname&gt;-backup</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">scrap-backup.timer</span></code>, <code class="docutils literal notranslate"><span class="pre">scrap-backup.service</span></code></p></td>
 <td><p>03:30 daily, <code class="docutils literal notranslate"><span class="pre">30</span> <span class="pre">3</span> <span class="pre">*</span> <span class="pre">*</span> <span class="pre">*</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">backup</span></code> into a new timestamped run, keeping the newest <code class="docutils literal notranslate"><span class="pre">keep</span></code> runs (<a class="reference internal" href="../how-to/deploy-single-server.html#scrap-backup-restore"><span class="std std-ref">Backup and restore</span></a>)</p></td>
+<td><p>A backup into a new timestamped run, keeping the newest <code class="docutils literal notranslate"><span class="pre">keep</span></code> runs (<a class="reference internal" href="../how-to/deploy-single-server.html#scrap-backup-restore"><span class="std std-ref">Backup and restore</span></a>). On Kubernetes it is <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">backup</span> <span class="pre">--from-replica</span></code>: a restore of the Litestream replica, with the data volume’s files, never the live database; refused if the replica’s heartbeat is over 3 hours old</p></td>
 <td><p>No</p></td>
 <td><p>Kubernetes: starts within 1 h, runs at most 1 h; single server: 1 h</p></td>
 </tr>
 <tr class="row-odd"><td><p>Monthly backup</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">&lt;fullname&gt;-backup-monthly</span></code></p></td>
+<td><p>CronJob <code class="docutils literal notranslate"><span class="pre">&lt;fullname&gt;-backup-monthly</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">scrap-backup-monthly.timer</span></code>, <code class="docutils literal notranslate"><span class="pre">scrap-backup-monthly.service</span></code></p></td>
 <td><p>03:50 on the 1st, <code class="docutils literal notranslate"><span class="pre">50</span> <span class="pre">3</span> <span class="pre">1</span> <span class="pre">*</span> <span class="pre">*</span></code></p></td>
-<td><p>The same backup into a new run in the <code class="docutils literal notranslate"><span class="pre">monthly/</span></code> folder (of the backup claim, or <code class="docutils literal notranslate"><span class="pre">SCRAP_BACKUPS</span></code>), keeping the newest <code class="docutils literal notranslate"><span class="pre">monthly.keep</span></code> there (<a class="reference internal" href="../how-to/deploy-single-server.html#scrap-backup-restore"><span class="std std-ref">Backup and restore</span></a>); the daily runs, their pruning and gc ignore that folder</p></td>
+<td><p>The same backup into a new run in the <code class="docutils literal notranslate"><span class="pre">monthly/</span></code> folder (of the backup volume, or <code class="docutils literal notranslate"><span class="pre">SCRAP_BACKUPS</span></code>), keeping the newest <code class="docutils literal notranslate"><span class="pre">monthly.keep</span></code> there (<a class="reference internal" href="../how-to/deploy-single-server.html#scrap-backup-restore"><span class="std std-ref">Backup and restore</span></a>); the daily runs, their pruning and gc ignore that folder</p></td>
 <td><p>No</p></td>
 <td><p>Kubernetes: starts within 1 h, runs at most 1 h; single server: 1 h</p></td>
 </tr>
 <tr class="row-even"><td><p>gc</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">&lt;fullname&gt;-gc</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">jobs</span></code> container, job <code class="docutils literal notranslate"><span class="pre">gc</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">scrap-gc.timer</span></code>, <code class="docutils literal notranslate"><span class="pre">scrap-gc.service</span></code></p></td>
 <td><p>04:30 daily, <code class="docutils literal notranslate"><span class="pre">30</span> <span class="pre">4</span> <span class="pre">*</span> <span class="pre">*</span> <span class="pre">*</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">gc</span></code>: deletes stored files nothing uses and old run records, purges pages in the trash past <code class="docutils literal notranslate"><span class="pre">trashDays</span></code> (topic pages aside) and finished job records past <code class="docutils literal notranslate"><span class="pre">jobDays</span></code>, gathers files no page shows onto the month’s Orphaned assets page; deletes only after a completed backup less than 26 hours old, else only counts and fails (<a class="reference internal" href="../how-to/deploy-single-server.html#scrap-gc"><span class="std std-ref">Deleting unused files (scrap gc)</span></a>)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">gc</span></code>: deletes stored files nothing uses and old run records, purges pages in the trash past <code class="docutils literal notranslate"><span class="pre">trashDays</span></code> (topic pages aside) and finished job records past <code class="docutils literal notranslate"><span class="pre">jobDays</span></code>, gathers files no page shows onto the month’s Orphaned assets page; deletes only after a completed backup less than 26 hours old, else only counts and fails (<a class="reference internal" href="../how-to/deploy-single-server.html#scrap-gc"><span class="std std-ref">Deleting unused files (scrap gc)</span></a>). On Kubernetes it also only counts past its safety limits (<a class="reference internal" href="api.html"><span class="std std-doc">HTTP API and CLI</span></a>, <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">gc</span></code>)</p></td>
 <td><p>No</p></td>
-<td><p>Kubernetes: starts within 1 h, runs at most 1 h; single server: 1 h</p></td>
+<td><p>1 h</p></td>
 </tr>
 <tr class="row-odd"><td><p>Related pages</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">&lt;fullname&gt;-enrich-related</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">jobs</span></code> container, job <code class="docutils literal notranslate"><span class="pre">enrich-related</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">scrap-enrich-related.timer</span></code>, <code class="docutils literal notranslate"><span class="pre">scrap-enrich-related.service</span></code></p></td>
 <td><p>03:41 daily, <code class="docutils literal notranslate"><span class="pre">41</span> <span class="pre">3</span> <span class="pre">*</span> <span class="pre">*</span> <span class="pre">*</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">enrich</span> <span class="pre">--related</span></code>: picks related pages for every page changed, or with a photo read, since its last picks (<a class="reference internal" href="../explanations/ingest.html#ingest-enrich-related"><span class="std std-ref">Related pages</span></a>). It does not write board write-ups again: an outdated one is the owner’s to regenerate</p></td>
 <td><p>Yes</p></td>
-<td><p>Kubernetes: starts within 1 h, runs at most 4 h; single server: none</p></td>
+<td><p>Kubernetes: 4 h; single server: none</p></td>
 </tr>
 <tr class="row-even"><td><p>Topics</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">&lt;fullname&gt;-enrich-topics</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">jobs</span></code> container, job <code class="docutils literal notranslate"><span class="pre">enrich-topics</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">scrap-enrich-topics.timer</span></code>, <code class="docutils literal notranslate"><span class="pre">scrap-enrich-topics.service</span></code></p></td>
 <td><p>04:11 on Sundays, <code class="docutils literal notranslate"><span class="pre">11</span> <span class="pre">4</span> <span class="pre">*</span> <span class="pre">*</span> <span class="pre">0</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">enrich</span> <span class="pre">--topics</span></code>: one discovery call (new topic pages and sources), then a synthesis queued for each topic due, which the scrap service’s worker makes (<a class="reference internal" href="../explanations/ingest.html#ingest-topics"><span class="std std-ref">Topic pages</span></a>)</p></td>
 <td><p>Yes (the call, and the syntheses)</p></td>
-<td><p>Kubernetes: starts within 1 h, runs at most 1 h; single server: none</p></td>
+<td><p>Kubernetes: 1 h; single server: none</p></td>
 </tr>
 </tbody>
 </table>
 </div>
 <p>On Kubernetes the chart runs the database with Litestream by default
 (<a class="reference internal" href="../explanations/decisions/0047-litestream-is-the-default-kubernetes-mode.html"><span class="std std-doc">ADR 47</span></a>), so gc,
-related pages and topics, which need the live database, are not CronJobs: the same values run them in
-the scrap pod’s <code class="docutils literal notranslate"><span class="pre">jobs</span></code> container (<a class="reference internal" href="../how-to/deploy-kubernetes.html#k8s-litestream"><span class="std std-ref">The database on an emptyDir, with Litestream</span></a>). Their CronJob names above apply only to the
-deprecated <code class="docutils literal notranslate"><span class="pre">litestream.enabled:</span> <span class="pre">false</span></code>. The two backups stay CronJobs. <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">schedule</span> <span class="pre">status</span></code> there, or its
-Prometheus metrics, says how each last ran and when the newest backup completed
-(<a class="reference internal" href="../how-to/deploy-kubernetes.html#k8s-litestream-health"><span class="std std-ref">Are the nightly jobs healthy? (Litestream)</span></a>).</p>
+related pages and topics, which need the live database, run in the scrap pod’s <code class="docutils literal notranslate"><span class="pre">jobs</span></code> container,
+not as CronJobs. For now the chart also renders CronJobs named <code class="docutils literal notranslate"><span class="pre">&lt;fullname&gt;-gc</span></code>,
+<code class="docutils literal notranslate"><span class="pre">&lt;fullname&gt;-enrich-related</span></code> and <code class="docutils literal notranslate"><span class="pre">&lt;fullname&gt;-enrich-topics</span></code>, suspended stubs that never run: they
+replace the old mode’s CronJobs on an upgrade (<a class="reference internal" href="../how-to/deploy-kubernetes.html#k8s-upgrade-old-mode"><span class="std std-ref">Upgrading from the old mode</span></a>).</p>
+<p>On Kubernetes the <code class="docutils literal notranslate"><span class="pre">jobs</span></code> container also does this, on fixed times that no value changes:</p>
+<div class="pst-scrollable-table-container"><table class="table">
+<thead>
+<tr class="row-odd"><th class="head"><p>Job</p></th>
+<th class="head"><p>Where</p></th>
+<th class="head"><p>When</p></th>
+<th class="head"><p>What it does</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Heartbeat</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">jobs</span></code> container</p></td>
+<td><p>every 15 minutes</p></td>
+<td><p>Stamps the database, so a backup (and the next pod start) can tell how old the replica is</p></td>
+</tr>
+<tr class="row-odd"><td><p>Replication check</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">jobs</span></code> container</p></td>
+<td><p>every minute</p></td>
+<td><p>With no stamp newer than 20 minutes in the replica, it logs, notifies (<code class="docutils literal notranslate"><span class="pre">SCRAP_NOTIFY_URL</span></code>), and the readiness probe takes the pod out of its Service, so scrap stops taking writes it could lose, until replication recovers</p></td>
+</tr>
+<tr class="row-even"><td><p>Litestream snapshot</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">litestream</span></code> sidecar</p></td>
+<td><p>every 6 hours, kept 24 hours</p></td>
+<td><p>A full copy in the replica, which shortens a restore</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">schedule</span> <span class="pre">status</span></code> in the <code class="docutils literal notranslate"><span class="pre">jobs</span></code> container, or its Prometheus metrics, says how each job last
+ran and when the newest backup completed (<a class="reference internal" href="../how-to/deploy-kubernetes.html#k8s-litestream-health"><span class="std std-ref">Are the nightly jobs healthy?</span></a>). To run one now, recorded
+like a scheduled run:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>kubectl<span class="w"> </span>-n<span class="w"> </span>scrap<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>deploy/scrap<span class="w"> </span>-c<span class="w"> </span><span class="nb">jobs</span><span class="w"> </span>--<span class="w"> </span>scrap<span class="w"> </span>schedule<span class="w"> </span>--run<span class="w"> </span>gc
+</pre></div>
+</div>
+<p>It exits with the job’s status, or <code class="docutils literal notranslate"><span class="pre">75</span></code> if that job is already running.</p>
 <section id="settings">
 <h2>Settings<a class="headerlink" href="#settings" title="Link to this heading">#</a></h2>
 <p>Each chart value, its default, and what does the same on a single server. A timer drop-in is
@@ -980,77 +997,85 @@ it; <code class="docutils literal notranslate"><span class="pre">SCRAP_BACKUP_MO
 <td><p><code class="docutils literal notranslate"><span class="pre">12</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">SCRAP_BACKUP_MONTHLY_KEEP</span></code> in <code class="docutils literal notranslate"><span class="pre">~/.config/scrap/env</span></code> (unset means 12; 0 is off)</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">gc.enabled</span></code></p></td>
-<td><p>unset: follows <code class="docutils literal notranslate"><span class="pre">backup.enabled</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">backup.resources</span></code></p></td>
+<td><p>see <code class="docutils literal notranslate"><span class="pre">values.yaml</span></code></p></td>
+<td><p>none: the jobs share the machine</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">gc.enabled</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">null</span></code>: follows <code class="docutils literal notranslate"><span class="pre">backup.enabled</span></code> (<code class="docutils literal notranslate"><span class="pre">true</span></code> with <code class="docutils literal notranslate"><span class="pre">backup.enabled</span></code> false and <code class="docutils literal notranslate"><span class="pre">requireBackup</span></code> true is refused)</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">systemctl</span> <span class="pre">--user</span> <span class="pre">disable</span> <span class="pre">--now</span> <span class="pre">scrap-gc.timer</span></code></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">gc.schedule</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">gc.schedule</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">30</span> <span class="pre">4</span> <span class="pre">*</span> <span class="pre">*</span> <span class="pre">*</span></code></p></td>
 <td><p>timer drop-in on <code class="docutils literal notranslate"><span class="pre">scrap-gc.timer</span></code> (<code class="docutils literal notranslate"><span class="pre">OnCalendar=*-*-*</span> <span class="pre">04:30:00</span></code>)</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">gc.timeZone</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">gc.timeZone</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">&quot;&quot;</span></code></p></td>
 <td><p>none: the machine’s local time</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">gc.delete</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">gc.delete</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">true</span></code></p></td>
 <td><p>service drop-in: <code class="docutils literal notranslate"><span class="pre">ExecStart=%h/.local/lib/scrap/scrap-gc</span> <span class="pre">--dry-run</span></code> (only count)</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">gc.graceHours</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">24</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">gc.graceHours</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">24</span></code> (<code class="docutils literal notranslate"><span class="pre">0</span></code> makes the job only count)</p></td>
 <td><p>service drop-in: <code class="docutils literal notranslate"><span class="pre">ExecStart=%h/.local/lib/scrap/scrap-gc</span> <span class="pre">--grace-hours</span> <span class="pre">N</span></code>, with N above 0: unlike the chart, where <code class="docutils literal notranslate"><span class="pre">0</span></code> means only count, <code class="docutils literal notranslate"><span class="pre">--grace-hours</span> <span class="pre">0</span></code> on a single server deletes with no grace period (an upload on its way could lose its file)</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">gc.runDays</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">gc.runDays</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">30</span></code></p></td>
 <td><p>service drop-in: <code class="docutils literal notranslate"><span class="pre">ExecStart=%h/.local/lib/scrap/scrap-gc</span> <span class="pre">--run-days</span> <span class="pre">N</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">gc.trashDays</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">gc.trashDays</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">30</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">SCRAP_TRASH_DAYS=N</span></code> (or <code class="docutils literal notranslate"><span class="pre">off</span></code>) in <code class="docutils literal notranslate"><span class="pre">~/.config/scrap/ingest.env</span></code>, then restart scrap: the server shows it as the purge date and <code class="docutils literal notranslate"><span class="pre">scrap-gc</span></code> passes it on as <code class="docutils literal notranslate"><span class="pre">--trash-days</span></code>. The chart sets <code class="docutils literal notranslate"><span class="pre">SCRAP_TRASH_DAYS</span></code> on the scrap pod itself (<code class="docutils literal notranslate"><span class="pre">off</span></code> while gc does not delete)</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">gc.jobDays</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">gc.jobDays</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">30</span></code></p></td>
 <td><p>service drop-in: <code class="docutils literal notranslate"><span class="pre">ExecStart=%h/.local/lib/scrap/scrap-gc</span> <span class="pre">--job-days</span> <span class="pre">N</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">gc.requireBackup</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">gc.requireBackup</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">true</span></code></p></td>
 <td><p>none: <code class="docutils literal notranslate"><span class="pre">scrap-gc</span></code> always wants a backup less than 26 hours old; run <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">gc</span> <span class="pre">--delete</span></code> by hand instead (<a class="reference internal" href="../how-to/deploy-single-server.html#scrap-gc"><span class="std std-ref">Deleting unused files (scrap gc)</span></a>)</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">enrichRelated.enabled</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">enrichRelated.enabled</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">true</span></code> (needs <code class="docutils literal notranslate"><span class="pre">ingest.enabled</span></code>)</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">systemctl</span> <span class="pre">--user</span> <span class="pre">disable</span> <span class="pre">--now</span> <span class="pre">scrap-enrich-related.timer</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">enrichRelated.schedule</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">enrichRelated.schedule</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">41</span> <span class="pre">3</span> <span class="pre">*</span> <span class="pre">*</span> <span class="pre">*</span></code></p></td>
 <td><p>timer drop-in on <code class="docutils literal notranslate"><span class="pre">scrap-enrich-related.timer</span></code> (<code class="docutils literal notranslate"><span class="pre">OnCalendar=*-*-*</span> <span class="pre">03:41:00</span></code>)</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">enrichRelated.timeZone</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">enrichRelated.timeZone</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">&quot;&quot;</span></code></p></td>
 <td><p>none: the machine’s local time</p></td>
 </tr>
-<tr class="row-odd"><td><p>(none)</p></td>
+<tr class="row-even"><td><p>(none)</p></td>
 <td><p></p></td>
 <td><p>service drop-in: <code class="docutils literal notranslate"><span class="pre">ExecStart=/usr/bin/podman</span> <span class="pre">exec</span> <span class="pre">scrap</span> <span class="pre">scrap</span> <span class="pre">enrich</span> <span class="pre">--related</span> <span class="pre">--limit</span> <span class="pre">N</span></code> (or <code class="docutils literal notranslate"><span class="pre">--all</span></code>)</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">enrichTopics.enabled</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">enrichTopics.enabled</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">true</span></code> (needs <code class="docutils literal notranslate"><span class="pre">ingest.enabled</span></code>)</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">systemctl</span> <span class="pre">--user</span> <span class="pre">disable</span> <span class="pre">--now</span> <span class="pre">scrap-enrich-topics.timer</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">enrichTopics.schedule</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">enrichTopics.schedule</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">11</span> <span class="pre">4</span> <span class="pre">*</span> <span class="pre">*</span> <span class="pre">0</span></code></p></td>
 <td><p>timer drop-in on <code class="docutils literal notranslate"><span class="pre">scrap-enrich-topics.timer</span></code> (<code class="docutils literal notranslate"><span class="pre">OnCalendar=Sun</span> <span class="pre">*-*-*</span> <span class="pre">04:11:00</span></code>)</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">enrichTopics.timeZone</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">enrichTopics.timeZone</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">&quot;&quot;</span></code></p></td>
 <td><p>none: the machine’s local time</p></td>
 </tr>
-<tr class="row-odd"><td><p>(none)</p></td>
+<tr class="row-even"><td><p>(none)</p></td>
 <td><p></p></td>
 <td><p>service drop-in: <code class="docutils literal notranslate"><span class="pre">ExecStart=/usr/bin/podman</span> <span class="pre">exec</span> <span class="pre">scrap</span> <span class="pre">scrap</span> <span class="pre">enrich</span> <span class="pre">--topics</span> <span class="pre">--limit</span> <span class="pre">N</span></code> (or <code class="docutils literal notranslate"><span class="pre">--all</span></code>)</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">*.resources</span></code></p></td>
-<td><p>see <code class="docutils literal notranslate"><span class="pre">values.yaml</span></code></p></td>
-<td><p>none: the jobs share the machine</p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">litestream.jobs.resources</span></code></p></td>
+<td><p>requests 50m and 256Mi, limit 2Gi</p></td>
+<td><p>none: for gc and both Claude passes together, which can overlap (<code class="docutils literal notranslate"><span class="pre">gc.resources</span></code> and <code class="docutils literal notranslate"><span class="pre">enrich*.resources</span></code> are not used)</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">litestream.jobs.metrics.enabled</span></code>, <code class="docutils literal notranslate"><span class="pre">.port</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">false</span></code>, <code class="docutils literal notranslate"><span class="pre">9464</span></code></p></td>
+<td><p>none: Prometheus metrics of these jobs and the backups (<code class="docutils literal notranslate"><span class="pre">SCRAP_METRICS_PORT</span></code>)</p></td>
 </tr>
 </tbody>
 </table>
@@ -1062,26 +1087,34 @@ it; <code class="docutils literal notranslate"><span class="pre">SCRAP_BACKUP_MO
 <li><p><strong>One budget.</strong> The Claude jobs spend from the same daily budget as photo ingest and text
 enrichment, <code class="docutils literal notranslate"><span class="pre">SCRAP_BUDGET_DAY_USD</span></code> (<code class="docutils literal notranslate"><span class="pre">ingest.budgetDayUSD</span></code> in the chart, default $3 a UTC
 day). Each stops at a queue pause or when the day’s budget is spent, and exits non-zero
-then; the next run carries on.</p></li>
-<li><p><strong>Claude jobs need ingest.</strong> The chart creates the related-pages and topics CronJobs only while
+then; the next run carries on. In the <code class="docutils literal notranslate"><span class="pre">jobs</span></code> container that stop is recorded as <code class="docutils literal notranslate"><span class="pre">paused</span></code>, not
+a failure (no notification); a pause that lasts two runs makes the pass stale in
+<code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">schedule</span> <span class="pre">status</span></code>.</p></li>
+<li><p><strong>Claude jobs need ingest.</strong> The chart schedules the related-pages and topics passes only while
 <code class="docutils literal notranslate"><span class="pre">ingest.enabled</span></code> is true. A single server’s timers run regardless; while ingest or enrichment is
 off, or no key (or seat token) is set, the command says so and succeeds.</p></li>
 <li><p><strong>Spacing.</strong> Backup 03:30, related pages 03:41, monthly backup 03:50 on the 1st, topics Sundays
-04:11, gc 04:30 (each timer with up to 15 minutes of random delay): gc comes after the backup it
-checks for, the two backups and gc share a lock so never overlap, and the Claude jobs
-usually start after the backup has its copy (nothing orders them: a slow backup may overlap).</p></li>
-<li><p><strong>Deadline.</strong> In the chart, a CronJob that cannot start within an hour of its time
-(<code class="docutils literal notranslate"><span class="pre">startingDeadlineSeconds</span></code>) is skipped, and a Job is stopped after its run time
-(<code class="docutils literal notranslate"><span class="pre">activeDeadlineSeconds</span></code>). On a single server, the backup, monthly backup and gc services stop
-after an hour (<code class="docutils literal notranslate"><span class="pre">TimeoutStartSec</span></code>); the Claude ones have no limit.</p></li>
-<li><p><strong>Finished Jobs.</strong> In the chart, each CronJob keeps its last 3 successful and 3 failed Jobs,
-and Kubernetes deletes any finished Job, with its pod, 7 days after it ends
+04:11, gc 04:30 (each single-server timer with up to 15 minutes of random delay): gc comes after
+the backup it checks for, the two backups and gc share a lock so never overlap, and the Claude
+jobs usually start after the backup has its copy (nothing orders them: a slow backup may
+overlap).</p></li>
+<li><p><strong>Deadline.</strong> In the <code class="docutils literal notranslate"><span class="pre">jobs</span></code> container, a job still running at its next time is not started
+again. After a gap (the pod busy or briefly stopped), one run stands for the times missed, if
+one of them was within the last 60 minutes; a time missed while the pod was down longer is not
+made up. A rollout stops a running job, and the next run carries on. A run past its deadline is
+stopped (SIGTERM, then SIGKILL after 10 s) and recorded as <code class="docutils literal notranslate"><span class="pre">deadline</span></code>. The backup CronJobs are
+skipped if they cannot start within an hour of their time (<code class="docutils literal notranslate"><span class="pre">startingDeadlineSeconds</span></code>) and
+stopped after an hour’s run (<code class="docutils literal notranslate"><span class="pre">activeDeadlineSeconds</span></code>). On a single server, the backup, monthly
+backup and gc services stop after an hour (<code class="docutils literal notranslate"><span class="pre">TimeoutStartSec</span></code>); the Claude ones have no limit.</p></li>
+<li><p><strong>Finished Jobs.</strong> In the chart, each backup CronJob keeps its last 3 successful and 3 failed
+Jobs, and Kubernetes deletes any finished Job, with its pod, 7 days after it ends
 (<code class="docutils literal notranslate"><span class="pre">ttlSecondsAfterFinished</span></code>). That includes one-off Jobs made with
-<code class="docutils literal notranslate"><span class="pre">kubectl</span> <span class="pre">create</span> <span class="pre">job</span> <span class="pre">--from=cronjob/...</span></code>, such as the pre-release backup. Each Deployment keeps
-2 old ReplicaSets (<code class="docutils literal notranslate"><span class="pre">revisionHistoryLimit</span></code>).</p></li>
-<li><p><strong>Time zone.</strong> In the chart, an empty <code class="docutils literal notranslate"><span class="pre">timeZone</span></code> uses the cluster’s clock (the controller’s,
-usually UTC); set an IANA name such as <code class="docutils literal notranslate"><span class="pre">Europe/London</span></code> to change it. A single server’s timers
-use the machine’s local time.</p></li>
+<code class="docutils literal notranslate"><span class="pre">kubectl</span> <span class="pre">create</span> <span class="pre">job</span> <span class="pre">--from=cronjob/...</span></code>, such as the pre-release backup. gc and the Claude
+passes are not Jobs: their runs are recorded in the database (<code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">schedule</span> <span class="pre">status</span></code>). Each
+Deployment keeps 2 old ReplicaSets (<code class="docutils literal notranslate"><span class="pre">revisionHistoryLimit</span></code>).</p></li>
+<li><p><strong>Time zone.</strong> In the chart, an empty <code class="docutils literal notranslate"><span class="pre">timeZone</span></code> is the controller’s zone (usually UTC) for the
+two backup CronJobs, and UTC for the jobs in the scrap pod. Set an IANA name such as
+<code class="docutils literal notranslate"><span class="pre">Europe/London</span></code> to change either. A single server’s timers use the machine’s local time.</p></li>
 <li><p><strong>Single-server schedules.</strong> Change one with a timer drop-in, which <code class="docutils literal notranslate"><span class="pre">install.sh</span></code> keeps:
 <code class="docutils literal notranslate"><span class="pre">systemctl</span> <span class="pre">--user</span> <span class="pre">edit</span> <span class="pre">scrap-backup.timer</span></code>, then clear <code class="docutils literal notranslate"><span class="pre">OnCalendar</span></code> before the new one
 (<a class="reference internal" href="../how-to/deploy-single-server.html#scrap-backup-restore"><span class="std std-ref">Backup and restore</span></a>, <em>Changing the schedule</em>). The same works for every timer.</p></li>

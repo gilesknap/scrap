@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Install on a server with Tailscale &#8212; scrap 1.8.3.dev11+ge626bdd8c documentation</title>
+    <title>Install on a server with Tailscale &#8212; scrap 1.8.3.dev22+g979292dcd documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=3b410661"></script>
+    <script src="../_static/documentation_options.js?v=935dbc1a"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -585,17 +585,6 @@ window.runMermaid = runMermaid;</script>
           
           <a href="https://github.com/gilesknap/scrap" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-square-github fa-lg" aria-hidden="true"></i><span class="visually-hidden">GitHub</span></a>
         </li>
-        <li class="nav-item">
-          
-          
-          
-          
-          
-          
-          
-          
-          <a href="https://pypi.org/project/scrap" title="PyPI" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fas fa-cube fa-lg" aria-hidden="true"></i><span class="visually-hidden">PyPI</span></a>
-        </li>
 </ul></div>
       
         <div class="navbar-item">
@@ -728,17 +717,6 @@ window.runMermaid = runMermaid;</script>
           
           
           <a href="https://github.com/gilesknap/scrap" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-square-github fa-lg" aria-hidden="true"></i><span class="visually-hidden">GitHub</span></a>
-        </li>
-        <li class="nav-item">
-          
-          
-          
-          
-          
-          
-          
-          
-          <a href="https://pypi.org/project/scrap" title="PyPI" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fas fa-cube fa-lg" aria-hidden="true"></i><span class="visually-hidden">PyPI</span></a>
         </li>
 </ul></div>
         
@@ -889,16 +867,17 @@ it there (<code class="docutils literal notranslate"><span class="pre">sudo</spa
 <li><p><code class="docutils literal notranslate"><span class="pre">machinectl</span></code>, from the <code class="docutils literal notranslate"><span class="pre">systemd-container</span></code> package, if you will log in as the scrap user from
 an admin account rather than over <code class="docutils literal notranslate"><span class="pre">ssh</span></code> (below).</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">git</span></code> and <code class="docutils literal notranslate"><span class="pre">curl</span></code>.</p></li>
-<li><p>An <a class="reference external" href="https://platform.claude.com/">Anthropic API key</a> for the ingest step, and
-<a class="reference external" href="https://code.claude.com/docs">Claude Code</a> on the server if you want the last step.</p></li>
 <li><p><a class="reference external" href="https://tailscale.com/download">Tailscale</a> on the server, logged in to your tailnet, with
 <a class="reference external" href="https://tailscale.com/kb/1153/enabling-https">HTTPS certificates</a> and MagicDNS enabled for the
-tailnet.</p></li>
+tailnet. You need the server’s MagicDNS name, <code class="docutils literal notranslate"><span class="pre">&lt;host&gt;.&lt;tailnet&gt;.ts.net</span></code> (the admin console’s
+<strong>Machines</strong> page shows it).</p></li>
+<li><p>Optionally, an <a class="reference external" href="https://platform.claude.com/">Anthropic API key</a>, so Claude reads your photos
+and tags your pages, and <a class="reference external" href="https://code.claude.com/docs">Claude Code</a> for the last step.</p></li>
 </ul>
 <p>You do not need Python or Node on the server: the image carries everything scrap needs.</p>
 </section>
 <section id="create-a-dedicated-user">
-<h2>Create a dedicated user<a class="headerlink" href="#create-a-dedicated-user" title="Link to this heading">#</a></h2>
+<h2>1. Create a dedicated user<a class="headerlink" href="#create-a-dedicated-user" title="Link to this heading">#</a></h2>
 <p>As an admin, create a user that does nothing but run scrap, and let its services run when nobody
 is logged in:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">sudo</span> <span class="n">useradd</span> <span class="o">--</span><span class="n">create</span><span class="o">-</span><span class="n">home</span> <span class="o">--</span><span class="n">shell</span> <span class="o">/</span><span class="nb">bin</span><span class="o">/</span><span class="n">bash</span> <span class="n">scrap</span>
@@ -906,31 +885,20 @@ is logged in:</p>
 <span class="n">grep</span> <span class="n">scrap</span> <span class="o">/</span><span class="n">etc</span><span class="o">/</span><span class="n">subuid</span> <span class="o">/</span><span class="n">etc</span><span class="o">/</span><span class="n">subgid</span>
 </pre></div>
 </div>
-<p><code class="docutils literal notranslate"><span class="pre">grep</span></code> should print one line from each file; rootless podman needs those ID ranges. If it prints
+<p>Check: <code class="docutils literal notranslate"><span class="pre">grep</span></code> prints one line from each file; rootless podman needs those ID ranges. If it prints
 nothing, see <a class="reference internal" href="../how-to/deploy-single-server.html#scrap-troubleshooting"><span class="std std-ref">Troubleshooting</span></a>.</p>
-<p>Everything from here to the Tailscale step runs <strong>as that user</strong>, in a real login session so that
-<code class="docutils literal notranslate"><span class="pre">systemctl</span> <span class="pre">--user</span></code> works: <code class="docutils literal notranslate"><span class="pre">ssh</span> <span class="pre">scrap&#64;&lt;host&gt;</span></code>, or from an admin account
-<code class="docutils literal notranslate"><span class="pre">sudo</span> <span class="pre">machinectl</span> <span class="pre">shell</span> <span class="pre">scrap&#64;</span></code>. A plain <code class="docutils literal notranslate"><span class="pre">sudo</span> <span class="pre">-u</span> <span class="pre">scrap</span></code> or <code class="docutils literal notranslate"><span class="pre">su</span></code> does not work.</p>
-</section>
-<section id="get-the-image">
-<h2>Get the image<a class="headerlink" href="#get-the-image" title="Link to this heading">#</a></h2>
-<p>As <code class="docutils literal notranslate"><span class="pre">scrap</span></code>, pull the image. It is public, so no login is needed:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">podman</span> <span class="n">pull</span> <span class="n">ghcr</span><span class="o">.</span><span class="n">io</span><span class="o">/</span><span class="n">gilesknap</span><span class="o">/</span><span class="n">scrap</span><span class="p">:</span><span class="mf">1.8.2</span>
-<span class="n">podman</span> <span class="n">run</span> <span class="o">--</span><span class="n">rm</span> <span class="n">ghcr</span><span class="o">.</span><span class="n">io</span><span class="o">/</span><span class="n">gilesknap</span><span class="o">/</span><span class="n">scrap</span><span class="p">:</span><span class="mf">1.8.2</span> <span class="o">--</span><span class="n">version</span>
-</pre></div>
-</div>
-<p>The last command prints <code class="docutils literal notranslate"><span class="pre">1.8.2</span></code>. The install script and its units come from the repo, so clone it
-too:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">cd</span> <span class="o">~</span>
-<span class="n">git</span> <span class="n">clone</span> <span class="o">--</span><span class="n">branch</span> <span class="mf">1.8.2</span> <span class="o">--</span><span class="n">depth</span> <span class="mi">1</span> <span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">github</span><span class="o">.</span><span class="n">com</span><span class="o">/</span><span class="n">gilesknap</span><span class="o">/</span><span class="n">scrap</span><span class="o">.</span><span class="n">git</span>
-<span class="n">cd</span> <span class="n">scrap</span>
-</pre></div>
-</div>
 </section>
 <section id="install-the-service">
-<h2>Install the service<a class="headerlink" href="#install-the-service" title="Link to this heading">#</a></h2>
-<p>Still as <code class="docutils literal notranslate"><span class="pre">scrap</span></code>, in the clone:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="o">./</span><span class="n">deploy</span><span class="o">/</span><span class="n">install</span><span class="o">.</span><span class="n">sh</span>
+<h2>2. Install the service<a class="headerlink" href="#install-the-service" title="Link to this heading">#</a></h2>
+<p>Steps 2 and 3 run <strong>as <code class="docutils literal notranslate"><span class="pre">scrap</span></code></strong>, in a real login session so that <code class="docutils literal notranslate"><span class="pre">systemctl</span> <span class="pre">--user</span></code> works:
+<code class="docutils literal notranslate"><span class="pre">ssh</span> <span class="pre">scrap&#64;&lt;host&gt;</span></code>, or from an admin account <code class="docutils literal notranslate"><span class="pre">sudo</span> <span class="pre">machinectl</span> <span class="pre">shell</span> <span class="pre">scrap&#64;</span></code>. A plain
+<code class="docutils literal notranslate"><span class="pre">sudo</span> <span class="pre">-u</span> <span class="pre">scrap</span></code> or <code class="docutils literal notranslate"><span class="pre">su</span></code> does not work.</p>
+<p>Pull the image (it is public), clone the repo for the install script and its units, and run the
+script:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">podman</span> <span class="n">pull</span> <span class="n">ghcr</span><span class="o">.</span><span class="n">io</span><span class="o">/</span><span class="n">gilesknap</span><span class="o">/</span><span class="n">scrap</span><span class="p">:</span><span class="mf">1.8.2</span>
+<span class="n">git</span> <span class="n">clone</span> <span class="o">--</span><span class="n">branch</span> <span class="mf">1.8.2</span> <span class="o">--</span><span class="n">depth</span> <span class="mi">1</span> <span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">github</span><span class="o">.</span><span class="n">com</span><span class="o">/</span><span class="n">gilesknap</span><span class="o">/</span><span class="n">scrap</span><span class="o">.</span><span class="n">git</span> <span class="o">~/</span><span class="n">scrap</span>
+<span class="n">cd</span> <span class="o">~/</span><span class="n">scrap</span>
+<span class="o">./</span><span class="n">deploy</span><span class="o">/</span><span class="n">install</span><span class="o">.</span><span class="n">sh</span>
 </pre></div>
 </div>
 <p>The first run writes <code class="docutils literal notranslate"><span class="pre">~/.config/scrap/env</span></code> naming a local build, <code class="docutils literal notranslate"><span class="pre">localhost/scrap:dev</span></code>, and says
@@ -939,86 +907,69 @@ the image is not here yet. Point it at the release you pulled and run the script
 <span class="o">./</span><span class="n">deploy</span><span class="o">/</span><span class="n">install</span><span class="o">.</span><span class="n">sh</span>
 </pre></div>
 </div>
-<p>The script is safe to re-run. It writes <code class="docutils literal notranslate"><span class="pre">~/.config/scrap/env</span></code> and <code class="docutils literal notranslate"><span class="pre">~/.config/scrap/ingest.env</span></code>
-(never overwriting them), copies the systemd units and helper scripts into place, enables and
-starts <code class="docutils literal notranslate"><span class="pre">scrap.service</span></code>, and enables the daily and monthly backup, nightly gc, nightly related-pages
-and weekly topics timers. The
-defaults suit this tutorial: <code class="docutils literal notranslate"><span class="pre">SCRAP_LISTEN=socket</span></code> (a Unix socket only <code class="docutils literal notranslate"><span class="pre">scrap</span></code> and root can open,
-no TCP port), data in <code class="docutils literal notranslate"><span class="pre">~/.local/share/scrap/data</span></code> and backups in <code class="docutils literal notranslate"><span class="pre">~/.local/share/scrap/backups</span></code>.</p>
-<p>Check that it runs:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">systemctl</span> <span class="o">--</span><span class="n">user</span> <span class="n">status</span> <span class="n">scrap</span>
-<span class="o">./</span><span class="n">deploy</span><span class="o">/</span><span class="n">smoke</span><span class="o">.</span><span class="n">sh</span>
+<p>The script starts <code class="docutils literal notranslate"><span class="pre">scrap.service</span></code> and the backup, gc, related-pages and topics timers. scrap
+listens on a Unix socket that only <code class="docutils literal notranslate"><span class="pre">scrap</span></code> and root can open, with data in
+<code class="docutils literal notranslate"><span class="pre">~/.local/share/scrap/data</span></code> and backups in <code class="docutils literal notranslate"><span class="pre">~/.local/share/scrap/backups</span></code>.</p>
+<p>Check: <code class="docutils literal notranslate"><span class="pre">./deploy/smoke.sh</span></code> prints <code class="docutils literal notranslate"><span class="pre">{&quot;status&quot;:&quot;ok&quot;,...}</span></code>. If not, read the logs with
+<code class="docutils literal notranslate"><span class="pre">journalctl</span> <span class="pre">--user</span> <span class="pre">-u</span> <span class="pre">scrap</span> <span class="pre">-n</span> <span class="pre">50</span></code>.</p>
+</section>
+<section id="tell-scrap-its-address">
+<h2>3. Tell scrap its address<a class="headerlink" href="#tell-scrap-its-address" title="Link to this heading">#</a></h2>
+<p>Still as <code class="docutils literal notranslate"><span class="pre">scrap</span></code>, edit <code class="docutils literal notranslate"><span class="pre">~/.config/scrap/ingest.env</span></code> (keep its mode 600: it holds your API key).
+Uncomment or add these lines, plain <code class="docutils literal notranslate"><span class="pre">KEY=value</span></code> with no quotes:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">SCRAP_PUBLIC_URL</span><span class="o">=</span><span class="n">https</span><span class="p">:</span><span class="o">//&lt;</span><span class="n">host</span><span class="o">&gt;.&lt;</span><span class="n">tailnet</span><span class="o">&gt;.</span><span class="n">ts</span><span class="o">.</span><span class="n">net</span><span class="p">:</span><span class="mi">8446</span>
+<span class="n">TZ</span><span class="o">=</span><span class="n">Europe</span><span class="o">/</span><span class="n">London</span>
 </pre></div>
 </div>
-<p><code class="docutils literal notranslate"><span class="pre">smoke.sh</span></code> calls <code class="docutils literal notranslate"><span class="pre">/healthz</span></code> on the socket and should print <code class="docutils literal notranslate"><span class="pre">{&quot;status&quot;:&quot;ok&quot;,...}</span></code>. If not, read the
-logs with <code class="docutils literal notranslate"><span class="pre">journalctl</span> <span class="pre">--user</span> <span class="pre">-u</span> <span class="pre">scrap</span> <span class="pre">-n</span> <span class="pre">50</span></code>.</p>
+<p>If you have an API key, add these too:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">SCRAP_INGEST</span><span class="o">=</span><span class="n">on</span>
+<span class="n">ANTHROPIC_API_KEY</span><span class="o">=&lt;</span><span class="n">your</span> <span class="n">key</span><span class="o">&gt;</span>
+<span class="n">SCRAP_BUDGET_DAY_USD</span><span class="o">=</span><span class="mi">3</span>
+</pre></div>
+</div>
+<ul class="simple">
+<li><p>scrap answers only loopback and the addresses in <code class="docutils literal notranslate"><span class="pre">SCRAP_PUBLIC_URL</span></code>, port included: a missing
+address locks you out. This tutorial publishes on port 8446 in the next step; pick another if
+Serve already uses it.</p></li>
+<li><p>Set <code class="docutils literal notranslate"><span class="pre">TZ</span></code> to your own time zone, otherwise <code class="docutils literal notranslate"><span class="pre">due:today</span></code> follows UTC.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">SCRAP_BUDGET_DAY_USD</span></code> caps what ingest may spend in a day. Every setting is in
+<a class="reference internal" href="../how-to/deploy-single-server.html#scrap-ingest-settings"><span class="std std-ref">Ingest settings</span></a>.</p></li>
+</ul>
+<p>Restart it:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">systemctl</span> <span class="o">--</span><span class="n">user</span> <span class="n">restart</span> <span class="n">scrap</span>
+</pre></div>
+</div>
+<p>Check: <code class="docutils literal notranslate"><span class="pre">./deploy/smoke.sh</span></code> prints <code class="docutils literal notranslate"><span class="pre">{&quot;status&quot;:&quot;ok&quot;,...}</span></code> again.</p>
 </section>
 <section id="publish-it-on-your-tailnet">
-<h2>Publish it on your tailnet<a class="headerlink" href="#publish-it-on-your-tailnet" title="Link to this heading">#</a></h2>
+<h2>4. Publish it on your tailnet<a class="headerlink" href="#publish-it-on-your-tailnet" title="Link to this heading">#</a></h2>
 <p>Log out of the <code class="docutils literal notranslate"><span class="pre">scrap</span></code> session. As an admin on the server, check what Serve already publishes,
-then add scrap on a port that is free (the port is yours to choose; this tutorial uses 8446):</p>
+then add scrap on the port you chose (leave any existing entries alone):</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span>sudo tailscale serve status
 sudo tailscale serve --bg --https=8446 unix:/run/user/$(id -u scrap)/scrap/scrap.sock
 </pre></div>
 </div>
-<p>Leave any existing entries alone. <code class="docutils literal notranslate"><span class="pre">--bg</span></code> makes the setting persist across reboots. scrap is now at
-<code class="docutils literal notranslate"><span class="pre">https://&lt;host&gt;.&lt;tailnet&gt;.ts.net:8446</span></code> for devices on your tailnet. Check it from a <code class="docutils literal notranslate"><span class="pre">scrap</span></code> login
-session on the server:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="o">./</span><span class="n">deploy</span><span class="o">/</span><span class="n">smoke</span><span class="o">.</span><span class="n">sh</span> <span class="n">https</span><span class="p">:</span><span class="o">//&lt;</span><span class="n">host</span><span class="o">&gt;.&lt;</span><span class="n">tailnet</span><span class="o">&gt;.</span><span class="n">ts</span><span class="o">.</span><span class="n">net</span><span class="p">:</span><span class="mi">8446</span>
-</pre></div>
-</div>
-<p>(<code class="docutils literal notranslate"><span class="pre">smoke.sh</span></code> also checks the local socket first, so on another device <code class="docutils literal notranslate"><span class="pre">curl</span></code> the address’s
-<code class="docutils literal notranslate"><span class="pre">/healthz</span></code> path instead.)</p>
-</section>
-<section id="turn-on-ingest-and-tell-scrap-its-address">
-<h2>Turn on ingest and tell scrap its address<a class="headerlink" href="#turn-on-ingest-and-tell-scrap-its-address" title="Link to this heading">#</a></h2>
-<p>As <code class="docutils literal notranslate"><span class="pre">scrap</span></code>, edit <code class="docutils literal notranslate"><span class="pre">~/.config/scrap/ingest.env</span></code>. <code class="docutils literal notranslate"><span class="pre">install.sh</span></code> created it with mode 600; keep it so,
-because it holds your API key and must not go on a command line. Uncomment or add these lines,
-plain <code class="docutils literal notranslate"><span class="pre">KEY=value</span></code> with no quotes:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">SCRAP_INGEST</span><span class="o">=</span><span class="n">on</span>
-<span class="n">ANTHROPIC_API_KEY</span><span class="o">=&lt;</span><span class="n">your</span> <span class="n">key</span><span class="o">&gt;</span>
-<span class="n">SCRAP_BUDGET_DAY_USD</span><span class="o">=</span><span class="mi">3</span>
-<span class="n">SCRAP_PUBLIC_URL</span><span class="o">=</span><span class="n">https</span><span class="p">:</span><span class="o">//&lt;</span><span class="n">host</span><span class="o">&gt;.&lt;</span><span class="n">tailnet</span><span class="o">&gt;.</span><span class="n">ts</span><span class="o">.</span><span class="n">net</span><span class="p">:</span><span class="mi">8446</span>
-<span class="n">TZ</span><span class="o">=</span><span class="n">Europe</span><span class="o">/</span><span class="n">London</span>
-</pre></div>
-</div>
-<ul class="simple">
-<li><p>Photos are queued either way but only sent to Claude with <code class="docutils literal notranslate"><span class="pre">SCRAP_INGEST=on</span></code>.
-<code class="docutils literal notranslate"><span class="pre">SCRAP_BUDGET_DAY_USD</span></code> caps what ingest may spend in a day; scrap pauses until tomorrow when it
-is reached.</p></li>
-<li><p>scrap answers only loopback and the addresses in <code class="docutils literal notranslate"><span class="pre">SCRAP_PUBLIC_URL</span></code>, port included, and
-otherwise <code class="docutils literal notranslate"><span class="pre">421</span> <span class="pre">Invalid</span> <span class="pre">Host</span> <span class="pre">header</span></code>: the web app as well as <code class="docutils literal notranslate"><span class="pre">/mcp</span></code>, so a missing address locks
-you out. The web page and the API also accept any IP address; <code class="docutils literal notranslate"><span class="pre">/mcp</span></code> does not, so list every
-address Claude Code will use, an IP address included. The same address makes the page links in
-Claude’s replies clickable.</p></li>
-<li><p>Set <code class="docutils literal notranslate"><span class="pre">TZ</span></code> to your own time zone, otherwise <code class="docutils literal notranslate"><span class="pre">due:today</span></code> follows UTC.</p></li>
-</ul>
-<p>Then restart:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">systemctl</span> <span class="o">--</span><span class="n">user</span> <span class="n">restart</span> <span class="n">scrap</span>
-</pre></div>
-</div>
-<p>Every ingest setting is described in <a class="reference internal" href="../how-to/deploy-single-server.html#scrap-ingest-settings"><span class="std std-ref">Ingest settings</span></a>.</p>
+<p><code class="docutils literal notranslate"><span class="pre">--bg</span></code> keeps the setting across reboots. Never use <code class="docutils literal notranslate"><span class="pre">tailscale</span> <span class="pre">funnel</span></code>.</p>
+<p>Check: <code class="docutils literal notranslate"><span class="pre">curl</span> <span class="pre">-fsS</span> <span class="pre">https://&lt;host&gt;.&lt;tailnet&gt;.ts.net:8446/healthz</span></code> prints <code class="docutils literal notranslate"><span class="pre">{&quot;status&quot;:&quot;ok&quot;,...}</span></code>.</p>
 </section>
 <section id="open-it-on-your-phone">
-<h2>Open it on your phone<a class="headerlink" href="#open-it-on-your-phone" title="Link to this heading">#</a></h2>
-<p>On a phone that is on your tailnet, open the address above in Chrome (Android) and choose <strong>Add to home
-screen</strong>, then <strong>Install</strong>. Open scrap from its icon and capture your first note. See
+<h2>5. Open it on your phone<a class="headerlink" href="#open-it-on-your-phone" title="Link to this heading">#</a></h2>
+<p>On a phone that is on your tailnet, open <code class="docutils literal notranslate"><span class="pre">https://&lt;host&gt;.&lt;tailnet&gt;.ts.net:8446</span></code> and install it:
+in Chrome on Android, <strong>Add to home screen</strong>, then <strong>Install</strong>; in Safari on iPhone, Share, then
+<strong>Add to Home Screen</strong>. Open scrap from its icon and capture your first note. See
 <a class="reference internal" href="../how-to/use-the-pwa.html"><span class="std std-doc">Capture from your phone (the PWA)</span></a> for what each screen does.</p>
 </section>
-<section id="use-it-from-claude-code-and-a-browser">
-<h2>Use it from Claude Code and a browser<a class="headerlink" href="#use-it-from-claude-code-and-a-browser" title="Link to this heading">#</a></h2>
-<p>Install Claude Code on the server (as your admin account, not as <code class="docutils literal notranslate"><span class="pre">scrap</span></code>; nothing runs as <code class="docutils literal notranslate"><span class="pre">scrap</span></code>
-except scrap) and add scrap as an MCP server, with the tailnet address and <code class="docutils literal notranslate"><span class="pre">/mcp</span></code>:</p>
+<section id="connect-claude-code">
+<h2>6. Connect Claude Code<a class="headerlink" href="#connect-claude-code" title="Link to this heading">#</a></h2>
+<p>On the server (as your admin account, not as <code class="docutils literal notranslate"><span class="pre">scrap</span></code>: nothing runs as <code class="docutils literal notranslate"><span class="pre">scrap</span></code> except scrap) or on
+any other tailnet machine with Claude Code:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">claude</span> <span class="n">mcp</span> <span class="n">add</span> <span class="o">--</span><span class="n">transport</span> <span class="n">http</span> <span class="o">--</span><span class="n">scope</span> <span class="n">user</span> <span class="n">scrap</span> <span class="n">https</span><span class="p">:</span><span class="o">//&lt;</span><span class="n">host</span><span class="o">&gt;.&lt;</span><span class="n">tailnet</span><span class="o">&gt;.</span><span class="n">ts</span><span class="o">.</span><span class="n">net</span><span class="p">:</span><span class="mi">8446</span><span class="o">/</span><span class="n">mcp</span>
-<span class="n">claude</span> <span class="n">mcp</span> <span class="nb">list</span>
 </pre></div>
 </div>
-<p><code class="docutils literal notranslate"><span class="pre">claude</span> <span class="pre">mcp</span> <span class="pre">list</span></code> should show <code class="docutils literal notranslate"><span class="pre">scrap</span></code> as connected. Ask Claude “what are my recent scrap pages?”.
-The same two commands work on any other tailnet machine with Claude Code. There is no token: the
-tailnet is the gate, and the tailnet ACL decides who can reach the port. To add a bearer token as
-well, see <a class="reference internal" href="../explanations/decisions/0023-bearer-token-on-mcp-and-an-identity-header-setting.html"><span class="std std-doc">ADR 0023</span></a>.</p>
-<p>From any other device on the tailnet, a browser opens the web app at the same
-<code class="docutils literal notranslate"><span class="pre">https://&lt;host&gt;.&lt;tailnet&gt;.ts.net:8446</span></code> address.</p>
+<p>Check: <code class="docutils literal notranslate"><span class="pre">claude</span> <span class="pre">mcp</span> <span class="pre">list</span></code> shows <code class="docutils literal notranslate"><span class="pre">scrap</span></code> as connected. Ask Claude “what are my recent scrap pages?”.</p>
+<p>There is no token: the tailnet is the gate, and the tailnet ACL decides who can reach the port.
+To add a bearer token as well, see
+<a class="reference internal" href="../explanations/decisions/0023-bearer-token-on-mcp-and-an-identity-header-setting.html"><span class="std std-doc">ADR 0023</span></a>.</p>
 </section>
 <section id="next-steps">
 <h2>Next steps<a class="headerlink" href="#next-steps" title="Link to this heading">#</a></h2>
@@ -1080,13 +1031,12 @@ restore (a daily backup timer is already running, but its copy stays on the serv
   <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
     <ul class="pst-show_toc_level nav section-nav flex-column">
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#what-you-need">What you need</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#create-a-dedicated-user">Create a dedicated user</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#get-the-image">Get the image</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#install-the-service">Install the service</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#publish-it-on-your-tailnet">Publish it on your tailnet</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#turn-on-ingest-and-tell-scrap-its-address">Turn on ingest and tell scrap its address</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#open-it-on-your-phone">Open it on your phone</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#use-it-from-claude-code-and-a-browser">Use it from Claude Code and a browser</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#create-a-dedicated-user">1. Create a dedicated user</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#install-the-service">2. Install the service</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#tell-scrap-its-address">3. Tell scrap its address</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#publish-it-on-your-tailnet">4. Publish it on your tailnet</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#open-it-on-your-phone">5. Open it on your phone</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#connect-claude-code">6. Connect Claude Code</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#next-steps">Next steps</a></li>
 </ul>
   </nav></div>

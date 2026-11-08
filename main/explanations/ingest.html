@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Claude ingest &#8212; scrap 1.8.3.dev11+ge626bdd8c documentation</title>
+    <title>Claude ingest &#8212; scrap 1.8.3.dev22+g979292dcd documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=3b410661"></script>
+    <script src="../_static/documentation_options.js?v=935dbc1a"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -417,7 +417,7 @@ window.runMermaid = runMermaid;</script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
     <link rel="next" title="What Claude is asked, per page" href="llm-calls.html" />
-    <link rel="prev" title="The PWA’s design system" href="design-system.html" />
+    <link rel="prev" title="Deployment and operations" href="architecture/deployment.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="color-scheme" content="light dark"/>
   <meta name="docsearch:language" content="en"/>
@@ -585,17 +585,6 @@ window.runMermaid = runMermaid;</script>
           
           <a href="https://github.com/gilesknap/scrap" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-square-github fa-lg" aria-hidden="true"></i><span class="visually-hidden">GitHub</span></a>
         </li>
-        <li class="nav-item">
-          
-          
-          
-          
-          
-          
-          
-          
-          <a href="https://pypi.org/project/scrap" title="PyPI" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fas fa-cube fa-lg" aria-hidden="true"></i><span class="visually-hidden">PyPI</span></a>
-        </li>
 </ul></div>
       
         <div class="navbar-item">
@@ -729,17 +718,6 @@ window.runMermaid = runMermaid;</script>
           
           <a href="https://github.com/gilesknap/scrap" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-square-github fa-lg" aria-hidden="true"></i><span class="visually-hidden">GitHub</span></a>
         </li>
-        <li class="nav-item">
-          
-          
-          
-          
-          
-          
-          
-          
-          <a href="https://pypi.org/project/scrap" title="PyPI" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fas fa-cube fa-lg" aria-hidden="true"></i><span class="visually-hidden">PyPI</span></a>
-        </li>
 </ul></div>
         
           <div class="navbar-item">
@@ -779,7 +757,28 @@ window.runMermaid = runMermaid;</script>
 <nav class="bd-docs-nav bd-links"
      aria-label="Section Navigation">
   <p class="bd-links__title" role="heading" aria-level="1">Section Navigation</p>
-  <div class="bd-toc-item navbar-nav"><ul class="current nav bd-sidenav">
+  <div class="bd-toc-item navbar-nav"><p aria-level="2" class="caption" role="heading"><span class="caption-text">Scope and architecture</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="overview.html">Scope and stack</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="design.html">Architecture</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="architecture/data-model.html">Data model and storage</a></li>
+<li class="toctree-l2"><a class="reference internal" href="architecture/capture-and-files.html">Capture, files and backup</a></li>
+<li class="toctree-l2"><a class="reference internal" href="architecture/claude-pipeline.html">Job queue and Claude features</a></li>
+<li class="toctree-l2"><a class="reference internal" href="architecture/search.html">Search</a></li>
+<li class="toctree-l2"><a class="reference internal" href="architecture/mcp-and-access.html">MCP server and access</a></li>
+<li class="toctree-l2"><a class="reference internal" href="architecture/frontend-pwa.html">The PWA</a></li>
+<li class="toctree-l2"><a class="reference internal" href="architecture/deployment.html">Deployment and operations</a></li>
+</ul>
+</details></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Claude and the PWA</span></p>
+<ul class="current nav bd-sidenav">
+<li class="toctree-l1 current active"><a aria-current="page" class="current reference internal" href="#">Claude ingest</a></li>
+<li class="toctree-l1"><a class="reference internal" href="llm-calls.html">What Claude is asked, per page</a></li>
+<li class="toctree-l1"><a class="reference internal" href="design-system.html">The PWA’s design system</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Decisions</span></p>
+<ul class="nav bd-sidenav">
 <li class="toctree-l1 has-children"><a class="reference internal" href="decisions.html">Architectural Decision Records</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l2"><a class="reference internal" href="decisions/0001-record-architecture-decisions.html">1. Record architecture decisions</a></li>
 <li class="toctree-l2"><a class="reference internal" href="decisions/0002-switched-to-python-copier-template.html">2. Adopt python-copier-template for project structure</a></li>
@@ -831,20 +830,6 @@ window.runMermaid = runMermaid;</script>
 <li class="toctree-l2"><a class="reference internal" href="decisions/0047-litestream-is-the-default-kubernetes-mode.html">47. Litestream is the default Kubernetes mode</a></li>
 </ul>
 </details></li>
-<li class="toctree-l1 has-children"><a class="reference internal" href="design.html">Architecture</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
-<li class="toctree-l2"><a class="reference internal" href="architecture/data-model.html">Data model and storage</a></li>
-<li class="toctree-l2"><a class="reference internal" href="architecture/capture-and-files.html">Capture, files and backup</a></li>
-<li class="toctree-l2"><a class="reference internal" href="architecture/claude-pipeline.html">Job queue and Claude features</a></li>
-<li class="toctree-l2"><a class="reference internal" href="architecture/search.html">Search</a></li>
-<li class="toctree-l2"><a class="reference internal" href="architecture/mcp-and-access.html">MCP server and access</a></li>
-<li class="toctree-l2"><a class="reference internal" href="architecture/frontend-pwa.html">The PWA</a></li>
-<li class="toctree-l2"><a class="reference internal" href="architecture/deployment.html">Deployment and operations</a></li>
-</ul>
-</details></li>
-<li class="toctree-l1"><a class="reference internal" href="design-system.html">The PWA’s design system</a></li>
-<li class="toctree-l1 current active"><a aria-current="page" class="current reference internal" href="#">Claude ingest</a></li>
-<li class="toctree-l1"><a class="reference internal" href="llm-calls.html">What Claude is asked, per page</a></li>
-<li class="toctree-l1"><a class="reference internal" href="overview.html">Scope and stack</a></li>
 </ul>
 </div>
 </nav></div>
@@ -1019,7 +1004,8 @@ installs the <code class="docutils literal notranslate"><span class="pre">scrap-
 timers.</p></li>
 <li><p><strong>Kubernetes (Helm).</strong> <code class="docutils literal notranslate"><span class="pre">ingest.enabled</span></code>, <code class="docutils literal notranslate"><span class="pre">ingest.existingSecret</span></code> (the chart never takes the key
 itself) and the optional <code class="docutils literal notranslate"><span class="pre">visionModel</span></code>, <code class="docutils literal notranslate"><span class="pre">budgetDayUSD</span></code> and <code class="docutils literal notranslate"><span class="pre">notifyUrlKey</span></code>: <a class="reference internal" href="../how-to/deploy-kubernetes.html#k8s-ingest"><span class="std std-ref">Secrets and ingest</span></a>.
-The <code class="docutils literal notranslate"><span class="pre">enrichRelated</span></code> and <code class="docutils literal notranslate"><span class="pre">enrichTopics</span></code> CronJobs are created while ingest is enabled. The chart
+While ingest is enabled the related and topics passes run on their schedules (<code class="docutils literal notranslate"><span class="pre">enrichRelated</span></code>,
+<code class="docutils literal notranslate"><span class="pre">enrichTopics</span></code>) in the scrap pod’s <code class="docutils literal notranslate"><span class="pre">jobs</span></code> container. The chart
 has no value of its own for the text model, effort, debounce or <code class="docutils literal notranslate"><span class="pre">SCRAP_ENRICH</span></code>; set them with
 <code class="docutils literal notranslate"><span class="pre">extraEnv</span></code>.</p></li>
 </ul>
@@ -1758,7 +1744,7 @@ queue as the worker does); other failures are counted and it goes on. Exit statu
 stopped. On a single server, <code class="docutils literal notranslate"><span class="pre">deploy/scrap-enrich-related.{service,timer}</span></code> run it nightly
 (03:41) in the service’s container, and <code class="docutils literal notranslate"><span class="pre">install.sh</span></code> enables the timer if the image has the
 command. While ingest or enrich is off, or no key (or, with <code class="docutils literal notranslate"><span class="pre">SCRAP_LLM_BACKEND=cli</span></code>, no seat
-token) is set, the command prints a note and exits 0. On Kubernetes the <code class="docutils literal notranslate"><span class="pre">enrichRelated</span></code> CronJob does the same (<code class="docutils literal notranslate"><span class="pre">41</span> <span class="pre">3</span> <span class="pre">*</span> <span class="pre">*</span> <span class="pre">*</span></code>).</p></li>
+token) is set, the command prints a note and exits 0. On Kubernetes the scrap pod’s <code class="docutils literal notranslate"><span class="pre">jobs</span></code> container does the same (<code class="docutils literal notranslate"><span class="pre">enrichRelated.schedule</span></code>, <code class="docutils literal notranslate"><span class="pre">41</span> <span class="pre">3</span> <span class="pre">*</span> <span class="pre">*</span> <span class="pre">*</span></code>).</p></li>
 <li><p><strong>Both ways.</strong> A page’s Related merges its picks, pages that picked it, pages linking here
 with <code class="docutils literal notranslate"><span class="pre">[[slug]]</span></code> (marked “links here”), and pages its current write-up links to or whose current
 write-up links here (<code class="docutils literal notranslate"><span class="pre">via:</span> <span class="pre">writeup</span></code>, marked “in a write-up”), each once (a page that is both
@@ -2029,21 +2015,26 @@ as the deploy page does for <code class="docutils literal notranslate"><span cla
 exception, under <code class="docutils literal notranslate"><span class="pre">ingest</span> <span class="pre">worker</span></code>, <code class="docutils literal notranslate"><span class="pre">ingest</span> <span class="pre">job</span> <span class="pre">N</span></code> or <code class="docutils literal notranslate"><span class="pre">enrich</span> <span class="pre">job</span> <span class="pre">N</span></code>; API errors, pauses and fetch
 failures are not logged (apart from a failed pause notification); they are in the database.</p>
 <p><strong>Detail.</strong> Read <code class="docutils literal notranslate"><span class="pre">scrap.db</span></code> with Python’s <code class="docutils literal notranslate"><span class="pre">sqlite3</span></code>, because the image has no <code class="docutils literal notranslate"><span class="pre">sqlite3</span></code> command.
-Open it read-only, inside the container where the data is at <code class="docutils literal notranslate"><span class="pre">/data</span></code>:</p>
+Open it read-only, inside the container (<code class="docutils literal notranslate"><span class="pre">SCRAP_DB_PATH</span></code> is set on Kubernetes, where the
+database is <code class="docutils literal notranslate"><span class="pre">/db/scrap.db</span></code>; on a single server it is <code class="docutils literal notranslate"><span class="pre">/data/scrap.db</span></code>):</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">podman</span> <span class="n">exec</span> <span class="n">scrap</span> <span class="n">python</span> <span class="o">-</span><span class="n">c</span> <span class="s1">'</span>
-<span class="kn">import</span><span class="w"> </span><span class="nn">sqlite3</span>
-<span class="n">c</span> <span class="o">=</span> <span class="n">sqlite3</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="s2">"file:/data/scrap.db?mode=ro"</span><span class="p">,</span> <span class="n">uri</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">os</span><span class="o">,</span><span class="w"> </span><span class="nn">sqlite3</span>
+<span class="n">db</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"SCRAP_DB_PATH"</span><span class="p">,</span> <span class="s2">"/data/scrap.db"</span><span class="p">)</span>
+<span class="n">c</span> <span class="o">=</span> <span class="n">sqlite3</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="sa">f</span><span class="s2">"file:</span><span class="si">{</span><span class="n">db</span><span class="si">}</span><span class="s2">?mode=ro"</span><span class="p">,</span> <span class="n">uri</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">c</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">"SELECT ..."</span><span class="p">):</span>
     <span class="nb">print</span><span class="p">(</span><span class="n">row</span><span class="p">)</span><span class="s1">'</span>
 </pre></div>
 </div>
-<p>(on Kubernetes, <code class="docutils literal notranslate"><span class="pre">kubectl</span> <span class="pre">-n</span> <span class="pre">scrap</span> <span class="pre">exec</span> <span class="pre">deploy/scrap</span> <span class="pre">--</span> <span class="pre">python</span> <span class="pre">-c</span> <span class="pre">'...'</span></code>). The <code class="docutils literal notranslate"><span class="pre">SELECT</span></code>s below were
+<p>(on Kubernetes, <code class="docutils literal notranslate"><span class="pre">kubectl</span> <span class="pre">-n</span> <span class="pre">scrap</span> <span class="pre">exec</span> <span class="pre">deploy/scrap</span> <span class="pre">-c</span> <span class="pre">scrap</span> <span class="pre">--</span> <span class="pre">python</span> <span class="pre">-c</span> <span class="pre">'...'</span></code> with the same
+script). The <code class="docutils literal notranslate"><span class="pre">SELECT</span></code>s below were
 run against a database made by scrap’s own code.</p>
-<p>Cost per day, photos and text together (the budget’s own sum):</p>
+<p>Cost per day, photos, text and topic discovery together (the budget’s own sum):</p>
 <div class="highlight-sql notranslate"><div class="highlight"><pre><span></span><span class="k">SELECT</span><span class="w"> </span><span class="k">day</span><span class="p">,</span><span class="w"> </span><span class="n">round</span><span class="p">(</span><span class="k">sum</span><span class="p">(</span><span class="n">usd</span><span class="p">),</span><span class="w"> </span><span class="mi">4</span><span class="p">)</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="p">(</span>
 <span class="w">  </span><span class="k">SELECT</span><span class="w"> </span><span class="n">substr</span><span class="p">(</span><span class="n">started_at</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">10</span><span class="p">)</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="k">day</span><span class="p">,</span><span class="w"> </span><span class="n">cost_microusd</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mi">1</span><span class="n">e6</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">usd</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">model_run</span>
 <span class="w">  </span><span class="k">UNION</span><span class="w"> </span><span class="k">ALL</span>
-<span class="w">  </span><span class="k">SELECT</span><span class="w"> </span><span class="n">substr</span><span class="p">(</span><span class="n">started_at</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">10</span><span class="p">),</span><span class="w"> </span><span class="n">cost_microusd</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mi">1</span><span class="n">e6</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">enrich_run</span><span class="p">)</span>
+<span class="w">  </span><span class="k">SELECT</span><span class="w"> </span><span class="n">substr</span><span class="p">(</span><span class="n">started_at</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">10</span><span class="p">),</span><span class="w"> </span><span class="n">cost_microusd</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mi">1</span><span class="n">e6</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">enrich_run</span>
+<span class="w">  </span><span class="k">UNION</span><span class="w"> </span><span class="k">ALL</span>
+<span class="w">  </span><span class="k">SELECT</span><span class="w"> </span><span class="n">substr</span><span class="p">(</span><span class="n">started_at</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">10</span><span class="p">),</span><span class="w"> </span><span class="n">cost_microusd</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mi">1</span><span class="n">e6</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">topic_run</span><span class="p">)</span>
 <span class="k">GROUP</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="k">day</span><span class="w"> </span><span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="k">day</span><span class="w"> </span><span class="k">DESC</span><span class="w"> </span><span class="k">LIMIT</span><span class="w"> </span><span class="mi">14</span><span class="p">;</span>
 </pre></div>
 </div>
@@ -2181,12 +2172,12 @@ effort if drawings fall short); Excalidraw API drift (the version is pinned); mo
                   
 <div class="prev-next-area">
     <a class="left-prev"
-       href="design-system.html"
+       href="architecture/deployment.html"
        title="previous page">
       <i class="fa-solid fa-angle-left"></i>
       <div class="prev-next-info">
         <p class="prev-next-subtitle">previous</p>
-        <p class="prev-next-title">The PWA’s design system</p>
+        <p class="prev-next-title">Deployment and operations</p>
       </div>
     </a>
     <a class="right-next"
