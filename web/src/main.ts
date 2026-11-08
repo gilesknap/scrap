@@ -6,6 +6,7 @@ import { address, view as current, go, LISTS, markNav, plain, queue } from "./ap
 import { capture } from "./capture";
 import { named, remember } from "./crumbs";
 import { KEY } from "./debug";
+import { home, homeAt } from "./home";
 import { KIND_ROW } from "./kindrow";
 import { pageRow } from "./lists";
 import { unmark } from "./login";
@@ -37,7 +38,19 @@ document.getElementById("settings")?.addEventListener("click", () =>
   ),
 );
 const routes: [RegExp, (m: RegExpMatchArray) => Promise<Node> | Node][] = [
-  [/^\/$/, () => capture()],
+  // Home: Capture on a phone; on a computer, Search (home.ts), where a share still lands on
+  // Capture, at its own address
+  [
+    /^\/$/,
+    () => {
+      const at = homeAt(location.search);
+      if (!at) return capture();
+      address(at);
+      markNav(); // the tab for the address it has now
+      return at === "/search" ? search() : capture();
+    },
+  ],
+  [/^\/capture$/, () => capture()], // the nav's Capture on a computer (app.ts)
   [/^\/recent$/, () => recent()], // Recent is the search screen now: old links and shortcuts
   [/^\/search$/, () => search()],
   // The Tags screen is retired (the Filters panel's Tags row offers and matches tags): its old
@@ -98,7 +111,8 @@ const marks = () => {
 // Back, named for where it goes, goes up one level: to the page a link was followed from,
 // else to the list the page was opened from (past the pages stepped through by the pager),
 // else up to a parent (back.ts, a chunk of its own), as its label says: a todo's is Todos, a
-// topic's Topics, any other page's Capture, and Capture while the page is still loading. When
+// topic's Topics, any other page's home (Capture, or Search on a computer: home.ts), and home
+// while the page is still loading. When
 // it doesn't go to the list, the jump beside it does (· Search).
 up.onclick = () => {
   const { at, prev, list } = marks();
@@ -107,7 +121,7 @@ up.onclick = () => {
   const from = location.pathname;
   void import("./back").then(
     (m) => m.up(go, from), // unless gone elsewhere while it loaded
-    () => go("/", true), // the chunk is not here (offline): Capture
+    () => go("/", true), // the chunk is not here (offline): home
   );
 };
 toList.onclick = () => {
@@ -122,7 +136,7 @@ const nameBack = () => {
   const to =
     (prev && named(prev)) ??
     (list && named(list)) ??
-    (kind === "todo" ? "Todos" : kind === "topic" ? "Topics" : "Capture");
+    (kind === "todo" ? "Todos" : kind === "topic" ? "Topics" : home());
   backTo.textContent = to;
   up.ariaLabel = `Back to ${to}`;
   crumb(!!(prev && list));
@@ -213,7 +227,11 @@ async function render() {
   }
   shown = "";
   view.replaceChildren(
-    empty("search", "Not found", h("a", { href: "/", className: "button" }, "Back to capture")),
+    empty(
+      "search",
+      "Not found",
+      h("a", { href: "/", className: "button" }, `Back to ${home().toLowerCase()}`),
+    ),
   );
   restoreScroll(controller.signal);
 }

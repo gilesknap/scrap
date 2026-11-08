@@ -34,7 +34,7 @@ test.describe("on a computer", () => {
   test("the home screen shows Add files and Note; one pick takes a photo and a PDF", async ({
     page,
   }) => {
-    await page.goto("/");
+    await page.goto("/capture");
     await expect(page.locator(".actions > button:visible")).toHaveText(["Add files", "Note"]);
     for (const name of ["Camera", "Gallery", "File"])
       await expect(
@@ -67,7 +67,7 @@ test.describe("on a computer", () => {
 
   test("with a kept draft over the tiles, Add files and Note both still show", async ({ page }) => {
     // The draft row is the first child of the tiles' row: Note must stay, as the last tile
-    await page.goto("/");
+    await page.goto("/capture");
     await page.getByRole("button", { name: "Note" }).click();
     await page.getByPlaceholder("Note or link").fill("Desk draft");
     await page.goBack(); // Back keeps it as the draft

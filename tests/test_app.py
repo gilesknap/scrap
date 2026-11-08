@@ -555,7 +555,7 @@ def shell(tmp_path, monkeypatch):
 
 
 @pytest.mark.parametrize(
-    "path", ["/", "/recent", "/search", "/todos", "/topics", "/p/some-slug"]
+    "path", ["/", "/capture", "/recent", "/search", "/todos", "/topics", "/p/some-slug"]
 )
 def test_app_routes_serve_the_pwa(shell, path):
     response = shell.get(path)

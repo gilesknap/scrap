@@ -373,7 +373,7 @@ export async function page(key: string, signal: AbortSignal, quiet = false): Pro
             })
           : import("./back").then(
               (m) => m.up(go),
-              () => go("/", true), // the chunk is not here (offline): Capture
+              () => go("/", true), // the chunk is not here (offline): home
             );
       },
       () => go(pageHref(p.slug)),
