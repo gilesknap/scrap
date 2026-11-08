@@ -154,8 +154,9 @@ files that systemd and the shell would read differently.
 login proxy's installer the same way, with stub `systemctl`, `podman`,
 `kubectl`, `helm` and `claude` (no cluster or systemd needed).
 `test-install-dls.sh` also checks that the headers helper in
-`docs/tutorials/install-dls.md` matches the one the installer writes. CI runs
-every `deploy/test-*.sh`.
+`docs/tutorials/install-dls.md` matches the one the installer writes.
+`./deploy/test-scrap-import.sh` tests `scrap-import.sh` (a large import into a
+Kubernetes install) with a stub `kubectl`. CI runs every `deploy/test-*.sh`.
 
 After a change to `charts/`, run `./charts/test-chart.sh` (needs `helm` and
 `kubeconform` on your PATH). For every `charts/scrap/ci/*-values.yaml` it:
