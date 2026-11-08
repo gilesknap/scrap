@@ -14,6 +14,7 @@ from contextlib import closing
 from pathlib import Path
 
 from .backup import backup
+from .backup_files import FileCounts
 from .store import Store, connect, schema_version
 
 __all__ = [
@@ -124,7 +125,7 @@ def heartbeat_age_hours(db: Path) -> float | None:
 
 def backup_from_replica(
     data_dir: Path, replica: Path, dest: Path, max_age_hours: float = 3.0
-) -> None:
+) -> FileCounts:
     """scrap backup, of a restore of the replica rather than the live database, with the
     data folder's files. The restore is at or behind the live database, by up to
     max_age_hours: older is refused, as gc trusts a COMPLETE run. Blobs are written
@@ -146,6 +147,6 @@ def backup_from_replica(
                     f"the replica at {replica} is stale: {seen} (limit {max_age_hours}"
                     " hours); see Litestream's log in the scrap pod"
                 )
-            backup(Store(data_dir, restored), dest)
+            return backup(Store(data_dir, restored), dest)
     except (ReplicaError, OSError) as error:
         raise SystemExit(f"scrap backup: {error}") from None

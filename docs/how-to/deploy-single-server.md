@@ -204,7 +204,7 @@ only: `SCRAP_LISTEN` or `SCRAP_PORT` exported in your shell are ignored, as they
 | `SCRAP_PORT` | `8790` | Port on `127.0.0.1` that scrap listens on with `SCRAP_LISTEN=tcp`. |
 | `SCRAP_DATA` | `~/.local/share/scrap/data` | Database and files; mounted at `/data`. |
 | `SCRAP_BACKUPS` | `~/.local/share/scrap/backups` | Where the backup job writes. |
-| `SCRAP_BACKUP_KEEP` | `14` | Number of backup runs to keep (at least 1). Each is a full copy: see {ref}`scrap-backup-restore`. |
+| `SCRAP_BACKUP_KEEP` | `14` | Number of backup runs to keep (at least 1). Each holds a full copy of the database; files are shared between runs: see {ref}`scrap-backup-restore`. |
 | `SCRAP_BACKUP_MONTHLY_KEEP` | `12` | Number of monthly backup runs (in `SCRAP_BACKUPS/monthly`) to keep; `0` turns monthly backups off (re-run `install.sh` after changing it to or from 0). Unset means 12, so an env file from before the monthly backup needs no change; set but empty is refused. |
 | `SCRAP_MEMORY_MAX` | `1g` | Memory ceiling for the container. |
 | `SCRAP_VOLUME_OPTS` | `z` | Options after the colon on every container volume. `z` relabels the folders for SELinux and does nothing elsewhere. Set it empty for no option, or e.g. `z,U`. Not in the generated file (commented out); unset means `z`. See [SELinux](scrap-selinux). |
@@ -580,14 +580,19 @@ alone: the next `install.sh` run enables it again, as it does every timer whose 
 image has. An empty `SCRAP_BACKUP_MONTHLY_KEEP=` is refused (the run fails) like an empty
 `SCRAP_BACKUP_KEEP`; leave the line out for the default of 12.
 
-**Disk use.** Each run is a full, independent copy (the database and every file, not an
-increment), so `SCRAP_BACKUPS` needs about `SCRAP_BACKUP_KEEP` times the size of `SCRAP_DATA`, plus
-one more while a run is in progress, plus `SCRAP_BACKUP_MONTHLY_KEEP` more for the monthly
-runs. Check with `du -sh "$SCRAP_DATA" "$SCRAP_BACKUPS"` (after
+**Disk use.** Each run looks like a full, independent copy (the database and every file, not an
+increment): restore any one of them alone, and deleting one leaves the others whole. But a file
+the newest complete run (daily or monthly) already has is hard-linked from it, not copied: stored
+files never change, so the two names share one copy on disk. So `SCRAP_BACKUPS` needs about
+`SCRAP_BACKUP_KEEP + SCRAP_BACKUP_MONTHLY_KEEP + 1` times the size of the database, plus the files
+once, plus files `scrap gc` has deleted since the oldest run. Where hard links fail (a filesystem
+without them), each file is copied, and each run is then as big as `SCRAP_DATA`. The backup's log
+says how many files it linked and copied. `du -sh "$SCRAP_BACKUPS"` counts a shared file once;
+`du` on a single run counts it all. Check with `du -sh "$SCRAP_DATA" "$SCRAP_BACKUPS"` (after
 loading the settings, as in {ref}`scrap-restore` below), and if the backups are too big,
 lower `SCRAP_BACKUP_KEEP` or `SCRAP_BACKUP_MONTHLY_KEEP` (0 turns the monthly runs off), or
 point `SCRAP_BACKUPS` at a bigger disk. Upgrading to a version with the monthly timer adds up to
-12 more full copies over the following year. `scrap gc` makes later runs
+12 more copies of the database over the following year. `scrap gc` makes later runs
 smaller; it never shrinks earlier ones.
 
 **Pruning on demand.** The retention step runs only at the end of a successful backup, so a night

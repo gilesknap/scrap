@@ -81,8 +81,10 @@ persistence:
 # A CronJob running `scrap backup` into a timestamped directory on a second PVC,
 # then keeping only the newest `keep` runs (the same pruning as the single-server
 # deploy). It works from a restore of the Litestream replica (in the deprecated mode, from
-# the database itself), beside the scrap pod. Each run is a full copy: size the claim for
-# about keep + 1 times the data. It is a local copy only: copy it off the cluster too.
+# the database itself), beside the scrap pod. Each run looks like a full copy, but a file
+# the newest complete run already has is hard-linked from it, not copied: size the claim
+# for about keep + monthly.keep + 1 times the database, plus the files once (and those gc
+# has deleted since the oldest run). It is a local copy only: copy it off the cluster too.
 # The scrap pod mounts the backups as well (gc checks them and takes their lock).
 backup:
   enabled: true
@@ -93,8 +95,8 @@ backup:
   keep: 7
   # A second, longer-lived tier: a full copy on the 1st of each month in the claim's
   # monthly/ folder, keeping the newest `keep`. The daily runs only reach back `keep`
-  # days, so a destructive change noticed later can still be undone from here. The
-  # claim then holds about backup.keep + monthly.keep + 1 copies.
+  # days, so a destructive change noticed later can still be undone from here. Its files
+  # are hard-linked from the daily runs too, so it adds about a database's size.
   monthly:
     enabled: true
     schedule: "50 3 1 * *"

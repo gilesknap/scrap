@@ -237,6 +237,13 @@ holding files no page uses any more (after a `scrap gc`, say). Use a new `DIR` f
 that matters; the single-server timer does, and keeps the newest `SCRAP_BACKUP_KEEP` of them (see
 {ref}`scrap-backup-restore`).
 
+When `DIR` is named like a run (`20261019T033000Z`), as the backup jobs' runs are, a file the
+newest complete run beside it has (or, for a run in `monthly/`, among the daily runs; and the
+other way round) is hard-linked from that run rather than copied, if it is the same size: stored
+files never change once written. Each run still holds every file and restores alone; a file whose
+link fails (another filesystem, say) is copied. It prints how many files it linked and copied.
+`scrap restore` always copies.
+
 `scrap export DIR` writes one `<slug>.md` per page at the top of `DIR`, Claude's notes on a page in
 `DIR/_claude/<slug>.md`, and one `DIR/files/` for all the pages, in which a file is named `<sha256><extension>`, the extension being the usual one for its
 content type (none if it has none). It is not the name it was uploaded under, and a file on several

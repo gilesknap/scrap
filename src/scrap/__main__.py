@@ -336,12 +336,13 @@ def main(args: Sequence[str] | None = None) -> None:
             if parsed.from_replica:
                 from .replica import backup_from_replica
 
-                backup_from_replica(
+                counts = backup_from_replica(
                     store.dir, parsed.from_replica, parsed.dir,
                     parsed.max_replica_age_hours,
                 )  # fmt: skip
             else:
-                backup.backup(store, parsed.dir)
+                counts = backup.backup(store, parsed.dir)
+            print(counts)
         elif parsed.command == "restore":
             from .dbinit import check_restore, staged
 

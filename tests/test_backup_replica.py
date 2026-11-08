@@ -60,6 +60,17 @@ def test_a_backup_from_the_replica_is_complete_and_restorable(
     assert (target.files / "ab" / "abcd").is_file()
 
 
+def test_a_second_run_from_the_replica_links_the_first_runs_files(setup, tmp_path):
+    data, replica = setup
+    first = tmp_path / "bak" / "20261101T033000Z"
+    second = tmp_path / "bak" / "20261102T033000Z"
+    backup_from_replica(data, replica, first)
+    counts = backup_from_replica(data, replica, second)
+    assert (counts.base, counts.linked, counts.copied) == (first, 1, 0)
+    assert (second / "files" / "ab" / "abcd").stat().st_nlink == 2
+    assert (data / "files" / "ab" / "abcd").stat().st_nlink == 1
+
+
 def test_the_cli_does_the_same(setup, tmp_path, monkeypatch):
     data, replica = setup
     monkeypatch.setenv("SCRAP_DATA_DIR", str(data))
