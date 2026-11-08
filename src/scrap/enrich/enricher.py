@@ -19,7 +19,7 @@ from ..ingest import (
 from ..markdown import plain
 from ..query import subtype_of
 from ..runs import failed as run_failed
-from ..runs import record, start_run
+from ..runs import prompt_digest, record, start_run
 from ..store import (
     MAX_TAGS,
     Store,
@@ -279,7 +279,8 @@ class Enricher:
         model, effort = claude.text_model()
         request = {
             "purpose": "enrich", "model": model, "max_tokens": claude.TEXT_MAX_TOKENS,
-            "effort": effort, "system": system, "messages": stored, "schema": SCHEMA,
+            "effort": effort, **prompt_digest(system), "messages": stored,
+            "schema": SCHEMA,
             "fetch": got and {"url": got.url, "chars": len(got.text)} or failed,
             "backend": claude.backend(),
         }  # fmt: skip
@@ -297,7 +298,7 @@ class Enricher:
             except ValueError as error:
                 raise claude.CallError("invalid", str(error), completion=done) from None
         except claude.CallError as error:
-            self.failed(jid, run_id, error)
+            self.failed(jid, run_id, error, system)
             return
         if not self.succeeded(job, run_id, done, out, link, got, sending.keep, sent):
             return
@@ -338,9 +339,11 @@ class Enricher:
                 is not None
             )
 
-    def failed(self, jid: int, run_id: int, error: claude.CallError) -> None:
+    def failed(
+        self, jid: int, run_id: int, error: claude.CallError, system: str
+    ) -> None:
         with self.store.connect() as conn, transaction(conn):
-            run_failed(conn, "enrich_run", run_id, error)
+            run_failed(conn, "enrich_run", run_id, error, system)
         self._job_failed(jid, error)
 
     def _job_failed(self, jid: int, error: claude.CallError) -> None:

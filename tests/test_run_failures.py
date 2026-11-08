@@ -3,6 +3,7 @@
 fails its check (invalid) and any other CallError (error), each recorded with its
 class, message and, when there was a response, its model, usage and cost."""
 
+import hashlib
 import io
 import json
 from contextlib import closing
@@ -158,6 +159,13 @@ def test_a_failed_call_is_recorded_on_its_run(store, site, how, status, error_cl
         assert response["stop_reason"] == stop
         assert json.loads(run["usage"]) == {"input_tokens": 1000, "output_tokens": 100}
     assert run["output"] is None
+    request = json.loads(run["request"])
+    if site is not via_worker:  # a digest of the prompt; its text only to debug (#571)
+        assert request["system_sha256"] and request["system_len"]
+        assert ("system" in request) == (how != "error")
+        if "system" in request:  # refused or invalid: the prompt sent, as hashed
+            sha = hashlib.sha256(request["system"].encode()).hexdigest()
+            assert sha == request["system_sha256"]
 
 
 def test_the_helpers_start_and_fail_a_run(store):

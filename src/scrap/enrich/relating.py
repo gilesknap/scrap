@@ -7,7 +7,7 @@ from typing import Any
 from .. import claude
 from ..ingest import PAUSES, notify, pause, resume, spent_today
 from ..ingest.constants import budget_day_micros
-from ..runs import failed, record, start_run
+from ..runs import failed, prompt_digest, record, start_run
 from ..store import Store, model_summary, now, transaction, writeups
 from .checking import checked_related
 from .constants import RELATED_FILES, RELATED_SCHEMA, STALE
@@ -52,7 +52,7 @@ def relate(
     model, effort = claude.text_model()
     request = {
         "purpose": "related", "model": model, "max_tokens": claude.TEXT_MAX_TOKENS,
-        "effort": effort, "system": system, "messages": messages,
+        "effort": effort, **prompt_digest(system), "messages": messages,
         "schema": RELATED_SCHEMA, "candidates": [p["id"] for p in pages],
         "backend": claude.backend(),
     }  # fmt: skip
@@ -71,7 +71,7 @@ def relate(
             raise claude.CallError("invalid", str(error), completion=done) from None
     except claude.CallError as error:
         with store.connect() as conn, transaction(conn):
-            failed(conn, "enrich_run", run_id, error)
+            failed(conn, "enrich_run", run_id, error, system)
         return error
     with store.connect() as conn, transaction(conn):
         record(conn, "enrich_run", run_id, done, status="ok",

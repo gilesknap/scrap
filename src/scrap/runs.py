@@ -2,12 +2,25 @@
 the run tables (model_run for photo ingest, enrich_run, topic_run). Below ingest and
 enrich, which both record runs, so neither imports the other for it."""
 
+import hashlib
 import json
 import sqlite3
 from typing import Any
 
 from . import claude
 from .store import now
+
+
+def prompt_digest(system: str) -> dict[str, Any]:
+    """What an enrich or topic run's stored request keeps of its system prompt
+    (#571): its SHA-256 (hex, of the UTF-8) and length in characters, not the text
+    (the related prompt's was ~35 KB a row). The template is the run's
+    prompt_version; what is rendered into it is the candidate index (its ids are the
+    request's candidates) or, for enrich, the tags in use (not recorded). A failed
+    call whose answer was refused or invalid keeps the text as well (failed, below),
+    to debug it."""
+    digest = hashlib.sha256(system.encode()).hexdigest()
+    return {"system_sha256": digest, "system_len": len(system)}
 
 
 def start_run(conn: sqlite3.Connection, table: str, **fields: Any) -> int:
@@ -52,9 +65,22 @@ def status(error: claude.CallError) -> str:
 
 
 def failed(
-    conn: sqlite3.Connection, table: str, run_id: int, error: claude.CallError
+    conn: sqlite3.Connection,
+    table: str,
+    run_id: int,
+    error: claude.CallError,
+    system: str | None = None,
 ) -> None:
     """Finish a failed call's run: its status, class and message (and the response,
-    if there was one)."""
-    record(conn, table, run_id, error.completion, status=status(error),
+    if there was one). system: the prompt sent, for a request that keeps only its
+    digest (prompt_digest), added to the request when the model refused or its
+    answer was invalid, the failures the prompt may explain (#571)."""
+    outcome = status(error)
+    record(conn, table, run_id, error.completion, status=outcome,
            error_class=error.cls, error=str(error)[:500])  # fmt: skip
+    if system is not None and outcome in ("refused", "invalid"):
+        conn.execute(
+            f"UPDATE {table} SET request = json_set(request, '$.system', ?)"
+            " WHERE id = ?",
+            (system, run_id),
+        )
