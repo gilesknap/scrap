@@ -105,7 +105,9 @@ Claude Code reaches scrap at `/mcp` with your bearer token. It runs a small help
 time it connects, and the helper reads the token from a private file. The installer:
 
 1. puts the token in `~/.config/terminal-config/.env` (mode 600, private before the token goes
-   in), as `SCRAP_DLS_MCP_TOKEN=...`, replacing a line already there and keeping the others;
+   in), as `SCRAP_DLS_MCP_TOKEN=...`, replacing a line already there and keeping the others
+   (a token you set by hand must be only letters, digits and `._~+/=-`, as the helper reads the
+   file as shell);
 2. writes the helper `~/.claude/scrap-dls-headers.sh` (mode 700):
 
    ```sh
@@ -124,7 +126,7 @@ time it connects, and the helper reads the token from a private file. The instal
    ```
 
 3. adds the server `scrap-dls` to Claude Code for all your projects, replacing a `scrap-dls`
-   already there:
+   already there (with your `SCRAP_HOST` in the URL, if you set one):
 
    ```sh
    claude mcp add-json --scope user scrap-dls \
@@ -141,7 +143,8 @@ claude-sandbox has its own `~/.claude` and `~/.claude.json`, so the installer do
 Run the installer on the host (or a DLS machine), so the token is in the .env that claude-sandbox
 mounts at `/user-terminal-config/.env`. Then, inside the container, save the same helper as
 `~/.claude/scrap-dls-headers.sh` (mode 700; it finds that .env by itself), and add the server,
-with your fedid (and the container's home, if it is not `/root`):
+with your fedid (or your `SCRAP_HOST`, if you set one; and the container's home, if it is
+not `/root`):
 
 ```sh
 claude mcp add-json --scope user scrap-dls \

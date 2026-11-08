@@ -35,6 +35,7 @@ case "\$*" in
   *"get secret"*ANTHROPIC*) [ -e "$tmp/key" ] && echo eg== ; exit 0 ;;
   *"get secret"*SCRAP_MCP_TOKEN*)
     [ -e "$tmp/notoken" ] && exit 0
+    [ -e "$tmp/oddtoken" ] && { printf '%s' 'a\$(touch $tmp/ran)b' | base64; exit 0; }
     if [ -e "$tmp/created-SCRAP_MCP_TOKEN" ]; then base64 <"$tmp/created-SCRAP_MCP_TOKEN"; else echo dA==; fi
     exit 0 ;;
   *"get secret"*SCRAP_PUBLISH_TOKEN*) [ -e "$tmp/nopublish" ] || echo cA== ; exit 0 ;;
@@ -397,6 +398,16 @@ check "no .env: the install succeeds" [ "$nw_rc" = 0 ]
 check "no .env: warns" grep -q "WARNING: could not write the token to $envf" "$tmp/out"
 check "no .env: says what to do" grep -q "fix the cause above, then re-run this script" "$tmp/out"
 check "no .env: claude left alone" sh -c "[ ! -s '$tmp/claude.calls' ]"
+
+# A token with shell characters (set by hand) never goes in the .env the helper sources.
+rm -rf "${tmp:?}/home"; touch "$tmp/oddtoken"; : >"$tmp/claude.calls"
+if run; then ot_rc=0; else ot_rc=1; fi
+rm -f "$tmp/oddtoken"
+check "odd token: the install succeeds" [ "$ot_rc" = 0 ]
+check "odd token: warns" grep -q "WARNING: the token in .* has characters other than" "$tmp/out"
+check "odd token: says what to do" grep -q "fix the cause above, then re-run this script" "$tmp/out"
+check "odd token: not in .env, claude left alone" sh -c "! grep -qs SCRAP_DLS_MCP_TOKEN '$envf' &&
+    [ ! -s '$tmp/claude.calls' ] && [ ! -e '$tmp/ran' ]"
 
 # SCRAP_CLAUDE=off: no .env, no helper, no claude.
 rm -rf "${tmp:?}/home"; : >"$tmp/claude.calls"

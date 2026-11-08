@@ -126,6 +126,14 @@ connect_claude() {
         echo "WARNING: could not read the token from $secret: Claude Code is not connected." >&2
         return 0
     fi
+    # The helper sources the .env as shell, so only a plain token goes in (this script
+    # makes 64 hex characters; one set by hand could hold $, quotes or spaces).
+    case $token in
+        *[!A-Za-z0-9._~+/=-]*)
+            token=
+            echo "WARNING: the token in $secret has characters other than letters, digits and ._~+/=-: Claude Code is not connected." >&2
+            return 0 ;;
+    esac
     # Private before the token goes in. Written in place, keeping the file's other lines
     # (and its inode, so a container that mounts it sees the change).
     tmp=$(mktemp -d) && chmod 700 "$tmp" &&
