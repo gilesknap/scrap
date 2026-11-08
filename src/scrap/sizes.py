@@ -5,8 +5,8 @@ It measures what retention would act on, so its defaults can be judged on real d
 - the database by table, with its indexes (``dbstat``; estimated from the columns'
   lengths where SQLite is built without it);
 - the stored files, as gc sees them: in use by a page not in the trash (or by nothing
-  page-bound: a Claude result's photo, a run's JPEG), used only by trashed pages, and
-  unused (each with count and bytes);
+  page-bound: a Claude result's photo, an old run's JPEG gc still needs), used only by
+  trashed pages, and unused (each with count and bytes);
 - the trash: how many pages, how old, and how many a purge after N days would take;
 - the Claude call records (``model_run``, ``enrich_run``, ``topic_run``) by month:
   rows and the bytes of their stored request, response and output;
@@ -22,7 +22,7 @@ from pathlib import Path
 from typing import Any
 
 from . import retention
-from .gc import COLUMNS, GcError, _files, in_use
+from .gc import COLUMNS, SENT, GcError, _files, in_use, needed_sent
 from .store import Store, body_refs
 from .store.roles import REVIEW
 
@@ -40,10 +40,8 @@ LIVE = (  # the references of everything not in the trash: gc.COLUMNS, narrowed
     "SELECT source_sha256 FROM derived WHERE capture_id NOT IN " + TRASHED_CAPTURE,
     "SELECT source_sha256 FROM job WHERE capture_id NOT IN " + TRASHED_CAPTURE,
     "SELECT source_sha256 FROM model_run WHERE capture_id NOT IN " + TRASHED_CAPTURE,
-    "SELECT sent_sha256 FROM model_run r WHERE sent_sha256 IS NOT NULL"
-    " AND NOT EXISTS (SELECT 1 FROM blob b WHERE b.sha256 = r.source_sha256)"
-    " AND capture_id NOT IN " + TRASHED_CAPTURE,
 )
+LIVE_SENT = SENT + " AND r.capture_id NOT IN " + TRASHED_CAPTURE
 assert len(LIVE) == len(COLUMNS)  # keep in step with gc's references
 
 
@@ -122,10 +120,11 @@ def _tables(conn: sqlite3.Connection) -> list[dict[str, Any]]:
     return out
 
 
-def _live(conn: sqlite3.Connection) -> set[str]:
+def _live(conn: sqlite3.Connection, files: Path) -> set[str]:
     used: set[str] = set()
     for sql in LIVE:
         used.update(row[0] for row in conn.execute(sql))
+    used |= needed_sent(conn, files, LIVE_SENT)
     for (body,) in conn.execute("SELECT body FROM page WHERE deleted_at IS NULL"):
         used |= body_refs(body)
     return used
@@ -156,8 +155,8 @@ def _files_split(store: Store, conn: sqlite3.Connection) -> dict[str, Any]:
     except (GcError, OSError):
         files = {}
     rows = dict(conn.execute("SELECT sha256, size FROM blob"))
-    every = in_use(conn)
-    live = _live(conn)
+    every = in_use(conn, store.files)
+    live = _live(conn, store.files)
     review = _review_only(conn)
     kinds = ("in_use", "review_only", "trash_only", "unused")
     out: dict[str, Any] = {k: {"files": 0, "bytes": 0} for k in kinds}

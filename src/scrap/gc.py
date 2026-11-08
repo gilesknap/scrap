@@ -8,8 +8,9 @@ refers to it:
 - a capture (``capture_blob``);
 - a derived row, or an ingest job, of a photo (``source_sha256``);
 - a model run: the photo it was about; the JPEG it sent (``sent_sha256``, only on runs
-  from before #572) only if that photo's record is gone, as the JPEG is made again from
-  the photo (``preview.rebuild``). Such a JPEG gc deletes clears its ``sent_sha256``.
+  from before #572) only if that photo's record or file is gone, as the JPEG is made
+  again from the photo (see :func:`needed_sent`). Such a JPEG gc deletes clears its
+  ``sent_sha256``.
 
 Files younger than the grace period are kept whatever refers to them: a capture writes
 its files before the transaction that records them, so a file being uploaded right now
@@ -101,17 +102,35 @@ COLUMNS = (
     "SELECT source_sha256 FROM derived",
     "SELECT source_sha256 FROM job",
     "SELECT source_sha256 FROM model_run",
-    # an old run's sent JPEG, only while its photo's record is gone (#572)
-    "SELECT sent_sha256 FROM model_run r WHERE sent_sha256 IS NOT NULL"
-    " AND NOT EXISTS (SELECT 1 FROM blob b WHERE b.sha256 = r.source_sha256)",
+)
+# An old run's sent JPEG (from before #572), whether its photo has a record
+SENT = (
+    "SELECT r.sent_sha256, r.source_sha256,"
+    " EXISTS (SELECT 1 FROM blob b WHERE b.sha256 = r.source_sha256)"
+    " FROM model_run r WHERE r.sent_sha256 IS NOT NULL"
 )
 
 
-def in_use(conn: sqlite3.Connection) -> set[str]:
-    """Every file something refers to, read on conn (in its transaction, if open)."""
+def needed_sent(
+    conn: sqlite3.Connection, files: Path | None, sql: str = SENT
+) -> set[str]:
+    """The JPEGs old runs sent that are still needed: each is made again from its
+    photo (#572), so only one whose photo's record or file (in files) is gone is.
+    files None: every one is (nothing is known of the files)."""
+    needed = set()
+    for sent, photo, recorded in conn.execute(sql):
+        if files is None or not recorded or not (files / photo[:2] / photo).is_file():
+            needed.add(sent)
+    return needed
+
+
+def in_use(conn: sqlite3.Connection, files: Path | None = None) -> set[str]:
+    """Every file something refers to, read on conn (in its transaction, if open);
+    files: the files folder, to tell which old sent JPEGs are needed (needed_sent)."""
     used: set[str] = set()
     for sql in COLUMNS:
         used.update(row[0] for row in conn.execute(sql))
+    used |= needed_sent(conn, files)
     for (body,) in conn.execute("SELECT body FROM page"):  # deleted_at too: the trash
         used |= body_refs(body)
     return used
@@ -379,7 +398,7 @@ def _collect(
                 if not delete:
                     report.orphans = len(orphans.find(conn, stamp))
                     _retain(conn, report, run_days, stamp, False, True)
-                used = in_use(conn)
+                used = in_use(conn, store.files)
                 rows = dict(conn.execute("SELECT sha256, created_at FROM blob"))
             finally:
                 conn.execute("ROLLBACK")
@@ -412,7 +431,7 @@ def _collect(
     with store.connect() as conn:
         try:
             with transaction(conn):  # no capture, edit or ingest commits meanwhile
-                used = in_use(conn)
+                used = in_use(conn, store.files)
                 again = set(unused(old))
                 report.kept = len(old) - len(again)
                 gone: list[str] = []

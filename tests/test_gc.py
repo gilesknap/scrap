@@ -245,7 +245,7 @@ def test_put_blob_writes_the_file_again_if_gc_deleted_it(store, monkeypatch):
 def test_refuses_when_the_references_cannot_be_read(store, monkeypatch):
     orphan = put(store, b"orphan")
 
-    def broken(conn):
+    def broken(conn, files=None):
         raise sqlite3.OperationalError("disk I/O error")
 
     monkeypatch.setattr(gc, "in_use", broken)
@@ -487,6 +487,36 @@ def test_an_old_runs_sent_jpeg_goes_while_its_photo_is_stored(client, store):
             "SELECT 1 FROM blob WHERE sha256 = ?", (sent,)
         ).fetchone()
     assert gc.collect(store, delete=True).shas == []
+
+
+def test_an_old_runs_sent_jpeg_is_kept_while_its_photos_file_is_missing(
+    client, store
+):
+    """It cannot be made again then: it is the only copy of what was read."""
+    a, sha = photo(client)
+    sent = put(store, b"sent jpeg", "image/jpeg")
+    with store.connect() as conn:
+        run = _sent_run(conn, a["capture_id"], sha, sent, 90)
+    store.blob_path(sha).unlink()
+    age_all(store)
+    assert gc.collect(store, delete=True).shas == []
+    assert store.blob_path(sent).is_file()
+    with store.connect() as conn:
+        row = conn.execute("SELECT sent_sha256 FROM model_run WHERE id = ?", (run,))
+        assert row.fetchone()[0] == sent
+
+
+def test_a_sent_jpeg_that_is_also_a_capture_is_kept(client, store):
+    a, sha = photo(client)
+    _, other = photo(client, b"the same bytes, captured", "Another page")
+    with store.connect() as conn:
+        run = _sent_run(conn, a["capture_id"], sha, other, 90)
+    age_all(store)
+    assert gc.collect(store, delete=True).shas == []
+    assert store.blob_path(other).is_file()
+    with store.connect() as conn:
+        row = conn.execute("SELECT sent_sha256 FROM model_run WHERE id = ?", (run,))
+        assert row.fetchone()[0] == other
 
 
 def test_a_jpeg_two_old_runs_sent_goes_once(client, store):

@@ -16,7 +16,7 @@ from mcp.client.client import Client
 from PIL import Image
 
 from fakeclaude import FakeClaude, run_all
-from scrap import claude, enrich, ingest, mcp_server
+from scrap import claude, enrich, ingest, mcp_server, preview
 from scrap.app import create_app
 from scrap.store import (
     Store,
@@ -184,6 +184,15 @@ def test_a_board_is_written_up_then_its_first_related_call_sees_it(store):
         }
     assert {b["source"]["sha256"] for b in images} == sent
     assert call["blob"](images[0]["source"]["sha256"])[1] == "image/jpeg"
+    with closing(connect(store.db)) as conn:  # held for the call, not stored (#572)
+        request = json.loads(conn.execute(
+            "SELECT request FROM enrich_run WHERE request LIKE '%writeup%'"
+        ).fetchone()[0])  # fmt: skip
+        stored = {r[0] for r in conn.execute("SELECT sha256 FROM blob")}
+    assert {r["sha256"] for r in request["sent"]} == sent and not sent & stored
+    for record in request["sent"]:
+        data = call["blob"](record["sha256"])[0]
+        assert preview.rebuild(store, record) == data
     page = store.page(ref["page_id"])
     up = page["writeup"]["current"]
     assert up["producer"] == claude.model_name()

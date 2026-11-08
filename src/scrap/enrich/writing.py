@@ -10,7 +10,6 @@ here, so it cannot name a page that does not exist. It is stored apart from the 
 as a new version (store.writeups), never in the body.
 """
 
-import io
 import json
 from typing import Any
 
@@ -18,7 +17,7 @@ from .. import claude, preview
 from ..ingest import svgread
 from ..ingest.constants import budget_day_micros
 from ..runs import failed, start_run
-from ..store import NotFoundError, Store, now, roles, transaction, writeups
+from ..store import NotFoundError, Store, roles, transaction, writeups
 from .checking import checked_writeup
 from .constants import BOARDS, MAX_BOARDS, WRITEUP_SCHEMA
 from .finding import CANDIDATES
@@ -28,9 +27,10 @@ from .types import Call
 from .writeup_store import written
 
 
-def _sent(store: Store, board: dict[str, Any]) -> str | None:
-    """The JPEG to send of a board image: the one photo ingest sent, if it is still
-    stored, else made again (preview.for_claude) and stored; None if neither."""
+def _sent(store: Store, board: dict[str, Any], made: dict[str, Any]) -> str | None:
+    """The JPEG to send of a board image: the one photo ingest stored, if a run from
+    before #572 still has it, else made again (preview.for_claude) and held in made
+    (its SHA-256: its bytes and preview.sent_record), never stored; None if neither."""
     if board["sent"]:
         try:
             store.blob(board["sent"])
@@ -38,16 +38,12 @@ def _sent(store: Store, board: dict[str, Any]) -> str | None:
         except NotFoundError:
             pass
     try:
-        jpeg, _, _ = preview.for_claude(store, board["sha256"])
+        jpeg, width, height = preview.for_claude(store, board["sha256"])
     except Exception:  # noqa: BLE001  undecodable, or gone: its text is still sent
         return None
-    sha, size = store.put_blob(io.BytesIO(jpeg))
-    with store.connect() as conn, transaction(conn):
-        conn.execute(
-            "INSERT INTO blob VALUES (?, 'image/jpeg', ?, ?) ON CONFLICT DO NOTHING",
-            (sha, size, now()),
-        )
-    return sha
+    record = preview.sent_record(board["sha256"], jpeg, width, height)
+    made[record["sha256"]] = (jpeg, record)
+    return record["sha256"]
 
 
 def write_up(
@@ -86,7 +82,8 @@ def write_up(
     shown = boards[:MAX_BOARDS]
     markups = [svgread.markup(store, b["sha256"]) for b in shown]  # an SVG: as text
     pairs = zip(shown, markups, strict=True)
-    sent = [None if m is not None else _sent(store, b) for b, m in pairs]
+    made: dict[str, Any] = {}  # the JPEGs made for this call, not stored (#572)
+    sent = [None if m is not None else _sent(store, b, made) for b, m in pairs]
     with store.connect() as conn:
         readout = not roles.has_board(conn, page_id)  # asked for, not a board (#453)
     system, version = writeup_prompt(pages, readout)
@@ -98,12 +95,16 @@ def write_up(
         "schema": WRITEUP_SCHEMA, "candidates": [p["id"] for p in pages],
         "guidance": guidance, "backend": claude.backend(),
     }  # fmt: skip
+    if made:  # how to make them again (preview.rebuild)
+        request["sent"] = [record for _, record in made.values()]
     with store.connect() as conn, transaction(conn):
         run_id = start_run(conn, "enrich_run", page_id=page_id, job_id=job_id,
                            model=model, prompt_version=version,
                            request=json.dumps(request))  # fmt: skip
 
     def blob(sha: str) -> tuple[bytes, str]:
+        if sha in made:
+            return made[sha][0], "image/jpeg"
         path, mime = store.blob(sha)
         return path.read_bytes(), mime
 
