@@ -5,6 +5,8 @@ cluster would run, under rootless podman, as a systemd user service. scrap liste
 socket that only its own user (and root) can open;
 [Tailscale Serve](https://tailscale.com/kb/1312/serve) publishes it over HTTPS to your tailnet and
 nowhere else. Why: [](../explanations/decisions/0018-unix-socket-for-single-server-installs.md).
+The tutorial [](../tutorials/install-server.md) walks through the install; this page has every
+option and the upkeep.
 
 How the pieces fit:
 
@@ -106,7 +108,7 @@ podman run --rm ghcr.io/gilesknap/scrap:{{ release_tag }} --version
 ```
 
 The image is public (no login needed) and built for amd64 and arm64. Pin an exact version rather
-than `latest`, which moves with every release, pre-releases included.
+than `latest`, which moves with every release.
 
 The install script and its units are not in the image: they come from the repo's `deploy/`
 folder. So, as `scrap`, clone the release too, into the user's home directory so that the clone

@@ -1,51 +1,70 @@
 # Connect a Claude Code session
 
 Claude Code sessions can search, read and write scrap through its MCP server (see
-[](../reference/mcp.md)). Nothing is installed on the session's machine: it talks to `/mcp`.
+[](../reference/mcp.md)). No server software is installed on the session's machine: it talks to
+`/mcp`.
 
 How the session reaches `/mcp` depends on where scrap runs:
 
 ```mermaid
 flowchart LR
-    CC["Claude Code"] -->|"http://localhost:8000"| L["scrap, same machine"]
+    CC["Claude Code"] -->|"bearer + service token"| CF["Cloudflare Access"]
+    CC -->|"bearer token, DLS network"| D["DLS ingress"]
+    CC -->|"http://localhost:8000"| L["scrap, same machine"]
     CC -->|"HTTPS, tailnet"| T["Tailscale Serve / operator"]
     CC -->|"HTTP, home network"| N["scrap on LAN"]
-    CC -->|"bearer + service token"| CF["Cloudflare Access"]
-    L --> M["/mcp"]
+    CF --> M["/mcp"]
+    D --> M
+    L --> M
     T --> M
     N --> M
-    CF --> M
     classDef claude fill:#fff3e0,stroke:#e08a00
     classDef store fill:#e8f1ff,stroke:#4a7bd0
     class CC claude
-    class L,T,N,CF,M store
+    class L,T,N,CF,D,M store
 ```
 
-- Tailnet: HTTPS ([](../tutorials/install-server.md)). Home network: plain HTTP
-  ([](../tutorials/install-lan.md)). Kubernetes: Cloudflare Access with a bearer token (see "If
-  `/mcp` needs a token" below, [](../tutorials/install-kubernetes.md) and
+- Kubernetes ([](../tutorials/install-kubernetes.md)): Cloudflare Access with a service token and
+  a bearer token. Step 1 is done by the tutorial; do step 2 as in {ref}`mcp-secrets`, then step 3
+  (see also
   [ADR 0023](../explanations/decisions/0023-bearer-token-on-mcp-and-an-identity-header-setting.md)).
-- Claude Code in claude-sandbox: follow [](connect-claude-sandbox.md) instead; it reaches scrap on
-  a port of the host.
+- DLS ([](../tutorials/install-dls.md)): the installer does steps 1 and 2 for you and adds its
+  server as `scrap-dls`, so it sits beside a `scrap` you already have. Its tools are
+  `mcp__scrap-dls__*`. Do step 3.
+- Claude Code in claude-sandbox: see [](connect-claude-sandbox.md) as well.
 - On your own machine, run scrap as in "Try it" in the README and add
   `http://localhost:8000/mcp` in step 2; step 1 is not needed on loopback.
+- On a single server ([](../tutorials/install-server.md), HTTPS on your tailnet) or for a trial on
+  your LAN ([](../tutorials/install-lan.md), plain HTTP): all three steps, as below.
 
 Before you start you need:
 
-- scrap running and reachable from the machine running Claude Code: on the same machine or LAN
-  ([](../tutorials/install-lan.md)), published on your tailnet
-  (see [](../tutorials/install-server.md), [](deploy-single-server.md), "Publish on your
-  tailnet", or {ref}`k8s-tailscale`), or on Kubernetes behind Cloudflare Access
-  ([](../tutorials/install-kubernetes.md));
+- scrap running and reachable from the machine running Claude Code;
 - the Claude Code CLI on that machine;
 - optionally, ingest on (`SCRAP_INGEST=on`) if you want Claude to describe photos (see step 2).
 
 ## 1. Tell scrap its address
 
-`/mcp` answers only requests addressed to loopback or to `SCRAP_PUBLIC_URL`. Put the address
-that Tailscale Serve gives scrap (the `--https` port you chose when you published it; `8446` is
-only an example) in `~/.config/scrap/ingest.env`, scrap's own settings file (keep it mode 600;
-`install.sh` creates it so), for example:
+`/mcp` answers only requests addressed to loopback or to `SCRAP_PUBLIC_URL`. The Kubernetes
+tutorial sets it in your values (`extraEnv`, as below), and the DLS installer sets it for you.
+
+The address must be a full URL with the scheme, and must match what clients use, port included:
+a request whose `Host` differs gets `421 Invalid Host header`. You can give several addresses,
+comma separated; the first makes the page links the tools return. Without it, those links are
+bare `/p/<slug>` paths that cannot be clicked.
+
+On Kubernetes the chart has no setting of its own for it: pass it with `extraEnv`, using the
+address you reach scrap at (no port, since it serves on 443), then `helm upgrade`:
+
+```yaml
+extraEnv:
+  - name: SCRAP_PUBLIC_URL
+    value: https://scrap.example.com
+```
+
+On a single server, put the address that Tailscale Serve gives scrap (the `--https` port you
+chose when you published it; `8446` is only an example) in `~/.config/scrap/ingest.env`, scrap's
+own settings file (keep it mode 600; `install.sh` creates it so), for example:
 
 ```
 SCRAP_PUBLIC_URL=https://myhost.my-tailnet.ts.net:8446
@@ -54,35 +73,22 @@ SCRAP_PUBLIC_URL=https://myhost.my-tailnet.ts.net:8446
 then `systemctl --user restart scrap`. Run both as the dedicated `scrap` user, in a real login
 session (`ssh scrap@<host>`, or `sudo machinectl shell scrap@`; see [](deploy-single-server.md)).
 
-The address must be a full URL with the scheme, and must match what clients use, port included:
-a request whose `Host` differs gets `421 Invalid Host header`. You can give several addresses,
-comma separated; the first makes the page links the tools return. Without it, those links are
-bare `/p/<slug>` paths that cannot be clicked.
-
-On Kubernetes the chart has no setting of its own for it: pass it with `extraEnv`, using the
-Tailscale operator's address (no port, since it serves on 443):
-
-```yaml
-extraEnv:
-  - name: SCRAP_PUBLIC_URL
-    value: https://scrap.<tailnet>.ts.net
-```
-
 ## 2. Add the server to Claude Code
 
-On a machine on the tailnet:
+Behind Cloudflare Access, or with a bearer token on `/mcp` (the Kubernetes install has both), the
+session must send headers: set it up as in {ref}`mcp-secrets` below, then come back for the
+check.
+
+Without a token (a single server on your tailnet, a LAN trial, or loopback), add the URL:
 
 ```
 claude mcp add --transport http --scope user scrap https://myhost.my-tailnet.ts.net:8446/mcp
 ```
 
 The default scope is `local` (this project, only you); `--scope user` makes it available in all
-your projects. Avoid `--scope project`: it writes the tailnet hostname into a `.mcp.json` that
+your projects. Avoid `--scope project`: it writes the hostname into a `.mcp.json` that
 you would commit. `claude mcp list` should show `scrap` as connected. `claude mcp remove scrap`
 takes it out again.
-
-The DLS installer ([](../tutorials/install-dls.md)) adds its server as `scrap-dls` instead, so it
-sits beside a `scrap` you already have. Its tools are `mcp__scrap-dls__*`.
 
 The server has eighteen tools (four fewer with `SCRAP_MCP_CONTENT_EDIT=0`, which drops `edit_page`, `edit_drawing`, `trash_pages` and `undelete`, and one fewer with `SCRAP_MCP_UPLOAD=0`, which drops `add_svg`), which appear as `mcp__scrap__search` (it also lists the recent
 pages and the todos), `mcp__scrap__read`, `mcp__scrap__current_page`, `mcp__scrap__drawing`,
@@ -90,17 +96,18 @@ pages and the todos), `mcp__scrap__read`, `mcp__scrap__current_page`, `mcp__scra
 `mcp__scrap__write`, `mcp__scrap__writeup`, `mcp__scrap__edit_meta`, `mcp__scrap__rename_tag`,
 `mcp__scrap__revisions`, `mcp__scrap__revert`, `mcp__scrap__edit_page`,
 `mcp__scrap__edit_drawing`, `mcp__scrap__add_svg`, `mcp__scrap__trash`, `mcp__scrap__trash_pages`
-and `mcp__scrap__undelete`; the Tools table in [](../reference/mcp.md) says what each takes and
-returns.
+and `mcp__scrap__undelete` (`mcp__scrap-dls__*` with the DLS install); the Tools table in
+[](../reference/mcp.md) says what each takes and returns.
 
 Try it: ask "get my recent photos". Search results say which pages hold images (`image_count`,
 and the first image's kind, description and thumbnail URL), and `has:image` or `image:photo`
 lists them newest first; see [](../reference/mcp.md). The kind and description are there only
-once ingest has read the photo (`SCRAP_INGEST=on`). The image URLs are the browser's and can be
-fetched only from the tailnet; results also give download URLs under `/mcp` that take the same
-headers as `/mcp` (see "Downloading files" below).
+once ingest has read the photo (`SCRAP_INGEST=on`). The image URLs are the browser's and need
+the browser's login (or, on a tailnet, a device on it); results also give download URLs under
+`/mcp` that take the same headers as `/mcp` (see "Downloading files" below).
 
-Check it from a shell without Claude:
+Check it from a shell without Claude (add the headers of {ref}`mcp-secrets` if `/mcp` needs
+them):
 
 ```
 curl -si https://myhost.my-tailnet.ts.net:8446/mcp \
@@ -108,12 +115,15 @@ curl -si https://myhost.my-tailnet.ts.net:8446/mcp \
   -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
 ```
 
-It should print an HTTP `200` status and JSON with fifteen tools in `result.tools`.
+It should print an HTTP `200` status and JSON with eighteen tools in `result.tools` (fewer with
+`SCRAP_MCP_CONTENT_EDIT=0` or `SCRAP_MCP_UPLOAD=0`).
 
-Off the tailnet, or for a quick test, use the SSH tunnel fallback ({ref}`scrap-ssh-tunnel`) and
-add `http://127.0.0.1:8790/mcp` instead; loopback needs no `SCRAP_PUBLIC_URL`. A session that
-cannot reach the tailnet (a hosted or cloud Claude session, claude.ai) cannot use scrap this way,
-unless scrap is published through Cloudflare Access with a service token and a bearer token (below).
+On a single server, off the tailnet or for a quick test, use the SSH tunnel fallback
+({ref}`scrap-ssh-tunnel`) and add `http://127.0.0.1:8790/mcp` instead; loopback needs no
+`SCRAP_PUBLIC_URL`. A Claude Code session that cannot reach the tailnet (a cloud session) cannot
+use scrap this way; it can reach scrap published through Cloudflare Access with a service token
+and a bearer token, as the Kubernetes install is (below). This setup needs custom headers on each
+request, which claude.ai's connectors don't let you set.
 
 (mcp-secrets)=
 ### If `/mcp` needs a token
@@ -194,15 +204,23 @@ A devcontainer that is not claude-sandbox needs the same bind mount
 (`${localEnv:HOME}/.config/terminal-config` to `/user-terminal-config`), as in scrap's own
 `.devcontainer/devcontainer.json`.
 
-**The simple alternative.** In a shell where the variables are exported, Claude Code expands
-`${VAR}` in header values. With `claude mcp add`:
+**The alternative: `${VAR}` headers.** If the variables are exported in the shell that starts
+`claude`, add the server with `${VAR}` headers instead of a helper. Single quotes keep the shell
+from expanding the variables, so Claude Code reads them each time it starts:
 
 ```sh
-claude mcp add --transport http scrap https://myhost.my-tailnet.ts.net:8446/mcp \
+export CF_ACCESS_CLIENT_ID=<client id>
+export CF_ACCESS_CLIENT_SECRET=<client secret>
+export SCRAP_MCP_TOKEN=<the token>
+
+claude mcp add --transport http --scope user scrap https://scrap.example.com/mcp \
+  --header 'CF-Access-Client-Id: ${CF_ACCESS_CLIENT_ID}' \
+  --header 'CF-Access-Client-Secret: ${CF_ACCESS_CLIENT_SECRET}' \
   --header 'Authorization: Bearer ${SCRAP_MCP_TOKEN}'
 ```
 
-or in `.mcp.json`:
+Leave out the two `CF-` headers if scrap is not behind Cloudflare Access. In a `.mcp.json` the
+same goes in `headers`:
 
 ```json
 {
@@ -216,10 +234,9 @@ or in `.mcp.json`:
 }
 ```
 
-Behind Cloudflare Access, add `CF-Access-Client-Id: ${CF_ACCESS_CLIENT_ID}` and
-`CF-Access-Client-Secret: ${CF_ACCESS_CLIENT_SECRET}` too. If a variable is not set in the process
-that starts `claude`, the header goes out empty and scrap answers `401` or `403`; use the helper
-above when that can happen.
+If a variable is not set in the process that starts `claude`, the header goes out empty and
+scrap answers `401` or `403`; use the helper above when that can happen (a devcontainer, a jail,
+or a desktop launcher).
 
 ### Downloading files
 
@@ -277,18 +294,20 @@ given; a PDF or text file is listed below the text and read for search.
 - `421 Invalid Host header`: the `Host` the client used is not loopback or in `SCRAP_PUBLIC_URL`
   (unset, wrong, or a different port). Fix step 1 and restart scrap.
 - `403`: the request carried an `Origin` that is not one of those addresses.
-- `claude mcp list` shows `scrap` as failed: the machine is off the tailnet, nothing is
-  published at that address, or the tailnet ACL blocks the port. Check the address itself with
+- `claude mcp list` shows `scrap` as failed: nothing answers at that address, the headers are
+  wrong (behind Cloudflare Access, a missing or wrong service token is refused before scrap sees
+  it), or, on a tailnet, the machine is off it or the tailnet ACL blocks the port. Check the
+  helper as in {ref}`mcp-secrets`. On a single server, check the address itself with
   `./deploy/smoke.sh <url>`; see {ref}`scrap-troubleshooting` and the Tailnet ACL section of
   [](deploy-single-server.md).
 - It worked and stopped after the address changed (a new `SCRAP_PUBLIC_URL`, another Tailscale
   Serve port, or a move to the Kubernetes ingress): scrap reads `SCRAP_PUBLIC_URL` only at
-  startup, so restart it (`systemctl --user restart scrap`; on Kubernetes, `helm upgrade` rolls
-  the pod) for the new address to be accepted. Claude Code keeps the URL you registered and does
+  startup, so restart it (on Kubernetes, `helm upgrade` rolls the pod; on a single server,
+  `systemctl --user restart scrap`) for the new address to be accepted. Claude Code keeps the URL you registered and does
   not rewrite it, so register the new one: `claude mcp remove scrap`, then the `claude mcp add`
   of step 2 with the new `<url>/mcp` (and the same `--scope`). A restart of scrap alone needs
   nothing in the session: `/mcp` keeps no session state, so the next call just works.
-- `413`: a request over 2 MiB.
+- `413`: a tool call over 2 MiB, or an upload over `SCRAP_MAX_UPLOAD_MB` (50 MB by default).
 - A tool error such as "only a page written over MCP can be appended to", or a title over 200
   characters, a body over 200 kB or more than 20 tags: the call is refused and nothing is saved.
 
@@ -303,7 +322,7 @@ do nothing useful without it; if the tools are missing they say so and point to 
 | Command | What it does |
 | --- | --- |
 | `/sc-post [title]` | Posts Claude's previous response to scrap verbatim, as one page. "post this to scrap" works too. |
-| `/sc-summarise [all] [title]` | Summarises the current topic (the latest activity) into one page and posts it (below). With `all`, the whole conversation: overview, timeline, findings, decisions, changes made and open questions. |
+| `/sc-summarise [all\|day] [title]` | Summarises the current topic (the latest activity) into one page and posts it (below). With `all`, the whole conversation: overview, timeline, findings, decisions, changes made and open questions. With `day`, everything today: this conversation, your other Claude sessions (it asks them), GitHub and scrap's changes. |
 | `/sc-find <words>` | Searches scrap and shows the top results as short lines. |
 | `/sc-todos` | What to do now, overdue first. |
 | `/sc-tidy <what>` | Bulk kind and tag changes with `edit_meta`: a `dry_run` first, a before and after for you to approve, then the change and its batch id. |
@@ -311,15 +330,17 @@ do nothing useful without it; if the tools are missing they say so and point to 
 | `/sc-write <what>` | Writes one new page from your instructions, picking out only what you ask for from the conversation ("the URLs we discussed and why"). Uses only the conversation, lists anything uncertain under *Unsure*, and reuses existing tags. Always creates a page. |
 | `/sc-answer <question>` | Answers from scrap alone: searches, reads the pages, and cites them as links; says "not in scrap" rather than using general knowledge. Read-only. |
 | `/sc-edit <page> <change>` | Changes the text of an existing page with `edit_page`: a `dry_run` diff first, then the edit once you agree. `/sc-undo` reverts it. |
-| `/sc-done <todo>` | Ticks off a todo's task boxes with `edit_page` (the todo becomes `done` when all are ticked). A todo with no task boxes cannot be closed over MCP: mark it in the app. |
+| `/sc-done <todo>` | Ticks off a todo: its task boxes with `edit_page` (the todo becomes `done` when all are ticked), or, with no boxes, its status with `edit_meta`. A `dry_run` first; `/sc-undo` reverts it. |
 | `/sc-recent [period]` | What changed lately (default `1d`), by you and by Claude, from the `revisions` feed and `search`. Read-only. |
 | `/sc <words>` | An index: searches like `/sc-find`, or lists the commands above. |
 
 Install them for all your projects with one command:
 
 ```
-curl -fsSL https://raw.githubusercontent.com/gilesknap/scrap/main/commands/install.sh | sh
+curl -fsSL https://github.com/gilesknap/scrap/releases/latest/download/install.sh | sh
 ```
+
+It installs the latest release's commands; `SCRAP_REF=main` installs `main`'s.
 
 It copies the files into `~/.claude/commands` (set `CLAUDE_COMMANDS_DIR` to put them elsewhere, such
 as `.claude/commands` for one project). From a clone of this repository you can instead copy
@@ -343,14 +364,14 @@ These commands replace the earlier single `/s <verb>` skill (`/s post`, `/s tidy
 (a skill and a command of the same name clash) and `~/.claude/skills/scrap-post` after installing
 these. The `scrap-to-gist` skill, which earlier releases installed, is removed
 too ([ADR 43](../explanations/decisions/0043-public-pages-a-static-site-scrap-pushes-to.md):
-public pages, still being built, are planned to take its place); the installer leaves an
+public pages take its place, see [](publish-pages.md)); the installer leaves an
 installed copy alone, so delete `~/.claude/skills/scrap-to-gist` when you no longer want it.
 Only the scrap tools are used. `<SCRAP_URL>` in the
 commands is a placeholder (the hint they give when the tools are missing, and the shape of the
 page URL they report); the real URL comes from the `write` tool, built from `SCRAP_PUBLIC_URL`.
 
 `/sc-summarise` makes Claude summarise the useful findings of the current topic into one page (`/sc-summarise all` for the whole
-conversation), reusing existing tags and linking related pages, and show you the title and tags before it
+conversation, `/sc-summarise day` for the whole day), reusing existing tags and linking related pages, and show you the title and tags before it
 writes; say "just post" to skip the question.
 
 The summary has a fixed layout: a one-line summary, then Findings, Decisions, Details and Open
@@ -396,19 +417,21 @@ hook described in [](auto-summary-on-compact.md).
 
 Claude Code asks before using an MCP tool unless you allow it, and the `sc` commands allow none. You
 might allow the read tools (`mcp__scrap__search`, `read`, `tags`) and let
-`write`, `edit_meta` and the rest keep asking.
+`write`, `edit_meta` and the rest keep asking. With the DLS install the names start
+`mcp__scrap-dls__` instead (`mcp__scrap-dls__search`), so a rule for one server does nothing for
+the other: name both if you have both.
 
 To keep Claude off the text of your pages, set `SCRAP_MCP_CONTENT_EDIT=0` on the server
 (`edit_page`, `edit_drawing`, `trash_pages` and `undelete` are then not offered, and `revert` refuses `to_rev`; `add_svg` and the upload are governed by `SCRAP_MCP_UPLOAD` alone), or deny `edit_page` in one
-client's settings: `"permissions": {"deny": ["mcp__scrap__edit_page"]}`. A client
+client's settings: `"permissions": {"deny": ["mcp__scrap__edit_page", "mcp__scrap-dls__edit_page"]}`. A client
 setting cannot deny only the text mode of `revert`, which also undoes kinds and tags.
 To stop MCP clients adding images and files at all, set `SCRAP_MCP_UPLOAD=0` (`add_svg` is
 not offered and `/mcp/pages/<key>/captures` is not served).
 
-scrap has no login: any device on the tailnet that can reach the port can use `/mcp`, so
-restrict that with the tailnet ACL (see [](deploy-single-server.md)). Off the tailnet, `/mcp`
-can require a bearer token (`SCRAP_MCP_TOKEN`, ADR 0023), behind Cloudflare Access on
-Kubernetes.
+scrap has no login of its own. The Kubernetes and DLS installs guard `/mcp` with a bearer token
+(`SCRAP_MCP_TOKEN`, ADR 0023), behind Cloudflare Access on Kubernetes and on the DLS network at
+DLS. On a single server without a token, any device on the tailnet that can reach the port can
+use `/mcp`, so restrict that with the tailnet ACL (see [](deploy-single-server.md)).
 
 Mount scrap only in sessions where reading untrusted text is acceptable: pages may hold
 injected instructions, and a session that runs with bypassed permissions could be steered by

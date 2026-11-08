@@ -14,16 +14,19 @@ Opening a page gives a page view with an editor, photo and drawing viewers and, 
 what Claude made of it.
 
 Jump to: [install](#install-it-on-android), [capture](#capture), [share](#share-into-scrap),
-[offline](#the-offline-queue), [navigate](#screens-and-navigation), [search](#search),
+[offline](#the-offline-queue), [settings](#settings), [navigate](#screens-and-navigation), [search](#search),
 [tags](#tags), [todos](#todos), [page view](#the-page-view), [editing](#editing-and-deleting),
 [Claude's output](#what-claude-made-of-a-photo), [topics](#claudes-topic-pages),
 [iPhone](#iphone-and-ipad), [developers](#build-it-developers).
 
 ## Install it on Android
 
-1. Open scrap's HTTPS address in Chrome. A PWA needs HTTPS (`http://127.0.0.1` also works on the
-   server itself). Get an address from the `tailscale serve` URL in [](deploy-single-server.md),
-   or the Tailscale operator or an ingress in [](deploy-kubernetes.md).
+1. Open scrap's HTTPS address in Chrome and log in: `https://scrap.<your-domain>` from
+   [](../tutorials/install-kubernetes.md), or `https://scrap-<fedid>.diamond.ac.uk` from
+   [](../tutorials/install-dls.md) (at DLS, join the VPN first). A PWA needs HTTPS. On a single
+   server, use the `tailscale serve` address from [](deploy-single-server.md); for a trial on
+   your LAN, see [](use-scrap-on-your-phone.md) (`http://127.0.0.1` also works on the machine
+   itself).
 2. Chrome menu, **Add to home screen** (or **Install app**), then **Install**.
 3. Open scrap from its icon. It opens on the capture screen, in its own window.
 
@@ -33,8 +36,10 @@ The app's text is sized like a web page's, so Chrome's zoom enlarges it. To foll
 **Font size** instead, or to make scrap smaller or bigger than other sites, see
 [Text size](#text-size).
 
-scrap has no login of its own: anyone who can reach its address can use the app, so reach it only
-over your tailnet or behind a proxy that authenticates (see [](../reference/api.md)).
+scrap has no login of its own. The Kubernetes and DLS installs put one in front (Cloudflare
+Access, or the DLS login), so the browser asks you to log in before the app opens. Never expose
+scrap without one: on a single server or a LAN trial, anyone who can reach its address can use
+the app, so reach it only over your tailnet or home network (see [](../reference/api.md)).
 
 ## Capture
 
@@ -45,7 +50,8 @@ over your tailnet or behind a proxy that authenticates (see [](../reference/api.
 | **File** | Picks one or more PDFs, text (`.txt`) or Markdown (`.md`) files |
 | **Note** | A text box; a pasted link alone becomes a link capture |
 
-On a computer Camera, Gallery and File would all open the same file dialog, so there are two
+On a computer (a mouse and a window 900 px or wider) Camera, Gallery and File would all open the
+same file dialog, so there are two
 buttons instead: **Add files** (photos, PDFs, text and Markdown in one pick) and **Note**.
 
 **Save** returns at once: the capture is stored on the phone first and uploaded in the background.
@@ -166,6 +172,15 @@ stateDiagram-v2
   shows a page saying it was not saved if there is no connection either.
 - **Tabs.** Two open tabs take turns (Web Locks), so a capture is never uploaded twice at once.
 
+## Settings
+
+The cog at the top right opens **Settings**. Each choice is kept on this device and applies at
+once: **Text size**, **Maximum column width**, **App theme**, **Drawings theme** and **Photos**
+(below). Then **Public pages** (where publishing is on), and **Store**: **Store health**
+([](#store-health)), **Trash** ({ref}`the-trash`), **Export everything**
+([](export-your-pages.md)) and **Import Markdown…** ([](import-your-pages.md)). **Done**,
+**Escape** or Back closes it.
+
 (text-size)=
 ### Text size
 
@@ -189,6 +204,13 @@ width** sets the most it grows to: **Narrow** (720 px), **Medium** (800 px, the 
 **Wide** (880 px) or **Wider** (960 px). A window narrower than the chosen width still shrinks
 the column to fit, with the usual gutter either side, so nothing scrolls sideways. It is the
 window's width that decides this, not the device: a narrow phone never reaches it.
+
+### Themes
+
+**App theme**: **System** (the default) follows the device's light or dark setting; **Light** or
+**Dark** keeps one. **Drawings theme** sets how drawings are shown, on the page and in the drawing
+viewer: **Light** (the default, which suits a drawing beside a photo of a whiteboard or paper),
+**Dark**, or **Same as app**.
 
 (smaller-photos)=
 ### Smaller photos
@@ -234,12 +256,14 @@ All of it stays in the browser, for scrap's own address, and is never sent anywh
 | Where | What |
 | --- | --- |
 | IndexedDB | The upload queue, and the drafts (composer, page edit, drawing edit) |
-| Local storage | Recent searches, whether Claude's **Description** and **Text in the photo** are folded, the debug panel switch, the server's upload limit |
+| Local storage | Recent searches, Settings' choices (text size, column width, themes, photo size), which of Claude's folds and the Filters' **Arrange** you left open or closed, which topics you have seen, the debug panel switch, the server's upload limit |
+| Session storage | Where Back goes, for this tab |
 | Cache Storage | The app's own files only, in a cache named `scrap-` and the build id; a new build deletes the old ones when it takes over. API answers and files are never cached |
 
 Clearing site data for scrap's address (or iOS evicting it) deletes anything queued and every
 draft. If the browser blocks local storage (a private tab), scrap carries on without it: no recent
-searches, remembered folds or offline size check.
+searches, remembered folds or Settings choices (each is back to its default when the app opens),
+and no offline size check.
 
 ### What works offline
 
@@ -247,7 +271,7 @@ The app opens without a connection. Anything that reads from or writes to the se
 
 | Works offline | Needs the server |
 | --- | --- |
-| Opening the app, the capture screen, the badge | Opening any page |
+| Opening the app (on Capture, on a computer too), the capture screen, the badge | Opening any page |
 | The composer, with photos and tags, and its drafts | Search results and the Todos screen |
 | Saving a capture (queued) | Changing tags, kind or due date |
 | Sharing into scrap | Ticking a task box on a page |
@@ -268,9 +292,12 @@ The app opens without a connection. Anything that reads from or writes to the se
   goes back one step at a time. A page opened cold (a link or share) goes up instead: Todos for a
   todo, Topics for a topic page, Capture otherwise. Back always goes where its label says: while
   the page is still loading, that is Capture. A screen returns scrolled where you left it.
+- **On a computer** (a mouse and a window 900 px or wider) scrap opens on **Search**, and a cold
+  page's Back says **Search** where a phone's says Capture. The **Capture** tab is at `/capture`.
+  Offline, it opens on Capture, as a phone does, since Search has nothing to show.
 - **Layout.** On a narrow phone, a page's upload badge shortens to its dot and count (● 2). On a
   wide screen the app is one centred column, 800 px wide by default ([Maximum column width](#maximum-column-width)
-  changes it, 720 to 960 px). With a mouse the tabs move to the top bar, Add files and
+  changes it, 720 to 960 px). With a mouse, on a window 900 px or wider, the tabs move to the top bar, Add files and
   Note sit over the list, a page's buttons (Mark done, Edit, Share, Delete) are a row under its
   title, and messages appear at the bottom of the window. Touch devices keep the bars at the
   bottom.
@@ -280,7 +307,9 @@ The app opens without a connection. Anything that reads from or writes to the se
 - **Kind display.** A list row shows the kind by icon (checklist for a todo, bookmark for Later). A
   page shows it under the title as the kind's icon and word in bold (*Todo*, *Later*, *Note*),
   then the rest of its meta line in grey: a Later's medium and verb (*TV · to watch*), a status
-  other than open (*in progress*, *done*) and the task count. Its dates come after.
+  other than open (*in progress*, *done*) and the task count. Its dates come after. A page Claude
+  wrote over MCP says *by Claude* after the kind (*Note · by Claude*); tap it to list them all
+  (`is:claude`).
 - **Pager.** A page opened from a list or search shows its place at the right of the top bar
   (*3 of 23*) with **∧** previous and **∨** next. Swipe left for next, right for previous, or use
   the arrows. Swipes start away from the screen edges, and are ignored on sideways-scrolling text,
@@ -296,7 +325,7 @@ Keyboard (computer):
 | --- | --- |
 | **Enter** in search | Opens the first result and keeps the search under Recent |
 | **Left** / **Right** | Previous or next page in the pager, or photo in the viewer. Inactive while typing, editing, with a photo or drawing open, or with Ctrl, Alt, Shift or Cmd held |
-| **Escape** | Closes the photo viewer (its Share menu first), the drawing viewer (not while editing), and a page's **Tags** and **Due** forms |
+| **Escape** | Closes the photo viewer (its Share menu first), the drawing viewer (not while editing), Settings, a Share menu, the link picker and Make public's question |
 | **Ctrl+Enter** (**Cmd+Enter**) | Saves in the editor and composer |
 
 ## Search
@@ -310,10 +339,11 @@ repeats the title. Search needs the server.
   of links. Pin a search with the pin button in the results header or on a Recent row; pin a page
   with **Share**, **Pin to Search** (a browser with no Share menu has no such row; add a
   `- [Name](/p/slug)` line to the Pinned page instead). The toast says *Pinned*, with **Undo**.
+  Tap the pin again (on a page, **Unpin from Search**) to take it out: *Unpinned*, with **Undo**.
   **Edit pins** opens the page: rename a pin by its link text, reorder or remove it by its line.
   A page keeps its slug when renamed, so a pin to it survives. **Copy link** in the header copies
   the search's address. Claude does not read the Pinned page. Pins show
-  here, not on the capture screen the app opens on. See [](make-your-own-lists.md) and, for a
+  here, not on the capture screen a phone opens on (a computer opens on Search). See [](make-your-own-lists.md) and, for a
   bookmarks page, [](keep-an-index.md).
 - **New from a search.** A search with a tag filter, or a single kind, shows **New** at the right
   end of the top bar. It opens the composer with those tags and that kind filled in (a Note when
@@ -357,8 +387,9 @@ first; the full grammar is in [](../reference/api.md).
 | `is:claude`, `is:claude-edited` | Pages Claude wrote over MCP; pages whose text Claude changed over MCP |
 | `is:personal`, `is:work` | The page's `personal` flag, which nothing sets yet (the app cannot) |
 | `is:topic` | Claude's topic pages |
+| `is:public` | Public pages, published or not |
 | `has:image`, `has:drawing` | Pages with an image file; with a drawing made from a photo |
-| `image:photo`, `image:whiteboard` | What Claude took the photo for |
+| `image:photo` (`whiteboard`, `handwriting`, `diagram`, `screenshot`, `document`, `other`) | What Claude took the photo for |
 | `due:today`, `due:<today`, `due:>today`, `due:2026-11-01`, `due:<=7d` (a week on; `2w`, `1m`, `1y`) (also `<=`, `>=`), `due:none` | A todo's due day |
 | `priority:high` (`medium`, `low`, `none`) | A todo's priority |
 | `media:book` (`article`, `film`, `tv`, `video`, `podcast`, `music`, `game`) | A Later page's type |
@@ -382,19 +413,18 @@ How matching works:
 ### Store health
 
 The health checks, one count each from `GET /api/health`, are listed on **Settings** (the cog),
-**Store health** (Settings also has **Trash**, {ref}`the-trash`, **Export everything**,
-[](export-your-pages.md), and **Import Markdown…**, [](import-your-pages.md)). A tap runs the check's search; Back returns to the screen. Nothing is dismissed
+**Store health** ([](#settings)). A tap runs the check's search; Back returns to the screen. Nothing is dismissed
 there: a check that keeps finding a page you are happy with is the check to change.
 
-| Search | Finds |
+| Check | Finds |
 | --- | --- |
-| `is:orphan` | No page link either way (`[[slug]]`, `[[slug#heading]]` or a Markdown link to its address), no related pages and no topic; not an Orphaned assets page |
-| `is:untagged` | No tags (topic pages and gc's Orphaned assets pages aside) |
-| `is:stale` | An open todo not edited (text, title, kind or tags) for 60 days, not due today or later |
-| `is:duplicate` | A photo or file shared with another page (not in the trash, not an Orphaned assets page; a photo whose embed you deleted from a page no longer counts for it) |
-| `has:dangling` | A `[[...]]` or Markdown link to a page's address in its text, outside code, to no page or one in the trash (including forms the app shows as plain text, such as `[[Some Title]]`; `[[slug#heading]]` links to the page `slug`) |
-| `has:open-questions` | A page with a Markdown heading (any level, setext too; not in code, a quote or a list item) that reads "Open questions" in any case (emphasis and links in it are ignored, a trailing colon too) and whose section is open. The section runs to the next heading of the same or a higher level, so deeper sub-sections and their boxes are part of it. A section with task boxes is decided by them alone: any unticked `- [ ]` makes it open, all ticked is done even with prose left. With no boxes it is open when it has any content (a paragraph, list, table or code); an empty one, or one with only sub-headings, is not. Topic pages are skipped (a "Contradictions and open questions" heading is not one), and the page-wide `tasks` counts are not the test |
-| `is:outdated` | A board's write-up older than the board's photos, text, title, kind or tags, or made with an older prompt, or linking a page in the trash or gone (restore the page and it clears). Lists only board write-ups, which wait for you |
+| **Orphans** (`is:orphan`) | No page link either way (`[[slug]]`, `[[slug#heading]]` or a Markdown link to its address), no related pages and no topic; not an Orphaned assets page |
+| **Untagged** (`is:untagged`) | No tags (topic pages and gc's Orphaned assets pages aside) |
+| **Stale todos** (`is:stale`) | An open todo not edited (text, title, kind or tags) for 60 days, not due today or later |
+| **Duplicates** (`is:duplicate`) | A photo or file shared with another page (not in the trash, not an Orphaned assets page; a photo whose embed you deleted from a page no longer counts for it) |
+| **Dangling links** (`has:dangling`) | A `[[...]]` or Markdown link to a page's address in its text, outside code, to no page or one in the trash (including forms the app shows as plain text, such as `[[Some Title]]`; `[[slug#heading]]` links to the page `slug`) |
+| **Open questions** (`has:open-questions`) | A page with a Markdown heading (any level, setext too; not in code, a quote or a list item) that reads "Open questions" in any case (emphasis and links in it are ignored, a trailing colon too) and whose section is open. The section runs to the next heading of the same or a higher level, so deeper sub-sections and their boxes are part of it. A section with task boxes is decided by them alone: any unticked `- [ ]` makes it open, all ticked is done even with prose left. With no boxes it is open when it has any content (a paragraph, list, table or code); an empty one, or one with only sub-headings, is not. Topic pages are skipped (a "Contradictions and open questions" heading is not one), and the page-wide `tasks` counts are not the test |
+| **Outdated write-ups** (`is:outdated`) | A board's write-up older than the board's photos, text, title, kind or tags, or made with an older prompt, or linking a page in the trash or gone (restore the page and it clears). Lists only board write-ups, which wait for you |
 
 Related pages and topic syntheses are not listed: the nightly and weekly passes refresh them on
 their own ([](../reference/scheduled-jobs.md)).
@@ -517,7 +547,11 @@ Page text is Markdown as GitHub writes it:
 
 ### Sharing a page
 
-**Share** asks **Link**, **Text**, **Print / Save as PDF**, **HTML** and **Zip** (both saved like Download where the browser cannot share them: Chrome on Android cannot share a zip) or **Download**, and last **Make public…** or **Make private** ([](#public-pages)). Where the browser cannot share an HTML file, HTML is **Download HTML**. Tap **Share** again or elsewhere to close.
+**Share** lists **Link**, **Text**, **Print / Save as PDF**, **HTML**, **Zip**, **Download**,
+**Pin to Search** (**Unpin from Search** once pinned) and last **Make public…** or **Make
+private** ([](#public-pages)). Where the browser cannot share an HTML file, HTML is **Download
+HTML**; where it cannot share a zip (Chrome on Android), Zip saves it like Download and says so.
+Tap **Share** again or elsewhere to close.
 
 On a computer with no share sheet (Firefox, Chrome on Linux) **Share** copies instead: **Copy
 link**, **Copy as Markdown** (the Text below), **Copy as rich text** (the title and text as
@@ -558,7 +592,7 @@ scrap and try again*.
 ### Public pages
 
 A page can be made public: anyone with its address can read it on the public site (such as
-`https://pages.gkcluster.org/p/<slug>`), read only, while scrap itself stays private. The site is
+`https://pages.example.com/p/<slug>`, or `pages-<fedid>.diamond.ac.uk` at DLS), read only, while scrap itself stays private. The site is
 static: scrap pushes each public page to it, and it can reach nothing of scrap's
 ([](../explanations/decisions/0043-public-pages-a-static-site-scrap-pushes-to.md),
 [](../reference/public-site.md)). It needs publishing set up on the server; without it,
@@ -625,8 +659,8 @@ write-up) reaches it at the page's next save here, or with **Settings**, **Publi
   once read, one closed fold, **Claude's reading**, with its page count and whether search finds
   it, for a PDF the text read from it, and **Regenerate** to read it again. scrap reads the text itself (no model), so search
   finds it. A page made from a PDF or text file then gets a title, tags and a summary from
-  Claude, which is sent the start of that text (not with `SCRAP_FILE_ENRICH=ask`: then press
-  **Ask Claude**). A scan, a password-protected or unreadable PDF, or one over 30 MB is kept
+  Claude, which is sent the start of that text (with `SCRAP_FILE_ENRICH=ask`, only once you press
+  **Generate** in **About this page**). A scan, a password-protected or unreadable PDF, or one over 30 MB is kept
   and listed but not searchable: its card says *Text couldn't be read; not searchable*.
 - **Viewer.** Full screen, file name top left, fitted to the screen. Pinch or double-tap to zoom,
   drag to pan, swipe (or arrows) for other photos. **Fit**, **100%**, **Download** and **Share**
@@ -640,7 +674,10 @@ write-up) reaches it at the page's next save here, or with **Settings**, **Publi
 ## Editing and deleting
 
 - **Edit** is a full-screen editor like the composer: **Cancel**, **Preview** and **Save** stay at
-  the top, clear of the keyboard. Tags and a todo's due date are folded into one line each. It
+  the top, clear of the keyboard. Under the kind chips is the **Title** field, then a todo's
+  **Due**, the **Tags** and a Later page's **Type** (Book, Article, Film, TV, Video, Podcast,
+  Music or Game, which also says what it is for: *to read*, *to watch*…), each folded into one
+  line. It
   opens the text where you were reading the page (at its top if you had not scrolled past the
   title).
 - **Camera**, **Gallery** and **File** under the text work as the composer's: each photo or
@@ -694,7 +731,7 @@ write-up) reaches it at the page's next save here, or with **Settings**, **Publi
   other pages*. **Cancel** returns to the editor; **OK** saves. The file and what Claude made of
   it are kept: once no page shows it, the nightly `scrap gc` gathers it onto the month's *Orphaned
   assets* todo page, where you cut it into another page to keep it or delete the page (see
-  {ref}`scrap-gc`). Once that page is purged from the trash, the files it gathered that no page
+  [](../reference/scheduled-jobs.md)). Once that page is purged from the trash, the files it gathered that no page
   shows go with it.
 - **Delete** moves the page to the trash with **Undo** for a few seconds and goes back one step
   (to the list or page you came from; a page opened cold goes where the top bar's Back names).
@@ -705,7 +742,7 @@ write-up) reaches it at the page's next save here, or with **Settings**, **Publi
 ### The trash
 
 A deleted page goes to the trash, and nothing deletes it until it has been there for 30 days
-(the server's `SCRAP_TRASH_DAYS`, set as the nightly `scrap gc` is: see
+(the chart's `gc.trashDays`, or the server's `SCRAP_TRASH_DAYS` on a single server; see
 [](../reference/scheduled-jobs.md)). Then the nightly `scrap gc` purges it for good, with its
 history, Claude's results and the photos and files no other page uses. A purged page still
 exists in the backups until they are pruned.
@@ -727,9 +764,10 @@ their `purge_at`, and `undelete` brings one back ([](../reference/mcp.md)).
 
 ## What Claude made of a photo
 
-Claude reads photos only with ingest on. It is **off by default**: set `SCRAP_INGEST=on` and give
-scrap an `ANTHROPIC_API_KEY` (the Helm chart's `ingest.enabled` with an existing Secret holding
-the key), as in [](../explanations/ingest.md) and the deploy guides. Without ingest, photos are
+Claude reads photos only with ingest on. It is off unless you gave scrap a Claude API key when you
+installed it ([](../tutorials/install-kubernetes.md), [](../tutorials/install-dls.md)) or use a
+Claude seat ([](../tutorials/ingest-with-claude-seat.md)); see [](../explanations/ingest.md).
+Without ingest, photos are
 stored and queued, and each shows *Waiting: Claude ingest is off*.
 
 Everything Claude makes is in a brown card of its own, so it never reads as your text: **Claude's
@@ -780,7 +818,8 @@ Tap the drawing to open it full screen.
   no Share, and **Export PNG** saves it.
 - **More, Export** saves `.excalidraw`, PNG or SVG. The page's **Download** zip includes it beside
   the photo, with the description and text in the Markdown.
-- It follows the phone's light or dark theme and needs the server.
+- It is drawn light, or as Settings → **Drawings theme** says ([Themes](#themes)), and needs the
+  server.
 - Excalidraw is loaded only when a drawing is first shown (about 430 kB compressed; then cached
   by the browser), never for capture or search. Mermaid loads the same way, for a page with a
   diagram, and KaTeX for a page with maths (it is kept for offline use). Excalidraw's fonts come from scrap itself, never a CDN; Chinese, Japanese and Korean
@@ -814,7 +853,7 @@ A page with a whiteboard or diagram photo (not a to-do sticky, which becomes a c
 write-up in **About this page** as the fold **In detail** (closed until opened). Its lead is the
 card's Summary. It is Claude's, never part of the text you edit.
 
-- **Provenance.** Model, date and version (and *restored from version N*).
+- **Byline.** *Claude · 25 Oct, 10:04*; hover for the model.
 - **Content.** A one or two sentence lead, then overview, structure, decisions, open questions and
   related pages as fits. Links in it open those pages and show in **Related** (*· in a write-up*)
   on both pages. Search finds its words.
@@ -843,12 +882,12 @@ citing its sources. They are Claude's, kept apart from your pages.
   last opened the tab or that topic on this device (kept on the phone; none the first time). The
   filter box narrows by title, summary and area. With no topics, the tab says what they are and
   that they come from the weekly pass.
-- **A topic page** says *Topic by Claude* under its title (tap for the Topics tab). Its text is
+- **A topic page** says *Topic · by Claude* under its title (tap *by Claude* for the Topics tab). Its text is
   yours: notes on the topic, empty at first, edited like any page. Claude never writes there.
   Claude's synthesis is in **About this page**: lead as **Summary**, the rest as **In detail**
   (open until closed): overview, key facts linking to their pages, how sources relate,
-  contradictions and open questions. **Regenerate**, **Guidance for Claude** and **Versions** work
-  as for a board's write-up.
+  contradictions and open questions. **Regenerate** and **Guidance for Claude** work as for a
+  board's write-up.
 - **Sources** in the same card lists the pages the topic is made from (title link and kind).
   **✕** takes a page out: the next synthesis leaves it out and the weekly pass never re-adds it.
   It stays listed, struck through and marked *taken out*, with **Put back** (the toast's **Undo**
@@ -865,8 +904,9 @@ citing its sources. They are Claude's, kept apart from your pages.
 Safari can add scrap to the home screen; capture, view, search and the offline queue work, with
 these limits:
 
-- **No share target.** scrap is not in the iOS share sheet. A Shortcut posting to
-  `POST /api/captures` ([](../reference/api.md)) can stand in.
+- **No share target.** scrap is not in the iOS share sheet: copy the text or link, then paste it
+  into a **Note**. A Shortcut posting to `POST /api/captures` ([](../reference/api.md)) can stand
+  in only where nothing asks for a login: it cannot get past Cloudflare Access or the DLS login.
 - **Storage eviction.** iOS may evict a home-screen app's storage after weeks of non-use, dropping
   anything queued; open it once a connection is back.
 - **Text size.** With Settings → Text size → **Phone**, the app follows the iPhone's **Text Size**

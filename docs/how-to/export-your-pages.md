@@ -13,6 +13,10 @@ import: see [](import-your-pages.md).
 
 ## From the app
 
+This is the way on every install, and the only one documented on Kubernetes
+([](../tutorials/install-kubernetes.md), [](../tutorials/install-dls.md)): the zip streams, so a
+store of any size exports this way.
+
 1. Open **Settings** (the cog).
 2. Under **Store**, tap **Export everything**.
 
@@ -20,9 +24,10 @@ The browser saves `scrap-export-YYYY-MM-DD.zip` (the date is UTC) with its usual
 zip is made while it downloads, so a big store starts saving after a few seconds and takes as
 long as its photos take to send. Exporting changes nothing in scrap.
 
-## From the command line
+## From the command line, on a single server
 
-On the machine that holds the data:
+On a single server ([](deploy-single-server.md)) or a trial on your LAN, on the machine that
+holds the data:
 
 ```sh
 scrap export --data-dir /path/to/data ~/scrap-export
@@ -30,9 +35,9 @@ scrap export --data-dir /path/to/data ~/scrap-export
 
 It writes the same files as the zip into the folder, and prints how many pages it wrote.
 Export into a new folder for a clean copy: a second run into the same folder writes every page
-again but deletes nothing, so a page deleted since stays there. Where scrap runs in a container,
-see [](deploy-kubernetes.md) or [](deploy-single-server.md) for running a `scrap` command against
-its data.
+again but deletes nothing, so a page deleted since stays there. Where scrap runs in a container, see
+[](deploy-single-server.md) for running a `scrap` command against its data. On Kubernetes, use
+the app.
 
 ## Open it in Obsidian
 

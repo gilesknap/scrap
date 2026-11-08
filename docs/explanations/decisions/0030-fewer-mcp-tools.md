@@ -6,6 +6,9 @@ Date: 2026-10-25
 
 Accepted
 
+Note: two records share the number 30. This one is *30 (MCP tools)*; the other is
+[](0030-trash-purged-after-n-days.md).
+
 ## Context
 
 The MCP server offered fifteen tools. Models choose better among fewer, and three of them did

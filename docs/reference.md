@@ -1,10 +1,10 @@
 # Reference
 
-Technical reference material including APIs and release notes.
+The HTTP API, CLI and settings, the MCP tools, the export format, the public site contract,
+scheduled jobs, the Python API and the release notes.
 
 ```{toctree}
 :maxdepth: 1
-:glob:
 
 reference/api
 reference/export-format

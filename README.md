@@ -68,7 +68,7 @@ or
 search scrap for ...
 ```
 
-Connect your phone for quick capture. See [use scrap on your phone over Tailscale](https://gilesknap.github.io/scrap/main/how-to/use-scrap-on-your-phone.html).
+To try this container from your phone, see [try scrap on your phone over Tailscale](https://gilesknap.github.io/scrap/main/how-to/use-scrap-on-your-phone.html).
 
 Claude Code in a sandbox? See [connecting Claude Code in claude-sandbox](https://gilesknap.github.io/scrap/main/how-to/connect-claude-sandbox.html).
 
@@ -80,7 +80,8 @@ More: [connect Claude Code and the `sc` commands](https://gilesknap.github.io/sc
 
 - [Use it from other devices on your LAN](https://gilesknap.github.io/scrap/main/tutorials/install-lan.html): the same container, reachable from your phone or another machine.
 - [Install on a server](https://gilesknap.github.io/scrap/main/tutorials/install-server.html): rootless podman, systemd and Tailscale Serve.
-- [Install on Kubernetes](https://gilesknap.github.io/scrap/main/tutorials/install-kubernetes.html): Helm, Cloudflare tunnel and Access.
+- [Install on Kubernetes](https://gilesknap.github.io/scrap/main/tutorials/install-kubernetes.html): Helm with Litestream, a Cloudflare tunnel and Access.
+- [Install at DLS](https://gilesknap.github.io/scrap/main/tutorials/install-dls.html): one script on the argus cluster, behind your DLS login.
 
 Full documentation: <https://gilesknap.github.io/scrap>
 

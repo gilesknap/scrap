@@ -62,7 +62,7 @@ flowchart LR
   view's signal on each navigation. `go()` in `app.ts` records Back marks in `history.state`;
   Back in the top bar goes to the linking page, else the list, else a parent (`back.ts`).
 - **Precached chunks** (`OFFLINE` in `web/vite.config.ts`): `back`, `composer`, `downscale`,
-  `editor`, `figure` (a photo's panel and its drawing preview; it imports `ingest`), `math`
+  `editor`, `figure` (a photo's panel and its drawing preview; it imports `ingest`), `linkpick`, `math`
   (KaTeX, its CSS and WOFF2 fonts), `page`, `pageedit`, `render`, `sharing`, `refine`, `search`, `searches`.
 - **Not precached**: the Excalidraw board chunk and its fonts (served from `/excalidraw/fonts/`,
   not a CDN) and Mermaid. Offline, a drawing does not open and a Mermaid block stays as code.
@@ -154,6 +154,22 @@ page the drawing sits beside the photo, or behind a Photo / Drawing switch on a 
 opens a full-screen viewer where view and edit are one scene. Drawings are versioned: a human
 save carries its `base_version`, a stale one gets `409`. Server side:
 [](data-model.md) and [](claude-pipeline.md).
+
+## Public pages
+
+A page the owner makes public is rendered by the PWA itself. `publicpages.ts` is what the app
+does with public pages: Share's **Make public…** and **Make private**, publishing a public page
+again when it is saved, publishing the public pages that link to one again when it is made public
+or private, and Settings' **Refresh all**. It draws a page's drawings and Mermaid diagrams as
+SVGs. `publish.ts` is the publish mode beside Share as HTML (`pagehtml.ts`): it reads the page as
+the app shows it and writes static HTML with placeholders for its files, tags and drawings. The app
+uploads that to scrap (`PUT /api/pages/{key}/published`), and scrap checks it, fills in the
+placeholders and pushes it to the public site's receiver. The public site has its own small
+stylesheet and script (`web/src/public/`) and never talks to scrap. The contract is
+[](../../reference/public-site.md); why, [](../decisions/0043-public-pages-a-static-site-scrap-pushes-to.md).
+
+The page view also reports each page it opens (`POST /api/pages/{key}/viewed`), so MCP
+`current_page` can tell Claude what the owner is looking at.
 
 ## Invariants
 

@@ -4,7 +4,9 @@ Date: 2026-10-19 (recorded retrospectively; the design landed in the first commi
 
 ## Status
 
-Accepted
+Accepted. Amended by [](0046-database-on-an-emptydir-replicated-with-litestream.md): on Kubernetes the
+database is on the node's disk (`SCRAP_DB_PATH`) and Litestream replicates it into the data
+folder; `files/` stays in the folder.
 
 ## Context
 
