@@ -159,6 +159,9 @@ Ingest
 Pages in the trash, revisions, the text scrap read from PDFs and text files, the pages that link
 to a page (each page's own links say it), and Claude's call records. A file whose embed was deleted from a page's text, which the page no longer shows, is left out too.
 
+A page's `public` flag is not exported either, so an imported page is private: make it public
+again in the app if you want it on the public site.
+
 ## Reading it back
 
 `scrap import` and Settings, **Import Markdown…** (`POST /api/import`) read this layout back:

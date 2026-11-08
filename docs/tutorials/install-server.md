@@ -46,15 +46,16 @@ rights, and run nothing else as that user. See {ref}`scrap-access`.
 - `machinectl`, from the `systemd-container` package, if you will log in as the scrap user from
   an admin account rather than over `ssh` (below).
 - `git` and `curl`.
-- An [Anthropic API key](https://platform.claude.com/) for the ingest step, and
-  [Claude Code](https://code.claude.com/docs) on the server if you want the last step.
 - [Tailscale](https://tailscale.com/download) on the server, logged in to your tailnet, with
   [HTTPS certificates](https://tailscale.com/kb/1153/enabling-https) and MagicDNS enabled for the
-  tailnet.
+  tailnet. You need the server's MagicDNS name, `<host>.<tailnet>.ts.net` (the admin console's
+  **Machines** page shows it).
+- Optionally, an [Anthropic API key](https://platform.claude.com/), so Claude reads your photos
+  and tags your pages, and [Claude Code](https://code.claude.com/docs) for the last step.
 
 You do not need Python or Node on the server: the image carries everything scrap needs.
 
-## Create a dedicated user
+## 1. Create a dedicated user
 
 As an admin, create a user that does nothing but run scrap, and let its services run when nobody
 is logged in:
@@ -65,36 +66,22 @@ sudo loginctl enable-linger scrap
 grep scrap /etc/subuid /etc/subgid
 ```
 
-`grep` should print one line from each file; rootless podman needs those ID ranges. If it prints
+Check: `grep` prints one line from each file; rootless podman needs those ID ranges. If it prints
 nothing, see {ref}`scrap-troubleshooting`.
 
-Everything from here to the Tailscale step runs **as that user**, in a real login session so that
-`systemctl --user` works: `ssh scrap@<host>`, or from an admin account
-`sudo machinectl shell scrap@`. A plain `sudo -u scrap` or `su` does not work.
+## 2. Install the service
 
-## Get the image
+Steps 2 and 3 run **as `scrap`**, in a real login session so that `systemctl --user` works:
+`ssh scrap@<host>`, or from an admin account `sudo machinectl shell scrap@`. A plain
+`sudo -u scrap` or `su` does not work.
 
-As `scrap`, pull the image. It is public, so no login is needed:
+Pull the image (it is public), clone the repo for the install script and its units, and run the
+script:
 
 ```
 podman pull ghcr.io/gilesknap/scrap:{{ release_tag }}
-podman run --rm ghcr.io/gilesknap/scrap:{{ release_tag }} --version
-```
-
-The last command prints `{{ release_tag }}`. The install script and its units come from the repo, so clone it
-too:
-
-```
-cd ~
-git clone --branch {{ release_tag }} --depth 1 https://github.com/gilesknap/scrap.git
-cd scrap
-```
-
-## Install the service
-
-Still as `scrap`, in the clone:
-
-```
+git clone --branch {{ release_tag }} --depth 1 https://github.com/gilesknap/scrap.git ~/scrap
+cd ~/scrap
 ./deploy/install.sh
 ```
 
@@ -106,99 +93,81 @@ sed -i 's|^SCRAP_IMAGE=.*|SCRAP_IMAGE=ghcr.io/gilesknap/scrap:{{ release_tag }}|
 ./deploy/install.sh
 ```
 
-The script is safe to re-run. It writes `~/.config/scrap/env` and `~/.config/scrap/ingest.env`
-(never overwriting them), copies the systemd units and helper scripts into place, enables and
-starts `scrap.service`, and enables the daily and monthly backup, nightly gc, nightly related-pages
-and weekly topics timers. The
-defaults suit this tutorial: `SCRAP_LISTEN=socket` (a Unix socket only `scrap` and root can open,
-no TCP port), data in `~/.local/share/scrap/data` and backups in `~/.local/share/scrap/backups`.
+The script starts `scrap.service` and the backup, gc, related-pages and topics timers. scrap
+listens on a Unix socket that only `scrap` and root can open, with data in
+`~/.local/share/scrap/data` and backups in `~/.local/share/scrap/backups`.
 
-Check that it runs:
+Check: `./deploy/smoke.sh` prints `{"status":"ok",...}`. If not, read the logs with
+`journalctl --user -u scrap -n 50`.
+
+## 3. Tell scrap its address
+
+Still as `scrap`, edit `~/.config/scrap/ingest.env` (keep its mode 600: it holds your API key).
+Uncomment or add these lines, plain `KEY=value` with no quotes:
 
 ```
-systemctl --user status scrap
-./deploy/smoke.sh
+SCRAP_PUBLIC_URL=https://<host>.<tailnet>.ts.net:8446
+TZ=Europe/London
 ```
 
-`smoke.sh` calls `/healthz` on the socket and should print `{"status":"ok",...}`. If not, read the
-logs with `journalctl --user -u scrap -n 50`.
+If you have an API key, add these too:
 
-## Publish it on your tailnet
+```
+SCRAP_INGEST=on
+ANTHROPIC_API_KEY=<your key>
+SCRAP_BUDGET_DAY_USD=3
+```
+
+- scrap answers only loopback and the addresses in `SCRAP_PUBLIC_URL`, port included: a missing
+  address locks you out. This tutorial publishes on port 8446 in the next step; pick another if
+  Serve already uses it.
+- Set `TZ` to your own time zone, otherwise `due:today` follows UTC.
+- `SCRAP_BUDGET_DAY_USD` caps what ingest may spend in a day. Every setting is in
+  {ref}`scrap-ingest-settings`.
+
+Restart it:
+
+```
+systemctl --user restart scrap
+```
+
+Check: `./deploy/smoke.sh` prints `{"status":"ok",...}` again.
+
+## 4. Publish it on your tailnet
 
 Log out of the `scrap` session. As an admin on the server, check what Serve already publishes,
-then add scrap on a port that is free (the port is yours to choose; this tutorial uses 8446):
+then add scrap on the port you chose (leave any existing entries alone):
 
 ```
 sudo tailscale serve status
 sudo tailscale serve --bg --https=8446 unix:/run/user/$(id -u scrap)/scrap/scrap.sock
 ```
 
-Leave any existing entries alone. `--bg` makes the setting persist across reboots. scrap is now at
-`https://<host>.<tailnet>.ts.net:8446` for devices on your tailnet. Check it from a `scrap` login
-session on the server:
+`--bg` keeps the setting across reboots. Never use `tailscale funnel`.
 
-```
-./deploy/smoke.sh https://<host>.<tailnet>.ts.net:8446
-```
+Check: `curl -fsS https://<host>.<tailnet>.ts.net:8446/healthz` prints `{"status":"ok",...}`.
 
-(`smoke.sh` also checks the local socket first, so on another device `curl` the address's
-`/healthz` path instead.)
+## 5. Open it on your phone
 
-## Turn on ingest and tell scrap its address
-
-As `scrap`, edit `~/.config/scrap/ingest.env`. `install.sh` created it with mode 600; keep it so,
-because it holds your API key and must not go on a command line. Uncomment or add these lines,
-plain `KEY=value` with no quotes:
-
-```
-SCRAP_INGEST=on
-ANTHROPIC_API_KEY=<your key>
-SCRAP_BUDGET_DAY_USD=3
-SCRAP_PUBLIC_URL=https://<host>.<tailnet>.ts.net:8446
-TZ=Europe/London
-```
-
-- Photos are queued either way but only sent to Claude with `SCRAP_INGEST=on`.
-  `SCRAP_BUDGET_DAY_USD` caps what ingest may spend in a day; scrap pauses until tomorrow when it
-  is reached.
-- scrap answers only loopback and the addresses in `SCRAP_PUBLIC_URL`, port included, and
-  otherwise `421 Invalid Host header`: the web app as well as `/mcp`, so a missing address locks
-  you out. The web page and the API also accept any IP address; `/mcp` does not, so list every
-  address Claude Code will use, an IP address included. The same address makes the page links in
-  Claude's replies clickable.
-- Set `TZ` to your own time zone, otherwise `due:today` follows UTC.
-
-Then restart:
-
-```
-systemctl --user restart scrap
-```
-
-Every ingest setting is described in {ref}`scrap-ingest-settings`.
-
-## Open it on your phone
-
-On a phone that is on your tailnet, open the address above in Chrome (Android) and choose **Add to home
-screen**, then **Install**. Open scrap from its icon and capture your first note. See
+On a phone that is on your tailnet, open `https://<host>.<tailnet>.ts.net:8446` and install it:
+in Chrome on Android, **Add to home screen**, then **Install**; in Safari on iPhone, Share, then
+**Add to Home Screen**. Open scrap from its icon and capture your first note. See
 [](../how-to/use-the-pwa.md) for what each screen does.
 
-## Use it from Claude Code and a browser
+## 6. Connect Claude Code
 
-Install Claude Code on the server (as your admin account, not as `scrap`; nothing runs as `scrap`
-except scrap) and add scrap as an MCP server, with the tailnet address and `/mcp`:
+On the server (as your admin account, not as `scrap`: nothing runs as `scrap` except scrap) or on
+any other tailnet machine with Claude Code:
 
 ```
 claude mcp add --transport http --scope user scrap https://<host>.<tailnet>.ts.net:8446/mcp
-claude mcp list
 ```
 
-`claude mcp list` should show `scrap` as connected. Ask Claude "what are my recent scrap pages?".
-The same two commands work on any other tailnet machine with Claude Code. There is no token: the
-tailnet is the gate, and the tailnet ACL decides who can reach the port. To add a bearer token as
-well, see [ADR 0023](../explanations/decisions/0023-bearer-token-on-mcp-and-an-identity-header-setting.md).
+Check: `claude mcp list` shows `scrap` as connected. Ask Claude "what are my recent scrap pages?".
 
-From any other device on the tailnet, a browser opens the web app at the same
-`https://<host>.<tailnet>.ts.net:8446` address.
+There is no token: the tailnet is the gate, and the tailnet ACL decides who can reach the port.
+To add a bearer token as well, see
+[ADR 0023](../explanations/decisions/0023-bearer-token-on-mcp-and-an-identity-header-setting.md).
 
 ## Next steps
 

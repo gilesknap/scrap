@@ -23,10 +23,14 @@ html_theme.sidebar_secondary.remove: true
   and `scrap restore` copy it, `scrap export` writes Markdown, `scrap import` reads it back (or an
   Obsidian vault), and `scrap gc` finds files nothing uses and purges the
   trash (after 30 days by default).
+- **Public pages, opt-in.** Make a page public and scrap pushes it to a static site of your own,
+  which anyone can read without a login while scrap itself stays private: see
+  [](how-to/publish-pages.md) and [](reference/public-site.md).
 
 Search is full-text only (SQLite FTS5); semantic search was deferred, see
 [](explanations/decisions/0008-search-fts5-only-for-now.md). scrap has no login code of its own:
-access is the network (Tailscale) or an authenticating proxy (Cloudflare Access), with an optional
+access is the network (Tailscale) or an authenticating proxy (Cloudflare Access, or at DLS the
+DLS login proxy), with an optional
 bearer token on `/mcp` ([](explanations/decisions/0023-bearer-token-on-mcp-and-an-identity-header-setting.md)).
 Never expose it on a public address without one of them.
 
@@ -41,7 +45,7 @@ Source          | <https://github.com/gilesknap/scrap>
 Container image | `ghcr.io/gilesknap/scrap` (arm64 and amd64)
 Releases        | <https://github.com/gilesknap/scrap/releases>
 
-::::{grid} 1 1 3 3
+::::{grid} 1 1 2 2
 :gutter: 3
 
 :::{grid-item-card} Try it on your LAN
@@ -61,7 +65,14 @@ for HTTPS. Claude Code on the same box.
 :::{grid-item-card} Kubernetes with Cloudflare
 :link: tutorials/install-kubernetes
 :link-type: doc
-The Helm chart behind a cloudflared tunnel and Cloudflare Access, with a bearer token on `/mcp`.
+The Helm chart with Litestream keeping the database, behind a cloudflared tunnel and Cloudflare
+Access, with a bearer token on `/mcp`.
+:::
+
+:::{grid-item-card} At DLS
+:link: tutorials/install-dls
+:link-type: doc
+One script installs your own scrap on the argus cluster, behind your DLS login.
 :::
 
 ::::
@@ -85,7 +96,7 @@ Documentation is split into [four categories](https://diataxis.fr), also accessi
 tutorials
 ```
 +++
-Three install tutorials, from a quick LAN try-out to Kubernetes, and one for ingest on a Claude seat. New users start here.
+Four install tutorials, from a quick LAN try-out to Kubernetes and DLS, and one for ingest on a Claude seat. New users start here.
 :::
 
 :::{grid-item-card} {material-regular}`directions;2em`
@@ -94,7 +105,7 @@ Three install tutorials, from a quick LAN try-out to Kubernetes, and one for ing
 how-to
 ```
 +++
-Practical step-by-step guides for the more experienced user.
+Guides for one task each, once scrap is installed: using it, connecting Claude Code, running the server, and working on scrap.
 :::
 
 :::{grid-item-card} {material-regular}`info;2em`
@@ -112,7 +123,7 @@ Architecture in diagrams (data, capture, Claude jobs, search, MCP, PWA, deployme
 reference
 ```
 +++
-Technical reference material: the HTTP API, CLI and settings, the MCP tools, and release notes.
+Technical reference material: the HTTP API, CLI and settings, the MCP tools, the export format, the public site, scheduled jobs and release notes.
 :::
 
 ::::

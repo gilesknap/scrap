@@ -13,13 +13,62 @@ only on a network you trust (your home LAN, your own tailnet), never on a public
 never with a port forward on your router.
 ```
 
-## Start from the README
+## 1. Find your address
 
-Run scrap as in [Try it](../index.md#try-it) on the front page, which covers
-the API key prompt, the container and connecting Claude Code. This page only adds what changes
-when the browser or Claude is on another device.
+Find the machine's LAN address, for example `192.168.1.10`:
 
-## What you get, and what you do not
+```
+hostname -I
+```
+
+Use the address your other device can reach (usually the first one). If you use
+[Tailscale](https://tailscale.com/download) on this machine and your phone, `tailscale ip -4`
+prints its Tailscale address too (it starts `100.`).
+
+## 2. Run scrap
+
+Enter your Anthropic API key (optional: it lets Claude read your photos and tag your pages; press
+Enter to skip), then start the container, listening on every interface. `SCRAP_PUBLIC_URL` lists
+the address(es) you will open it at, comma separated:
+
+```
+printf 'Anthropic API key (Enter to skip): '; read -rs ANTHROPIC_API_KEY; export ANTHROPIC_API_KEY
+podman run -d --name scrap --restart unless-stopped --network=host -v scrap-data:/data \
+    -e TZ=Europe/London \
+    -e SCRAP_PUBLIC_URL=http://192.168.1.10:8000,http://100.64.0.7:8000 \
+    -e SCRAP_INGEST=${ANTHROPIC_API_KEY:+on} -e ANTHROPIC_API_KEY \
+    ghcr.io/gilesknap/scrap:{{ release_tag }} serve --host 0.0.0.0
+```
+
+Use your own addresses and time zone; without `TZ` the server runs on UTC and `due:today`
+follows the wrong day around midnight. Docker takes the same arguments. If you already started
+scrap from the README, `podman rm -f scrap` first: the `scrap-data` volume keeps your pages.
+
+Check, from another machine on the LAN: `curl http://192.168.1.10:8000/healthz` prints
+`{"status":"ok",...}`.
+
+## 3. Open it on your phone
+
+On your phone, open `http://192.168.1.10:8000/` (your address). Check: capture a note, then find
+it with search. See [](../how-to/use-the-pwa.md) for what the web app does.
+
+Over plain HTTP the browser will not offer to install the app, the share target does not exist
+and captures made while the phone is offline are not queued (see the tiers below).
+
+## 4. Connect Claude Code
+
+On any machine on the LAN with [Claude Code](https://code.claude.com/docs):
+
+```
+claude mcp add --transport http --scope user scrap http://192.168.1.10:8000/mcp
+```
+
+Check: `claude mcp list` shows `scrap` as connected. Ask Claude "what are my recent scrap pages?".
+To add the `sc` commands and skills, see [](../how-to/connect-claude-code.md).
+
+## Details
+
+### What you get, and what you do not
 
 | Tier | Phone reaches scrap by | You get | You do not get |
 | --- | --- | --- | --- |
@@ -31,79 +80,36 @@ The limits in A and B come from the browser, not from scrap: the app install, th
 and the offline queue need a *secure context*, which means HTTPS or `localhost`. Plain HTTP to a
 LAN address is neither.
 
-## Find your address
+**Tier B.** If this machine and your phone are both on your tailnet, the same port is reachable
+on the machine's Tailscale address: `http://100.64.0.7:8000/`, or `http://<machine-name>:8000/`
+with MagicDNS. It is still plain HTTP, with the limits of tier A, but it works away from home.
 
-Find the machine's LAN address, for example `192.168.1.10`:
+**Tier C.** For install, the Android share target and the offline queue you need HTTPS, which
+Tailscale Serve provides. See [](../how-to/use-scrap-on-your-phone.md). Never use
+`tailscale funnel`, which opens scrap to the internet.
 
-```
-hostname -I
-```
+### Addresses and `SCRAP_PUBLIC_URL`
 
-Use the address your other device can reach (usually the first one). A Tailscale address, if you
-have one, starts `100.` and is printed by `tailscale ip -4`. For tier B, install
-[Tailscale](https://tailscale.com/download) on this machine and on your phone, both logged in to
-the same tailnet.
+The web page and the API answer loopback, any IP address, and the names listed in
+`SCRAP_PUBLIC_URL`, and reply `421 Invalid Host header` to any other *name*, so list a MagicDNS or
+LAN hostname if you open the app at it. `/mcp` answers only loopback and the listed addresses, so
+list every address Claude Code will use, an IP address included. Page links in Claude's replies
+start with the first address. To change a setting, `podman rm -f scrap` and run step 2 again.
 
-## Run it for other devices
-
-The README command listens on loopback only. To be reachable from other devices, stop it and run
-it again with `--host 0.0.0.0` and `SCRAP_PUBLIC_URL` set to the address(es) you will use,
-comma separated:
-
-```
-podman rm -f scrap   # only if you started it with --name scrap
-podman run -d --name scrap --restart unless-stopped --network=host -v scrap-data:/data \
-    -e TZ=Europe/London \
-    -e SCRAP_PUBLIC_URL=http://192.168.1.10:8000,http://100.64.0.7:8000 \
-    -e SCRAP_INGEST=${ANTHROPIC_API_KEY:+on} -e ANTHROPIC_API_KEY \
-    ghcr.io/gilesknap/scrap:{{ release_tag }} serve --host 0.0.0.0
-```
-
-Set `ANTHROPIC_API_KEY` in your shell first as in the README, or leave it empty to skip it. Use
-your own addresses and time zone; without `TZ` the server runs on UTC and `due:today` follows
-the wrong day around midnight. To stop it, `podman stop scrap`; to run it again with new
-settings, `podman rm -f scrap` and re-run the command (the `scrap-data` volume keeps your
-pages). Docker takes the same arguments.
-
-`SCRAP_PUBLIC_URL` matters to any hostname you use, and to Claude. The web page and the API answer
-only loopback, IP addresses (always accepted) and the addresses listed there, and reply
-`421 Invalid Host header` to any other *name*, so list a MagicDNS or LAN hostname if you open the
-app at it. `/mcp` answers only loopback and the listed addresses, so list every address Claude
-Code will use, an IP address included. Page links in Claude's replies start with the first
-address, and the app opens a link to any listed address in place, so Back returns to the page you
-were on. Claude Code on this machine needs none of it; on another machine, use `claude mcp add`
-from the README with the LAN address, for example
-`http://192.168.1.10:8000/mcp`.
+### Firewall
 
 `--network=host` publishes the port on **every** network interface, which is why the warning
 above matters. On a firewalled machine, allow port 8000 from your LAN only (for example `sudo ufw
 allow from 192.168.1.0/24 to any port 8000`), and check from your phone rather than trusting the
 rule.
 
-## Tier A: open it on your phone over the LAN
+### Restarts
 
-On your phone, open `http://192.168.1.10:8000/` (your address). Try capturing a note and a
-photo, searching, and editing a page. See [](../how-to/use-the-pwa.md) for what the web app does.
+`--restart unless-stopped` brings scrap back after a crash. Docker also starts it at boot. With
+rootless podman, it starts at boot only with `systemctl --user enable podman-restart.service`
+and `loginctl enable-linger`; for a lasting install use [](install-server.md).
 
-Over plain HTTP the browser will not offer to install the app, the share target does not exist
-and captures made while the phone is offline are not queued: the page must be open and the
-machine reachable.
-
-## Tier B: reach it from anywhere over Tailscale
-
-If this machine and your phone are both on your tailnet, the same port is already reachable on
-the machine's Tailscale address. Open `http://100.64.0.7:8000/` (`tailscale ip -4` prints yours),
-or `http://<machine-name>:8000/` with MagicDNS, and list that name in `SCRAP_PUBLIC_URL` (an IP
-address needs no entry for the app, but Claude's page links do). It is still plain HTTP, so it has the same limits as tier A, but it
-works away from home, and Tailscale encrypts the traffic between the devices.
-
-## Tier C: the full phone experience
-
-For install, the Android share target and the offline queue you need HTTPS, which Tailscale Serve
-provides. See [](../how-to/use-scrap-on-your-phone.md). Never use `tailscale funnel`, which opens
-scrap to the internet.
-
-## Keep your data
+### Keep your data
 
 The image runs as an unprivileged user (uid 10001). A named volume works as it is. If you would
 rather use a host folder, it must be writable by that user, or scrap fails with "Permission
@@ -119,7 +125,8 @@ podman run --rm -v scrap-data:/data -v scrap-backup:/backup \
 ```
 
 That copy is local only; copy it off the machine to survive losing it. To update, pull a new
-release tag, remove the container and run it again: the volume keeps your data.
+release tag, remove the container and run it again: the volume keeps your data. This page pins
+`{{ release_tag }}`; the README's `latest` tag points to the newest release.
 
 ## Next steps
 

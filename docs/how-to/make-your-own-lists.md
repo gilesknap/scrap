@@ -32,13 +32,13 @@ Any of these works, and you can mix them:
   (it becomes the title), anything else below, and **Save**. The composer closes back onto the
   search, and the new page joins the list once it has uploaded. The same works for a kind:
   on `kind:later`, **New** opens the composer with **Later** chosen.
-- **Tag by hand.** On any page, tap **Tags** (or **Add tags**) under the title and add
-  `person/family`. In the composer, open the **Tags** line above the text.
+- **Tag by hand.** On any page, tap **Edit**, then its **Tags** line, and add `person/family`.
+  In the composer, open the **Tags** line above the text.
 - **Let Claude suggest it.** Once the tag is in use on a few pages, Claude's reading of a new
   note (**About this page**) can suggest it. A tag Claude added is marked ✦; keep it, or take
-  it off with **Tags**.
+  it off with **Edit**, **Tags**.
 - **A business card.** Tap **Camera** on Capture and photograph the card. Claude reads the text
-  on it (**What's in the photo**, then **Text in the photo**), so the name, number and email are
+  on it (**Claude's reading** under the photo, then **Text read**), so the name, number and email are
   searchable. Add the `person` tag in the composer's **Tags** line before you save, or on the
   page after.
 

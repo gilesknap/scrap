@@ -6,7 +6,7 @@ argument-hint: <search words>
 `/sc` is only an index; each command is its own command so it autocompletes:
 
 - `/sc-post`: post the previous response verbatim
-- `/sc-summarise [all]`: summarise the current topic (latest activity) into one page; `all` for the whole conversation
+- `/sc-summarise [all|day]`: summarise the current topic (latest activity) into one page; `all` for the whole conversation, `day` for everything today
 - `/sc-find <words>`: search
 - `/sc-todos`: what to do now
 - `/sc-tidy <what>`: bulk kind/tag changes

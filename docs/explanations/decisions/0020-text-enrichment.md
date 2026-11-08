@@ -10,7 +10,9 @@ and shares the queue pause and daily budget of
 [](0026-claude-appends-task-boxes-to-a-list-of-actions.md): enrich may now append task boxes
 to a list of actions, as a revision of Claude's own, so "never edits the text" no longer holds.
 Extended by [](0027-claude-write-ups-of-boards-apart-from-the-text.md): enrich jobs of reason
-`writeup` (migration 12), and a board page's first related call follows its write-up.
+`writeup` (migration 12), and a board page's first related call follows its write-up. See also
+[](0046-database-on-an-emptydir-replicated-with-litestream.md): on Kubernetes this pass
+runs in the scrap pod's `jobs` container, not as a CronJob.
 
 ## Context
 
