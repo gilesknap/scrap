@@ -81,6 +81,9 @@ your projects. Avoid `--scope project`: it writes the tailnet hostname into a `.
 you would commit. `claude mcp list` should show `scrap` as connected. `claude mcp remove scrap`
 takes it out again.
 
+The DLS installer ([](../tutorials/install-dls.md)) adds its server as `scrap-dls` instead, so it
+sits beside a `scrap` you already have. Its tools are `mcp__scrap-dls__*`.
+
 The server has eighteen tools (four fewer with `SCRAP_MCP_CONTENT_EDIT=0`, which drops `edit_page`, `edit_drawing`, `trash_pages` and `undelete`, and one fewer with `SCRAP_MCP_UPLOAD=0`, which drops `add_svg`), which appear as `mcp__scrap__search` (it also lists the recent
 pages and the todos), `mcp__scrap__read`, `mcp__scrap__current_page`, `mcp__scrap__drawing`,
 `mcp__scrap__tags`, `mcp__scrap__topics`,
@@ -293,9 +296,9 @@ given; a PDF or text file is listed below the text and read for search.
 
 `commands/` in this repository holds Claude Code slash commands that give you short scrap
 commands. Each is one Markdown file with a one-line description, and each is its own command, so
-typing `/sc` in Claude Code autocompletes the whole set with that description. They use the server added in step 2 (the `mcp__scrap__*` tools) and
-do nothing useful without it; if the tools are missing they say so and print the `claude mcp add`
-line.
+typing `/sc` in Claude Code autocompletes the whole set with that description. They use the server added in step 2 (the `mcp__scrap__*` tools, or
+`mcp__scrap-dls__*` when there is no `scrap` server) and
+do nothing useful without it; if the tools are missing they say so and point to the setup.
 
 | Command | What it does |
 | --- | --- |
