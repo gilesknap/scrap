@@ -93,7 +93,7 @@ backup:
   # controller's (usually UTC).
   timeZone: ""
   keep: 7
-  # A second, longer-lived tier: a full copy on the 1st of each month in the claim's
+  # A second, longer-lived tier: a run on the 1st of each month in the claim's
   # monthly/ folder, keeping the newest `keep`. The daily runs only reach back `keep`
   # days, so a destructive change noticed later can still be undone from here. Its files
   # are hard-linked from the daily runs too, so it adds about a database's size.
