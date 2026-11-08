@@ -6,7 +6,7 @@ from io import BytesIO
 
 import pytest
 
-from scrap import gc
+from scrap import gc, sizes
 from scrap.__main__ import main
 from scrap.store import Store, body_refs, new_ulid, now
 
@@ -142,9 +142,15 @@ def test_every_kind_of_reference_keeps_a_file(client, store):
         )
         conn.execute(
             "INSERT INTO model_run (capture_id, source_sha256, purpose, model,"
+            " prompt_version, request, started_at)"
+            " VALUES (?, ?, 'ingest', 'm', 'v', '{}', ?)",
+            (cid, run, stamp),
+        )
+        conn.execute(  # from before #572, its photo's record gone: its JPEG is kept
+            "INSERT INTO model_run (capture_id, source_sha256, purpose, model,"
             " prompt_version, sent_sha256, request, started_at)"
             " VALUES (?, ?, 'ingest', 'm', 'v', ?, '{}', ?)",
-            (cid, run, sent, stamp),
+            (cid, "f" * 64, sent, stamp),
         )
     age_all(store)
     assert gc.collect(store, delete=True).shas == [orphan]
@@ -239,7 +245,7 @@ def test_put_blob_writes_the_file_again_if_gc_deleted_it(store, monkeypatch):
 def test_refuses_when_the_references_cannot_be_read(store, monkeypatch):
     orphan = put(store, b"orphan")
 
-    def broken(conn):
+    def broken(conn, files=None):
         raise sqlite3.OperationalError("disk I/O error")
 
     monkeypatch.setattr(gc, "in_use", broken)
@@ -449,21 +455,117 @@ def test_a_kept_turn_keeps_the_turns_it_continues(client, store):
     assert {first, second, third} <= _ids(store, "model_run")
 
 
-def test_deleted_runs_free_the_jpeg_they_sent_in_the_same_run(client, store):
+def _sent_run(conn, cid, photo, sent, days):
+    return conn.execute(
+        "INSERT INTO model_run (capture_id, source_sha256, purpose, model,"
+        " prompt_version, sent_sha256, request, status, started_at)"
+        " VALUES (?, ?, 'ingest', 'm', 'v', ?, '{}', 'ok', ?) RETURNING id",
+        (cid, photo, sent, _stamp(days)),
+    ).fetchone()[0]
+
+
+def test_an_old_runs_sent_jpeg_goes_while_its_photo_is_stored(client, store):
+    """#572: the JPEG a run sent is made again from the photo, so a run from before
+    keeps neither it nor its name; the run itself stays (the newest for its photo)."""
     a, sha = photo(client)
-    sent = put(store, b"sent jpeg")
+    sent = put(store, b"sent jpeg", "image/jpeg")
     with store.connect() as conn:
-        conn.execute(
-            "INSERT INTO model_run (capture_id, source_sha256, purpose, model,"
-            " prompt_version, sent_sha256, request, status, started_at)"
-            " VALUES (?, ?, 'ingest', 'm', 'v', ?, '{}', 'ok', ?)",
-            (a["capture_id"], sha, sent, _stamp(90)),
-        )
-        _model_run(conn, a["capture_id"], sha, 80)  # newer: the old one is not latest
+        run = _sent_run(conn, a["capture_id"], sha, sent, 90)
     age_all(store)
-    report = gc.collect(store, delete=True)  # the runs are pruned before files count
-    assert report.model_runs == 1 and report.shas == [sent]
-    assert not store.blob_path(sent).exists()
+    report = gc.collect(store)  # a dry run counts it, and changes nothing
+    assert report.shas == [sent] and report.model_runs == 0
+    assert store.blob_path(sent).is_file()
+    report = gc.collect(store, delete=True)
+    assert report.shas == [sent] and report.model_runs == 0
+    assert not store.blob_path(sent).exists() and store.blob_path(sha).is_file()
+    with store.connect() as conn:
+        row = conn.execute(
+            "SELECT sent_sha256 FROM model_run WHERE id = ?", (run,)
+        ).fetchone()
+        assert row is not None and row[0] is None
+        assert not conn.execute(
+            "SELECT 1 FROM blob WHERE sha256 = ?", (sent,)
+        ).fetchone()
+    assert gc.collect(store, delete=True).shas == []
+
+
+def test_an_old_runs_sent_jpeg_is_kept_while_its_photos_file_is_missing(client, store):
+    """It cannot be made again then: it is the only copy of what was read."""
+    a, sha = photo(client)
+    sent = put(store, b"sent jpeg", "image/jpeg")
+    with store.connect() as conn:
+        run = _sent_run(conn, a["capture_id"], sha, sent, 90)
+    store.blob_path(sha).unlink()
+    age_all(store)
+    assert gc.collect(store, delete=True).shas == []
+    assert store.blob_path(sent).is_file()
+    with store.connect() as conn:
+        row = conn.execute("SELECT sent_sha256 FROM model_run WHERE id = ?", (run,))
+        assert row.fetchone()[0] == sent
+
+
+def test_an_old_runs_sent_jpeg_is_kept_while_its_photo_is_cut_short(client, store):
+    a, sha = photo(client)
+    sent = put(store, b"sent jpeg", "image/jpeg")
+    with store.connect() as conn:
+        _sent_run(conn, a["capture_id"], sha, sent, 90)
+    store.blob_path(sha).write_bytes(b"photo")  # shorter than its record says
+    age_all(store)
+    assert gc.collect(store, delete=True).shas == []
+    assert store.blob_path(sent).is_file()
+
+
+def test_the_report_counts_old_sent_jpegs_as_gc_does(client, store):
+    """sizes.LIVE_SENT: one whose photo is stored is unused; one whose photo's file
+    is gone is in use, by a page out of the trash or only by a trashed one."""
+    live, live_sha = photo(client, b"live photo")
+    gone, gone_sha = photo(client, b"gone photo", "Gone")
+    trashed, trashed_sha = photo(client, b"trashed photo", "Trashed")
+    sent = [put(store, f"sent {n}".encode(), "image/jpeg") for n in range(3)]
+    with store.connect() as conn:
+        _sent_run(conn, live["capture_id"], live_sha, sent[0], 90)
+        _sent_run(conn, gone["capture_id"], gone_sha, sent[1], 90)
+        _sent_run(conn, trashed["capture_id"], trashed_sha, sent[2], 90)
+    client.delete(f"/api/pages/{trashed['page_id']}").raise_for_status()
+    store.blob_path(gone_sha).unlink()
+    store.blob_path(trashed_sha).unlink()
+    age_all(store)
+    split = sizes.measure(store)["files"]
+    size = len(b"sent 0")
+    assert split["unused"] == {"files": 1, "bytes": size}  # sent[0]
+    assert split["trash_only"] == {"files": 1, "bytes": size}  # sent[2]
+    assert split["in_use"]["files"] == 2  # the live photo and sent[1]
+    assert gc.collect(store).shas == [sent[0]]
+
+
+def test_a_sent_jpeg_that_is_also_a_capture_is_kept(client, store):
+    a, sha = photo(client)
+    _, other = photo(client, b"the same bytes, captured", "Another page")
+    with store.connect() as conn:
+        run = _sent_run(conn, a["capture_id"], sha, other, 90)
+    age_all(store)
+    assert gc.collect(store, delete=True).shas == []
+    assert store.blob_path(other).is_file()
+    with store.connect() as conn:
+        row = conn.execute("SELECT sent_sha256 FROM model_run WHERE id = ?", (run,))
+        assert row.fetchone()[0] == other
+
+
+def test_a_jpeg_two_old_runs_sent_goes_once(client, store):
+    a, sha = photo(client)
+    sent = put(store, b"sent jpeg", "image/jpeg")
+    with store.connect() as conn:
+        _sent_run(conn, a["capture_id"], sha, sent, 90)
+        _sent_run(conn, a["capture_id"], sha, sent, 2)
+    age_all(store)
+    assert gc.collect(store, delete=True).shas == [sent]
+    with store.connect() as conn:
+        assert (
+            conn.execute(
+                "SELECT count(*) FROM model_run WHERE sent_sha256 IS NOT NULL"
+            ).fetchone()[0]
+            == 0
+        )
 
 
 def test_run_retention_is_a_setting(client, store, capsys):

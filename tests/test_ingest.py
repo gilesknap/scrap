@@ -1,6 +1,7 @@
 # pyright: reportOptionalSubscript=false
 """The ingest queue, the worker (Claude faked), versions, page fields and search."""
 
+import hashlib
 import io
 import json
 import sqlite3
@@ -17,7 +18,7 @@ import pytest
 from fastapi.testclient import TestClient
 from PIL import Image
 
-from scrap import claude, ingest
+from scrap import claude, ingest, preview
 from scrap.app import create_app
 from scrap.ingest import FAR, charge, claim, pause, put_derived, recover, resume
 from scrap.store import ENQUEUE, Store, connect, new_ulid, transaction
@@ -355,6 +356,33 @@ def run_one(store, fake):
     return ingest.Worker(store, fake).step()
 
 
+def test_the_jpeg_sent_is_not_stored_but_how_to_make_it_again_is(store, conn):
+    """#572: the JPEG sent is made from the original, so it is not stored; the run
+    keeps how it was made, and preview.rebuild makes the same bytes from that."""
+    original = jpeg(size=(4032, 3024))
+    photo(store, [original])
+    got: list[tuple[bytes, str]] = []
+
+    def call(model, system, messages, schema, blob):
+        got.append(blob(messages[0]["content"][0]["source"]["sha256"]))
+        return Fake(BOARD)(model, system, messages, schema, blob)
+
+    assert run_one(store, call) is True
+    ((data, mime),) = got
+    run = conn.execute("SELECT * FROM model_run").fetchone()
+    sent = json.loads(run["request"])["sent"]
+    assert mime == "image/jpeg" and sent == preview.sent_record(
+        hashlib.sha256(original).hexdigest(), data, 2048, 1536
+    )
+    assert run["sent_sha256"] is None
+    assert (run["image_width"], run["image_height"]) == (2048, 1536)
+    assert [r[0] for r in conn.execute("SELECT sha256 FROM blob")] == [
+        sent["source_sha256"]
+    ]  # the original only
+    assert len([p for p in store.files.rglob("*") if p.is_file()]) == 1
+    assert preview.rebuild(store, sent) == data
+
+
 def test_a_success_stores_the_run_versions_and_page_fields(store, conn):
     ref = photo(store, [jpeg(size=(4032, 3024))])
     fake = Fake(BOARD)
@@ -367,8 +395,8 @@ def test_a_success_stores_the_run_versions_and_page_fields(store, conn):
         2048,
         1536,
     )
-    assert run["sent_sha256"] == sent["source"]["sha256"]
-    assert store.blob(run["sent_sha256"])[1] == "image/jpeg"
+    assert run["sent_sha256"] is None  # not kept (#572): request["sent"] instead
+    assert json.loads(run["request"])["sent"]["sha256"] == sent["source"]["sha256"]
     assert run["cost_microusd"] == 5000 * 4 + 2000 * 20  # $0.06
     assert run["prompt_version"].startswith("photo@")
     request = json.loads(run["request"])

@@ -241,7 +241,7 @@ the original that is stored is already that size.
 `<text>`) as its text, with no model call, so search has them whatever happens next; then the
 user turn is its markup (the first 20,000 characters, an embedded font's or image's base64 put
 as its size) as a text block, said to be data, instead
-of an image block, with no drawing asked for. No JPEG is made, so its run has no `sent_sha256` or
+of an image block, with no drawing asked for. No JPEG is made, so its run has no `sent` record or
 size. See [ADR 0042](decisions/0042-mcp-clients-add-svg-and-files.md).
 
 **The owner's guidance** (#538): an image with Guidance for Claude (saved in its reading's fold,
@@ -253,10 +253,17 @@ without it, so its version is too. It is never sent with a write-up. See
 [ADR 0044](decisions/0044-claudes-reading-in-a-fold.md).
 
 The image block sets `"transformations": {"oversized_image": "error"}`, so the API never
-rescales it silently and drawing coordinates are in sent pixels. The JPEG is stored as a blob
-(`model_run.sent_sha256`) with its `image_width` and `image_height`. The PWA scales the drawing
-to the displayed photo, and a later conversation can replay the exact bytes. `scrap gc` counts
-`sent_sha256` as in use; after a purge it is an orphan that gc removes.
+rescales it silently and drawing coordinates are in sent pixels. The run keeps the JPEG's size
+(`image_width`, `image_height`), and the PWA scales the drawing to the displayed photo. The JPEG
+itself is not kept (#572): it is made from the original, which is kept anyway, and held in
+memory for the call. The run's request records how it was made, as `sent`: the original's
+`source_sha256`, `width`, `height`, `quality`, `for_claude` (the version of how
+`preview.claude_jpeg` makes it), and the JPEG's `sha256`, `bytes` and the `pillow` version.
+Nothing replays a run, so nothing makes it again from that yet. With the same Pillow the bytes
+would be the same; another Pillow (or its libjpeg or libheif) may encode them differently, which
+comparing `sha256` tells. A run from before #572 names a stored JPEG (`model_run.sent_sha256`).
+`scrap gc` no longer counts that as in use while the run's photo (its record and its file) is
+stored, so it deletes it as unused and clears `sent_sha256`.
 
 **Output:** `kind` (whiteboard, handwriting, diagram, screenshot, document, photo or other), `title`,
 `tags`, `description`, `text` (one item per line, `(?)` after uncertain readings) and `elements`
@@ -792,7 +799,8 @@ sequenceDiagram
   prompt is rolled out.
 - **The call.** `SCRAP_VISION_MODEL` (default `claude-opus-5-5`), effort `medium`, `max_tokens`
   16000, structured output (`summary`, `text`). The user turn has each board photo (at most 4:
-  the JPEG photo ingest sent, or one made again the same way if that is gone), labelled Image 1,
+  made the way photo ingest made the one it sent and held for the call, recorded in the request's
+  `sent` but not stored; or the one ingest stored before #572), labelled Image 1,
   2..., then the page's kind, title and tags, its text as plain words in a `<page>` block (at most
   6,000 characters), what was read from its board images in an `<images>` block (at most 12,000),
   and the owner's guidance in a `<guidance>` block. The system prompt ends with the related
@@ -1025,9 +1033,9 @@ read. The queue state is in `job` and `enrich_job` (`state`, `failures`, `last_e
 
 Two cautions. `cost_microusd` is an estimate from the run's `usage` and `claude.PRICES` (see
 {ref}`ingest-spend`), so the Console is the authority on what you spent. And the runs hold your
-content: `model_run` keeps the JPEG that was sent (`sent_sha256`, a blob) and `enrich_run` keeps
-the system prompt and the page text (a fetched page's text is a placeholder), so the database
-holds what you sent to Claude, and your backups do too.
+content: `model_run` keeps which photo it sent (by reference: the JPEG made from it is not kept) and
+`enrich_run` keeps the system prompt and the page text (a fetched page's text is a placeholder), so
+the database holds what you sent to Claude, and your backups do too.
 
 (ingest-cli)=
 ## Command line

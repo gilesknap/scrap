@@ -1154,6 +1154,16 @@ purge date from `trashDays` (`SCRAP_TRASH_DAYS`, `off` while the job does not de
 `gc.delete: false` to have it only count until you trust it. To see what the store holds by size,
 `kubectl -n scrap exec deploy/scrap -c jobs -- scrap gc --report` (it reads only).
 
+**After upgrading to a scrap with #572.** The JPEG a photo's reading sends to Claude is no
+longer kept (it is made from the photo, which is), and gc now deletes the ones older runs stored
+(`sent_sha256`) as unused. On a store with many, that is over gc's safety limit (more than 10 % of
+the files, see {ref}`k8s-litestream`), so on a Litestream install the nightly gc only
+counts and exits 1, pushing `scrap: scheduled job gc failed` to `SCRAP_NOTIFY_URL` every night;
+while it is held, the trash purge, the pruning of runs and jobs and the gathering of orphaned
+files wait too. After a backup and a look at `scrap gc` (a dry run), run
+`kubectl -n scrap exec deploy/scrap -c jobs -- scrap gc --delete --allow-large` once; the nightly
+gc then deletes as before, with its limit.
+
 - **Turn one off** with `gc.enabled: false`, `enrichRelated.enabled: false` or
   `enrichTopics.enabled: false` (or `ingest.enabled: false` for both Claude jobs).
 - **Change when** with its `.schedule` and `.timeZone` (an empty `timeZone` is UTC).
