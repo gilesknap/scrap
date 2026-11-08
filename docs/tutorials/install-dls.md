@@ -32,7 +32,18 @@ Check: `getent hosts scrap-<fedid>.diamond.ac.uk` prints an address.
 ## 4. Open it
 
 On a DLS machine, open `https://scrap-<fedid>.diamond.ac.uk/` and log in with your DLS account.
-On your phone, join the DLS VPN, open the same address, log in and install the app.
 
 Check: `claude mcp list` shows `scrap-dls` as connected. In claude-sandbox, first follow
 {ref}`install-dls-sandbox`.
+
+## 5. Put it on your phone
+
+**Your phone must be on the DLS VPN.** Without it, the phone cannot reach scrap: no quick capture
+with the camera and no sharing from other apps.
+
+1. Join the DLS VPN on your phone.
+2. Open `https://scrap-<fedid>.diamond.ac.uk/` in Chrome and log in.
+3. Chrome menu, **Add to home screen** (or **Install app**), then **Install**.
+
+Check: in another app (Photos, the browser), **Share** lists scrap. More:
+[](../how-to/use-the-pwa.md).
