@@ -4,8 +4,8 @@ Date: 2026-11-05
 
 ## Status
 
-Accepted. Opt-in (`litestream.enabled`, off by default); the DLS installer turns it on. With it off
-the chart renders exactly as before.
+Accepted. Opt-in when made; now the chart's default, and the old mode deprecated, by
+[ADR 47](0047-litestream-is-the-default-kubernetes-mode.md).
 
 ## Context
 

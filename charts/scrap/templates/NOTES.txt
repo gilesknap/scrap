@@ -53,3 +53,9 @@ Related pages: CronJob {{ include "scrap.cronName" (dict "ctx" . "suffix" "-enri
 
 Topics: CronJob {{ include "scrap.cronName" (dict "ctx" . "suffix" "-enrich-topics") }} ({{ .Values.enrichTopics.schedule }}) runs `scrap enrich --topics`.
 {{- end }}
+{{- if not .Values.litestream.enabled }}
+
+DEPRECATED: litestream.enabled is false, so the database is on the data volume at /data/scrap.db
+and gc and the Claude passes are CronJobs. This mode will be removed in a later release; Litestream
+is the default (ADR 47): the first start with it brings /data/scrap.db across by itself.
+{{- end }}

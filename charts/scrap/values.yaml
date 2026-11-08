@@ -60,9 +60,9 @@ mcp:
 extraEnv: []
 extraEnvFrom: []
 
-# The data volume at /data: database, files and the preview cache. The preview
-# cache (cache/previews) is regenerable and never backed up; it stays here so a
-# restart does not redo every preview.
+# The data volume at /data: files, the database's Litestream replica (litestream below)
+# and the preview cache. The preview cache (cache/previews) is regenerable and never
+# backed up; it stays here so a restart does not redo every preview.
 persistence:
   # Use this PVC instead of creating one.
   existingClaim: ""
@@ -80,8 +80,10 @@ persistence:
 
 # A CronJob running `scrap backup` into a timestamped directory on a second PVC,
 # then keeping only the newest `keep` runs (the same pruning as the single-server
-# deploy). Each run is a full copy: size the claim for about keep + 1 times the
-# data. It is a local copy only: copy it off the cluster too.
+# deploy). It works from a restore of the Litestream replica (in the deprecated mode, from
+# the database itself), beside the scrap pod. Each run is a full copy: size the claim for
+# about keep + 1 times the data. It is a local copy only: copy it off the cluster too.
+# The scrap pod mounts the backups as well (gc checks them and takes their lock).
 backup:
   enabled: true
   schedule: "30 3 * * *"
@@ -104,8 +106,8 @@ backup:
     # and the settings below are unused. It must exist, and the pods'
     # podSecurityContext user must be able to write it. A namespace that enforces
     # the baseline or restricted Pod Security Standard rejects hostPath volumes,
-    # so there the backup jobs never start (and with litestream.enabled, nor does
-    # the scrap pod, which mounts the backups too): use the claim.
+    # so there the backup jobs never start, nor does the scrap pod, which mounts the
+    # backups too: use the claim.
     hostPath: ""
     existingClaim: ""
     storageClass: ""
@@ -122,17 +124,17 @@ backup:
     limits:
       memory: 512Mi
 
-# A CronJob running `scrap gc`: it deletes the stored files nothing uses, the
-# model/enrich run records past retention, the pages in the trash past trashDays and the
-# finished job records past jobDays, and gathers the files of captures no page
-# shows any more onto the month's "Orphaned assets" todo page for review (never
-# deleting them), as the single-server deploy does nightly.
-# Like deploy/scrap-gc it deletes only when the backup claim holds a completed backup run
-# (with its COMPLETE marker) less than 26 hours old; otherwise it only counts and the Job fails, so a missing backup
-# shows. It runs an hour after the backup (and takes the backup's lock, so never
-# during one), so it needs backup.enabled. It runs beside the scrap pod (the data
-# claim is ReadWriteOnce). With litestream.enabled it is not a CronJob: it runs in the
-# scrap pod's jobs container, see litestream below.
+# `scrap gc`, on this schedule in the scrap pod's jobs container (litestream below): it
+# deletes the stored files nothing uses, the model/enrich run records past retention, the
+# pages in the trash past trashDays and the finished job records past jobDays, and gathers
+# the files of captures no page shows any more onto the month's "Orphaned assets" todo
+# page for review (never deleting them), as the single-server deploy does nightly.
+# Like deploy/scrap-gc it deletes only when the backups hold a completed backup run
+# (with its COMPLETE marker) less than 26 hours old; otherwise it only counts and the run
+# fails, so a missing backup shows. It runs an hour after the backup (and takes the
+# backup's lock, so never during one), so it needs backup.enabled.
+# Deprecated: with litestream.enabled false it is a CronJob beside the scrap pod (the data
+# claim is ReadWriteOnce) using gc.resources; that mode will be removed in a later release.
 gc:
   # null: follow backup.enabled (so a release with backups off renders as before).
   # true with backup.enabled false and requireBackup true is refused; false: off.
@@ -169,12 +171,12 @@ gc:
     limits:
       memory: 512Mi
 
-# A CronJob running `scrap enrich --related` (the single server's
-# scrap-enrich-related timer): picks related pages for every page changed since its
-# last picks. It calls Claude, so it is created only when ingest.enabled is on; it gets
-# the same key and settings as the scrap pod and shares its daily budget. It runs
-# beside the scrap pod (the data claim is ReadWriteOnce). With litestream.enabled it is
-# in the scrap pod's jobs container instead, and its resources here are not used.
+# `scrap enrich --related` (the single server's scrap-enrich-related timer), in the scrap
+# pod's jobs container: picks related pages for every page changed since its last picks.
+# It calls Claude, so it runs only when ingest.enabled is on; it has the same key and
+# settings as the scrap pod and shares its daily budget. Its resources here are not used.
+# Deprecated: with litestream.enabled false it is a CronJob beside the scrap pod (the data
+# claim is ReadWriteOnce), with these resources.
 enrichRelated:
   enabled: true
   schedule: "41 3 * * *"
@@ -186,13 +188,13 @@ enrichRelated:
     limits:
       memory: 1Gi
 
-# A CronJob running `scrap enrich --topics` (the single server's
-# scrap-enrich-topics timer), weekly: one Claude call finds topics (new topic pages and
-# their sources), then each topic's synthesis that is due is queued for the scrap
-# pod's worker. Created only when ingest.enabled is on; same key, settings and daily
-# budget as the scrap pod; runs beside it (the data claim is ReadWriteOnce). With
-# litestream.enabled it is in the scrap pod's jobs container instead, and its resources
-# here are not used.
+# `scrap enrich --topics` (the single server's scrap-enrich-topics timer), weekly, in the
+# scrap pod's jobs container: one Claude call finds topics (new topic pages and their
+# sources), then each topic's synthesis that is due is queued for the scrap pod's worker.
+# Runs only when ingest.enabled is on; same key, settings and daily budget as the scrap
+# pod. Its resources here are not used.
+# Deprecated: with litestream.enabled false it is a CronJob beside the scrap pod (the data
+# claim is ReadWriteOnce), with these resources.
 enrichTopics:
   enabled: true
   schedule: "11 4 * * 0"
@@ -204,17 +206,21 @@ enrichTopics:
     limits:
       memory: 1Gi
 
-# The database on an emptyDir (the node's disk), replicated continuously by Litestream to
-# /data/litestream on the data volume, for a data volume on NFS or another network
-# filesystem, where SQLite's WAL is not safe (ADR 46, docs/how-to/deploy-kubernetes.md).
-# files/ stays on the data volume. Off: the database stays at /data/scrap.db.
-# On: the last moments of writes (about a second) are lost if the node dies. An init
-# container restores the database, brings an existing /data/scrap.db across once, or
-# refuses to start; backups work from a restore of the replica; and gc and the Claude
-# passes run in a "jobs" container in the scrap pod, not as CronJobs. If replication
-# stalls the pod leaves its Service, so scrap stops taking writes. Needs Kubernetes 1.29.
+# How the chart runs the database (ADR 46, ADR 47, docs/how-to/deploy-kubernetes.md): on
+# an emptyDir (the node's disk), replicated continuously by Litestream to /data/litestream
+# on the data volume, so the data volume may be NFS or another network filesystem, where
+# SQLite's WAL is not safe. files/ stays on the data volume. The last moments of writes
+# (about a second) are lost if the node dies. An init container restores the database,
+# brings an existing /data/scrap.db across once (an upgrade from the old mode), or refuses
+# to start; backups work from a restore of the replica; and gc and the Claude passes run
+# in a "jobs" container in the scrap pod, not as CronJobs. If replication stalls the pod
+# leaves its Service, so scrap stops taking writes. Needs Kubernetes 1.29 (native sidecars).
 litestream:
-  enabled: false
+  # Deprecated: litestream.enabled: false keeps the database on the data volume (at
+  # /data/scrap.db, with gc and the Claude passes as CronJobs); it will be removed in a
+  # later release. Set it before an upgrade to stay on the old mode for now: once an
+  # install has run with Litestream, turning it off needs a restore (see the how-to).
+  enabled: true
   image:
     repository: litestream/litestream
     # An exact version, chosen in ADR 46. Moving it is a decision: read the release notes.
@@ -383,9 +389,9 @@ public:
     #       kubernetes.io/metadata.name: ingress-nginx
   # The site volume, an emptyDir shared by nginx (read only) and the receiver. The
   # receiver's quota is 2 GiB; leave room for one upload in staging (256 MiB). An
-  # emptyDir starts empty when the pod moves. Refilling it (scrap checking the
-  # receiver's manifest and pushing the site back) arrives with the scrap side of
-  # issue 497, which builds scrap's publisher.
+  # emptyDir starts empty when the pod moves: scrap refills it, checking the receiver's
+  # manifest when it starts and every 10 minutes and pushing back what is missing from
+  # its own copies.
   sizeLimit: 3Gi
   resources:
     web:

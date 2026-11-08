@@ -130,6 +130,7 @@ expect_refused "a litestream digest that is not one" --set litestream.image.dige
 expect_refused "the jobs' metrics on scrap's port" --set litestream.jobs.metrics.port=8000
 expect_refused "an unknown jobs metrics key" --set litestream.jobs.metrics.path=/m
 expect_refused "litestream without native sidecars" --set litestream.enabled=true --kube-version 1.28.0
+expect_refused "Kubernetes 1.28 (the chart needs 1.29)" --set litestream.enabled=false --kube-version 1.28.0
 expect_refused "litestream with gc but no backups" --set litestream.enabled=true \
     --set backup.enabled=false --set gc.enabled=true
 expect_refused "an unknown authProxy.oidc key" -f "$chart/ci/auth-proxy-values.yaml" \
@@ -294,19 +295,24 @@ if helm template scrap "$chart" | grep -Eq 'ExternalName|-open$|auth-url|proxy-b
     bad "authProxy renders while off"
 else ok "authProxy is off by default"; fi
 
-# An upgrade with backups off (gc.enabled unset) renders, with no gc CronJob.
-if helm template scrap "$chart" --set backup.enabled=false | grep -q -- '-gc$'; then
+# The deprecated mode (litestream.enabled false, ADR 47): an upgrade with backups off
+# (gc.enabled unset) renders, with no gc CronJob; with backups on, gc is a CronJob.
+if helm template scrap "$chart" --set litestream.enabled=false --set backup.enabled=false | grep -q -- '-gc$'; then
     bad "backup off still renders a gc CronJob"
 else ok "backup off renders without a gc CronJob"; fi
-if helm template scrap "$chart" | grep -q -- '-gc$'; then ok "defaults render the gc CronJob"; else bad "defaults lack the gc CronJob"; fi
+if helm template scrap "$chart" --set litestream.enabled=false | grep -q -- '-gc$'; then
+    ok "litestream.enabled false renders the gc CronJob"
+else bad "litestream.enabled false lacks the gc CronJob"; fi
 # The scrap pod shows the purge date the gc CronJob keeps to, and "off" when it deletes
 # nothing (no gc, or a counting one).
 trash_days() { # helm-args...
     helm template scrap "$chart" "$@" | grep -A1 'name: SCRAP_TRASH_DAYS$' | sed -n 's/.*value: //p' | sort -u
 }
 if [ "$(trash_days)" = '"30"' ] && [ "$(trash_days -f "$chart/ci/gc-retention-values.yaml")" = '"60"' ] &&
+    helm template scrap "$chart" -f "$chart/ci/gc-retention-values.yaml" --set litestream.enabled=false |
+    grep -q -- '--trash-days "60" \\$' &&
     helm template scrap "$chart" -f "$chart/ci/gc-retention-values.yaml" |
-    grep -q -- '--trash-days "60" \\$'; then
+    grep -A1 'name: SCRAP_SCHEDULE$' | grep -Fq -- '--trash-days \\\"60\\\"'; then
     ok "gc.trashDays sets SCRAP_TRASH_DAYS and gc's --trash-days"
 else bad "gc.trashDays does not reach SCRAP_TRASH_DAYS or --trash-days"; fi
 if [ "$(trash_days -f "$chart/ci/gc-dry-run-values.yaml")" = '"off"' ] &&
@@ -316,7 +322,7 @@ else bad "SCRAP_TRASH_DAYS is not off while gc deletes nothing"; fi
 
 # Backups in a hostPath: no backups claim, and every job that uses the backups
 # (backup, backup-monthly, gc) mounts the directory instead.
-hp=$(helm template scrap "$chart" -f "$chart/ci/backup-hostpath-values.yaml")
+hp=$(helm template scrap "$chart" -f "$chart/ci/backup-hostpath-values.yaml" --set litestream.enabled=false)
 if ! echo "$hp" | grep -q -- '-backups$' && ! echo "$hp" | grep -q 'claimName: scrap-backups' &&
     [ "$(echo "$hp" | grep -c '^kind: CronJob$')" = 3 ] &&
     [ "$(echo "$hp" | grep -A1 '^              hostPath:$' |
@@ -324,12 +330,24 @@ if ! echo "$hp" | grep -q -- '-backups$' && ! echo "$hp" | grep -q 'claimName: s
     ok "backup.persistence.hostPath: no backups claim, all three CronJobs mount the directory"
 else bad "backup.persistence.hostPath still makes a backups claim, or a CronJob lacks the directory"; fi
 
-# Litestream (ADR 46). Off, nothing of it renders. On: the database on an emptyDir (the
-# node's disk, not memory), the init order, Litestream a native sidecar, gc and the Claude
-# passes in the pod not CronJobs, the backup jobs from the replica with the claim read only.
-if helm template scrap "$chart" | grep -Eiq 'litestream|SCRAP_DB_PATH|SCRAP_SCHEDULE|name: db-init|name: jobs'; then
+# Litestream (ADR 46), the default since ADR 47. Off (deprecated), nothing of it renders.
+# On: the database on an emptyDir (the node's disk, not memory), the init order,
+# Litestream a native sidecar, gc and the Claude passes in the pod not CronJobs, the
+# backup jobs from the replica with the claim read only.
+def_out=$(helm template scrap "$chart")
+if echo "$def_out" | grep -q 'name: db-init$' && echo "$def_out" | grep -q 'name: jobs$' &&
+    echo "$def_out" | grep -A1 'name: SCRAP_DB_PATH$' | grep -q 'value: /db/scrap.db' &&
+    ! echo "$def_out" | grep -q -- '-gc$'; then
+    ok "litestream is on by default, with gc in the pod"
+else bad "the defaults are not Litestream"; fi
+if helm template scrap "$chart" --set litestream.enabled=false -f "$chart/ci/ingest-values.yaml" |
+    grep -Eiq 'litestream|SCRAP_DB_PATH|SCRAP_SCHEDULE|name: db-init|name: jobs'; then
     bad "litestream renders while off"
-else ok "litestream is off by default"; fi
+else ok "litestream.enabled false renders nothing of it"; fi
+if [ "$(helm template scrap "$chart" --set litestream.enabled=false -f "$chart/ci/ingest-values.yaml" |
+    grep -A3 '^kind: CronJob$' | grep -c '^  name: ')" = 5 ]; then
+    ok "litestream.enabled false: backups, gc and the Claude passes are CronJobs"
+else bad "litestream.enabled false: not the five CronJobs"; fi
 ls_out=$(helm template scrap "$chart" -f "$chart/ci/litestream-values.yaml")
 ls_docs="$out/litestream-docs"
 echo "$ls_out" | awk 'function end_doc() { if (doc != "") print doc; doc = "" }
@@ -392,7 +410,7 @@ else bad "litestream: the init's override is wrong"; fi
 # the port (not in the Service), its setting, the scrape annotations beside the user's,
 # and a NetworkPolicy rule for the port.
 if echo "$ls_out" | grep -Eq 'SCRAP_METRICS_PORT|name: metrics$|prometheus\.io/' ||
-    helm template scrap "$chart" --set litestream.jobs.metrics.enabled=true |
+    helm template scrap "$chart" --set litestream.enabled=false --set litestream.jobs.metrics.enabled=true |
     grep -Eq 'SCRAP_METRICS_PORT|name: metrics$|prometheus\.io/|port: metrics'; then
     bad "litestream: the jobs' metrics render while off"
 else ok "litestream: the jobs' metrics are off by default, and without Litestream"; fi
