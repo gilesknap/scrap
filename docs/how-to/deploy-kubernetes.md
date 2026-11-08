@@ -70,8 +70,8 @@ profile.
 
 - Kubernetes 1.29 or newer (Litestream runs as a native sidecar), and Helm 3 or 4.
 - A StorageClass that provides `ReadWriteOnce` volumes, and a few GB of free disk on the nodes.
-  The chart runs the database with Litestream by default, on the node's disk, so the data volume
-  may be a network filesystem such as NFS ({ref}`k8s-storage`).
+  The database runs with Litestream, on the node's disk, so the data volume may be a network
+  filesystem such as NFS ({ref}`k8s-storage`).
 - A way in that is not the open internet: a Cloudflare Tunnel with Cloudflare Access (the
   tutorial's route), the [Tailscale Kubernetes operator](https://tailscale.com/kb/1236/kubernetes-operator)
   for a tailnet, or an ingress controller behind a login proxy ({ref}`k8s-ingress`).
@@ -122,7 +122,12 @@ ingress:
   className: tailscale
   tls:
     - hosts: [scrap]
+litestream:
+  enabled: true
 ```
+
+`litestream.enabled` is the default from chart 1.9.0; set it anyway, so the values work with any
+chart from 1.7.0.
 
 From the released chart (version = the release tag, with a pre-release `0.4.0rc1` as `0.4.0-rc.1`):
 
@@ -163,7 +168,7 @@ inside them is silently ignored. The main ones:
 | `ingest.enabled` | `false` | `SCRAP_INGEST`: send photos to Claude (see {ref}`k8s-ingest`). |
 | `ingest.visionModel`, `ingest.budgetDayUSD` | app default, `3` | `SCRAP_VISION_MODEL`, `SCRAP_BUDGET_DAY_USD` (US dollars per UTC day). Like `ingest.notifyUrlKey`, they take effect only while `ingest.enabled` is true. |
 | `persistence.size`, `.storageClass`, `.existingClaim` | `5Gi`, default class, none | The data volume. |
-| `litestream.enabled` | `true` | The database on an emptyDir, replicated to the data volume: {ref}`k8s-litestream`. Do not turn it off. Under the restricted or baseline Pod Security Standard a `backup.persistence.hostPath` also stops the scrap pod starting, as it mounts the backups. |
+| `litestream.enabled` | `true` (from chart 1.9.0; `false` before) | The database on an emptyDir, replicated to the data volume: {ref}`k8s-litestream`. Do not turn it off. Under the restricted or baseline Pod Security Standard a `backup.persistence.hostPath` also stops the scrap pod starting, as it mounts the backups. |
 | `litestream.sizeLimit`, `litestream.jobs.resources` | `2Gi`, see `values.yaml` | The database's emptyDir; the `jobs` container's resources (gc and the Claude passes share them). |
 | `litestream.jobs.metrics.enabled`, `.port`, `.podAnnotations`, `.from` | `false`, `9464`, `true`, none | Prometheus metrics of the `jobs` container's jobs and the backups, with the scrape annotations on the pod and, under `networkPolicy.enabled`, who may reach the port: {ref}`k8s-litestream-health`. |
 | `backup.enabled`, `.schedule`, `.timeZone`, `.keep` | `true`, `30 3 * * *`, the cluster's default (usually UTC), `7` | The backup CronJob. |
@@ -586,18 +591,45 @@ runs its database migrations at startup, before it answers `/healthz`: the start
 them five minutes.
 
 Migrations are **forward only**, and an older scrap refuses a database migrated by a newer one.
-So `helm rollback` alone does not go back. Follow the restore steps below with the pre-upgrade
-backup and the old image (1.7.0 or newer, which has `--stage`), but in place of the
-`scale --replicas=1`, run `helm rollback`: scrap must start on the old image, or it migrates the
-staged backup forward again. Anything captured since the upgrade is then lost from the database; its files stay.
-Never `helm rollback` to a chart before 1.7.0 ({ref}`k8s-litestream`).
+So `helm rollback` alone does not go back: you also restore the pre-upgrade backup. This works
+only back to a release that ran Litestream (1.7.0 or newer); to go back from an upgrade out of the
+old mode, see {ref}`k8s-upgrade-old-mode`.
+
+1. Follow the restore steps under {ref}`k8s-backup-restore` with the pre-upgrade backup and the
+   old image, up to and including `kubectl -n scrap delete pod scrap-restore`. Leave scrap at 0.
+2. Roll the release back (`helm -n scrap history scrap` lists the revisions; with none given it
+   goes back one):
+
+   ```
+   helm -n scrap rollback scrap [REVISION]
+   ```
+
+3. Check that the Deployment now names the old image, for scrap, `jobs` and `db-init`:
+
+   ```
+   kubectl -n scrap get deploy/scrap -o jsonpath='{range .spec.template.spec.initContainers[*]}{.name}={.image}{"\n"}{end}{range .spec.template.spec.containers[*]}{.name}={.image}{"\n"}{end}'
+   ```
+
+   scrap must start on the old image, or it migrates the staged backup forward again.
+4. Start it, and resume the backups:
+
+   ```
+   kubectl -n scrap scale deploy/scrap --replicas=1
+   kubectl -n scrap patch cronjob scrap-backup -p '{"spec":{"suspend":false}}'
+   ```
+
+   The rollback may already have set one replica; the `scale` is then harmless.
+
+With Argo CD, set `targetRevision` back to the old chart version and sync in place of step 2,
+then do steps 3 and 4. Anything captured since the upgrade is then lost from the database; its
+files stay. Never roll back to a chart before 1.7.0 ({ref}`k8s-litestream`).
 
 (k8s-upgrade-old-mode)=
 ### Upgrading from the old mode
 
-An install from before the chart ran Litestream by default (one that never set
-`litestream.enabled`) has its database at `/data/scrap.db`, and gc and the Claude passes as
-CronJobs. The first `helm upgrade` to a chart with the new default moves it across:
+This applies when you upgrade to chart 1.9.0 or later from an install that never set
+`litestream.enabled`. Such an install has its database at `/data/scrap.db`, and gc and the Claude
+passes as CronJobs. The first `helm upgrade` to 1.9.0 or later moves it across:
 
 - Helm deletes the `scrap-gc` CronJob and, with ingest on, `scrap-enrich-related` and
   `scrap-enrich-topics`, a running Job included. Their work moves to the pod's `jobs` container.
@@ -650,6 +682,7 @@ old file while the state file is there, and with ingest on the Claude-pass CronJ
 write to it. The way back is a backup and a restore. To stay on the old mode for now, set
 `litestream.enabled: false` **before** upgrading; it is deprecated.
 
+(k8s-backup-restore)=
 ## Backup and restore
 
 The daily CronJob runs `scrap backup` into a new timestamped directory on the backup claim
@@ -769,8 +802,11 @@ backup, so the backups claim can be mounted `readOnly: true`, as above. The same
 arguments runs any `scrap` command against the data, for example `["export", "/backups/export"]`
 (which does need the claim writable; pruning only ever deletes directories named like a backup
 run, so an export there is kept). To restore into a fresh volume instead, create a new claim,
-restore into it without `--stage` or `--force`, and point `persistence.existingClaim` at it (the
-new pod brings the database across on its first start).
+restore into it without `--stage` or `--force`, and point `persistence.existingClaim` at it. The
+new pod brings the database across on its first start and leaves `/data/scrap.db` in place:
+delete it later, as in step 8 of {ref}`k8s-upgrade-old-mode`. A backup with no pages is not
+brought across, and with backup runs on the backup claim the pod then refuses to start empty:
+set `litestream.init.override: true` for one start if that is what you want.
 
 (k8s-restore-litestream)=
 **What `--stage` does.** A plain restore over the database would be undone, because the next
@@ -1105,7 +1141,8 @@ kubectl -n scrap exec deploy/scrap -c jobs -- scrap schedule --run gc
 (k8s-litestream)=
 ## The database on an emptyDir, with Litestream
 
-The chart runs the database with Litestream by default (`litestream.enabled: true`): the
+The chart runs the database with Litestream (`litestream.enabled: true`, the default from chart
+1.9.0): the
 database lives on an emptyDir on the node's disk, and Litestream copies it to the data volume, so
 the data volume may be NFS or another network filesystem, where SQLite's write-ahead log is not
 safe. Why, and the choices behind it:
@@ -1280,6 +1317,8 @@ spec:
         ingest:
           enabled: true
           existingSecret: scrap-secrets
+        litestream:
+          enabled: true
   destination:
     server: https://kubernetes.default.svc
     namespace: scrap

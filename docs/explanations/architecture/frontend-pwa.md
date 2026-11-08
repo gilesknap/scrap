@@ -157,9 +157,12 @@ save carries its `base_version`, a stale one gets `409`. Server side:
 
 ## Public pages
 
-A page the owner makes public is rendered by the PWA itself, in a publish mode beside Share as
-HTML (`publish.ts`, with `publicpages.ts` gathering what it needs): it reads the page as the app
-shows it and writes static HTML with placeholders for its files, tags and drawings. The app
+A page the owner makes public is rendered by the PWA itself. `publicpages.ts` is what the app
+does with public pages: Share's **Make public…** and **Make private**, publishing a public page
+again when it is saved, publishing the public pages that link to one again when it is made public
+or private, and Settings' **Refresh all**. It draws a page's drawings and Mermaid diagrams as
+SVGs. `publish.ts` is the publish mode beside Share as HTML (`pagehtml.ts`): it reads the page as
+the app shows it and writes static HTML with placeholders for its files, tags and drawings. The app
 uploads that to scrap (`PUT /api/pages/{key}/published`), and scrap checks it, fills in the
 placeholders and pushes it to the public site's receiver. The public site has its own small
 stylesheet and script (`web/src/public/`) and never talks to scrap. The contract is

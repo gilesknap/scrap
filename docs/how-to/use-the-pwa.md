@@ -178,8 +178,8 @@ The cog at the top right opens **Settings**. Each choice is kept on this device 
 once: **Text size**, **Maximum column width**, **App theme**, **Drawings theme** and **Photos**
 (below). Then **Public pages** (where publishing is on), and **Store**: **Store health**
 ([](#store-health)), **Trash** ({ref}`the-trash`), **Export everything**
-([](export-your-pages.md)) and **Import Markdown…** ([](import-your-pages.md)). **Escape** or
-Back closes it.
+([](export-your-pages.md)) and **Import Markdown…** ([](import-your-pages.md)). **Done**,
+**Escape** or Back closes it.
 
 (text-size)=
 ### Text size
@@ -671,9 +671,10 @@ write-up) reaches it at the page's next save here, or with **Settings**, **Publi
 ## Editing and deleting
 
 - **Edit** is a full-screen editor like the composer: **Cancel**, **Preview** and **Save** stay at
-  the top, clear of the keyboard. Under the kind chips are the **Title**, then a todo's **Due**,
-  the **Tags** and a Later page's **Type** (Book, Article, Film, TV, Video, Podcast, Music or
-  Game, which also says what it is for: *to read*, *to watch*…), each folded into one line. It
+  the top, clear of the keyboard. Under the kind chips is the **Title** field, then a todo's
+  **Due**, the **Tags** and a Later page's **Type** (Book, Article, Film, TV, Video, Podcast,
+  Music or Game, which also says what it is for: *to read*, *to watch*…), each folded into one
+  line. It
   opens the text where you were reading the page (at its top if you had not scrolled past the
   title).
 - **Camera**, **Gallery** and **File** under the text work as the composer's: each photo or

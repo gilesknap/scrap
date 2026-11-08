@@ -122,8 +122,8 @@ On a single server, off the tailnet or for a quick test, use the SSH tunnel fall
 ({ref}`scrap-ssh-tunnel`) and add `http://127.0.0.1:8790/mcp` instead; loopback needs no
 `SCRAP_PUBLIC_URL`. A Claude Code session that cannot reach the tailnet (a cloud session) cannot
 use scrap this way; it can reach scrap published through Cloudflare Access with a service token
-and a bearer token, as the Kubernetes install is (below). Claude.ai's hosted connectors cannot
-send custom headers, so they cannot reach scrap's `/mcp` at all.
+and a bearer token, as the Kubernetes install is (below). This setup needs custom headers on each
+request, which claude.ai's connectors don't let you set.
 
 (mcp-secrets)=
 ### If `/mcp` needs a token

@@ -20,7 +20,7 @@ curl -fsSL https://raw.githubusercontent.com/gilesknap/scrap/main/deploy/install
 It asks for your Claude API key (optional; Enter skips) and shows your `/mcp` bearer token once:
 keep it in a password manager.
 
-Check: it ends `scrap <version> is running in namespace <fedid>.`, and `kubectl get pods` shows
+Check: it prints `scrap <version> is running in namespace <fedid>.`, and `kubectl get pods` shows
 the `scrap-…` pod READY `3/3` and `scrap-public-…` `Running`.
 
 ## 3. Ask for the DNS names
@@ -175,7 +175,9 @@ In the app, a page's **Share** menu, **Make public…** copies it to
 ### Restore
 
 Follow the restore steps in [](../how-to/deploy-kubernetes.md) (they restore with
-`--stage --force`), with the changes for {ref}`backups in a hostPath <k8s-restore-hostpath>`. Leave
-out `-n scrap`: argus selects your namespace.
+`--stage --force`), with the changes for {ref}`backups in a hostPath <k8s-restore-hostpath>`: your
+uid and gid from `id`, and the path `/dls/science/users/<fedid>/scrap` (or your
+`SCRAP_BACKUP_DIR`). Leave out `-n scrap`: argus selects your namespace. argus accepts that pod as
+it is: it fills in the container's `privileged: false`, user and resources itself.
 
 For everything else the chart can do, see [](../how-to/deploy-kubernetes.md).

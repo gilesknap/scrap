@@ -4,7 +4,7 @@ Date: 2026-10-19
 
 ## Status
 
-Accepted See also
+Accepted. See also
 [](0023-bearer-token-on-mcp-and-an-identity-header-setting.md) and
 [](0045-scrap-verifies-the-login-proxys-keycloak-token.md) for Kubernetes, where an
 authenticating proxy is the way in.

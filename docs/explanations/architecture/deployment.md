@@ -87,7 +87,7 @@ flowchart TD
             init["init: litestream-tool,<br/>db-init"]
             app["scrap serve"]
             ls["litestream<br/>(native sidecar)"]
-            jobs["jobs: scrap schedule<br/>gc 04:30, enrich-related 03:41,<br/>enrich-topics Sun 04:11"]:::claude
+            jobs["jobs: scrap schedule<br/>gc 04:30, enrich-related 03:41,<br/>enrich-topics Sun 04:11"]
             db[("emptyDir /db<br/>scrap.db")]:::store
         end
         pvc[("Data volume /data<br/>files/ + litestream/")]:::store
@@ -181,8 +181,10 @@ flowchart LR
   replica to a temporary file and backs that up with `/data/files`. It refuses a replica whose
   heartbeat (stamped every 15 minutes by `scrap schedule`) is over 3 hours old, so a stalled
   replica fails the job rather than writing a `COMPLETE` run that gc would trust. gc there also
-  only counts, and fails, when the files it would delete are over 10% of them (`--allow-large`
-  after a person has looked), and after an override or a restore, until `scrap db-hold --clear`.
+  only counts, and fails, when the files it would delete are over 10% of them and at least 5, or
+  the database has no captures beside stored files (`--allow-large` after a person has looked),
+  and after an override, until `scrap db-hold --clear`. For 14 days after a restore it only counts
+  without failing; that hold ends by itself, or sooner with `scrap db-hold --clear`.
 - **Restore** copies the backup database beside the live one and opens only the copy, so
   read-only media work. The copy must pass `integrity_check` and not be from a newer schema
   than the code; it is then migrated and swapped in. Files are only added. A refusal leaves the

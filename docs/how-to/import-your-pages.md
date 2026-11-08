@@ -10,7 +10,8 @@ is changed or overwritten.
 ## From the app
 
 This is the way on Kubernetes ([](../tutorials/install-kubernetes.md),
-[](../tutorials/install-dls.md)), and works on every install, for a zip of up to the upload limit (`SCRAP_MAX_UPLOAD_MB`, 50 MB by default):
+[](../tutorials/install-dls.md)), and works on every install, for a zip of up to the upload
+limit (`SCRAP_MAX_UPLOAD_MB`, 50 MB by default):
 
 1. Open **Settings** (the cog).
 2. Under **Store**, tap **Import Markdown…** and pick the zip.

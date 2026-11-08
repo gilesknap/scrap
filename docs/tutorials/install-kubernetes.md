@@ -45,8 +45,8 @@ directly. Do not skip either.
 
 - A Kubernetes cluster, version 1.29 or newer, with a StorageClass that gives `ReadWriteOnce`
   volumes, a few GB of free disk on the nodes, and a CNI that enforces NetworkPolicy (k3s does).
-  The chart runs the database with Litestream by default: the database lives on the node's own
-  disk and Litestream copies each change to the data volume, so the data volume may be NFS. See
+  The database lives on the node's own disk and Litestream copies each change to the data
+  volume, so the data volume may be NFS. See
   {ref}`k8s-storage`.
 - `kubectl` pointed at that cluster and [Helm](https://helm.sh/docs/intro/install/) 3 or 4.
 - A domain whose DNS is on Cloudflare, and a Cloudflare account with
@@ -100,6 +100,8 @@ networkPolicy:
       podSelector:
         matchLabels:
           app: cloudflared
+litestream:
+  enabled: true
 ```
 
 What each part does:
@@ -110,6 +112,8 @@ What each part does:
 - `identityHeader` records the email Cloudflare Access signed in as the author of a change.
 - `SCRAP_PUBLIC_URL` is the address you reach scrap at. `/mcp`, the web app and the API refuse
   any other host name, apart from `/healthz`.
+- `litestream.enabled` keeps the database on the node's disk, with Litestream copying each change
+  to the data volume ({ref}`k8s-litestream`). It is the default from chart 1.9.0.
 - `networkPolicy` admits only the cloudflared pods, in the `cloudflared` namespace you create in
   the next step, so other pods and LAN hosts cannot go around Cloudflare.
 

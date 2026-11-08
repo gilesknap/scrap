@@ -332,8 +332,9 @@ Nothing the site does reaches copies people saved, or caches that ignore these h
 
 ## What the publish mode writes
 
-`pagehtml.ts` has a publish mode beside Share as HTML. It reads the page as the PWA shows it and
-writes one HTML file, which scrap then checks ([](#what-scrap-sends-for-a-page)).
+`publish.ts` is a publish mode beside Share as HTML (`pagehtml.ts`). It reads the page as the PWA
+shows it and writes one HTML file, which scrap then checks ([](#what-scrap-sends-for-a-page)).
+`publicpages.ts` decides when a page is published and draws its drawings and diagrams.
 
 Marked *default* below: a choice the owner may still change, kept in one place so it is easy to change.
 
