@@ -42,10 +42,11 @@ Index page, tap **Share**, then **Pin to Search**, which pins the page itself an
 list. The pin goes on the **Pinned** page, an ordinary page of links, described in
 [](make-your-own-lists.md).
 
-**Pins do not show on launch.** The app opens on the capture screen, and pins appear only in
-the Search view: tap **Search**, then tap the empty search box, and **Pinned** is listed above
-Recent. So from launch, a pinned page is three taps away (**Search**, the box, the pin) and a
-pinned search four (the results list the Index, which you then tap). From the Search view it is
+**Pins do not show on launch.** On a phone the app opens on the capture screen (a computer opens
+on Search), and pins appear only in the Search view: tap **Search**, then tap the empty search
+box, and **Pinned** is listed above Recent. So from a phone's launch, a pinned page is three taps
+away (**Search**, the box, the pin) and a pinned search four (the results list the Index, which
+you then tap). From the Search view it is
 two and three.
 
 ### A home-screen icon for the page

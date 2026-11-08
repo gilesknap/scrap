@@ -22,8 +22,9 @@ const EXTERNAL = /^(https?:\/\/|mailto:)/i;
 // A link to one of this server's files (a PDF, a .md) where the text puts it (#403)
 const FILE = /^\/api\/blobs\/([0-9a-f]{64})(\?download=1)?$/;
 const PAGE = /^\/p\/[a-z0-9-]+$/;
-// The app's own screens a link may open in place: Capture, Search (with its query), Todos, Topics
-const SCREEN = /^\/(search|todos|topics)?$/;
+// The app's own screens a link may open in place: home, Capture, Search (with its query), Todos,
+// Topics
+const SCREEN = /^\/(capture|search|todos|topics)?$/;
 /** A path the app opens in place: a page here, or one of its screens. */
 const inApp = (path: string) => PAGE.test(path) || SCREEN.test(path);
 const FOOTNOTE = /^#fn(ref)?\d+(:\d+)?$/;

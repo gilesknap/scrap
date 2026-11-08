@@ -271,7 +271,7 @@ The app opens without a connection. Anything that reads from or writes to the se
 
 | Works offline | Needs the server |
 | --- | --- |
-| Opening the app, the capture screen, the badge | Opening any page |
+| Opening the app (on Capture, on a computer too), the capture screen, the badge | Opening any page |
 | The composer, with photos and tags, and its drafts | Search results and the Todos screen |
 | Saving a capture (queued) | Changing tags, kind or due date |
 | Sharing into scrap | Ticking a task box on a page |
@@ -292,6 +292,9 @@ The app opens without a connection. Anything that reads from or writes to the se
   goes back one step at a time. A page opened cold (a link or share) goes up instead: Todos for a
   todo, Topics for a topic page, Capture otherwise. Back always goes where its label says: while
   the page is still loading, that is Capture. A screen returns scrolled where you left it.
+- **On a computer** (a mouse and a window 900 px or wider) scrap opens on **Search**, and a cold
+  page's Back says **Search** where a phone's says Capture. The **Capture** tab is at `/capture`.
+  Offline, it opens on Capture, as a phone does, since Search has nothing to show.
 - **Layout.** On a narrow phone, a page's upload badge shortens to its dot and count (● 2). On a
   wide screen the app is one centred column, 800 px wide by default ([Maximum column width](#maximum-column-width)
   changes it, 720 to 960 px). With a mouse, on a window 900 px or wider, the tabs move to the top bar, Add files and
@@ -340,7 +343,7 @@ repeats the title. Search needs the server.
   **Edit pins** opens the page: rename a pin by its link text, reorder or remove it by its line.
   A page keeps its slug when renamed, so a pin to it survives. **Copy link** in the header copies
   the search's address. Claude does not read the Pinned page. Pins show
-  here, not on the capture screen the app opens on. See [](make-your-own-lists.md) and, for a
+  here, not on the capture screen a phone opens on (a computer opens on Search). See [](make-your-own-lists.md) and, for a
   bookmarks page, [](keep-an-index.md).
 - **New from a search.** A search with a tag filter, or a single kind, shows **New** at the right
   end of the top bar. It opens the composer with those tags and that kind filled in (a Note when

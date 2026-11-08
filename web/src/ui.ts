@@ -1,5 +1,6 @@
 import { ApiError, LoginExpired } from "./api";
 import { rerender } from "./app";
+import { DESK, home } from "./home";
 import { type Icon, icon } from "./icons";
 import type { Titles } from "./linktext";
 import { marked } from "./login";
@@ -39,8 +40,6 @@ function place(el: HTMLElement) {
   el.style.top = tops.length ? "auto" : "";
   el.style.bottom = tops.length ? `${innerHeight - Math.min(...tops) + 8}px` : "";
 }
-/** A computer, as css/desktop.css has it: a mouse and a wide window. */
-const DESK = "(min-width: 900px) and (hover: hover) and (pointer: fine)";
 export function placeToasts() {
   for (const el of document.querySelectorAll<HTMLElement>(".toast")) place(el);
 }
@@ -113,8 +112,8 @@ export const empty = (name: Icon, line: string, ...more: Kid[]) =>
 /** Why a view could not load, in words, with a retry that renders the view again. */
 export function problem(e: unknown): Node {
   if (e instanceof ApiError && e.status === 404) {
-    const home = h("a", { href: "/", className: "button" }, "Back to capture");
-    return empty("search", "Not found: it may have been deleted.", home);
+    const back = h("a", { href: "/", className: "button" }, `Back to ${home().toLowerCase()}`);
+    return empty("search", "Not found: it may have been deleted.", back);
   }
   if (e instanceof LoginExpired) {
     const again = h(
