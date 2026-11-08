@@ -6,7 +6,7 @@ from io import BytesIO
 
 import pytest
 
-from scrap import gc
+from scrap import gc, sizes
 from scrap.__main__ import main
 from scrap.store import Store, body_refs, new_ulid, now
 
@@ -502,6 +502,40 @@ def test_an_old_runs_sent_jpeg_is_kept_while_its_photos_file_is_missing(client, 
     with store.connect() as conn:
         row = conn.execute("SELECT sent_sha256 FROM model_run WHERE id = ?", (run,))
         assert row.fetchone()[0] == sent
+
+
+def test_an_old_runs_sent_jpeg_is_kept_while_its_photo_is_cut_short(client, store):
+    a, sha = photo(client)
+    sent = put(store, b"sent jpeg", "image/jpeg")
+    with store.connect() as conn:
+        _sent_run(conn, a["capture_id"], sha, sent, 90)
+    store.blob_path(sha).write_bytes(b"photo")  # shorter than its record says
+    age_all(store)
+    assert gc.collect(store, delete=True).shas == []
+    assert store.blob_path(sent).is_file()
+
+
+def test_the_report_counts_old_sent_jpegs_as_gc_does(client, store):
+    """sizes.LIVE_SENT: one whose photo is stored is unused; one whose photo's file
+    is gone is in use, by a page out of the trash or only by a trashed one."""
+    live, live_sha = photo(client, b"live photo")
+    gone, gone_sha = photo(client, b"gone photo", "Gone")
+    trashed, trashed_sha = photo(client, b"trashed photo", "Trashed")
+    sent = [put(store, f"sent {n}".encode(), "image/jpeg") for n in range(3)]
+    with store.connect() as conn:
+        _sent_run(conn, live["capture_id"], live_sha, sent[0], 90)
+        _sent_run(conn, gone["capture_id"], gone_sha, sent[1], 90)
+        _sent_run(conn, trashed["capture_id"], trashed_sha, sent[2], 90)
+    client.delete(f"/api/pages/{trashed['page_id']}").raise_for_status()
+    store.blob_path(gone_sha).unlink()
+    store.blob_path(trashed_sha).unlink()
+    age_all(store)
+    split = sizes.measure(store)["files"]
+    size = len(b"sent 0")
+    assert split["unused"] == {"files": 1, "bytes": size}  # sent[0]
+    assert split["trash_only"] == {"files": 1, "bytes": size}  # sent[2]
+    assert split["in_use"]["files"] == 2  # the live photo and sent[1]
+    assert gc.collect(store).shas == [sent[0]]
 
 
 def test_a_sent_jpeg_that_is_also_a_capture_is_kept(client, store):

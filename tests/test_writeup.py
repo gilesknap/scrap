@@ -776,3 +776,35 @@ def test_an_svg_image_goes_to_the_write_up_as_its_markup(store):
     assert content[2]["text"] == clean.decode()
     assert "Images attached" not in content[-1]["text"]  # it counts as attached
     assert store.page(ref["page_id"])["writeup"]["current"] is not None
+
+
+def test_a_write_up_falls_back_to_the_jpeg_an_old_run_stored(store, monkeypatch):
+    """#572: the JPEG is made again first; only if that fails is the one photo ingest
+    stored before #572 sent, read at once, so gc deleting it meanwhile is harmless."""
+    from scrap.enrich.writing import write_up
+
+    ref = board_page(store)
+    old = jpeg("blue")
+    sha, size = store.put_blob(io.BytesIO(old))
+    with closing(connect(store.db)) as conn, conn:
+        conn.execute(
+            "INSERT INTO blob VALUES (?, 'image/jpeg', ?, ?)", (sha, size, now())
+        )
+        conn.execute("UPDATE model_run SET sent_sha256 = ?", (sha,))
+
+    def broken(store, sha):
+        raise OSError("cannot decode")
+
+    monkeypatch.setattr(preview, "for_claude", broken)
+    fake = Fake()
+    assert write_up(store, fake, ref["page_id"]) is None
+    store.blob_path(sha).unlink()  # gc deletes it after it was read: no matter
+    call = fake.calls[-1]
+    images = [b for b in call["messages"][0]["content"] if b["type"] == "image"]
+    assert [b["source"]["sha256"] for b in images] == [sha]
+    assert call["blob"](sha) == (old, "image/jpeg")
+    with closing(connect(store.db)) as conn:
+        request = json.loads(conn.execute(
+            "SELECT request FROM enrich_run ORDER BY id DESC LIMIT 1"
+        ).fetchone()[0])  # fmt: skip
+    assert "sent" not in request  # nothing was made, so there is nothing to record

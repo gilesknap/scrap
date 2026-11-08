@@ -28,19 +28,20 @@ from .writeup_store import written
 
 
 def _sent(store: Store, board: dict[str, Any], made: dict[str, Any]) -> str | None:
-    """The JPEG to send of a board image: the one photo ingest stored, if a run from
-    before #572 still has it, else made again (preview.for_claude) and held in made
-    (its SHA-256: its bytes and preview.sent_record), never stored; None if neither."""
-    if board["sent"]:
-        try:
-            store.blob(board["sent"])
-            return board["sent"]
-        except NotFoundError:
-            pass
+    """The JPEG to send of a board image, held in made (its SHA-256: its bytes and
+    preview.sent_record, None for a stored one), never stored (#572): made again
+    (preview.for_claude), else the one photo ingest stored before #572, read now
+    (so gc deleting it meanwhile cannot fail the call); None if neither."""
     try:
         jpeg, width, height = preview.for_claude(store, board["sha256"])
-    except Exception:  # noqa: BLE001  undecodable, or gone: its text is still sent
-        return None
+    except Exception:  # noqa: BLE001  undecodable, or gone: try the stored one
+        if board["sent"]:
+            try:
+                made[board["sent"]] = (store.blob(board["sent"])[0].read_bytes(), None)
+                return board["sent"]
+            except (NotFoundError, OSError):
+                pass
+        return None  # its text is still sent
     record = preview.sent_record(board["sha256"], jpeg, width, height)
     made[record["sha256"]] = (jpeg, record)
     return record["sha256"]
@@ -95,8 +96,8 @@ def write_up(
         "schema": WRITEUP_SCHEMA, "candidates": [p["id"] for p in pages],
         "guidance": guidance, "backend": claude.backend(),
     }  # fmt: skip
-    if made:  # how to make them again (preview.rebuild)
-        request["sent"] = [record for _, record in made.values()]
+    if records := [r for _, r in made.values() if r is not None]:
+        request["sent"] = records  # how they were made (preview.sent_record)
     with store.connect() as conn, transaction(conn):
         run_id = start_run(conn, "enrich_run", page_id=page_id, job_id=job_id,
                            model=model, prompt_version=version,

@@ -120,7 +120,7 @@ def _tables(conn: sqlite3.Connection) -> list[dict[str, Any]]:
     return out
 
 
-def _live(conn: sqlite3.Connection, files: Path) -> set[str]:
+def _live(conn: sqlite3.Connection, files: dict[str, Path]) -> set[str]:
     used: set[str] = set()
     for sql in LIVE:
         used.update(row[0] for row in conn.execute(sql))
@@ -155,8 +155,8 @@ def _files_split(store: Store, conn: sqlite3.Connection) -> dict[str, Any]:
     except (GcError, OSError):
         files = {}
     rows = dict(conn.execute("SELECT sha256, size FROM blob"))
-    every = in_use(conn, store.files)
-    live = _live(conn, store.files)
+    every = in_use(conn, files)
+    live = _live(conn, files)
     review = _review_only(conn)
     kinds = ("in_use", "review_only", "trash_only", "unused")
     out: dict[str, Any] = {k: {"files": 0, "bytes": 0} for k in kinds}
