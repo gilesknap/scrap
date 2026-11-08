@@ -141,7 +141,7 @@ flowchart LR
 | the address `/api/blobs/<sha>` in any page's current text, trash included | `store.body_refs` (plain search, not the Markdown parser) |
 | a capture | `capture_blob` |
 | a derived row or an ingest job | `source_sha256` |
-| a model run | its photo (a run from before #572 also names the JPEG it sent, `sent_sha256`: in use only if that photo's record is gone) |
+| a model run | its photo (a run from before #572 also names the JPEG it sent, `sent_sha256`: in use only if that photo's record or file is gone) |
 
 - **Grace period** `--grace-hours`, default 24, protects uploads in flight: a capture writes files
   before it records them. `put_blob` touches a file it finds already stored.

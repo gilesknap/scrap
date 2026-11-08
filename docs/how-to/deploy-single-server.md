@@ -826,11 +826,10 @@ conversation), while it is the newest for its page or photo, while it is still r
 it is younger than `--run-days` (default 30, at least 1). Counts are in the report, and `--delete`
 removes the rest. `topic_run` records (one a week) are not pruned.
 
-The JPEG a photo's reading sent to Claude is not kept: it is made again from the photo when
-needed (#572). Runs from before then name a stored one (`sent_sha256`); gc deletes those as
-unused while the photo is stored. On a store with many, the first run after upgrading may delete
-more than the Litestream guard allows (over 10 % of the files): check `scrap gc --report`, then
-run `scrap gc --delete --allow-large` once.
+The JPEG a photo's reading sends to Claude is not kept: it is made from the photo, which is
+(#572). Runs from before then name a stored one (`sent_sha256`): gc deletes those as unused while
+the photo is stored, all of them on its first deleting run after the upgrade (on a store with
+many, a large share of the files: check with a dry run first if you want to see them).
 
 **Files no page shows are gathered, not deleted.** gc does not delete a file of a capture (a
 photo, a PDF) while its page lasts. When you delete the last embed or link of one from a page's text, the next `scrap gc

@@ -489,9 +489,7 @@ def test_an_old_runs_sent_jpeg_goes_while_its_photo_is_stored(client, store):
     assert gc.collect(store, delete=True).shas == []
 
 
-def test_an_old_runs_sent_jpeg_is_kept_while_its_photos_file_is_missing(
-    client, store
-):
+def test_an_old_runs_sent_jpeg_is_kept_while_its_photos_file_is_missing(client, store):
     """It cannot be made again then: it is the only copy of what was read."""
     a, sha = photo(client)
     sent = put(store, b"sent jpeg", "image/jpeg")
