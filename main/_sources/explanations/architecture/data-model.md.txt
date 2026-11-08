@@ -113,7 +113,7 @@ erDiagram
 | Table | Holds |
 | --- | --- |
 | `job`, `queue_state` | Photo and file jobs, kind `ingest` (the `CHECK` also allows `refine`, which nothing uses), state `queued`, `running`, `done` or `dead`, and the single-row pause state (`auth`, `credit`, `outage`, `budget`) |
-| `model_run`, `enrich_run`, `topic_run` | Every call: request, response, usage, `cost_microusd`, error class. `topic_run` covers discovery calls of no one page |
+| `model_run`, `enrich_run`, `topic_run` | Every call: request, response, usage, `cost_microusd`, error class. `topic_run` covers discovery calls of no one page. An `enrich_run` or `topic_run` request keeps its system prompt's SHA-256 and length, not its text, unless the call was refused or invalid |
 | `enrich_job` | One queued job per page; reason is `capture`, `save`, `ask`, `backfill`, `related`, `writeup` or `topic` (its `CHECK` lists them) |
 | `enrichment`, `model_tag`, `related` | Summary and fetched link title; tags Claude added (`on`) or the user removed (`off`, never re-added); related pages in order |
 | `writeup`, `writeup_guidance` | A board's write-up or a topic's synthesis (one row a page, replaced by the next, [ADR 39](../decisions/0039-generated-content-keeps-only-its-current-version.md)) and the owner's guidance for the next |

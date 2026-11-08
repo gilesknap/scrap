@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Claude ingest &#8212; scrap 1.8.3.dev37+gfae129681 documentation</title>
+    <title>Claude ingest &#8212; scrap 1.8.3.dev43+g2153a9f8e documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=af19f47a"></script>
+    <script src="../_static/documentation_options.js?v=60fc4bc9"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -1257,12 +1257,22 @@ stored and the photo is sent again after <em>Resume</em>.</p></li>
 </section>
 </section>
 <section id="stored-context">
-<h2>Stored context<a class="headerlink" href="#stored-context" title="Link to this heading">#</a></h2>
+<span id="ingest-stored-context"></span><h2>Stored context<a class="headerlink" href="#stored-context" title="Link to this heading">#</a></h2>
 <p>A <code class="docutils literal notranslate"><span class="pre">model_run</span></code> row is one call: the system prompt, messages and parameters in <code class="docutils literal notranslate"><span class="pre">request</span></code> (images
 as blob references, never base64), the content blocks exactly as returned in <code class="docutils literal notranslate"><span class="pre">response</span></code> (thinking
 blocks and signatures included), the sanitised <code class="docutils literal notranslate"><span class="pre">output</span></code> with its warnings, <code class="docutils literal notranslate"><span class="pre">usage</span></code>,
 <code class="docutils literal notranslate"><span class="pre">cost_microusd</span></code>, <code class="docutils literal notranslate"><span class="pre">status</span></code> and <code class="docutils literal notranslate"><span class="pre">error_class</span></code>. A run cannot be deleted while a version uses it.
 The schema is in <a class="reference external" href="https://github.com/gilesknap/scrap/blob/main/src/scrap/migrations/baseline.sql"><code class="docutils literal notranslate"><span class="pre">baseline.sql</span></code></a>.</p>
+<p>An <code class="docutils literal notranslate"><span class="pre">enrich_run</span></code> or <code class="docutils literal notranslate"><span class="pre">topic_run</span></code> request (the enrich, related, write-up, synthesis and discovery
+calls) keeps its system prompt as <code class="docutils literal notranslate"><span class="pre">system_sha256</span></code> (of its UTF-8) and <code class="docutils literal notranslate"><span class="pre">system_len</span></code> (in
+characters), not the text (#571). The template is the run’s <code class="docutils literal notranslate"><span class="pre">prompt_version</span></code>; the synthesis and
+discovery prompts are only that. The related and write-up prompts add an index of candidate
+pages, listed by id in <code class="docutils literal notranslate"><span class="pre">candidates</span></code>, and the enrich prompt adds the tags in use with their counts,
+which are not recorded. So what is lost is what those pages said, and the tag counts, at the time.
+The related prompt, with every candidate’s title, tags and summary in
+it, was about 35 KB a row. A call the model refused, or whose answer was invalid, keeps the text
+too, under <code class="docutils literal notranslate"><span class="pre">system</span></code>, to debug it. Rows from before keep <code class="docutils literal notranslate"><span class="pre">system</span></code> and have no digest; nothing reads
+either, so both shapes work.</p>
 <p>A conversation (not built yet) would continue run <em>R</em> by sending <em>R</em>’s system prompt and
 messages, <em>R</em>’s <code class="docutils literal notranslate"><span class="pre">response</span></code> unchanged as the assistant turn, and a new user turn, on <em>R</em>’s model.
 <code class="docutils literal notranslate"><span class="pre">model_run.parent_id</span></code> is there for it. MCP does not expose runs: <code class="docutils literal notranslate"><span class="pre">read</span></code> lists each image with its URL and what Claude read from
@@ -1610,8 +1620,9 @@ per-call contents are in <a class="reference internal" href="llm-calls.html"><sp
 </div>
 <p>Apart from Claude, the only outbound requests are the link fetches (to the linked site) and
 <code class="docutils literal notranslate"><span class="pre">SCRAP_NOTIFY_URL</span></code>, which gets a fixed line with the pause reason. Everything sent is kept in
-<code class="docutils literal notranslate"><span class="pre">model_run</span></code>, <code class="docutils literal notranslate"><span class="pre">enrich_run</span></code> and <code class="docutils literal notranslate"><span class="pre">topic_run</span></code> (photos as references to the stored JPEG), so your
-backups hold it too.</p>
+<code class="docutils literal notranslate"><span class="pre">model_run</span></code>, <code class="docutils literal notranslate"><span class="pre">enrich_run</span></code> and <code class="docutils literal notranslate"><span class="pre">topic_run</span></code> (photos as references to the stored JPEG; an enrich or
+topic call’s system prompt, whose page index and tags are the store’s own, as its digest:
+<a class="reference internal" href="#ingest-stored-context"><span class="std std-ref">Stored context</span></a>), so your backups hold it too.</p>
 </section>
 <section id="enrich-text-pages-and-links">
 <span id="ingest-enrich"></span><h2>Enrich: text pages and links<a class="headerlink" href="#enrich-text-pages-and-links" title="Link to this heading">#</a></h2>
@@ -1707,8 +1718,9 @@ only while it is an unfixed note. The summary is the model’s own (<code class=
 <code class="docutils literal notranslate"><span class="pre">model_run</span></code>, whose cost it shares in the budget; <code class="docutils literal notranslate"><span class="pre">request.purpose</span></code> is <code class="docutils literal notranslate"><span class="pre">enrich</span></code>, <code class="docutils literal notranslate"><span class="pre">related</span></code> or
 <code class="docutils literal notranslate"><span class="pre">writeup</span></code>). A
 link’s fetched text is sent, not kept: the stored request has a placeholder with its length and
-hash. What was read from images and files is stored in full, as the page’s text is. Search
-indexes the summary in the page’s summary column.</p></li>
+hash. The system prompt is kept as its digest, not its text (see
+<a class="reference internal" href="#ingest-stored-context"><span class="std std-ref">Stored context</span></a>). What was read from images and files is stored in full, as the
+page’s text is. Search indexes the summary in the page’s summary column.</p></li>
 <li><p><strong>Failures</strong> follow the photo rules: outage, credit, auth and budget pause the shared queue and
 refund the job; anything else is charged (10 minutes, invalid output at once), the third kills
 it, and the page says so with <strong>Ask Claude</strong> to retry. A failed fetch is not a failed job: the
