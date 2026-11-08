@@ -32,6 +32,8 @@
 stops here), then Litestream as a native sidecar, so it starts before scrap and stops
 after it. */}}
 {{- define "scrap.litestreamInit" -}}
+{{- /* Chart.yaml's kubeVersion (>=1.29, ADR 47) refuses first, so this is not reached
+now; it stays in case that minimum moves. */ -}}
 {{- if semverCompare "<1.29-0" .Capabilities.KubeVersion.Version }}
 {{- fail "litestream.enabled needs Kubernetes 1.29 or newer (native sidecar containers)" }}
 {{- end }}

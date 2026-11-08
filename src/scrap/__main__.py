@@ -282,6 +282,11 @@ def main(args: Sequence[str] | None = None) -> None:
                 )
             if parsed.outdated and not parsed.writeups:
                 parser.error("enrich: --outdated goes with --writeups")
+            # As gc does: an old-mode CronJob left behind must not write the old copy
+            try:
+                dbstate.refuse_old_database(store.db, store.dir)
+            except dbstate.StateError as error:
+                raise SystemExit(f"scrap enrich: {error}") from None
             store.migrate()
             # made here, not queued
             calls = parsed.related or parsed.writeups or parsed.topics
