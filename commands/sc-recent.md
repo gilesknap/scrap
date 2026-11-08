@@ -7,7 +7,7 @@ Show what changed in scrap recently. The argument is a period such as `1d`, `3d`
 (1m is 30 days); the default is `1d`. Read-only: write and edit nothing.
 
 Use ONLY `mcp__scrap__search` and `mcp__scrap__revisions` (from the `scrap` server if there is one, else `scrap-dls`: `mcp__scrap-dls__*`). If they are missing, say so: a DLS install sets up `scrap-dls` itself (re-run the installer, or see
-<https://gilesknap.github.io/scrap/main/tutorials/install-dls.html#install-dls-claude>);
+<https://gilesknap.github.io/scrap/main/explanations/scrap-at-dls.html#install-dls-claude>);
 otherwise see <https://gilesknap.github.io/scrap/main/how-to/connect-claude-code.html>.
 
 1. `revisions` with no `page` or `batch` and `limit` 100: the recent-changes feed, newest first.

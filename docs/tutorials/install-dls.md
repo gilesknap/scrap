@@ -18,7 +18,8 @@ curl -fsSL https://raw.githubusercontent.com/gilesknap/scrap/main/deploy/install
 Paste your Claude API key when asked, or press Enter to skip. Save the `/mcp` bearer token it
 shows in a password manager.
 
-Check: it prints `scrap <version> is running in namespace <fedid>.`
+Check: it prints `scrap <version> is running in namespace <fedid>.`, and `kubectl get pods` shows
+the `scrap-…` pod READY `3/3` and `scrap-public-…` `Running`.
 
 ## 3. Ask for the DNS names
 
@@ -30,7 +31,8 @@ Check: `getent hosts scrap-<fedid>.diamond.ac.uk` prints an address.
 
 ## 4. Open it
 
-Open `https://scrap-<fedid>.diamond.ac.uk/` and log in with your DLS account. On your phone, join
-the DLS VPN, open the same address, log in and install the app.
+On a DLS machine, open `https://scrap-<fedid>.diamond.ac.uk/` and log in with your DLS account.
+On your phone, join the DLS VPN, open the same address, log in and install the app.
 
-Check: `claude mcp list` shows `scrap-dls` as connected.
+Check: `claude mcp list` shows `scrap-dls` as connected. In claude-sandbox, first follow
+{ref}`install-dls-sandbox`.
