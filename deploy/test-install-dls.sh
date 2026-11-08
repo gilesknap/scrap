@@ -217,6 +217,13 @@ printf '%s\n' "A='unclosed" "\$(touch $tmp/ran-env)" SCRAP_DLS_MCP_TOKEN=old SCR
     >"$tmp/sandbox-env/.env"
 check "claude: the helper reads only the token line of a messy .env" sh -c "HOME='$tmp/sandbox-home' sh '$tmp/sandbox-helper' |
     grep -qxF '{\"Authorization\":\"Bearer messy\"}' && [ ! -e '$tmp/ran-env' ]"
+# Other ways a .env may hold it: after `export `, in "" or '', or with a CRLF ending.
+for form in 'export SCRAP_DLS_MCP_TOKEN=tok' 'SCRAP_DLS_MCP_TOKEN="tok"' "SCRAP_DLS_MCP_TOKEN='tok'" \
+    "$(printf 'SCRAP_DLS_MCP_TOKEN=tok\r')"; do
+    printf 'OTHER=1\r\n%s\n' "$form" >"$tmp/sandbox-env/.env"
+    check "claude: the helper reads $(printf %s "$form" | tr '\r' '^')" sh -c "HOME='$tmp/sandbox-home' sh '$tmp/sandbox-helper' |
+        grep -qxF '{\"Authorization\":\"Bearer tok\"}'"
+done
 # No token anywhere: an error and exit 1, never an empty bearer.
 : >"$tmp/sandbox-env/.env"
 if HOME="$tmp/sandbox-home" sh "$tmp/sandbox-helper" >"$tmp/helper.out" 2>"$tmp/helper.err"; then hn_rc=0; else hn_rc=1; fi
@@ -407,10 +414,13 @@ check "claude fails: warns" grep -q "WARNING: claude mcp add-json failed" "$tmp/
 check "claude fails: says what to run" grep -q "fix the cause above, then run:" "$tmp/out"
 check "claude fails: prints the command" grep -qxF "  claude mcp add-json --scope user scrap-dls '$json'" "$tmp/out"
 
-# A fresh HOME, with no ~/.config at all: the directory and an empty .env are made.
+# A fresh HOME, with no ~/.config at all: the directory and an empty .env are made,
+# private even under a loose umask.
 rm -rf "${tmp:?}/home"
-if run; then fh_rc=0; else fh_rc=1; fi
+if (umask 000 && run); then fh_rc=0; else fh_rc=1; fi
 check "fresh home: the install succeeds" [ "$fh_rc" = 0 ]
+check "fresh home: ~/.config and its terminal-config made mode 700" sh -c "
+    [ \"\$(stat -c %a '$tmp/home/.config')\" = 700 ] && [ \"\$(stat -c %a '${envf%/*}')\" = 700 ]"
 check "fresh home: .env holds only the token, mode 600" sh -c "[ \"\$(stat -c %a '$envf')\" = 600 ] &&
     [ \"\$(cat '$envf')\" = \"SCRAP_DLS_MCP_TOKEN=\$(cat '$tmp/created-SCRAP_MCP_TOKEN')\" ]"
 check "fresh home: the helper made" cmp -s "$helper" "$tmp/want-helper"
@@ -457,12 +467,26 @@ rm -f "$envf.bak"; cp "$tmp/want-env" "$envf"; touch "$tmp/cutenv"; : >"$tmp/cla
 if run; then cw_rc=0; else cw_rc=1; fi
 rm -f "$tmp/cutenv"
 check "cut short: the install succeeds" [ "$cw_rc" = 0 ]
-check "cut short: says where the copy is" grep -qF "its full new contents are in $envf.bak" "$tmp/out"
+check "cut short: says where the copy is" grep -qF "Its full new contents are in $envf.bak:" "$tmp/out"
+check "cut short: says to restore it first" grep -qF "restore it first (mv '$envf.bak' '$envf'), then re-run this script." "$tmp/out"
 check "cut short: .env.bak, mode 600, holds the other lines and the new token" sh -c "
     [ \"\$(stat -c %a '$envf.bak')\" = 600 ] && grep -qx 'SCRAP_MCP_TOKEN=home' '$envf.bak' &&
     [ \"\$(grep '^SCRAP_DLS_MCP_TOKEN=' '$envf.bak')\" = \"SCRAP_DLS_MCP_TOKEN=\$(cat '$tmp/created-SCRAP_MCP_TOKEN')\" ]"
 check "cut short: no other copy left beside it" sh -c "[ \"\$(ls -A '${envf%/*}' | sort | tr '\n' ' ')\" = '.env .env.bak ' ]"
 check "cut short: claude left alone" sh -c "[ ! -s '$tmp/claude.calls' ]"
+
+# Cut short again, with that .env.bak still there: it is kept, and the new copy stays
+# beside the .env under its temporary name, which the warning gives.
+echo 'the older bak' >"$envf.bak"; cp "$tmp/want-env" "$envf"; touch "$tmp/cutenv"
+if run; then cb_rc=0; else cb_rc=1; fi
+rm -f "$tmp/cutenv"
+check "cut short, .bak there: the install succeeds" [ "$cb_rc" = 0 ]
+check "cut short, .bak there: the .bak kept" grep -qx 'the older bak' "$envf.bak"
+cb_new=$(find "${envf%/*}" -name '.env.??????' | head -n 1)
+check "cut short, .bak there: the new copy kept, mode 600, with the token" sh -c "[ -n '$cb_new' ] &&
+    [ \"\$(stat -c %a '$cb_new')\" = 600 ] && grep -qx 'SCRAP_MCP_TOKEN=home' '$cb_new' &&
+    grep -q '^SCRAP_DLS_MCP_TOKEN=' '$cb_new'"
+check "cut short, .bak there: says to restore that copy" grep -qF "restore it first (mv '$cb_new' '$envf')" "$tmp/out"
 
 # SCRAP_CLAUDE=off: no .env, no helper, no claude.
 rm -rf "${tmp:?}/home"; : >"$tmp/claude.calls"

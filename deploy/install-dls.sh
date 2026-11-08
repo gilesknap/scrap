@@ -100,9 +100,12 @@ headers_helper() {
 #!/bin/sh
 # Headers for scrap's /mcp at DLS: the bearer token, from the .env on the host, or where
 # claude-sandbox mounts it. Only the token's line is read: the .env is never run as shell.
+# It may start with `export `, end in a CR, or have its value in "" or ''.
 token=
 for f in "$HOME/.config/terminal-config/.env" /user-terminal-config/.env; do
-    [ -r "$f" ] && token=$(sed -n 's/^SCRAP_DLS_MCP_TOKEN=//p' "$f" | tail -n 1)
+    [ -r "$f" ] && token=$(tr -d '\r' <"$f" |
+        sed -n 's/^export  *//; s/^SCRAP_DLS_MCP_TOKEN=//p' | tail -n 1)
+    case $token in \"*\" | \'*\') token=${token#?}; token=${token%?} ;; esac
     [ -z "$token" ] || break
 done
 if [ -z "$token" ]; then
@@ -144,18 +147,23 @@ connect_claude() {
     env_dir=${env_file%/*}
     new_env=
     ok=1
-    if mkdir -p "$env_dir" && (umask 077 && touch "$env_file") && chmod 600 "$env_file" &&
+    if (umask 077 && mkdir -p "$env_dir") && (umask 077 && touch "$env_file") && chmod 600 "$env_file" &&
         new_env=$(umask 077 && mktemp "$env_dir/.env.XXXXXX") &&
         { grep -v '^SCRAP_DLS_MCP_TOKEN=' "$env_file" >"$new_env" || [ $? = 1 ]; } &&
         printf 'SCRAP_DLS_MCP_TOKEN=%s\n' "$token" >>"$new_env"; then
         if cat "$new_env" >"$env_file"; then
             ok=0
             rm -f "$new_env"
-        elif mv -f "$new_env" "$env_file.bak"; then
-            # The .env may be cut short: keep the full copy (mode 600) for the user.
-            echo "WARNING: writing $env_file failed part way: its full new contents are in $env_file.bak." >&2
         else
-            echo "WARNING: writing $env_file failed part way: its full new contents are in $new_env." >&2
+            # The .env may be cut short: keep the full copy (mode 600) as .env.bak, but never
+            # over a .bak already there (ln fails if it exists); else leave it where it is.
+            keep=$new_env
+            if ln "$new_env" "$env_file.bak" 2>/dev/null; then
+                rm -f "$new_env"
+                keep=$env_file.bak
+            fi
+            echo "WARNING: writing $env_file failed part way. Its full new contents are in $keep:" >&2
+            echo "  restore it first (mv '$keep' '$env_file'), then re-run this script." >&2
         fi
     elif [ -n "$new_env" ]; then
         rm -f "$new_env"

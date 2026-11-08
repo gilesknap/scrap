@@ -114,9 +114,12 @@ time it connects, and the helper reads the token from a private file. The instal
    #!/bin/sh
    # Headers for scrap's /mcp at DLS: the bearer token, from the .env on the host, or where
    # claude-sandbox mounts it. Only the token's line is read: the .env is never run as shell.
+   # It may start with `export `, end in a CR, or have its value in "" or ''.
    token=
    for f in "$HOME/.config/terminal-config/.env" /user-terminal-config/.env; do
-       [ -r "$f" ] && token=$(sed -n 's/^SCRAP_DLS_MCP_TOKEN=//p' "$f" | tail -n 1)
+       [ -r "$f" ] && token=$(tr -d '\r' <"$f" |
+           sed -n 's/^export  *//; s/^SCRAP_DLS_MCP_TOKEN=//p' | tail -n 1)
+       case $token in \"*\" | \'*\') token=${token#?}; token=${token%?} ;; esac
        [ -z "$token" ] || break
    done
    if [ -z "$token" ]; then
