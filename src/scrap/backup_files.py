@@ -35,6 +35,7 @@ class FileCounts:
     copied: int = 0
     copied_bytes: int = 0
     damaged: int = 0  # files in base whose bytes do not match their name
+    offered: int = 0  # blobs base had (by name), linked or not
 
     def __str__(self) -> str:
         mb = 1024 * 1024
@@ -71,6 +72,14 @@ def copy_files(src: Path, dest: Path, base: Path | None = None) -> FileCounts:
             _copy(path, target)
             counts.copied += 1
             counts.copied_bytes += size
+    if counts.offered and not counts.linked:  # else a silent full copy every night
+        log.warning(
+            "backup: linked none of the %d files %s has, so copied them all; is it"
+            " owned by another user (an NFS export that squashes the owner, say), or"
+            " on another filesystem?",
+            counts.offered,
+            base,
+        )
     return counts
 
 
@@ -96,15 +105,24 @@ def _link(
     try:
         if not stat.S_ISDIR((files / folder).lstat().st_mode):  # a symlink, say
             return False
-        info = old.lstat()
-        if not stat.S_ISREG(info.st_mode) or info.st_size != size or info.st_uid != uid:
-            return False
-        with old.open("rb") as f:
+        # The file checked is the file hashed and linked: opened without following
+        # a symlink, checked and hashed through that one descriptor
+        with open(os.open(old, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK), "rb") as f:
+            counts.offered += 1
+            info = os.fstat(f.fileno())
+            if not stat.S_ISREG(info.st_mode) or info.st_size != size:
+                return False
+            if info.st_uid != uid:
+                return False
             if hashlib.file_digest(f, "sha256").hexdigest() != name:
                 log.warning("backup: %s does not match its name; copied afresh", old)
                 counts.damaged += 1
                 return False
-        os.link(old, target)
+            os.link(old, target, follow_symlinks=False)
+            linked = target.lstat()
+            if (linked.st_dev, linked.st_ino) != (info.st_dev, info.st_ino):
+                target.unlink()  # old was swapped since it was checked
+                return False
     except OSError:  # EXDEV, EPERM, EMLINK, ENOTSUP and the like: copy instead
         return False
     return True

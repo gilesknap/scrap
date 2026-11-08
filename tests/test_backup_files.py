@@ -74,7 +74,7 @@ def test_a_link_that_fails_is_a_copy(store, tmp_path, monkeypatch, code):
     blob = put(store, b"photo")
     backup(store, tmp_path / "bak" / DAY1)
 
-    def refuse(src, dst):
+    def refuse(src, dst, **kw):
         raise OSError(code, os.strerror(code))
 
     monkeypatch.setattr(backup_files.os, "link", refuse)
@@ -167,14 +167,54 @@ def test_a_damaged_blob_of_the_same_size_is_copied_afresh(store, tmp_path, caplo
     assert str(counts).endswith(", 1 damaged there copied afresh")
 
 
-def test_a_file_another_user_owns_is_copied(store, tmp_path, monkeypatch):
+def test_a_file_another_user_owns_is_copied_and_the_log_says(
+    store, tmp_path, monkeypatch, caplog
+):
     put(store, b"photo")
     backup(store, tmp_path / "bak" / DAY1)
     monkeypatch.setattr(
         backup_files.os, "getuid", lambda: os.stat(store.dir).st_uid + 1
     )
+    with caplog.at_level("WARNING"):
+        counts = backup(store, tmp_path / "bak" / DAY2)
+    assert (counts.linked, counts.copied) == (0, 1)
+    assert f"linked none of the 1 files {tmp_path / 'bak' / DAY1}" in caplog.text
+
+
+def test_no_warning_when_the_base_had_nothing_to_link(store, tmp_path, caplog):
+    backup(store, tmp_path / "bak" / DAY1)
+    put(store, b"new photo")
+    with caplog.at_level("WARNING"):
+        counts = backup(store, tmp_path / "bak" / DAY2)
+    assert (counts.base, counts.copied) == (tmp_path / "bak" / DAY1, 1)
+    assert "linked none" not in caplog.text
+
+
+def test_a_symlinked_blob_in_the_base_is_not_linked(store, tmp_path):
+    blob = put(store, b"photo")
+    backup(store, tmp_path / "bak" / DAY1)
+    old = tmp_path / "bak" / DAY1 / blob.relative_to(store.dir)
+    old.rename(tmp_path / "elsewhere")  # the right bytes, but through a symlink
+    old.symlink_to(tmp_path / "elsewhere")
     counts = backup(store, tmp_path / "bak" / DAY2)
     assert (counts.linked, counts.copied) == (0, 1)
+    new = tmp_path / "bak" / DAY2 / blob.relative_to(store.dir)
+    assert not new.is_symlink() and new.stat().st_nlink == 1
+
+
+def test_the_link_never_follows_a_symlink(store, tmp_path, monkeypatch):
+    put(store, b"photo")
+    backup(store, tmp_path / "bak" / DAY1)
+    calls = []
+    real = backup_files.os.link
+
+    def spy(src, dst, **kw):
+        calls.append(kw)
+        real(src, dst, **kw)
+
+    monkeypatch.setattr(backup_files.os, "link", spy)
+    assert backup(store, tmp_path / "bak" / DAY2).linked == 1
+    assert calls == [{"follow_symlinks": False}]
 
 
 @pytest.mark.parametrize("which", ["files", "folder"])

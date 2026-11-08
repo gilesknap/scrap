@@ -589,7 +589,7 @@ files never change, so the two names share one copy on disk. So `SCRAP_BACKUPS` 
 `SCRAP_BACKUP_KEEP + SCRAP_BACKUP_MONTHLY_KEEP + 1` times the size of the database, plus the files
 once, plus files `scrap gc` has deleted since the oldest run. Where hard links fail (a filesystem
 without them), each file is copied, and each run is then as big as `SCRAP_DATA`. The backup's log
-says how many files it linked and copied. `du -sh "$SCRAP_BACKUPS"` counts a shared file once;
+says how many files it linked and copied, and warns if it linked none. `du -sh "$SCRAP_BACKUPS"` counts a shared file once;
 `du` on a single run counts it all. A copy of the backups elsewhere keeps the saving only if it
 copies hard links as links (`rsync -H`, say). Check with `du -sh "$SCRAP_DATA" "$SCRAP_BACKUPS"` (after
 loading the settings, as in {ref}`scrap-restore` below), and if the backups are too big,
