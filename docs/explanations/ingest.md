@@ -333,9 +333,11 @@ The schema is in [`baseline.sql`](https://github.com/gilesknap/scrap/blob/main/s
 
 An `enrich_run` or `topic_run` request (the enrich, related, write-up, synthesis and discovery
 calls) keeps its system prompt as `system_sha256` (of its UTF-8) and `system_len` (in
-characters), not the text (#571): the template is the run's `prompt_version`, and the pages
-rendered into it are listed by id (`candidates`, `sources` or `pages`), so only what those pages
-said at the time is lost. The related prompt, with every candidate's title, tags and summary in
+characters), not the text (#571). The template is the run's `prompt_version`; the synthesis and
+discovery prompts are only that. The related and write-up prompts add an index of candidate
+pages, listed by id in `candidates`, and the enrich prompt adds the tags in use with their counts,
+which are not recorded. So what is lost is what those pages said, and the tag counts, at the time.
+The related prompt, with every candidate's title, tags and summary in
 it, was about 35 KB a row. A call the model refused, or whose answer was invalid, keeps the text
 too, under `system`, to debug it. Rows from before keep `system` and have no digest; nothing reads
 either, so both shapes work.
@@ -597,7 +599,7 @@ per-call contents are in [](llm-calls.md); in brief:
 Apart from Claude, the only outbound requests are the link fetches (to the linked site) and
 `SCRAP_NOTIFY_URL`, which gets a fixed line with the pause reason. Everything sent is kept in
 `model_run`, `enrich_run` and `topic_run` (photos as references to the stored JPEG; an enrich or
-topic call's system prompt, whose page index is the store's own pages, as its digest:
+topic call's system prompt, whose page index and tags are the store's own, as its digest:
 {ref}`ingest-stored-context`), so your backups hold it too.
 
 (ingest-enrich)=
@@ -695,8 +697,9 @@ flowchart TD
   `model_run`, whose cost it shares in the budget; `request.purpose` is `enrich`, `related` or
   `writeup`). A
   link's fetched text is sent, not kept: the stored request has a placeholder with its length and
-  hash. The system prompt is kept as its digest, not its text (see {ref}`ingest-stored-context`). What was read from images and files is stored in full, as the page's text is. Search
-  indexes the summary in the page's summary column.
+  hash. The system prompt is kept as its digest, not its text (see
+  {ref}`ingest-stored-context`). What was read from images and files is stored in full, as the
+  page's text is. Search indexes the summary in the page's summary column.
 - **Failures** follow the photo rules: outage, credit, auth and budget pause the shared queue and
   refund the job; anything else is charged (10 minutes, invalid output at once), the third kills
   it, and the page says so with **Ask Claude** to retry. A failed fetch is not a failed job: the

@@ -13,11 +13,12 @@ from .store import now
 
 def prompt_digest(system: str) -> dict[str, Any]:
     """What an enrich or topic run's stored request keeps of its system prompt
-    (#571): its SHA-256 (hex, of the UTF-8) and length in characters, not the text.
-    The template is its prompt_version and the pages rendered into it are in the
-    request (candidates, sources or pages), so the text was ~35 KB a row of what
-    those already say. A failed call whose answer was refused or invalid keeps the
-    text as well (failed, below), to debug it."""
+    (#571): its SHA-256 (hex, of the UTF-8) and length in characters, not the text
+    (the related prompt's was ~35 KB a row). The template is the run's
+    prompt_version; what is rendered into it is the candidate index (its ids are the
+    request's candidates) or, for enrich, the tags in use (not recorded). A failed
+    call whose answer was refused or invalid keeps the text as well (failed, below),
+    to debug it."""
     digest = hashlib.sha256(system.encode()).hexdigest()
     return {"system_sha256": digest, "system_len": len(system)}
 
