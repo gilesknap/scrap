@@ -1,7 +1,8 @@
-import { ApiError } from "./api";
+import { ApiError, LoginExpired } from "./api";
 import { rerender } from "./app";
 import { type Icon, icon } from "./icons";
 import type { Titles } from "./linktext";
+import { marked } from "./login";
 import { rendered, renderer } from "./md";
 
 // DOM helpers: h() builds an element, toast() shows a message with an optional action.
@@ -115,6 +116,14 @@ export function problem(e: unknown): Node {
     const home = h("a", { href: "/", className: "button" }, "Back to capture");
     return empty("search", "Not found: it may have been deleted.", home);
   }
+  if (e instanceof LoginExpired) {
+    const again = h(
+      "button",
+      { type: "button", className: "primary", onclick: relogin },
+      "Log in again",
+    );
+    return failed("Your login has expired.", again);
+  }
   const why =
     e instanceof ApiError
       ? e.message
@@ -123,6 +132,10 @@ export function problem(e: unknown): Node {
         : "Offline: this needs the server.";
   return failed(why, h("button", { onclick: rerender }, icon("retry"), "Retry"));
 }
+
+/** Log in again: load this screen past the service worker's cache (login.ts), so the login
+ * in front of scrap can send it to its sign-in and back here. */
+export const relogin = () => location.assign(marked(location.href));
 
 /** A problem state (the server can't be reached): marked, so a quiet refresh can keep the old rows. */
 const failed = (line: string, ...more: Kid[]) => {

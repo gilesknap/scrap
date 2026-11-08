@@ -1,7 +1,7 @@
 // The public pages' calls to scrap (#497), as docs/reference/public-site.md "The PWA's API in
 // scrap" has them; the types are in api.ts. Kept apart from api.ts, which is in the app shell:
 // only the page view, Settings and publicpages.ts use these.
-import { ApiError, api, type Page, type PublicPage, type Published } from "./api";
+import { ApiError, api, LoginExpired, type Page, type PublicPage, type Published } from "./api";
 
 const JSON_TYPE = { "Content-Type": "application/json" };
 
@@ -84,6 +84,7 @@ export const unreached = (err: unknown) => !(err instanceof ApiError);
 
 /** Why a publish failed, in words for a toast. */
 export function whyNot(err: unknown, online = navigator.onLine): string {
+  if (err instanceof LoginExpired) return err.message;
   if (!(err instanceof ApiError)) return online ? "can't reach the server" : "you're offline";
   const code = codeOf(err);
   if (err.status === 503) return "publishing is off on this server";

@@ -976,7 +976,7 @@
       (async () => {
         await wait(150);
         if (this._aborted) return;
-        if (!navigator.onLine) return this.onerror?.(new Event("error"));
+        if (!navigator.onLine || loginExpired()) return this.onerror?.(new Event("error"));
         up.onprogress?.(new ProgressEvent("progress", { loaded: 1, total: 1 }));
         await wait(250);
         up.onload?.(new ProgressEvent("load"));
@@ -998,6 +998,18 @@
   }
   window.XMLHttpRequest = SimXHR;
 
+  // ---------- the login proxy's session ended: localStorage sim.login = "expired", or
+  // __sim.expire() (and __sim.expire(false) to log in again) for a view already drawn
+  let expired = null;
+  const loginExpired = () => {
+    if (expired !== null) return expired;
+    try {
+      return localStorage.getItem("sim.login") === "expired";
+    } catch {
+      return false;
+    }
+  };
+
   // ---------- fetch
   window.fetch = async (input, init = {}) => {
     const req = input instanceof Request ? input : null;
@@ -1015,6 +1027,19 @@
     }
     if (init.signal?.aborted) throw new DOMException("aborted", "AbortError");
     if (!navigator.onLine) throw new TypeError("Failed to fetch");
+    if (loginExpired()) {
+      // As behind the login proxy once its session has ended: a redirect to the sign-in.
+      // Asked not to follow it, the app sees an opaque redirect; followed, the sign-in is on
+      // another site, the browser refuses it (CORS) and the fetch fails.
+      if ((init.redirect || req?.redirect) !== "manual") throw new TypeError("Failed to fetch");
+      const r = new Response(null, { status: 200 });
+      Object.defineProperties(r, {
+        type: { value: "opaqueredirect" },
+        status: { value: 0 },
+        ok: { value: false },
+      });
+      return r;
+    }
     try {
       return await handle(method, url, body);
     } catch (e) {
@@ -1150,6 +1175,7 @@
       font: 600 12px/1 system-ui, sans-serif; padding: 12px 7px; border-radius: 8px 0 0 8px; border: 0;
       background: #2a5bd7; color: #fff; box-shadow: 0 2px 10px rgb(0 0 0 / 25%); opacity: 0.9; }
     .sim-back { top: calc(38% - 92px); background: #3a3a3a; }
+    .sim-login { top: calc(38% + 92px); background: #8a5a00; }
     .sim-fb-pane { position: fixed; z-index: 51; inset: auto 8px 8px 8px; padding: 12px; border-radius: 14px;
       background: #fff; color: #1b1b1b; box-shadow: 0 8px 30px rgb(0 0 0 / 35%); font: 15px/1.4 system-ui, sans-serif;
       display: flex; flex-direction: column; gap: 8px; }
@@ -1206,7 +1232,18 @@
     back.className = "sim-fb sim-back";
     back.textContent = "‹ Back";
     back.onclick = () => history.back();
-    document.body.append(back, b);
+    // The login proxy's session ending (the app's next request meets its redirect); the
+    // app's Log in again reloads the sim, which logs back in (and starts the sample again)
+    const login = document.createElement("button");
+    login.type = "button";
+    login.className = "sim-fb sim-login";
+    login.textContent = "Expire login";
+    login.onclick = () => {
+      expired = !loginExpired();
+      login.textContent = expired ? "Log back in" : "Expire login";
+      note(expired ? "Login expired: the next request will find out" : "Logged back in");
+    };
+    document.body.append(back, b, login);
   });
 
   // The artifact viewer blocks native dialogs: confirm() returns false at once, unseen, so
@@ -1219,5 +1256,13 @@
       return yes || performance.now() - t < 50;
     };
   }
-  window.__sim = { loc, base: BASE, pages, reset: () => location.reload() };
+  window.__sim = {
+    loc,
+    base: BASE,
+    pages,
+    reset: () => location.reload(),
+    expire: (on = true) => {
+      expired = on;
+    },
+  };
 })();

@@ -185,6 +185,17 @@ export class ApiError extends Error {
   }
 }
 
+/** The login in front of scrap (an oauth2-proxy, Cloudflare Access) has expired: the API
+ * answered with a redirect to its sign-in. scrap's own API never redirects, so a redirect is
+ * the proxy's; followed, it would reach the sign-in on another site, which the browser refuses
+ * (CORS), and look like "can't reach the server". Not an ApiError: nothing reached scrap, so
+ * whatever was being done is kept, as when offline, to be tried again after logging in. */
+export class LoginExpired extends Error {
+  constructor() {
+    super("your login has expired");
+  }
+}
+
 /** Ticks up as a change (a PATCH, POST, DELETE) starts and again as it ends. A refresh that
  * began at one value and ends at another overlapped a change: what it read may be from before
  * it, so it must not be drawn over the change (a tick shown, then undone). */
@@ -202,13 +213,14 @@ export async function api<T>(path: string, init?: RequestInit): Promise<T> {
   }
   let r: Response;
   try {
-    r = await fetch(`/api/${path}`, init);
+    r = await fetch(`/api/${path}`, { redirect: "manual", ...init });
   } finally {
     if (init?.method) {
       writes++;
       inflight--;
     }
   }
+  if (r.type === "opaqueredirect") throw new LoginExpired();
   if (!r.ok) throw new ApiError(r.status, await r.json().catch(() => ({})));
   if (init?.method) dispatchEvent(new Event("scrap:wrote")); // a change: e.g. the Todos badge
   return (r.status === 204 ? null : await r.json()) as T;

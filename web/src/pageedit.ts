@@ -2,7 +2,7 @@
 // date and priority, and its tags, with the draft kept on the phone, and a conflict shown if it changed
 // elsewhere meanwhile. A chunk of its own with editor.ts, kept offline (vite.config.ts).
 import { adders, restore } from "./adders";
-import { ApiError, api, overLimit, type Page, uploadLimit } from "./api";
+import { ApiError, api, LoginExpired, overLimit, type Page, uploadLimit } from "./api";
 import { drafts } from "./db";
 import {
   confirmRemoval,
@@ -25,7 +25,7 @@ import { embedBytes, tooLong } from "./pagecap";
 import { placed, wire } from "./pending";
 import { reading, toLine } from "./readat";
 import { textPart } from "./textpart";
-import { h, toast } from "./ui";
+import { h, relogin, toast } from "./ui";
 
 interface Draft {
   title: string;
@@ -178,6 +178,9 @@ export async function edit(
       if (!(err instanceof ApiError && err.status === 409)) {
         // Still editing, the text kept: say so plainly (no raw "TypeError: Failed to fetch")
         const kept = "your changes are still in the editor, try Save again";
+        if (err instanceof LoginExpired)
+          // The draft is kept on the phone (editor.ts), so the reload loses nothing
+          return toast("Your login has expired: log in again to save.", "Log in", relogin, 0);
         return toast(
           err instanceof ApiError
             ? err.message

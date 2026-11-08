@@ -7,7 +7,6 @@
 // Any other file is a plain row (filerow.ts), with its card under it if scrap reads it
 // (filecard.ts: a PDF, a text or Markdown file).
 import {
-  ApiError,
   api,
   blobUrl,
   type FileRef,
@@ -25,6 +24,7 @@ import { photoPanel } from "./ingest";
 import { photoGuidance, readingFold } from "./reading";
 import { h, pageLink, settle, toast } from "./ui";
 import { type Photo, viewer } from "./viewer";
+import { why } from "./why";
 
 // byClaude: only captures Claude made over MCP hold it (claudemade.ts): it shows on its own
 type Placed = FileRef & { cid: string; byClaude: boolean };
@@ -180,6 +180,6 @@ async function askClaude(cid: string, sha: string, refresh: () => void) {
     if (!r.queued && !r.already) toast("Claude can't read this file");
     refresh();
   } catch (err) {
-    toast(`Not sent: ${err instanceof ApiError ? err.message : "can't reach the server"}`);
+    toast(`Not sent: ${why(err)}`);
   }
 }

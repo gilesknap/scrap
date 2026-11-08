@@ -2,7 +2,7 @@
 // scrolls with the page and takes no gestures). Tapping it opens the full-screen viewer, where
 // it can be zoomed, panned and edited (board/viewer.ts). Excalidraw and React are in that
 // separate chunk, fetched only when a preview comes into view or the viewer opens.
-import { ApiError, api } from "./api";
+import { ApiError, api, LoginExpired } from "./api";
 import type { Drawing, Frame } from "./board/frame";
 import { currentDrawings, onTheme } from "./theme";
 import { h, toast } from "./ui";
@@ -129,7 +129,9 @@ export async function openDrawing(t: Target, onSaved: () => void) {
     toast(
       err instanceof ApiError
         ? err.message
-        : "Can't open the drawing: the viewer needs the server (offline?)",
+        : err instanceof LoginExpired
+          ? `Can't open the drawing: ${err.message}`
+          : "Can't open the drawing: the viewer needs the server (offline?)",
     );
   }
 }

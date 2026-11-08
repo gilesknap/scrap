@@ -3,6 +3,7 @@
 // share-sheet POST into a queued capture. A new build changes this file (its shell list
 // and build id), so the browser installs it; the page then offers "Update available".
 import { idb } from "./db";
+import { toNetwork } from "./login";
 import { newItem } from "./queue";
 import { fromShare } from "./share";
 
@@ -56,6 +57,8 @@ self.addEventListener("fetch", (e) => {
     return e.respondWith(share(e.request));
   if (e.request.method !== "GET" || url.pathname.startsWith("/api/") || url.pathname === "/healthz")
     return;
+  // Logging in again: the login's pages, and a load marked to log in, go to the network
+  if (e.request.mode === "navigate" && toNetwork(url)) return;
   // App routes all load the cached shell; everything else in the shell is cache-first.
   const key = e.request.mode === "navigate" ? "/" : e.request;
   e.respondWith(caches.match(key, { cacheName: CACHE }).then((hit) => hit ?? fetch(e.request)));

@@ -3,7 +3,7 @@
 // page. Between them, where it is ("3 of 8 · Todos · Now"), a label. Each step replaces the
 // page's history entry (keeping go()'s marks), so the top bar's Back still goes back to the
 // list. Mark done on a todo opened from the Todos screen moves on to the next one in that list.
-import { type Page, setStatus } from "./api";
+import { LoginExpired, type Page, setStatus } from "./api";
 import { go, plain } from "./app";
 import { placeIn, swipeStep, type Trail } from "./gesture";
 import { icon } from "./icons";
@@ -76,7 +76,10 @@ export function pager(
     const undo = () =>
       setStatus(p.id, was).then(
         () => go(pageHref(p.slug), true, { trail, from: -1 }),
-        () => toast("Undo failed: can't reach the server"),
+        (err) =>
+          toast(
+            `Undo failed: ${err instanceof LoginExpired ? err.message : "can't reach the server"}`,
+          ),
       );
     toast(`Done: ${p.title}. Next todo, ${at.i + 2} of ${at.n}`, "Undo", undo, 6000);
     return true;
