@@ -12,4 +12,4 @@ sources:
 # docs/how-to/deploy-kubernetes.md).
 version: 0.0.0
 appVersion: "0.0.0"
-kubeVersion: ">=1.27.0-0"
+kubeVersion: ">=1.29.0-0"

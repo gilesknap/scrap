@@ -27,9 +27,11 @@ flowchart LR
 | Related pages | `<fullname>-enrich-related` | `scrap-enrich-related.timer`, `scrap-enrich-related.service` | 03:41 daily, `41 3 * * *` | `scrap enrich --related`: picks related pages for every page changed, or with a photo read, since its last picks ({ref}`ingest-enrich-related`). It does not write board write-ups again: an outdated one is the owner's to regenerate | Yes | Kubernetes: starts within 1 h, runs at most 4 h; single server: none |
 | Topics | `<fullname>-enrich-topics` | `scrap-enrich-topics.timer`, `scrap-enrich-topics.service` | 04:11 on Sundays, `11 4 * * 0` | `scrap enrich --topics`: one discovery call (new topic pages and sources), then a synthesis queued for each topic due, which the scrap service's worker makes ({ref}`ingest-topics`) | Yes (the call, and the syntheses) | Kubernetes: starts within 1 h, runs at most 1 h; single server: none |
 
-With the chart's `litestream.enabled`, gc, related pages and topics need the live database, so they
-are not CronJobs: the same values run them in the scrap pod's `jobs` container
-({ref}`k8s-litestream`). The two backups stay CronJobs. `scrap schedule status` there, or its
+On Kubernetes the chart runs the database with Litestream by default
+([ADR 47](../explanations/decisions/0047-litestream-is-the-default-kubernetes-mode.md)), so gc,
+related pages and topics, which need the live database, are not CronJobs: the same values run them in
+the scrap pod's `jobs` container ({ref}`k8s-litestream`). Their CronJob names above apply only to the
+deprecated `litestream.enabled: false`. The two backups stay CronJobs. `scrap schedule status` there, or its
 Prometheus metrics, says how each last ran and when the newest backup completed
 ({ref}`k8s-litestream-health`).
 
