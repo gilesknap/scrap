@@ -178,7 +178,7 @@ inside them is silently ignored. The main ones:
 | `enrichRelated.enabled`, `.schedule`, `.timeZone` | `true`, `41 3 * * *`, UTC | The related-pages job, in the `jobs` container. It runs only while `ingest.enabled` is true. Every scheduled job: [](../reference/scheduled-jobs.md). |
 | `enrichTopics.enabled`, `.schedule`, `.timeZone` | `true`, `11 4 * * 0`, UTC | The topics job (Sundays), in the `jobs` container. It runs only while `ingest.enabled` is true. |
 | `backup.monthly.enabled`, `.schedule`, `.timeZone`, `.keep` | `true`, `50 3 1 * *`, the cluster's default, `12` | The monthly copy CronJob (needs `backup.enabled`; see Backup and restore). |
-| `backup.persistence.size`, `.storageClass`, `.existingClaim` | `20Gi`, default class, none | The backups volume. Each run is a full copy: allow about `keep + monthly.keep + 1` times the data (or lower `keep` and `monthly.keep`). |
+| `backup.persistence.size`, `.storageClass`, `.existingClaim` | `20Gi`, default class, none | The backups volume. Allow about `keep + monthly.keep + 1` times the database, plus the files once: a file an earlier run has is hard-linked, not copied ({ref}`scrap-backup-restore`). |
 | `backup.persistence.hostPath` | none | An absolute directory on every node (a shared filesystem) to keep the backups in, instead of a claim. It must exist and be writable by the `podSecurityContext` user. A namespace that enforces the `baseline` or `restricted` Pod Security Standard rejects hostPath volumes, so the backup jobs never start there: use the claim. |
 | `resources.limits.memory` | `1Gi` | scrap's photo decoding is budgeted for a 1 GB container; a lower limit risks the pod being OOM-killed on large photos. |
 | `ingress.*`, `service.annotations` | off | Exposure, below. |

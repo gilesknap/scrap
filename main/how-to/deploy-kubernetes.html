@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Deploy on Kubernetes &#8212; scrap 1.8.3.dev31+g2e9e8eb42 documentation</title>
+    <title>Deploy on Kubernetes &#8212; scrap 1.8.3.dev37+gfae129681 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=a5e15d6e"></script>
+    <script src="../_static/documentation_options.js?v=af19f47a"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -1085,7 +1085,7 @@ inside them is silently ignored. The main ones:</p>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">backup.persistence.size</span></code>, <code class="docutils literal notranslate"><span class="pre">.storageClass</span></code>, <code class="docutils literal notranslate"><span class="pre">.existingClaim</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">20Gi</span></code>, default class, none</p></td>
-<td><p>The backups volume. Each run is a full copy: allow about <code class="docutils literal notranslate"><span class="pre">keep</span> <span class="pre">+</span> <span class="pre">monthly.keep</span> <span class="pre">+</span> <span class="pre">1</span></code> times the data (or lower <code class="docutils literal notranslate"><span class="pre">keep</span></code> and <code class="docutils literal notranslate"><span class="pre">monthly.keep</span></code>).</p></td>
+<td><p>The backups volume. Allow about <code class="docutils literal notranslate"><span class="pre">keep</span> <span class="pre">+</span> <span class="pre">monthly.keep</span> <span class="pre">+</span> <span class="pre">1</span></code> times the database, plus the files once: a file an earlier run has is hard-linked, not copied (<a class="reference internal" href="deploy-single-server.html#scrap-backup-restore"><span class="std std-ref">Backup and restore</span></a>).</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">backup.persistence.hostPath</span></code></p></td>
 <td><p>none</p></td>

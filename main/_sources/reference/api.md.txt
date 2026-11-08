@@ -243,6 +243,15 @@ holding files no page uses any more (after a `scrap gc`, say). Use a new `DIR` f
 that matters; the chart's backup CronJobs and the single-server timer do, and keep the newest
 `SCRAP_BACKUP_KEEP` of them ([](scheduled-jobs.md), {ref}`scrap-backup-restore`).
 
+When `DIR` is named like a run (`20261019T033000Z`), as the backup jobs' runs are, a file the
+newest complete run beside it has (or, for a run in `monthly/`, among the daily runs; and the
+other way round) is hard-linked from that run rather than copied: stored files never change once
+written. It is linked only if it is a regular file of the same size, owned by the user running the
+backup, in no symlinked folder, and its bytes hash to its name; one that does not is copied afresh
+from the data folder, with a warning. Each run still holds every file and restores alone; a file
+whose link fails (another filesystem, say) is copied. It prints how many files it linked and copied.
+`scrap restore` always copies.
+
 `scrap export DIR` writes one `<slug>.md` per page at the top of `DIR`, Claude's notes on a page in
 `DIR/_claude/<slug>.md`, and one `DIR/files/` for all the pages, in which a file is named `<sha256><extension>`, the extension being the usual one for its
 content type (none if it has none). It is not the name it was uploaded under, and a file on several

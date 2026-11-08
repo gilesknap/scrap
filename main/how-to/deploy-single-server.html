@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Deploy on a single server &#8212; scrap 1.8.3.dev31+g2e9e8eb42 documentation</title>
+    <title>Deploy on a single server &#8212; scrap 1.8.3.dev37+gfae129681 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=a5e15d6e"></script>
+    <script src="../_static/documentation_options.js?v=af19f47a"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -1052,7 +1052,7 @@ only: <code class="docutils literal notranslate"><span class="pre">SCRAP_LISTEN<
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">SCRAP_BACKUP_KEEP</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">14</span></code></p></td>
-<td><p>Number of backup runs to keep (at least 1). Each is a full copy: see <a class="reference internal" href="#scrap-backup-restore"><span class="std std-ref">Backup and restore</span></a>.</p></td>
+<td><p>Number of backup runs to keep (at least 1). Each holds a full copy of the database; files are shared between runs: see <a class="reference internal" href="#scrap-backup-restore"><span class="std std-ref">Backup and restore</span></a>.</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">SCRAP_BACKUP_MONTHLY_KEEP</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">12</span></code></p></td>
@@ -1394,14 +1394,20 @@ you delete them. Do not rely on <code class="docutils literal notranslate"><span
 alone: the next <code class="docutils literal notranslate"><span class="pre">install.sh</span></code> run enables it again, as it does every timer whose command the
 image has. An empty <code class="docutils literal notranslate"><span class="pre">SCRAP_BACKUP_MONTHLY_KEEP=</span></code> is refused (the run fails) like an empty
 <code class="docutils literal notranslate"><span class="pre">SCRAP_BACKUP_KEEP</span></code>; leave the line out for the default of 12.</p>
-<p><strong>Disk use.</strong> Each run is a full, independent copy (the database and every file, not an
-increment), so <code class="docutils literal notranslate"><span class="pre">SCRAP_BACKUPS</span></code> needs about <code class="docutils literal notranslate"><span class="pre">SCRAP_BACKUP_KEEP</span></code> times the size of <code class="docutils literal notranslate"><span class="pre">SCRAP_DATA</span></code>, plus
-one more while a run is in progress, plus <code class="docutils literal notranslate"><span class="pre">SCRAP_BACKUP_MONTHLY_KEEP</span></code> more for the monthly
-runs. Check with <code class="docutils literal notranslate"><span class="pre">du</span> <span class="pre">-sh</span> <span class="pre">&quot;$SCRAP_DATA&quot;</span> <span class="pre">&quot;$SCRAP_BACKUPS&quot;</span></code> (after
+<p><strong>Disk use.</strong> Each run looks like a full, independent copy (the database and every file, not an
+increment): restore any one of them alone, and deleting one leaves the others whole. But a file
+the newest complete run (daily or monthly) already has is hard-linked from it, not copied: stored
+files never change, so the two names share one copy on disk. So <code class="docutils literal notranslate"><span class="pre">SCRAP_BACKUPS</span></code> needs about
+<code class="docutils literal notranslate"><span class="pre">SCRAP_BACKUP_KEEP</span> <span class="pre">+</span> <span class="pre">SCRAP_BACKUP_MONTHLY_KEEP</span> <span class="pre">+</span> <span class="pre">1</span></code> times the size of the database, plus the files
+once, plus files <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">gc</span></code> has deleted since the oldest run. Where hard links fail (a filesystem
+without them), each file is copied, and each run is then as big as <code class="docutils literal notranslate"><span class="pre">SCRAP_DATA</span></code>. The backup’s log
+says how many files it linked and copied, and warns if it linked none. <code class="docutils literal notranslate"><span class="pre">du</span> <span class="pre">-sh</span> <span class="pre">&quot;$SCRAP_BACKUPS&quot;</span></code> counts a shared file once;
+<code class="docutils literal notranslate"><span class="pre">du</span></code> on a single run counts it all. A copy of the backups elsewhere keeps the saving only if it
+copies hard links as links (<code class="docutils literal notranslate"><span class="pre">rsync</span> <span class="pre">-H</span></code>, say). Check with <code class="docutils literal notranslate"><span class="pre">du</span> <span class="pre">-sh</span> <span class="pre">&quot;$SCRAP_DATA&quot;</span> <span class="pre">&quot;$SCRAP_BACKUPS&quot;</span></code> (after
 loading the settings, as in <a class="reference internal" href="#scrap-restore"><span class="std std-ref">Restore</span></a> below), and if the backups are too big,
 lower <code class="docutils literal notranslate"><span class="pre">SCRAP_BACKUP_KEEP</span></code> or <code class="docutils literal notranslate"><span class="pre">SCRAP_BACKUP_MONTHLY_KEEP</span></code> (0 turns the monthly runs off), or
 point <code class="docutils literal notranslate"><span class="pre">SCRAP_BACKUPS</span></code> at a bigger disk. Upgrading to a version with the monthly timer adds up to
-12 more full copies over the following year. <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">gc</span></code> makes later runs
+12 more copies of the database over the following year. <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">gc</span></code> makes later runs
 smaller; it never shrinks earlier ones.</p>
 <p><strong>Pruning on demand.</strong> The retention step runs only at the end of a successful backup, so a night
 that fails or is missed prunes nothing (a long outage cannot remove your last good backups).
