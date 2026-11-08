@@ -811,7 +811,7 @@ says.
 Deleting a page only moves it to the trash, and deleting an image's line from a page's text keeps
 its file, so files nothing uses build up. `scrap gc` finds them: a file is in use while a page's
 text refers to it (pages in the trash too, so they can be brought back), or a capture, a Claude
-result or ingest job, or a model run (the photo, or the JPEG it sent) does. Files younger than
+result or ingest job, or a model run (its photo) does. Files younger than
 `--grace-hours` (default 24) are kept whatever refers to them, since an upload records its files
 only after writing them. **It is a dry run unless you give `--delete`**: it prints how many files
 it would delete and their size (never any page text). It refuses to run, deleting nothing, if it
@@ -824,8 +824,12 @@ gc also prunes the records of Claude calls, which would otherwise grow for ever:
 kept while anything refers to it (a page's enrichment, a derived result, a later turn of the same
 conversation), while it is the newest for its page or photo, while it is still running, and while
 it is younger than `--run-days` (default 30, at least 1). Counts are in the report, and `--delete`
-removes the rest. A deleted model run no longer keeps the JPEG it sent, which the same run then
-deletes as unused. `topic_run` records (one a week) are not pruned.
+removes the rest. `topic_run` records (one a week) are not pruned.
+
+The JPEG a photo's reading sends to Claude is not kept: it is made from the photo, which is
+(#572). Runs from before then name a stored one (`sent_sha256`): gc deletes those as unused while
+the photo is stored, all of them on its first deleting run after the upgrade (on a store with
+many, a large share of the files: check with a dry run first if you want to see them).
 
 **Files no page shows are gathered, not deleted.** gc does not delete a file of a capture (a
 photo, a PDF) while its page lasts. When you delete the last embed or link of one from a page's text, the next `scrap gc

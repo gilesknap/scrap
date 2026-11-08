@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Claude ingest &#8212; scrap 1.8.3.dev25+g5e3b6f82a documentation</title>
+    <title>Claude ingest &#8212; scrap 1.8.3.dev31+g2e9e8eb42 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=3eef67e7"></script>
+    <script src="../_static/documentation_options.js?v=a5e15d6e"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -1152,7 +1152,7 @@ the original that is stored is already that size.</p>
 <code class="docutils literal notranslate"><span class="pre">&lt;text&gt;</span></code>) as its text, with no model call, so search has them whatever happens next; then the
 user turn is its markup (the first 20,000 characters, an embedded font’s or image’s base64 put
 as its size) as a text block, said to be data, instead
-of an image block, with no drawing asked for. No JPEG is made, so its run has no <code class="docutils literal notranslate"><span class="pre">sent_sha256</span></code> or
+of an image block, with no drawing asked for. No JPEG is made, so its run has no <code class="docutils literal notranslate"><span class="pre">sent</span></code> record or
 size. See <a class="reference internal" href="decisions/0042-mcp-clients-add-svg-and-files.html"><span class="std std-doc">ADR 0042</span></a>.</p>
 <p><strong>The owner’s guidance</strong> (#538): an image with Guidance for Claude (saved in its reading’s fold,
 <code class="docutils literal notranslate"><span class="pre">image_guidance</span></code>) has one more text block after the image (or the SVG’s markup), the owner’s note
@@ -1162,10 +1162,17 @@ draw it. The run’s stored request keeps it as <code class="docutils literal no
 without it, so its version is too. It is never sent with a write-up. See
 <a class="reference internal" href="decisions/0044-claudes-reading-in-a-fold.html"><span class="std std-doc">ADR 0044</span></a>.</p>
 <p>The image block sets <code class="docutils literal notranslate"><span class="pre">&quot;transformations&quot;:</span> <span class="pre">{&quot;oversized_image&quot;:</span> <span class="pre">&quot;error&quot;}</span></code>, so the API never
-rescales it silently and drawing coordinates are in sent pixels. The JPEG is stored as a blob
-(<code class="docutils literal notranslate"><span class="pre">model_run.sent_sha256</span></code>) with its <code class="docutils literal notranslate"><span class="pre">image_width</span></code> and <code class="docutils literal notranslate"><span class="pre">image_height</span></code>. The PWA scales the drawing
-to the displayed photo, and a later conversation can replay the exact bytes. <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">gc</span></code> counts
-<code class="docutils literal notranslate"><span class="pre">sent_sha256</span></code> as in use; after a purge it is an orphan that gc removes.</p>
+rescales it silently and drawing coordinates are in sent pixels. The run keeps the JPEG’s size
+(<code class="docutils literal notranslate"><span class="pre">image_width</span></code>, <code class="docutils literal notranslate"><span class="pre">image_height</span></code>), and the PWA scales the drawing to the displayed photo. The JPEG
+itself is not kept (#572): it is made from the original, which is kept anyway, and held in
+memory for the call. The run’s request records how it was made, as <code class="docutils literal notranslate"><span class="pre">sent</span></code>: the original’s
+<code class="docutils literal notranslate"><span class="pre">source_sha256</span></code>, <code class="docutils literal notranslate"><span class="pre">width</span></code>, <code class="docutils literal notranslate"><span class="pre">height</span></code>, <code class="docutils literal notranslate"><span class="pre">quality</span></code>, <code class="docutils literal notranslate"><span class="pre">for_claude</span></code> (the version of how
+<code class="docutils literal notranslate"><span class="pre">preview.claude_jpeg</span></code> makes it), and the JPEG’s <code class="docutils literal notranslate"><span class="pre">sha256</span></code>, <code class="docutils literal notranslate"><span class="pre">bytes</span></code> and the <code class="docutils literal notranslate"><span class="pre">pillow</span></code> version.
+Nothing replays a run, so nothing makes it again from that yet. With the same Pillow the bytes
+would be the same; another Pillow (or its libjpeg or libheif) may encode them differently, which
+comparing <code class="docutils literal notranslate"><span class="pre">sha256</span></code> tells. A run from before #572 names a stored JPEG (<code class="docutils literal notranslate"><span class="pre">model_run.sent_sha256</span></code>).
+<code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">gc</span></code> no longer counts that as in use while the run’s photo (its record and its file) is
+stored, so it deletes it as unused and clears <code class="docutils literal notranslate"><span class="pre">sent_sha256</span></code>.</p>
 <p><strong>Output:</strong> <code class="docutils literal notranslate"><span class="pre">kind</span></code> (whiteboard, handwriting, diagram, screenshot, document, photo or other), <code class="docutils literal notranslate"><span class="pre">title</span></code>,
 <code class="docutils literal notranslate"><span class="pre">tags</span></code>, <code class="docutils literal notranslate"><span class="pre">description</span></code>, <code class="docutils literal notranslate"><span class="pre">text</span></code> (one item per line, <code class="docutils literal notranslate"><span class="pre">(?)</span></code> after uncertain readings) and <code class="docutils literal notranslate"><span class="pre">elements</span></code>
 (empty unless a whiteboard or diagram). The prompt lives in <code class="docutils literal notranslate"><span class="pre">src/scrap/prompts/photo.md</span></code>;
@@ -1803,7 +1810,8 @@ every outdated one (with <code class="docutils literal notranslate"><span class=
 prompt is rolled out.</p></li>
 <li><p><strong>The call.</strong> <code class="docutils literal notranslate"><span class="pre">SCRAP_VISION_MODEL</span></code> (default <code class="docutils literal notranslate"><span class="pre">claude-opus-5-5</span></code>), effort <code class="docutils literal notranslate"><span class="pre">medium</span></code>, <code class="docutils literal notranslate"><span class="pre">max_tokens</span></code>
 16000, structured output (<code class="docutils literal notranslate"><span class="pre">summary</span></code>, <code class="docutils literal notranslate"><span class="pre">text</span></code>). The user turn has each board photo (at most 4:
-the JPEG photo ingest sent, or one made again the same way if that is gone), labelled Image 1,
+made the way photo ingest made the one it sent and held for the call, recorded in the request’s
+<code class="docutils literal notranslate"><span class="pre">sent</span></code> but not stored; or the one ingest stored before #572), labelled Image 1,
 2…, then the page’s kind, title and tags, its text as plain words in a <code class="docutils literal notranslate"><span class="pre">&lt;page&gt;</span></code> block (at most
 6,000 characters), what was read from its board images in an <code class="docutils literal notranslate"><span class="pre">&lt;images&gt;</span></code> block (at most 12,000),
 and the owner’s guidance in a <code class="docutils literal notranslate"><span class="pre">&lt;guidance&gt;</span></code> block. The system prompt ends with the related
@@ -2062,9 +2070,9 @@ read. The queue state is in <code class="docutils literal notranslate"><span cla
 <code class="docutils literal notranslate"><span class="pre">run_after</span></code>). A run with <code class="docutils literal notranslate"><span class="pre">status</span></code> <code class="docutils literal notranslate"><span class="pre">running</span></code> is a call in flight.</p>
 <p>Two cautions. <code class="docutils literal notranslate"><span class="pre">cost_microusd</span></code> is an estimate from the run’s <code class="docutils literal notranslate"><span class="pre">usage</span></code> and <code class="docutils literal notranslate"><span class="pre">claude.PRICES</span></code> (see
 <a class="reference internal" href="#ingest-spend"><span class="std std-ref">Spend and outage control</span></a>), so the Console is the authority on what you spent. And the runs hold your
-content: <code class="docutils literal notranslate"><span class="pre">model_run</span></code> keeps the JPEG that was sent (<code class="docutils literal notranslate"><span class="pre">sent_sha256</span></code>, a blob) and <code class="docutils literal notranslate"><span class="pre">enrich_run</span></code> keeps
-the system prompt and the page text (a fetched page’s text is a placeholder), so the database
-holds what you sent to Claude, and your backups do too.</p>
+content: <code class="docutils literal notranslate"><span class="pre">model_run</span></code> keeps which photo it sent (by reference: the JPEG made from it is not kept) and
+<code class="docutils literal notranslate"><span class="pre">enrich_run</span></code> keeps the system prompt and the page text (a fetched page’s text is a placeholder), so
+the database holds what you sent to Claude, and your backups do too.</p>
 </section>
 <section id="command-line">
 <span id="ingest-cli"></span><h2>Command line<a class="headerlink" href="#command-line" title="Link to this heading">#</a></h2>
