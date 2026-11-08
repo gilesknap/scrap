@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Install scrap at DLS &#8212; scrap 1.8.1.dev17+g5977e2a01 documentation</title>
+    <title>Install scrap at DLS &#8212; scrap 1.8.2.dev2+g9ece7c27b documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=6d24df4b"></script>
+    <script src="../_static/documentation_options.js?v=74b9aaae"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -596,9 +596,12 @@ the file as shell);</p></li>
 <div class="highlight-sh notranslate"><div class="highlight"><pre><span></span><span class="ch">#!/bin/sh</span>
 <span class="c1"># Headers for scrap's /mcp at DLS: the bearer token, from the .env on the host, or where</span>
 <span class="c1"># claude-sandbox mounts it. Only the token's line is read: the .env is never run as shell.</span>
+<span class="c1"># It may start with `export `, end in a CR, or have its value in "" or ''.</span>
 <span class="nv">token</span><span class="o">=</span>
 <span class="k">for</span><span class="w"> </span>f<span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="s2">"</span><span class="nv">$HOME</span><span class="s2">/.config/terminal-config/.env"</span><span class="w"> </span>/user-terminal-config/.env<span class="p">;</span><span class="w"> </span><span class="k">do</span>
-<span class="w">    </span><span class="o">[</span><span class="w"> </span>-r<span class="w"> </span><span class="s2">"</span><span class="nv">$f</span><span class="s2">"</span><span class="w"> </span><span class="o">]</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nv">token</span><span class="o">=</span><span class="k">$(</span>sed<span class="w"> </span>-n<span class="w"> </span><span class="s1">'s/^SCRAP_DLS_MCP_TOKEN=//p'</span><span class="w"> </span><span class="s2">"</span><span class="nv">$f</span><span class="s2">"</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>tail<span class="w"> </span>-n<span class="w"> </span><span class="m">1</span><span class="k">)</span>
+<span class="w">    </span><span class="o">[</span><span class="w"> </span>-r<span class="w"> </span><span class="s2">"</span><span class="nv">$f</span><span class="s2">"</span><span class="w"> </span><span class="o">]</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nv">token</span><span class="o">=</span><span class="k">$(</span>tr<span class="w"> </span>-d<span class="w"> </span><span class="s1">'\r'</span><span class="w"> </span>&lt;<span class="s2">"</span><span class="nv">$f</span><span class="s2">"</span><span class="w"> </span><span class="p">|</span>
+<span class="w">        </span>sed<span class="w"> </span>-n<span class="w"> </span><span class="s1">'s/^export  *//; s/^SCRAP_DLS_MCP_TOKEN=//p'</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>tail<span class="w"> </span>-n<span class="w"> </span><span class="m">1</span><span class="k">)</span>
+<span class="w">    </span><span class="k">case</span><span class="w"> </span><span class="nv">$token</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="se">\"</span>*<span class="se">\"</span><span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="se">\'</span>*<span class="se">\'</span><span class="o">)</span><span class="w"> </span><span class="nv">token</span><span class="o">=</span><span class="si">${</span><span class="nv">token</span><span class="p">#?</span><span class="si">}</span><span class="p">;</span><span class="w"> </span><span class="nv">token</span><span class="o">=</span><span class="si">${</span><span class="nv">token</span><span class="p">%?</span><span class="si">}</span><span class="w"> </span><span class="p">;;</span><span class="w"> </span><span class="k">esac</span>
 <span class="w">    </span><span class="o">[</span><span class="w"> </span>-z<span class="w"> </span><span class="s2">"</span><span class="nv">$token</span><span class="s2">"</span><span class="w"> </span><span class="o">]</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="k">break</span>
 <span class="k">done</span>
 <span class="k">if</span><span class="w"> </span><span class="o">[</span><span class="w"> </span>-z<span class="w"> </span><span class="s2">"</span><span class="nv">$token</span><span class="s2">"</span><span class="w"> </span><span class="o">]</span><span class="p">;</span><span class="w"> </span><span class="k">then</span>
