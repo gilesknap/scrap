@@ -16,7 +16,10 @@
 # ~/.config/terminal-config/.env (mode 600) as SCRAP_DLS_MCP_TOKEN, a helper
 # ~/.claude/scrap-dls-headers.sh reads it, and `claude mcp add-json --scope user scrap-dls`
 # adds the server (replacing a scrap-dls already there). A server named scrap, its helper
-# and SCRAP_MCP_TOKEN, for another scrap, are left alone.
+# and SCRAP_MCP_TOKEN, for another scrap, are left alone. If you followed the earlier
+# tutorial and have a server scrap pointing at this DLS scrap, remove it (`claude mcp
+# remove --scope user scrap`, and delete ~/.claude/scrap-headers.sh), or every tool
+# appears twice.
 #
 # scrap's database is on the pod's own disk, replicated continuously by Litestream to its
 # volume, which is NFS here (ADR 46). An install from before that moves over by itself on
@@ -96,16 +99,17 @@ headers_helper() {
     cat <<'EOF'
 #!/bin/sh
 # Headers for scrap's /mcp at DLS: the bearer token, from the .env on the host, or where
-# claude-sandbox mounts it.
+# claude-sandbox mounts it. Only the token's line is read: the .env is never run as shell.
+token=
 for f in "$HOME/.config/terminal-config/.env" /user-terminal-config/.env; do
-    if [ -r "$f" ]; then set -a; . "$f"; set +a; fi
-    [ -z "${SCRAP_DLS_MCP_TOKEN:-}" ] || break
+    [ -r "$f" ] && token=$(sed -n 's/^SCRAP_DLS_MCP_TOKEN=//p' "$f" | tail -n 1)
+    [ -z "$token" ] || break
 done
-if [ -z "${SCRAP_DLS_MCP_TOKEN:-}" ]; then
+if [ -z "$token" ]; then
     echo "SCRAP_DLS_MCP_TOKEN not found in ~/.config/terminal-config/.env or /user-terminal-config/.env" >&2
     exit 1
 fi
-printf '{"Authorization":"Bearer %s"}\n' "$SCRAP_DLS_MCP_TOKEN"
+printf '{"Authorization":"Bearer %s"}\n' "$token"
 EOF
 }
 
@@ -126,7 +130,7 @@ connect_claude() {
         echo "WARNING: could not read the token from $secret: Claude Code is not connected." >&2
         return 0
     fi
-    # The helper sources the .env as shell, so only a plain token goes in (this script
+    # Only a plain token goes in, as other tools may source the .env as shell (this script
     # makes 64 hex characters; one set by hand could hold $, ~, quotes or spaces).
     case $token in
         *[!A-Za-z0-9._+/=-]*)
@@ -147,9 +151,11 @@ connect_claude() {
         if cat "$new_env" >"$env_file"; then
             ok=0
             rm -f "$new_env"
+        elif mv -f "$new_env" "$env_file.bak"; then
+            # The .env may be cut short: keep the full copy (mode 600) for the user.
+            echo "WARNING: writing $env_file failed part way: its full new contents are in $env_file.bak." >&2
         else
-            # The .env may be cut short: keep the full copy for the user to restore.
-            echo "WARNING: writing $env_file failed part way: its new contents are in $new_env." >&2
+            echo "WARNING: writing $env_file failed part way: its full new contents are in $new_env." >&2
         fi
     elif [ -n "$new_env" ]; then
         rm -f "$new_env"

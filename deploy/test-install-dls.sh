@@ -12,6 +12,7 @@ fail=0
 real_helm=$(command -v helm || true)
 real_kubeconform=$(command -v kubeconform || true)
 real_mktemp=$(command -v mktemp)
+real_cat=$(command -v cat)
 check() { # check NAME CONDITION-COMMAND...
     name=$1; shift
     if "$@"; then echo "ok   $name"; else echo "FAIL $name"; fail=1; fi
@@ -78,12 +79,30 @@ case "\$*" in
 esac
 exec "$real_mktemp" "\$@"
 STUB
+# cat: with $tmp/cutenv, copying the new .env over the real one stops part way (as a
+# full disk or quota would), after writing a few bytes.
+cat >"$tmp/bin/cat" <<STUB
+#!/bin/sh
+case "\$*" in
+  */.env.*) [ -e "$tmp/cutenv" ] && { head -c 5 "\$1"; exit 1; } ;;
+esac
+exec "$real_cat" "\$@"
+STUB
 chmod +x "$tmp/bin/"*
-# The PATH without any real claude, so a test can never reach yours.
-sys_path=$(printf %s "$PATH" | tr : '\n' | while read -r d; do
-    [ -x "$d/claude" ] || printf '%s:' "$d"
-done)
-sys_path=${sys_path%:}
+# The system's tools without any real claude, so a test can never reach yours: links to
+# every command on the PATH (the first of each name, as the PATH would find it) but
+# claude, in one directory, so no directory that also holds core tools is dropped.
+mkdir "$tmp/sysbin"
+printf %s "$PATH" | tr : '\n' | while read -r d; do
+    [ -d "$d" ] || continue
+    for f in "$d"/*; do
+        n=${f##*/}
+        if [ "$n" != claude ] && [ -f "$f" ] && [ -x "$f" ] && [ ! -e "$tmp/sysbin/$n" ]; then
+            ln -s "$f" "$tmp/sysbin/$n"
+        fi
+    done
+done
+sys_path=$tmp/sysbin
 
 # A key in the developer's shell must not reach the cases that run without one.
 unset ANTHROPIC_API_KEY
@@ -169,20 +188,12 @@ check "the Keycloak redirect, as a hint" grep -q "^     https://scrap-abc12345.d
 helper=$tmp/home/.claude/scrap-dls-headers.sh
 tok=$(cat "$tmp/created-SCRAP_MCP_TOKEN")
 json='{"type":"http","url":"https://scrap-abc12345.diamond.ac.uk/mcp","headersHelper":"'$helper'"}'
-cat >"$tmp/want-helper" <<'EOF'
-#!/bin/sh
-# Headers for scrap's /mcp at DLS: the bearer token, from the .env on the host, or where
-# claude-sandbox mounts it.
-for f in "$HOME/.config/terminal-config/.env" /user-terminal-config/.env; do
-    if [ -r "$f" ]; then set -a; . "$f"; set +a; fi
-    [ -z "${SCRAP_DLS_MCP_TOKEN:-}" ] || break
-done
-if [ -z "${SCRAP_DLS_MCP_TOKEN:-}" ]; then
-    echo "SCRAP_DLS_MCP_TOKEN not found in ~/.config/terminal-config/.env or /user-terminal-config/.env" >&2
-    exit 1
-fi
-printf '{"Authorization":"Bearer %s"}\n' "$SCRAP_DLS_MCP_TOKEN"
-EOF
+# The helper exactly as the tutorial shows it (its indented block after "writes the helper").
+awk '/writes the helper/ { f = 1; next }
+     f && /^   ```sh$/ { b = 1; next }
+     b && /^   ```$/ { exit }
+     b { sub(/^   /, ""); print }' "$here/../docs/tutorials/install-dls.md" >"$tmp/want-helper"
+check "claude: the tutorial's helper found" grep -q '^#!/bin/sh$' "$tmp/want-helper"
 check "claude: .env is mode 600" sh -c "[ \"\$(stat -c %a '$envf')\" = 600 ]"
 check "claude: the token in .env" grep -qx "SCRAP_DLS_MCP_TOKEN=$tok" "$envf"
 check "claude: helper is mode 700" sh -c "[ \"\$(stat -c %a '$helper')\" = 700 ]"
@@ -201,6 +212,11 @@ mkdir -p "$tmp/sandbox-home/.config/terminal-config"
 echo OTHER=1 >"$tmp/sandbox-home/.config/terminal-config/.env"
 check "claude: the helper goes past an .env without the token" sh -c "HOME='$tmp/sandbox-home' sh '$tmp/sandbox-helper' |
     grep -qxF '{\"Authorization\":\"Bearer sandbox\"}'"
+# An .env that is not valid shell: the helper reads only the token's line, runs nothing.
+printf '%s\n' "A='unclosed" "\$(touch $tmp/ran-env)" SCRAP_DLS_MCP_TOKEN=old SCRAP_DLS_MCP_TOKEN=messy \
+    >"$tmp/sandbox-env/.env"
+check "claude: the helper reads only the token line of a messy .env" sh -c "HOME='$tmp/sandbox-home' sh '$tmp/sandbox-helper' |
+    grep -qxF '{\"Authorization\":\"Bearer messy\"}' && [ ! -e '$tmp/ran-env' ]"
 # No token anywhere: an error and exit 1, never an empty bearer.
 : >"$tmp/sandbox-env/.env"
 if HOME="$tmp/sandbox-home" sh "$tmp/sandbox-helper" >"$tmp/helper.out" 2>"$tmp/helper.err"; then hn_rc=0; else hn_rc=1; fi
@@ -435,6 +451,18 @@ check "write fails: the install succeeds" [ "$fw_rc" = 0 ]
 check "write fails: warns" grep -q "WARNING: could not write the token to $envf" "$tmp/out"
 check "write fails: the .env untouched" cmp -s "$envf" "$tmp/want-env"
 check "write fails: claude left alone" sh -c "[ ! -s '$tmp/claude.calls' ]"
+
+# The copy over the .env stops part way: the full new contents are kept in .env.bak.
+rm -f "$envf.bak"; cp "$tmp/want-env" "$envf"; touch "$tmp/cutenv"; : >"$tmp/claude.calls"
+if run; then cw_rc=0; else cw_rc=1; fi
+rm -f "$tmp/cutenv"
+check "cut short: the install succeeds" [ "$cw_rc" = 0 ]
+check "cut short: says where the copy is" grep -qF "its full new contents are in $envf.bak" "$tmp/out"
+check "cut short: .env.bak, mode 600, holds the other lines and the new token" sh -c "
+    [ \"\$(stat -c %a '$envf.bak')\" = 600 ] && grep -qx 'SCRAP_MCP_TOKEN=home' '$envf.bak' &&
+    [ \"\$(grep '^SCRAP_DLS_MCP_TOKEN=' '$envf.bak')\" = \"SCRAP_DLS_MCP_TOKEN=\$(cat '$tmp/created-SCRAP_MCP_TOKEN')\" ]"
+check "cut short: no other copy left beside it" sh -c "[ \"\$(ls -A '${envf%/*}' | sort | tr '\n' ' ')\" = '.env .env.bak ' ]"
+check "cut short: claude left alone" sh -c "[ ! -s '$tmp/claude.calls' ]"
 
 # SCRAP_CLAUDE=off: no .env, no helper, no claude.
 rm -rf "${tmp:?}/home"; : >"$tmp/claude.calls"

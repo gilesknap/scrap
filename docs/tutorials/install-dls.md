@@ -106,23 +106,24 @@ time it connects, and the helper reads the token from a private file. The instal
 
 1. puts the token in `~/.config/terminal-config/.env` (mode 600, private before the token goes
    in), as `SCRAP_DLS_MCP_TOKEN=...`, replacing a line already there and keeping the others
-   (a token you set by hand must be only letters, digits and `._+/=-`, as the helper reads the
-   file as shell);
+   (a token you set by hand must be only letters, digits and `._+/=-`, as other tools may read
+   the file as shell);
 2. writes the helper `~/.claude/scrap-dls-headers.sh` (mode 700):
 
    ```sh
    #!/bin/sh
    # Headers for scrap's /mcp at DLS: the bearer token, from the .env on the host, or where
-   # claude-sandbox mounts it.
+   # claude-sandbox mounts it. Only the token's line is read: the .env is never run as shell.
+   token=
    for f in "$HOME/.config/terminal-config/.env" /user-terminal-config/.env; do
-       if [ -r "$f" ]; then set -a; . "$f"; set +a; fi
-       [ -z "${SCRAP_DLS_MCP_TOKEN:-}" ] || break
+       [ -r "$f" ] && token=$(sed -n 's/^SCRAP_DLS_MCP_TOKEN=//p' "$f" | tail -n 1)
+       [ -z "$token" ] || break
    done
-   if [ -z "${SCRAP_DLS_MCP_TOKEN:-}" ]; then
+   if [ -z "$token" ]; then
        echo "SCRAP_DLS_MCP_TOKEN not found in ~/.config/terminal-config/.env or /user-terminal-config/.env" >&2
        exit 1
    fi
-   printf '{"Authorization":"Bearer %s"}\n' "$SCRAP_DLS_MCP_TOKEN"
+   printf '{"Authorization":"Bearer %s"}\n' "$token"
    ```
 
 3. adds the server `scrap-dls` to Claude Code for all your projects, replacing a `scrap-dls`
@@ -134,7 +135,9 @@ time it connects, and the helper reads the token from a private file. The instal
    ```
 
 A server named `scrap` for another scrap, with its `scrap-headers.sh` and `SCRAP_MCP_TOKEN`, is
-left alone. The `sc` commands use `scrap` if it is there, else `scrap-dls`.
+left alone. The `sc` commands use `scrap` if it is there, else `scrap-dls`. If you followed the
+earlier tutorial and have a `scrap` server pointing at your DLS scrap, remove it (`claude mcp
+remove --scope user scrap`, and delete `~/.claude/scrap-headers.sh`), or every tool appears twice.
 
 If `claude` is not on your path, or this step fails, the installer still succeeds and prints the
 command to run. `SCRAP_CLAUDE=off` skips all three.
