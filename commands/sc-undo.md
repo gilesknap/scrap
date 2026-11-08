@@ -4,8 +4,9 @@ argument-hint: [page or batch]
 ---
 
 Use only `mcp__scrap__revisions`, `mcp__scrap__revert`, `mcp__scrap__read`, `mcp__scrap__trash` and
-`mcp__scrap__undelete`. If the tools are missing, say so and
-give: `claude mcp add --transport http --scope user scrap <SCRAP_URL>/mcp`.
+`mcp__scrap__undelete` (from the `scrap` server if there is one, else `scrap-dls`: `mcp__scrap-dls__*`). If the tools are missing, say so: a DLS install sets up `scrap-dls` itself (re-run the installer, or see
+<https://gilesknap.github.io/scrap/main/tutorials/install-dls.html#install-dls-claude>);
+otherwise see <https://gilesknap.github.io/scrap/main/how-to/connect-claude-code.html>.
 
 1. `revisions` (with no `page` or `batch` it lists what changed recently across all pages; or give the page or batch named) and show the latest few.
 2. `revert` takes exactly one of: `batch` (undo a whole tidy), `revision` (one page's kind and tag

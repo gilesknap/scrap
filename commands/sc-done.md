@@ -8,8 +8,9 @@ task box). It is a special case of `/sc-edit`: scrap's `edit_page` ticks a todo'
 a todo whose boxes are all ticked becomes `done` by itself. If the arguments are empty, run the
 `/sc-todos` search (`kind:todo -is:done -is:cancelled sort:due`, `limit` 10) and ask which.
 
-Use ONLY `mcp__scrap__search`, `read` and `edit_page`. If they are missing, say so and give:
-`claude mcp add --transport http --scope user scrap <SCRAP_URL>/mcp`. If `edit_page` is refused
+Use ONLY `mcp__scrap__search`, `read` and `edit_page` (from the `scrap` server if there is one, else `scrap-dls`: `mcp__scrap-dls__*`). If they are missing, say so: a DLS install sets up `scrap-dls` itself (re-run the installer, or see
+<https://gilesknap.github.io/scrap/main/tutorials/install-dls.html#install-dls-claude>);
+otherwise see <https://gilesknap.github.io/scrap/main/how-to/connect-claude-code.html>. If `edit_page` is refused
 with `text editing is off`, say so and stop.
 
 1. `search` for the todo (`kind:todo -is:done -is:cancelled` plus the words). If more than one
