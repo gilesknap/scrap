@@ -4,7 +4,10 @@ Date: 2026-10-19
 
 ## Status
 
-Accepted
+Accepted See also
+[](0023-bearer-token-on-mcp-and-an-identity-header-setting.md) and
+[](0045-scrap-verifies-the-login-proxys-keycloak-token.md) for Kubernetes, where an
+authenticating proxy is the way in.
 
 Update 2026-10-21: single-server installs now listen on a Unix socket that other local users
 cannot open, so the "any local process" point below holds only for TCP installs, development and

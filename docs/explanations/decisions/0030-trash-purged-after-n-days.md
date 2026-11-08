@@ -4,7 +4,12 @@ Date: 2026-10-26
 
 ## Status
 
-Accepted
+Accepted See also
+[](0046-database-on-an-emptydir-replicated-with-litestream.md): on Kubernetes this pass
+runs in the scrap pod's `jobs` container, not as a CronJob.
+
+Note: two records share the number 30. This one is *30 (trash)*; the other is
+[](0030-fewer-mcp-tools.md).
 
 ## Context
 
