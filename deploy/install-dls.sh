@@ -518,7 +518,7 @@ EOF
     else
         cat <<EOF
   1. Raise a request at
-         https://jira.diamond.ac.uk/servicedesk/customer/portal/2/create/156
+         https://jira.diamond.ac.uk/servicedesk/customer/portal/2/create/90
      asking for these names to be set up on the argus ingress for namespace $ns:
 EOF
         for name in $missing; do
@@ -573,8 +573,8 @@ EOF
     esac
     if [ "$claude_done" != yes ] && [ "$claude_done" != off ]; then
         cat <<EOF
-More in "Claude Code" in the tutorial:
-  https://gilesknap.github.io/scrap/main/tutorials/install-dls.html#install-dls-claude
+More in "Claude Code" in "scrap at DLS":
+  https://gilesknap.github.io/scrap/main/explanations/scrap-at-dls.html#install-dls-claude
 EOF
     fi
 }
