@@ -2,10 +2,13 @@
 
 Run scrap on a Kubernetes cluster (k3s, a home lab, a cloud cluster) with the Helm chart in
 [`charts/scrap`](https://github.com/gilesknap/scrap/tree/main/charts/scrap). It runs the same
-container image as the [single-server deployment](deploy-single-server.md): one pod, a persistent
-volume for the data and, by default, a nightly backup job.
+container image as the [single-server deployment](deploy-single-server.md): one pod, with the
+database on the node's own disk and Litestream copying each change to a persistent volume, and
+nightly backups onto a second volume. For a first install, follow the tutorial
+[](../tutorials/install-kubernetes.md); this page has every option.
 
-How the pieces fit (one pod; every CronJob runs beside it on the same node):
+How the pieces fit (one pod; the backup CronJobs run beside it on the same node). This example
+comes in through the Tailscale operator:
 
 ```mermaid
 flowchart LR
@@ -15,16 +18,19 @@ flowchart LR
         ts["Tailscale operator<br/>proxy"]
         ing["Ingress / Service"]
         subgraph node ["One node"]
-            pod["scrap pod<br/>(1 replica)"]
+            pod["scrap pod (1 replica):<br/>scrap, jobs (gc, related,<br/>topics), litestream"]
+            db[("database<br/>emptyDir /db")]:::store
             data[("data PVC<br/>/data")]:::store
-            jobs["CronJobs:<br/>backup, gc,<br/>related, topics"]
+            jobs["CronJobs:<br/>backup, monthly backup"]
             bak[("backups PVC<br/>/backups")]:::store
         end
     end
     api["api.anthropic.com"]:::claude
     phone --> ts --> ing --> pod
     cc -->|"/mcp"| ts
+    pod --- db
     pod --- data
+    db -.->|"Litestream"| data
     jobs --- data
     jobs --> bak
     pod -.->|"ingest on"| api
@@ -35,8 +41,8 @@ flowchart LR
 
 ```{warning}
 scrap has **no login of its own**. Anyone who can reach its Service can read and change everything.
-Expose it only on your tailnet (see {ref}`k8s-tailscale`) or behind an authenticating proxy
-(see {ref}`k8s-ingress`), never directly to the internet. Inside the cluster, any pod that can
+Expose it only behind a login (Cloudflare Access, as in the tutorial, or an authenticating proxy:
+{ref}`k8s-ingress`) or on your tailnet ({ref}`k8s-tailscale`), never directly to the internet. Inside the cluster, any pod that can
 reach the Service has full access too, and can send its own `Tailscale-User-Login` header: turn
 on the NetworkPolicy (below) if other workloads share the cluster.
 ```
@@ -46,26 +52,29 @@ on the NetworkPolicy (below) if other workloads share the cluster.
 | Object | Notes |
 | --- | --- |
 | Deployment | Exactly **one replica**, strategy `Recreate`. scrap keeps everything in one SQLite database with a single writer, so the chart has no `replicas` value: the old pod always stops before the new one starts. |
-| PersistentVolumeClaim | `/data`: the database, files and the preview cache. Kept on `helm uninstall`. With `litestream.enabled` the database is on an emptyDir instead: {ref}`k8s-litestream`. |
+| PersistentVolumeClaim | `/data`: files, the preview cache and Litestream's replica of the database (`/data/litestream`). Kept on `helm uninstall`. |
+| emptyDir `/db` | The live database, `/db/scrap.db`, on the node's disk (`litestream.sizeLimit`, 2 Gi): {ref}`k8s-litestream`. |
 | Service | `ClusterIP`, port 80. |
 | ServiceAccount | No API token mounted; scrap never talks to the Kubernetes API. |
 | CronJobs + PVC (on by default) | Nightly `scrap backup` to a second claim, keeping the newest 7 runs, and a monthly copy in its `monthly/` folder, keeping 12. |
-| CronJobs (gc on by default, the Claude ones with ingest) | gc, related pages and topics: see {ref}`k8s-gc` and [](../reference/scheduled-jobs.md). |
+| `jobs` container | gc and, with ingest, the related-pages and topics passes, run on their schedules inside the scrap pod: {ref}`k8s-gc` and [](../reference/scheduled-jobs.md). |
+| `litestream` sidecar | Copies each change to the database to the data volume: {ref}`k8s-litestream`. |
 | Ingress, NetworkPolicy (off by default) | See below. |
 
 The pod meets the `restricted` [Pod Security Standard](https://kubernetes.io/docs/concepts/security/pod-security-standards/):
-it runs as uid/gid 10001, with a read-only root filesystem (only `/data` and an `emptyDir` at
-`/tmp` are writable), no capabilities, no privilege escalation and the `RuntimeDefault` seccomp
+it runs as uid/gid 10001, with a read-only root filesystem (only `/data`, the database's
+`emptyDir` at `/db` and `emptyDir`s at `/tmp` are writable), no capabilities, no privilege escalation and the `RuntimeDefault` seccomp
 profile.
 
 ## Prerequisites
 
-- Kubernetes 1.27 or newer, and Helm 3 or 4.
-- A StorageClass that provides `ReadWriteOnce` volumes on a **local or block** filesystem (see
-  {ref}`k8s-storage`).
-- A way in that is not the open internet: the
-  [Tailscale Kubernetes operator](https://tailscale.com/kb/1236/kubernetes-operator) is the
-  recommended one.
+- Kubernetes 1.29 or newer (Litestream runs as a native sidecar), and Helm 3 or 4.
+- A StorageClass that provides `ReadWriteOnce` volumes, and a few GB of free disk on the nodes.
+  The chart runs the database with Litestream by default, on the node's disk, so the data volume
+  may be a network filesystem such as NFS ({ref}`k8s-storage`).
+- A way in that is not the open internet: a Cloudflare Tunnel with Cloudflare Access (the
+  tutorial's route), the [Tailscale Kubernetes operator](https://tailscale.com/kb/1236/kubernetes-operator)
+  for a tailnet, or an ingress controller behind a login proxy ({ref}`k8s-ingress`).
 - For ingest: a Claude API key.
 
 ## Get the image
@@ -100,8 +109,8 @@ and build only that.
 
 ## Install
 
-A minimal `my-values.yaml` for the recommended setup (the Tailscale operator for access, ingest
-on). It runs the release image the chart names, and assumes the Secret from {ref}`k8s-ingest`;
+A minimal `my-values.yaml`, here with the Tailscale operator for access and ingest on (for
+Cloudflare, the tutorial's values). It runs the release image the chart names, and assumes the Secret from {ref}`k8s-ingest`;
 add an `image` block as above to run your own build, and drop `ingest` to run without Claude:
 
 ```yaml
@@ -142,7 +151,7 @@ and open <http://127.0.0.1:8000/> for the PWA. The PWA needs HTTPS to install on
 Every value is described in
 [`values.yaml`](https://github.com/gilesknap/scrap/blob/main/charts/scrap/values.yaml); unknown
 top-level keys, and unknown keys under `image`, `ingest`, `persistence`, `ingress`,
-`mcp`, `gc`, `enrichRelated`, `enrichTopics` and `public` (and under `backup`, including `backup.monthly`)
+`mcp`, `gc`, `enrichRelated`, `enrichTopics`, `litestream`, `authProxy` and `public` (and under `backup`, including `backup.monthly`)
 are refused, so a typo there fails the install instead of being ignored. Other groups (`service`,
 `networkPolicy`, `serviceAccount`, `resources` and the security contexts) are not checked, so a typo
 inside them is silently ignored. The main ones:
@@ -154,13 +163,14 @@ inside them is silently ignored. The main ones:
 | `ingest.enabled` | `false` | `SCRAP_INGEST`: send photos to Claude (see {ref}`k8s-ingest`). |
 | `ingest.visionModel`, `ingest.budgetDayUSD` | app default, `3` | `SCRAP_VISION_MODEL`, `SCRAP_BUDGET_DAY_USD` (US dollars per UTC day). Like `ingest.notifyUrlKey`, they take effect only while `ingest.enabled` is true. |
 | `persistence.size`, `.storageClass`, `.existingClaim` | `5Gi`, default class, none | The data volume. |
-| `litestream.enabled` | `false` | The database on an emptyDir, replicated to the data volume, for a data volume on NFS: {ref}`k8s-litestream`. Under the restricted or baseline Pod Security Standard a `backup.persistence.hostPath` then also stops the scrap pod starting, as it mounts the backups. |
+| `litestream.enabled` | `true` | The database on an emptyDir, replicated to the data volume: {ref}`k8s-litestream`. Do not turn it off. Under the restricted or baseline Pod Security Standard a `backup.persistence.hostPath` also stops the scrap pod starting, as it mounts the backups. |
+| `litestream.sizeLimit`, `litestream.jobs.resources` | `2Gi`, see `values.yaml` | The database's emptyDir; the `jobs` container's resources (gc and the Claude passes share them). |
 | `litestream.jobs.metrics.enabled`, `.port`, `.podAnnotations`, `.from` | `false`, `9464`, `true`, none | Prometheus metrics of the `jobs` container's jobs and the backups, with the scrape annotations on the pod and, under `networkPolicy.enabled`, who may reach the port: {ref}`k8s-litestream-health`. |
 | `backup.enabled`, `.schedule`, `.timeZone`, `.keep` | `true`, `30 3 * * *`, the cluster's default (usually UTC), `7` | The backup CronJob. |
-| `gc.enabled`, `.schedule`, `.timeZone` | unset (follows `backup.enabled`), `30 4 * * *`, the cluster's default | The `scrap gc` CronJob (see {ref}`k8s-gc`). |
+| `gc.enabled`, `.schedule`, `.timeZone` | unset (follows `backup.enabled`), `30 4 * * *`, UTC | The `scrap gc` job, in the `jobs` container (see {ref}`k8s-gc`). |
 | `gc.delete`, `gc.graceHours`, `gc.runDays`, `gc.requireBackup` | `true`, `24`, `30`, `true` | `delete: false`, or `graceHours: 0`, makes the job only count (a dry run in its log). Keep files younger than this many hours; keep model and enrich run records younger than this many days (at least 1); delete only after a backup less than 26 hours old. |
-| `enrichRelated.enabled`, `.schedule`, `.timeZone` | `true`, `41 3 * * *`, the cluster's default | The related-pages CronJob. It exists only while `ingest.enabled` is true. Every scheduled job: [](../reference/scheduled-jobs.md). |
-| `enrichTopics.enabled`, `.schedule`, `.timeZone` | `true`, `11 4 * * 0`, the cluster's default | The topics CronJob (Sundays). It exists only while `ingest.enabled` is true. |
+| `enrichRelated.enabled`, `.schedule`, `.timeZone` | `true`, `41 3 * * *`, UTC | The related-pages job, in the `jobs` container. It runs only while `ingest.enabled` is true. Every scheduled job: [](../reference/scheduled-jobs.md). |
+| `enrichTopics.enabled`, `.schedule`, `.timeZone` | `true`, `11 4 * * 0`, UTC | The topics job (Sundays), in the `jobs` container. It runs only while `ingest.enabled` is true. |
 | `backup.monthly.enabled`, `.schedule`, `.timeZone`, `.keep` | `true`, `50 3 1 * *`, the cluster's default, `12` | The monthly copy CronJob (needs `backup.enabled`; see Backup and restore). |
 | `backup.persistence.size`, `.storageClass`, `.existingClaim` | `20Gi`, default class, none | The backups volume. Each run is a full copy: allow about `keep + monthly.keep + 1` times the data (or lower `keep` and `monthly.keep`). |
 | `backup.persistence.hostPath` | none | An absolute directory on every node (a shared filesystem) to keep the backups in, instead of a claim. It must exist and be writable by the `podSecurityContext` user. A namespace that enforces the `baseline` or `restricted` Pod Security Standard rejects hostPath volumes, so the backup jobs never start there: use the claim. |
@@ -190,7 +200,7 @@ ingest, long names, and the Tailscale Ingress and Service), which are worked exa
 from.
 
 The settings themselves are in the [API reference](../reference/api.md). The chart sets
-`SCRAP_DATA_DIR=/data`; `SCRAP_WEB_DIR` (for trying out a PWA build) has no value of its own,
+`SCRAP_DATA_DIR=/data` and `SCRAP_DB_PATH=/db/scrap.db`; `SCRAP_WEB_DIR` (for trying out a PWA build) has no value of its own,
 use `extraEnv`.
 
 Set `TZ` the same way, to your own time zone: the server decides what "today" means for
@@ -257,8 +267,17 @@ up by a running pod: `kubectl -n scrap rollout restart deploy/scrap`.
 
 ## Exposure
 
+Pick one way in. None of them opens scrap to the internet without a login.
+
+### Cloudflare Tunnel and Access
+
+A cloudflared Deployment carries an outbound tunnel straight to scrap's Service, with Cloudflare
+Access in front: an email one-time PIN for the web app and a service token for `/mcp`, behind
+scrap's own bearer token. The cluster opens no port and needs no ingress controller.
+[](../tutorials/install-kubernetes.md) walks through it, values included.
+
 (k8s-tailscale)=
-### Tailscale Kubernetes operator (recommended)
+### Tailscale Kubernetes operator
 
 With the [Tailscale Kubernetes operator](https://tailscale.com/kb/1236/kubernetes-operator)
 installed, an Ingress of class `tailscale` publishes scrap over HTTPS on your tailnet only, with a
@@ -462,12 +481,11 @@ For a quick try, `kubectl -n scrap port-forward svc/scrap 8000:80`. Nothing is e
 (k8s-public-pages)=
 ## Public pages
 
-scrap can publish the pages you mark Public (issue 497) to a static site on the internet, for
+scrap can publish the pages you mark Public to a static site on the internet, for
 example `https://pages.example.org`. The site is served by nginx from a separate image,
-`ghcr.io/gilesknap/scrap-public`, which also holds a small upload receiver. scrap is to push each
-public page to the receiver; nothing on the public side can reach scrap. scrap's publisher
-arrives with the scrap side of issue 497: until then this section runs the public side only,
-and the site stays empty. The contract between the two sides (the receiver's API, what each
+`ghcr.io/gilesknap/scrap-public`, which also holds a small upload receiver. scrap pushes each
+public page to the receiver; nothing on the public side can reach scrap. Making pages public in
+the app is in [](publish-pages.md). The contract between the two sides (the receiver's API, what each
 unit may hold, nginx's paths and headers) is [](../reference/public-site.md), and why it is built
 this way is [ADR 43](../explanations/decisions/0043-public-pages-a-static-site-scrap-pushes-to.md). The chart's `public`
 section, off by default, runs it:
@@ -484,9 +502,8 @@ section, off by default, runs it:
   public files; set it to your ingress controller's namespace to narrow it), and no egress at all.
 
 The site lives in an `emptyDir` (`public.sizeLimit`, default `3Gi`: the receiver's 2 GiB quota
-plus room for an upload). It starts empty when the pod moves. With the scrap side of issue 497,
-scrap fills it again: it checks the receiver's manifest at start and every 10 minutes and pushes
-what is missing.
+plus room for an upload). It starts empty when the pod moves, and scrap fills it again: it
+checks the receiver's manifest at start and every 10 minutes and pushes what is missing.
 
 First create the public namespace, labelled Pod Security `restricted`, and the upload token. The
 token is a Secret you create, never a value. The receiver runs in the public namespace and scrap
@@ -569,9 +586,69 @@ runs its database migrations at startup, before it answers `/healthz`: the start
 them five minutes.
 
 Migrations are **forward only**, and an older scrap refuses a database migrated by a newer one.
-So `helm rollback` alone does not go back: roll back to the old image *and* restore the
-pre-upgrade backup with `--force` (below). Anything captured since the upgrade is then lost from
-the database; its files stay.
+So `helm rollback` alone does not go back. Follow the restore steps below with the pre-upgrade
+backup and the old image (1.7.0 or newer, which has `--stage`), but in place of the
+`scale --replicas=1`, run `helm rollback`: scrap must start on the old image, or it migrates the
+staged backup forward again. Anything captured since the upgrade is then lost from the database; its files stay.
+Never `helm rollback` to a chart before 1.7.0 ({ref}`k8s-litestream`).
+
+(k8s-upgrade-old-mode)=
+### Upgrading from the old mode
+
+An install from before the chart ran Litestream by default (one that never set
+`litestream.enabled`) has its database at `/data/scrap.db`, and gc and the Claude passes as
+CronJobs. The first `helm upgrade` to a chart with the new default moves it across:
+
+- Helm deletes the `scrap-gc` CronJob and, with ingest on, `scrap-enrich-related` and
+  `scrap-enrich-topics`, a running Job included. Their work moves to the pod's `jobs` container.
+  Argo CD deletes them only if it prunes.
+- In the new pod, `db-init` copies `/data/scrap.db` (with its WAL) to `/db/scrap.db`, checks it,
+  and writes a state file. It refuses, starting nothing, if the database and its WAL are over half
+  of `litestream.sizeLimit`.
+- Litestream makes the replica in `/data/litestream` within about a second; then scrap and `jobs`
+  start. `/data/scrap.db` stays where it was, as the copy from before, and must not change: if
+  anything writes to it, the next start stops in `db-init`.
+
+The steps:
+
+1. **Check Kubernetes** is 1.29 or newer: `kubectl version`.
+2. **Check the values.** No `@every` or signed numbers in `gc.schedule`,
+   `enrichRelated.schedule` or `enrichTopics.schedule`; room in any ResourceQuota or LimitRange for
+   the bigger pod; with `backup.persistence.hostPath`, a namespace that allows `hostPath` volumes.
+3. **Check the database's size.**
+   `kubectl -n scrap exec deploy/scrap -- ls -l /data/scrap.db /data/scrap.db-wal` (there may be
+   no `-wal`). Together they must be at most half of `litestream.sizeLimit`: 1 GiB at the default
+   `2Gi`. If not, raise `litestream.sizeLimit` to over twice that, on nodes with that much free
+   disk.
+4. **Back up**, and wait for it:
+
+   ```
+   kubectl -n scrap create job --from=cronjob/scrap-backup scrap-backup-pre-litestream
+   kubectl -n scrap wait --for=condition=complete job/scrap-backup-pre-litestream --timeout=30m
+   ```
+
+5. **Pick a quiet moment**: `kubectl -n scrap get jobs` shows none running. By default they start
+   between 03:30 and 04:30, and the related pass can run for hours. A Job still writing
+   `/data/scrap.db` after the copy stops the next start.
+6. **Upgrade**: `helm upgrade` as above. With Argo CD, sync with pruning, or delete the three
+   CronJobs by hand:
+   `kubectl -n scrap delete cronjob scrap-gc scrap-enrich-related scrap-enrich-topics`.
+   One left behind keeps writing to the old file.
+7. **Check.** `kubectl -n scrap logs deploy/scrap -c db-init` says it brought `/data/scrap.db`
+   across to `/db/scrap.db`; `kubectl -n scrap exec deploy/scrap -c jobs -- scrap schedule status`
+   lists the jobs; and a backup completes:
+   `kubectl -n scrap create job --from=cronjob/scrap-backup scrap-backup-post-litestream`.
+8. **Later**, once you are happy, delete `/data/scrap.db`, and any `/data/scrap.db-wal` and
+   `/data/scrap.db-shm`, from the `jobs` container.
+
+If the pod dies in the second between the copy and Litestream's first write, the next start
+refuses (a state file but no replica): look, then set `litestream.init.override: true` for one
+start.
+
+`helm rollback` to the release before this upgrade is no way back: scrap refuses to start on the
+old file while the state file is there, and with ingest on the Claude-pass CronJobs come back and
+write to it. The way back is a backup and a restore. To stay on the old mode for now, set
+`litestream.enabled: false` **before** upgrading; it is deprecated.
 
 ## Backup and restore
 
@@ -598,7 +675,7 @@ claim, so none of them touches `monthly/`; to restore one, point `restore` at
 flowchart LR
     d["daily CronJob<br/>03:30"] -->|"keep 7"| r[("/backups/<br/>YYYYMMDDTHHMMSSZ")]:::store
     m["monthly CronJob<br/>03:50 on the 1st"] -->|"keep 12"| mm[("/backups/monthly/<br/>YYYYMMDDTHHMMSSZ")]:::store
-    g["gc CronJob<br/>04:30"] -.->|"needs a COMPLETE run<br/>under 26 h old"| r
+    g["gc, in the jobs container<br/>04:30"] -.->|"needs a COMPLETE run<br/>under 26 h old"| r
     classDef store fill:#e8f1ff,stroke:#4a7bd0
 ```
 
@@ -619,8 +696,9 @@ kubectl -n scrap create job --from=cronjob/scrap-backup scrap-backup-now
 kubectl -n scrap logs -f job/scrap-backup-now
 ```
 
-To restore, stop scrap (and anything that would restart it), then run `scrap restore` in a
-one-off pod with both claims mounted:
+To restore, stop scrap (and anything that would restart it), then stage the backup with
+`scrap restore --stage` in a one-off pod with both claims mounted. The next start of scrap takes
+it up:
 
 ```
 kubectl -n scrap patch cronjob scrap-backup -p '{"spec":{"suspend":true}}'
@@ -633,11 +711,11 @@ kubectl -n scrap scale deploy/scrap --replicas=1
 kubectl -n scrap patch cronjob scrap-backup -p '{"spec":{"suspend":false}}'
 ```
 
-With Argo CD or another GitOps controller, pause its automatic sync first, or it scales scrap
-straight back up. `restore.yaml`, with the run to restore, the image of the scrap version you
-want (the chart's `image.repository` and tag of the release that wrote the backup, or a newer
-one: restore refuses a backup from a newer scrap, see {ref}`k8s-restore-schema`) and, for a non-empty data volume, `--force` (which replaces the whole database; see
-`scrap restore --help`):
+The monthly CronJob needs no suspending: like the daily one, it waits for the scrap pod. With
+Argo CD or another GitOps controller, pause its automatic sync first, or it scales scrap straight
+back up. `restore.yaml`, with the run to restore and the image of the scrap version you want (the
+chart's `image.repository` and tag of the release that wrote the backup, or a newer one: restore
+refuses a backup from a newer scrap, see {ref}`k8s-restore-schema`):
 
 ```yaml
 apiVersion: v1
@@ -658,7 +736,7 @@ spec:
   containers:
     - name: restore
       image: ghcr.io/gilesknap/scrap:<version>
-      args: ["restore", "/backups/<run>", "--force"]
+      args: ["restore", "/backups/<run>", "--stage", "--force"]
       env:
         - name: SCRAP_DATA_DIR
           value: /data
@@ -691,22 +769,16 @@ backup, so the backups claim can be mounted `readOnly: true`, as above. The same
 arguments runs any `scrap` command against the data, for example `["export", "/backups/export"]`
 (which does need the claim writable; pruning only ever deletes directories named like a backup
 run, so an export there is kept). To restore into a fresh volume instead, create a new claim,
-restore into it without `--force`, and point `persistence.existingClaim` at it.
+restore into it without `--stage` or `--force`, and point `persistence.existingClaim` at it (the
+new pod brings the database across on its first start).
 
 (k8s-restore-litestream)=
-**With `litestream.enabled`.** Do not restore over the database: a plain restore would be undone,
-because the next start restores the replica. Follow the same steps, with `--stage` in the pod's
-arguments:
-
-```yaml
-      args: ["restore", "/backups/<run>", "--stage", "--force"]
-```
-
-`--force` is needed unless `files/` is empty: files are only ever added. This checks and migrates
-the backup and leaves it at `/data/scrap.db.restored`. The next start takes it up in place of the
-replica, and renames the old replica `/data/litestream.retired-<time>`; Litestream starts a new one.
-Pages written since the backup are gone from the database, as with `--force` above. The retired
-replica holds their database rows, but you can only get them back by hand, restoring it to a
+**What `--stage` does.** A plain restore over the database would be undone, because the next
+start restores the replica. `--stage` checks and migrates the backup and leaves it at
+`/data/scrap.db.restored`; `--force` is needed unless `files/` is empty (files are only ever
+added). The next start takes it up in place of the replica, and renames the old replica
+`/data/litestream.retired-<time>`; Litestream starts a new one. Pages written since the backup are
+gone from the database. The retired replica holds their database rows, but you can only get them back by hand, restoring it to a
 scratch copy (`litestream restore -o <file> file:///data/litestream.retired-<time>`); it does not
 hold files. **Files added since the backup are in `files/`, but nothing refers to them now**, so gc
 would delete them: for 14 days after a restore gc only counts, to give you time to go through them.
@@ -771,7 +843,7 @@ touching the cluster's data: restore it into a throwaway folder, start scrap on 
 compare what it shows with the live store.
 
 **Room.** You need room for two copies of the store: the run you copy off the cluster and the
-restored folder. Check the size first with `kubectl -n scrap exec deploy/scrap -- du -sh /data`
+restored folder. Check the size first with `kubectl -n scrap exec deploy/scrap -- du -sh /db /data/files`
 (about 500 MB free for a 250 MB store), and keep everything in one folder you can delete at the
 end. The steps call it `$RT`; pick a disk with room, not a small `/tmp`; it is created new, so the final `rm -rf "$RT"` removes nothing else.
 
@@ -790,9 +862,9 @@ paragraph.
 1. Get a run onto the machine. A run directory holds `scrap.db`, a `files/` folder (once any
    file has been stored) and a `COMPLETE` file; copy the whole directory, whatever else is in
    it (a `scrap.db-wal` or `scrap.db-shm` beside `scrap.db` is a harmless SQLite leftover:
-   `scrap restore` uses a `-wal` if there is one and ignores a `-shm`). No running pod mounts the
-   backup claim (the scrap pod mounts only data and tmp, and backup
-   pods are Completed), so start a read-only helper pod that does. `reader.yaml`, with the
+   `scrap restore` uses a `-wal` if there is one and ignores a `-shm`). The scrap pod mounts the
+   backup claim (`kubectl -n scrap exec deploy/scrap -c jobs -- ls /backups` lists the runs), but
+   to copy one to your machine start a read-only helper pod with a shell and `tar`. `reader.yaml`, with the
    image of the scrap version that wrote the backup or a newer one (restore refuses a newer
    backup's schema; see {ref}`k8s-restore-schema`) and the claim name `<fullname>-backups` (see
    the note under `restore.yaml`):
@@ -840,7 +912,7 @@ paragraph.
    ```
 
    The backup claim is `ReadWriteOnce` unless your values say otherwise, so the pod has the
-   same affinity as the CronJobs: it needs the scrap pod running, on the node where the claim
+   same affinity as the backup CronJobs: it needs the scrap pod running, on the node where the claim
    is bound (the labels are the chart's selector labels: `app.kubernetes.io/instance` is the
    release name, and `name` the chart name unless `nameOverride` is set). With scrap scaled to
    zero, or a `ReadWriteMany` claim, leave `affinity` out. Then list the runs and copy one:
@@ -981,36 +1053,27 @@ What to expect:
 its worker thread has died; the liveness probe then restarts the pod, which is intended (the
 readiness probe takes it out of the Service first). Logs: `kubectl -n scrap logs deploy/scrap`.
 Ingest pauses (budget spent, credit, auth) are reported once per episode to `SCRAP_NOTIFY_URL`
-if set, and are visible at `GET /api/ingest`. The backup CronJob's failed jobs stay listed
+if set, and are visible at `GET /api/ingest`. `kubectl -n scrap exec deploy/scrap -c jobs -- scrap
+schedule status` reports gc, the Claude passes and the newest backup, and exits 1 on a problem
+({ref}`k8s-litestream-health`). The backup CronJob's failed jobs stay listed
 (`kubectl -n scrap get jobs`); alert on them with whatever watches your cluster.
 
 (k8s-gc)=
 ## Scheduled gc, related pages and topics
 
 Besides the backup, the chart runs `scrap gc` nightly and, while `ingest.enabled` is true, the
-nightly related-pages pass and the weekly topics pass. [](../reference/scheduled-jobs.md) lists
-each one's CronJob, schedule, what it does, whether it spends from the Claude budget and the
-values that set it. Like the backup job they run beside the scrap pod (pod affinity: the data
-claim is `ReadWriteOnce`, and SQLite's write-ahead log must be shared on one node), never overlap
-themselves (`concurrencyPolicy: Forbid`), and run the same image as the same uid with the same
-`securityContext`. The related-pages and topics jobs get the Deployment's environment (the Claude
-key, the budget, `extraEnv` and `extraEnvFrom`), so a Secret change needs no restart of them; gc
-gets only `SCRAP_DATA_DIR`, `SCRAP_BACKUPS` and, with ingest on and `ingest.notifyUrlKey` set,
-`SCRAP_NOTIFY_URL`. A failed run shows as a failed Job (`backoffLimit: 0`: not retried; the next
-run carries on). A run is skipped if it cannot be created within an hour of its time
-(`startingDeadlineSeconds`). Once created, it is stopped an hour later (`activeDeadlineSeconds`;
-four hours for the related pass, which makes a call per changed page), whether it is still
-waiting for the scrap pod's node or running. So while scrap is scaled to zero a run waits, then
-fails.
+nightly related-pages pass and the weekly topics pass. They run in the scrap pod's `jobs`
+container (`scrap schedule`), because they need the live database; [](../reference/scheduled-jobs.md)
+lists each one's schedule, what it does, whether it spends from the Claude budget and the values
+that set it. How they run, fail and are checked is in {ref}`k8s-litestream`.
 
 gc deletes only if the backup claim holds a completed run (one with the `COMPLETE` file written
 once the backup passed an integrity check) less than 26 hours old; otherwise it only counts, and
-the Job fails so a missing backup shows. Backups from before the marker existed lack it, so gc
-only counts until the next backup runs. It takes the backup's lock (`/backups/.lock`), so it
+the run fails so a missing backup shows. It takes the backup's lock (`/backups/.lock`), so it
 never runs during a backup; so `gc.enabled` follows `backup.enabled` unless set, and
 `gc.enabled: true` with backups off is refused (unless `gc.requireBackup: false`). If you back up
 another way, set `gc.requireBackup: false`. A deleting `scrap gc` also takes a lock of its own (`gc.lock` in the
-data folder), so one you run by hand (`kubectl exec`) cannot overlap the CronJob: whichever
+data folder), so one you run by hand cannot overlap the scheduled one: whichever
 starts second stops with `another scrap gc is deleting`; a hand run does not wait for a backup.
 With `ingest.notifyUrlKey` set, gc pushes to `SCRAP_NOTIFY_URL` when it starts a month's
 Orphaned assets page.
@@ -1021,30 +1084,34 @@ and raw responses of Claude calls older than `runDays` that nothing refers to; t
 trash for more than `trashDays` (default 30), topic pages aside, with their captures, history and
 Claude's results, whose files then go as unused ones; and finished job records older than
 `jobDays` (default 30). It never deletes a page, or its captures and files, before then (see
-{ref}`scrap-gc`, and the PWA's Trash: {ref}`the-trash`). The scrap pod shows each trashed page's
+[](../reference/scheduled-jobs.md), and the PWA's Trash: {ref}`the-trash`). The scrap pod shows each trashed page's
 purge date from `trashDays` (`SCRAP_TRASH_DAYS`, `off` while the job does not delete). Set
 `gc.delete: false` to have it only count until you trust it. To see what the store holds by size,
-`kubectl -n scrap exec deploy/scrap -- scrap gc --report` (it reads only).
+`kubectl -n scrap exec deploy/scrap -c jobs -- scrap gc --report` (it reads only).
 
 - **Turn one off** with `gc.enabled: false`, `enrichRelated.enabled: false` or
   `enrichTopics.enabled: false` (or `ingest.enabled: false` for both Claude jobs).
-- **Change when** with its `.schedule` and `.timeZone`.
-- **Check them** with `kubectl -n scrap get cronjobs,jobs` and a Job's log. (With
-  `litestream.enabled`, gc and the Claude passes are not CronJobs: {ref}`k8s-litestream-health`.)
+- **Change when** with its `.schedule` and `.timeZone` (an empty `timeZone` is UTC).
+- **Check them** with `kubectl -n scrap exec deploy/scrap -c jobs -- scrap schedule status`
+  ({ref}`k8s-litestream-health`) and `kubectl -n scrap logs deploy/scrap -c jobs`.
 - **Run one now:**
 
 ```
-kubectl -n scrap create job --from=cronjob/scrap-gc scrap-gc-now
-kubectl -n scrap logs -f job/scrap-gc-now
+kubectl -n scrap exec deploy/scrap -c jobs -- scrap schedule --run gc
 ```
+
+(or `enrich-related`, `enrich-topics`).
 
 (k8s-litestream)=
 ## The database on an emptyDir, with Litestream
 
-`litestream.enabled: true` is for a data volume on NFS or another network filesystem, where
-SQLite's write-ahead log is not safe. The DLS installer sets it. Why, and the choices behind it:
+The chart runs the database with Litestream by default (`litestream.enabled: true`): the
+database lives on an emptyDir on the node's disk, and Litestream copies it to the data volume, so
+the data volume may be NFS or another network filesystem, where SQLite's write-ahead log is not
+safe. Why, and the choices behind it:
 [ADR 46](../explanations/decisions/0046-database-on-an-emptydir-replicated-with-litestream.md). It
-needs Kubernetes 1.29 and the `litestream/litestream` image, pinned in `litestream.image`.
+needs Kubernetes 1.29 and pulls `litestream/litestream` from Docker Hub (pinned by digest in
+`litestream.image`).
 
 - **Where things are.** The database is at `/db/scrap.db` on an emptyDir on the node's disk, limited
   by `litestream.sizeLimit` (2 Gi), which the WAL and Litestream's own files share: a database over
@@ -1064,11 +1131,10 @@ needs Kubernetes 1.29 and the `litestream/litestream` image, pinned in `litestre
   start then compares the replica with the last stamp noted on the volume, warns if it is behind,
   and refuses if over 30 minutes behind. This cannot see a whole volume failing, where the note cannot
   be written either: that shows as the same stall, and in scrap's file errors.
-- **Each start.** The `db-init` init container keeps a database already on the emptyDir, restores the
-  replica, or on the first start after turning this on brings `/data/scrap.db` across once and leaves
-  it there (a file with no pages does not count). That is all a plain `helm upgrade` needs. You can
-  delete the old file once you are happy. A new database is made only if nothing says there should
-  be one. A bad schedule or time zone also stops it here.
+- **Each start.** The `db-init` init container keeps a database already on the emptyDir, or restores the
+  replica. An install in the old mode (the database at `/data/scrap.db`) moves across on its first
+  start, and the old file is left in place (a file with no pages does not count): see
+  {ref}`k8s-upgrade-old-mode`. A new database is made only if nothing says there should be one. A bad schedule or time zone also stops it here.
 - **When a pod stays in `Init`.** `kubectl -n scrap logs deploy/scrap -c db-init` says why. It fails
   on purpose rather than start empty: a restore failed (a damaged replica, a database from a newer
   scrap), or the replica is missing though the state file `/data/.scrap-db-state.json` says there was
@@ -1083,13 +1149,13 @@ needs Kubernetes 1.29 and the `litestream/litestream` image, pinned in `litestre
   counts, and fails, when the database has no captures but `files/` has content, or when the files to
   go are over 10 % of them and at least 5. After a look, `kubectl -n scrap exec deploy/scrap -c jobs
   -- scrap gc --delete --allow-large` goes ahead once.
-- **Backups** stay CronJobs: they restore the replica to a temporary file and back that up with
+- **Backups** are CronJobs: they restore the replica to a temporary file and back that up with
   `files/`, with the same integrity check and `COMPLETE` marker. They never touch the live database,
   but they **still run beside the scrap pod**, for the `ReadWriteOnce` data volume, so they
   wait while scrap is scaled to zero. A replica whose heartbeat is over 3 hours old is refused, and
   the job fails: look at `kubectl -n scrap logs deploy/scrap -c litestream`.
 - **gc and the Claude passes** need the live database, so they run in a `jobs` container in the scrap
-  pod, not as CronJobs, with the same values for their schedules, read as a CronJob reads them but
+  pod, with their values' schedules, read as a CronJob reads them but
   for `@every`, which is refused. An empty `timeZone` is UTC here, not the controller's zone. All of
   them share `litestream.jobs.resources`: `gc.resources` and `enrich*.resources` are not used. Run
   one now with `kubectl -n scrap exec deploy/scrap -c jobs -- scrap schedule --run gc` (or
@@ -1102,26 +1168,13 @@ needs Kubernetes 1.29 and the `litestream/litestream` image, pinned in `litestre
   night's gc, and one on a Sunday around 04:11 that week's topics.
 - **A `jobs` container that keeps crashing** takes scrap out of its Service, as Litestream's does:
   nothing would then be watching replication.
-- **Turning it off**, or `helm rollback` to a release with it off, does not bring the database back:
-  `/data/scrap.db` is the old one. So scrap and gc refuse to start on it while the state file is
-  there. Rolling back to a chart from before this existed cannot be guarded: **that version serves the
-  old file, and its gc deletes the files only the newer database uses. Do not.** The way off, with
-  Argo CD's auto-sync paused:
-
-  1. Take a backup, and find its run: `kubectl -n scrap create job --from=cronjob/scrap-backup
-     scrap-backup-off`, then `kubectl -n scrap logs -f job/scrap-backup-off`.
-  2. `kubectl -n scrap scale deploy/scrap --replicas=0`, and suspend the backup CronJobs. The chart
-     is still the Litestream one, and nothing starts while it is at 0.
-  3. Restore that run with the pod from {ref}`the restore steps <k8s-restore-litestream>`, with
-     `args: ["restore", "/backups/<run>", "--force"]`: this is the one time without `--stage`. It
-     writes `/data/scrap.db` and removes the state file.
-  4. `helm upgrade` with `litestream.enabled: false`. It sets `replicas: 1`, so scrap starts, on the
-     restored file. If you do this before step 3 it refuses to start instead, and does no harm.
-  5. Remove `/data/litestream*` with the same pod once you are happy (they take up room, and would
-     stop a later turn back on). The CronJobs of gc and the Claude passes return by themselves.
+- **Do not set `litestream.enabled: false`, or `helm rollback` to a chart before 1.7.0.**
+  `/data/scrap.db` is then an old copy: scrap refuses to start on it while the state file is
+  there, and a chart from before 1.7.0 cannot check, so it serves the old file and its gc deletes
+  files only the newer database uses.
 
 (k8s-litestream-health)=
-### Are the nightly jobs healthy? (Litestream)
+### Are the nightly jobs healthy?
 
 With no Job objects for gc and the Claude passes, `scrap schedule` records each run in the
 database (so the record survives the pod), and reports it:
@@ -1189,10 +1242,10 @@ pod is down, is worth an `absent()` alert too.
   the data with a backup and restore.
 - `local-path` does not apply `fsGroup`; its directories are world-writable, so uid 10001 can
   still write. On other storage the chart's `fsGroup: 10001` makes the volume writable.
-- Do **not** put the database on NFS or another network filesystem: SQLite's WAL mode needs shared
-  memory and locking that network filesystems do not provide reliably. Block storage (Longhorn,
-  a cloud disk) is fine. If NFS is all there is, use {ref}`k8s-litestream`. `ReadWriteOncePod` volumes would keep the backup job out; use
-  `ReadWriteOnce`.
+- The database is on the node's disk (an `emptyDir`), never on the data volume, so the data
+  volume can be any `ReadWriteOnce` storage, NFS included ({ref}`k8s-litestream`). The node needs
+  room for it (`litestream.sizeLimit`). `ReadWriteOncePod` volumes would keep the backup jobs out;
+  use `ReadWriteOnce`.
 - Mixed arm64 and amd64 nodes (e.g. ARM boards and an x86 mini PC) need no settings: the image is
   multi-arch. Use `nodeSelector` only to choose where the data lives.
 
@@ -1286,13 +1339,23 @@ PersistentVolume by hand.
 - Copy backups off the cluster.
 - Restrict egress (ingest needs `api.anthropic.com`, and any public site a saved link points to
   while `SCRAP_ENRICH` is on; notifications need your notify URL).
-- Run gc, the related pass or the topics pass anywhere but beside the scrap pod, or without the pod running (see
-  {ref}`k8s-gc`).
+- Run gc, the related pass or the topics pass without the scrap pod running: they run in its
+  `jobs` container (see {ref}`k8s-gc`).
 - Publish a Helm repository: releases publish the chart as an OCI artifact only
   (`oci://ghcr.io/gilesknap/charts/scrap`); a checkout or a Git source also works, with
   `image.tag` set.
 
 ## Next steps
 
-Open scrap's tailnet address and install the PWA ([](use-the-pwa.md)), then connect Claude Code
+Open scrap's address and install the PWA ([](use-the-pwa.md)), then connect Claude Code
 sessions ([](connect-claude-code.md)).
+
+```{admonition} How the author runs it
+:class: tip
+The author's home cluster runs scrap with Litestream behind the same Cloudflare Access and
+service-token design as the tutorial, and adds ingress-nginx, an oauth2-proxy GitHub login on the
+web app, Argo CD and sealed secrets. It is a larger stack than you need to start with. Its
+write-up is
+[docs/how-to/scrap.md](https://github.com/gilesknap/tpi-k3s-ansible/blob/main/docs/how-to/scrap.md)
+in [tpi-k3s-ansible](https://github.com/gilesknap/tpi-k3s-ansible).
+```
