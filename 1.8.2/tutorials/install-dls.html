@@ -1,0 +1,836 @@
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="../" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>Install scrap at DLS &#8212; scrap 1.8.2 documentation</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  <!--
+    this give us a css class that will be invisible only if js is disabled
+  -->
+  <noscript>
+    <style>
+      .pst-js-only { display: none !important; }
+
+    </style>
+  </noscript>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="../_static/styles/theme.css?digest=18bd87630a240e9c25be" rel="stylesheet" />
+<link href="../_static/styles/pydata-sphinx-theme.css?digest=18bd87630a240e9c25be" rel="stylesheet" />
+
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=03e43079" />
+    <link rel="stylesheet" type="text/css" href="../_static/graphviz.css?v=4ae1632d" />
+    <link rel="stylesheet" type="text/css" href="../_static/copybutton.css?v=76b2166b" />
+    <link rel="stylesheet" type="text/css" href="../_static/sphinx-design.min.css?v=95c83b7e" />
+  
+  <!-- So that users can add custom icons -->
+  <script defer src="../_static/scripts/fontawesome.js?digest=18bd87630a240e9c25be"></script>
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
+<link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
+
+    <script src="../_static/documentation_options.js?v=269e6701"></script>
+    <script src="../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
+    <script src="../_static/copybutton.js?v=30646c52"></script>
+    <script src="../_static/design-tabs.js?v=f930bc37"></script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'tutorials/install-dls';</script>
+    <script>
+        DOCUMENTATION_OPTIONS.theme_version = '0.23.0';
+        DOCUMENTATION_OPTIONS.theme_switcher_json_url = 'https://gilesknap.github.io/scrap/switcher.json';
+        DOCUMENTATION_OPTIONS.theme_switcher_version_match = '1.8.2';
+        DOCUMENTATION_OPTIONS.show_version_warning_banner =
+            false;
+        </script>
+    <script>DOCUMENTATION_OPTIONS.search_as_you_type = false;</script>
+    <link rel="icon" href="../_static/dls-logo.svg"/>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Ingest on a Claude seat instead of an API key" href="ingest-with-claude-seat.html" />
+    <link rel="prev" title="Install scrap on Kubernetes" href="install-kubernetes.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="color-scheme" content="light dark"/>
+  <meta name="docsearch:language" content="en"/>
+  <meta name="docsearch:version" content="1.8.2" />
+  
+    
+    <script src="../_static/searchtools.js"></script>
+    <script src="../_static/language_data.js"></script>
+    <script src="../searchindex.js"></script>
+  
+  </head>
+  <body data-default-mode="">
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+  
+  
+  
+  
+  <dialog id="pst-search-dialog">
+    
+<form class="bd-search d-flex align-items-center"
+      action="../search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         placeholder="Search the docs ..."
+         aria-label="Search the docs ..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form>
+  </dialog>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+
+  
+    <header id="pst-header" class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+<div class="bd-header__inner bd-page-width">
+  <button type="button" class="pst-navbar-icon sidebar-toggle primary-toggle" aria-label="Site navigation">
+    <span class="fa-solid fa-bars"></span>
+  </button>
+  
+  
+  <div class="col-lg-3 navbar-header-items__start">
+    
+      <div class="navbar-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="../index.html">
+  
+  
+  
+  
+  
+    
+    
+      
+    
+    
+    <img src="../_static/dls-logo.svg" class="logo__image only-light" alt=""/>
+    <img src="../_static/dls-logo.svg" class="logo__image only-dark pst-js-only" alt=""/>
+  
+  
+    <p class="title logo__title">scrap</p>
+  
+</a></div>
+    
+  </div>
+  
+  <div class="col-lg-9 navbar-header-items">
+    
+    <div class="me-auto navbar-header-items__center">
+      
+        <div class="navbar-item">
+<nav>
+  <ul class="bd-navbar-elements navbar-nav">
+    
+<li class="nav-item current active">
+  <a class="nav-link nav-internal" href="../tutorials.html">
+    Tutorials
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../how-to.html">
+    How-to Guides
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../explanations.html">
+    Explanations
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../reference.html">
+    Reference
+  </a>
+</li>
+
+  </ul>
+</nav></div>
+      
+    </div>
+    
+    
+    <div class="navbar-header-items__end">
+      
+        <div class="navbar-item navbar-persistent--container">
+          
+
+<button type="button" class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button>
+        </div>
+      
+      
+        <div class="navbar-item">
+
+<div class="theme-switch-container dropdown pst-js-only" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Color mode">
+  <button type="button" class="btn btn-sm nav-link pst-navbar-icon theme-switch-button dropdown-toggle" aria-label="Color mode" data-bs-toggle="dropdown">
+    <i class="theme-switch fa-solid fa-sun fa-lg fa-fw" data-mode="light" title="Light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg fa-fw" data-mode="dark" title="Dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg fa-fw" data-mode="auto" title="System Settings"></i>
+  </button>
+  <ul class="dropdown-menu dropdown-menu-end">
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="auto"><i class="fa-solid fa-circle-half-stroke fa-lg fa-fw me-1"></i>System Settings</button></li>
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="light"><i class="fa-solid fa-sun fa-lg fa-fw me-1"></i>Light</button></li>
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="dark"><i class="fa-solid fa-moon fa-lg fa-fw me-1"></i>Dark</button></li>
+  </ul>
+</div></div>
+      
+        <div class="navbar-item"><ul class="navbar-icon-links"
+    aria-label="Icon Links">
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://github.com/gilesknap/scrap" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-square-github fa-lg" aria-hidden="true"></i><span class="visually-hidden">GitHub</span></a>
+        </li>
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://pypi.org/project/scrap" title="PyPI" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fas fa-cube fa-lg" aria-hidden="true"></i><span class="visually-hidden">PyPI</span></a>
+        </li>
+</ul></div>
+      
+        <div class="navbar-item">
+<div class="version-switcher__container dropdown pst-js-only">
+  <button id="pst-version-switcher-button-2"
+    type="button"
+    class="version-switcher__button btn btn-sm dropdown-toggle"
+    data-bs-toggle="dropdown"
+    aria-haspopup="listbox"
+    aria-controls="pst-version-switcher-list-2"
+    aria-label="Version switcher list"
+  >
+    Choose version  <!-- this text may get changed later by javascript -->
+    <span class="caret"></span>
+  </button>
+  <div id="pst-version-switcher-list-2"
+    class="version-switcher__menu dropdown-menu list-group-flush py-0"
+    role="listbox" aria-labelledby="pst-version-switcher-button-2">
+    <!-- dropdown will be populated by javascript on page load -->
+  </div>
+</div></div>
+      
+    </div>
+    
+  </div>
+  
+  
+    <div class="navbar-persistent--mobile">
+
+<button type="button" class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button>
+    </div>
+  
+
+  
+    <button type="button" class="pst-navbar-icon sidebar-toggle secondary-toggle" aria-label="On this page">
+      <span class="fa-solid fa-outdent"></span>
+    </button>
+  
+</div>
+
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+      <dialog id="pst-primary-sidebar-modal"></dialog>
+      <div id="pst-primary-sidebar" class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+      <div class="sidebar-header-items__center">
+        
+          
+          
+            <div class="navbar-item">
+<nav>
+  <ul class="bd-navbar-elements navbar-nav">
+    
+<li class="nav-item current active">
+  <a class="nav-link nav-internal" href="../tutorials.html">
+    Tutorials
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../how-to.html">
+    How-to Guides
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../explanations.html">
+    Explanations
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../reference.html">
+    Reference
+  </a>
+</li>
+
+  </ul>
+</nav></div>
+          
+        
+      </div>
+    
+    
+    
+      <div class="sidebar-header-items__end">
+        
+          <div class="navbar-item">
+
+<div class="theme-switch-container dropdown pst-js-only" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Color mode">
+  <button type="button" class="btn btn-sm nav-link pst-navbar-icon theme-switch-button dropdown-toggle" aria-label="Color mode" data-bs-toggle="dropdown">
+    <i class="theme-switch fa-solid fa-sun fa-lg fa-fw" data-mode="light" title="Light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg fa-fw" data-mode="dark" title="Dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg fa-fw" data-mode="auto" title="System Settings"></i>
+  </button>
+  <ul class="dropdown-menu dropdown-menu-end">
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="auto"><i class="fa-solid fa-circle-half-stroke fa-lg fa-fw me-1"></i>System Settings</button></li>
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="light"><i class="fa-solid fa-sun fa-lg fa-fw me-1"></i>Light</button></li>
+    <li><button type="button" class="dropdown-item d-flex align-items-center theme-change-button" data-mode="dark"><i class="fa-solid fa-moon fa-lg fa-fw me-1"></i>Dark</button></li>
+  </ul>
+</div></div>
+        
+          <div class="navbar-item"><ul class="navbar-icon-links"
+    aria-label="Icon Links">
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://github.com/gilesknap/scrap" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-square-github fa-lg" aria-hidden="true"></i><span class="visually-hidden">GitHub</span></a>
+        </li>
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://pypi.org/project/scrap" title="PyPI" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fas fa-cube fa-lg" aria-hidden="true"></i><span class="visually-hidden">PyPI</span></a>
+        </li>
+</ul></div>
+        
+          <div class="navbar-item">
+<div class="version-switcher__container dropdown pst-js-only">
+  <button id="pst-version-switcher-button-3"
+    type="button"
+    class="version-switcher__button btn btn-sm dropdown-toggle"
+    data-bs-toggle="dropdown"
+    aria-haspopup="listbox"
+    aria-controls="pst-version-switcher-list-3"
+    aria-label="Version switcher list"
+  >
+    Choose version  <!-- this text may get changed later by javascript -->
+    <span class="caret"></span>
+  </button>
+  <div id="pst-version-switcher-list-3"
+    class="version-switcher__menu dropdown-menu list-group-flush py-0"
+    role="listbox" aria-labelledby="pst-version-switcher-button-3">
+    <!-- dropdown will be populated by javascript on page load -->
+  </div>
+</div></div>
+        
+      </div>
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item pst-sidebar-collapse"><button type="button" id="pst-collapse-sidebar-button" aria-expanded="true" aria-controls="pst-primary-sidebar">
+  <svg class="pst-icon" role="img" aria-hidden="true" focusable="false" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
+    <path fill="currentColor" d="M3 15.5C2.36232 15.5 1.74874 15.2564 1.28478 14.8189C0.820828 14.3815 0.541576 13.7832 0.504167 13.1467L0.5 13L0.5 3C0.499965 2.36232 0.743605 1.74874 1.18107 1.28478C1.61854 0.820828 2.21676 0.541576 2.85333 0.504167L3 0.5L13 0.5C13.6377 0.499965 14.2513 0.743605 14.7152 1.18107C15.1792 1.61854 15.4584 2.21676 15.4958 2.85333L15.5 3L15.5 13C15.5 13.6377 15.2564 14.2513 14.8189 14.7152C14.3815 15.1792 13.7832 15.4584 13.1467 15.4958L13 15.5L3 15.5ZM3 13.8333L10.5 13.8333L10.5 2.16667L3 2.16667C2.79589 2.16669 2.59889 2.24163 2.44636 2.37726C2.29383 2.5129 2.19638 2.69979 2.1725 2.9025L2.16667 3L2.16667 13C2.16669 13.2041 2.24163 13.4011 2.37726 13.5536C2.5129 13.7062 2.69979 13.8036 2.9025 13.8275L3 13.8333ZM6.65583 10.325L6.5775 10.2558L4.91083 8.58917C4.76735 8.44567 4.68116 8.25476 4.66843 8.05223C4.65569 7.84971 4.71729 7.6495 4.84167 7.48917L4.91083 7.41083L6.5775 5.74417C6.72747 5.59471 6.9287 5.50794 7.14032 5.50148C7.35194 5.49502 7.55809 5.56935 7.7169 5.70937C7.8757 5.8494 7.97525 6.04463 7.99533 6.25539C8.01541 6.46616 7.95451 6.67667 7.825 6.84417L7.75583 6.9225L6.67917 8L7.75583 9.0775C7.89931 9.22099 7.98551 9.41191 7.99824 9.61443C8.01097 9.81695 7.94938 10.0172 7.825 10.1775L7.75583 10.2558C7.61234 10.3993 7.42142 10.4855 7.2189 10.4982C7.01638 10.511 6.81617 10.4494 6.65583 10.325Z"/>
+  </svg>
+  <span class="pst-collapse-sidebar-label">Collapse Sidebar</span>
+  <span class="pst-expand-sidebar-label">Expand Sidebar</span>
+</button></div>
+        <div class="sidebar-primary-item">
+
+<nav class="bd-docs-nav bd-links"
+     aria-label="Section Navigation">
+  <p class="bd-links__title" role="heading" aria-level="1">Section Navigation</p>
+  <div class="bd-toc-item navbar-nav"><ul class="current nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="install-lan.html">Try scrap on your LAN</a></li>
+<li class="toctree-l1"><a class="reference internal" href="install-server.html">Install on a server with Tailscale</a></li>
+<li class="toctree-l1"><a class="reference internal" href="install-kubernetes.html">Install scrap on Kubernetes</a></li>
+<li class="toctree-l1 current active"><a aria-current="page" class="current reference internal" href="#">Install scrap at DLS</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ingest-with-claude-seat.html">Ingest on a Claude seat instead of an API key</a></li>
+</ul>
+</div>
+</nav></div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+      <div class="sidebar-primary-item">
+<div id="ethical-ad-placement"
+      class="flat"
+      data-ea-publisher="readthedocs"
+      data-ea-type="readthedocs-sidebar"
+      data-ea-manual="true">
+</div></div>
+  </div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item">
+
+<nav aria-label="Breadcrumb" class="d-print-none">
+  <ul class="bd-breadcrumbs">
+    
+    <li class="breadcrumb-item breadcrumb-home">
+      <a href="../index.html" class="nav-link" aria-label="Home">
+        <i class="fa-solid fa-home"></i>
+      </a>
+    </li>
+    
+    <li class="breadcrumb-item"><a href="../tutorials.html" class="nav-link">Tutorials</a></li>
+    
+    <li class="breadcrumb-item active" aria-current="page"><span class="ellipsis">Install scrap at DLS</span></li>
+  </ul>
+</nav>
+</div>
+      
+    </div>
+  
+  
+</div>
+</div>
+              
+              
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <section id="install-scrap-at-dls">
+<h1>Install scrap at DLS<a class="headerlink" href="#install-scrap-at-dls" title="Link to this heading">#</a></h1>
+<p>In this tutorial you run scrap in your own namespace on the DLS argus Kubernetes cluster, with one
+script. At the end the web app answers on <code class="docutils literal notranslate"><span class="pre">scrap-&lt;fedid&gt;.diamond.ac.uk</span></code>, your public pages on
+<code class="docutils literal notranslate"><span class="pre">pages-&lt;fedid&gt;.diamond.ac.uk</span></code>, and Claude Code is connected to scrap.</p>
+<p>Who can get in:</p>
+<ul class="simple">
+<li><p><strong>The web app</strong>: only your own DLS login. Another DLS user who logs in gets <code class="docutils literal notranslate"><span class="pre">401</span></code>.</p></li>
+<li><p><strong><code class="docutils literal notranslate"><span class="pre">/mcp</span></code></strong> (Claude Code): whoever has your bearer token, which the installer makes.</p></li>
+<li><p><strong>Your public pages</strong>: anyone on the DLS network. Only the pages you make public are there.</p></li>
+</ul>
+<p>You need a DLS account. Your namespace is named after your fedid, which is also your Linux
+username. A Claude API key is optional: scrap uses it to read photos and tag pages.</p>
+<section id="load-argus">
+<h2>1. Load argus<a class="headerlink" href="#load-argus" title="Link to this heading">#</a></h2>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">module</span> <span class="n">load</span> <span class="n">argus</span>
+</pre></div>
+</div>
+<p>This puts <code class="docutils literal notranslate"><span class="pre">kubectl</span></code> and <code class="docutils literal notranslate"><span class="pre">helm</span></code> on your path and selects your own namespace.</p>
+</section>
+<section id="run-the-installer">
+<h2>2. Run the installer<a class="headerlink" href="#run-the-installer" title="Link to this heading">#</a></h2>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">curl</span> <span class="o">-</span><span class="n">fsSL</span> <span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">raw</span><span class="o">.</span><span class="n">githubusercontent</span><span class="o">.</span><span class="n">com</span><span class="o">/</span><span class="n">gilesknap</span><span class="o">/</span><span class="n">scrap</span><span class="o">/</span><span class="n">main</span><span class="o">/</span><span class="n">deploy</span><span class="o">/</span><span class="n">install</span><span class="o">-</span><span class="n">dls</span><span class="o">.</span><span class="n">sh</span> <span class="o">|</span> <span class="n">sh</span>
+</pre></div>
+</div>
+<p>It asks for your Claude API key (input hidden; Enter skips it), installs scrap, connects Claude
+Code, and shows your <code class="docutils literal notranslate"><span class="pre">/mcp</span></code> bearer token once. Keep the token in a password manager.</p>
+</section>
+<section id="ask-for-the-dns-names">
+<h2>3. Ask for the DNS names<a class="headerlink" href="#ask-for-the-dns-names" title="Link to this heading">#</a></h2>
+<p>Raise a request at <a class="reference external" href="https://jira.diamond.ac.uk/servicedesk/customer/portal/2/create/156">https://jira.diamond.ac.uk/servicedesk/customer/portal/2/create/156</a> asking for
+<code class="docutils literal notranslate"><span class="pre">scrap-&lt;fedid&gt;.diamond.ac.uk</span></code> and <code class="docutils literal notranslate"><span class="pre">pages-&lt;fedid&gt;.diamond.ac.uk</span></code> to be set up on the argus ingress
+for your namespace. The installer lists only the names that do not resolve yet.</p>
+</section>
+<section id="open-it">
+<h2>4. Open it<a class="headerlink" href="#open-it" title="Link to this heading">#</a></h2>
+<ul class="simple">
+<li><p><strong>Phone:</strong> add the phone to the DLS VPN first (follow DLS IT’s VPN instructions). Then, on the
+VPN, open <code class="docutils literal notranslate"><span class="pre">https://scrap-&lt;fedid&gt;.diamond.ac.uk/</span></code>, log in with your DLS account (the login page
+shows the first time), and install the app.</p></li>
+<li><p><strong>Browser:</strong> on a DLS machine, open <code class="docutils literal notranslate"><span class="pre">https://scrap-&lt;fedid&gt;.diamond.ac.uk/</span></code> and log in.</p></li>
+</ul>
+<p>Claude Code is connected (once the DNS names exist; <code class="docutils literal notranslate"><span class="pre">claude</span> <span class="pre">mcp</span> <span class="pre">list</span></code> shows <code class="docutils literal notranslate"><span class="pre">scrap-dls</span></code>), if
+<code class="docutils literal notranslate"><span class="pre">claude</span></code> was on your PATH when you ran the installer, else run the command it printed. Ask Claude
+to search your pages. To add the <code class="docutils literal notranslate"><span class="pre">sc</span></code> commands and skills, see <a class="reference internal" href="../how-to/connect-claude-code.html"><span class="std std-doc">Connect a Claude Code session</span></a>.</p>
+<p>That is all. The rest of this page is details.</p>
+</section>
+<section id="details">
+<h2>Details<a class="headerlink" href="#details" title="Link to this heading">#</a></h2>
+<section id="what-the-installer-does">
+<h3>What the installer does<a class="headerlink" href="#what-the-installer-does" title="Link to this heading">#</a></h3>
+<ol class="arabic simple">
+<li><p>It asks for your Claude API key. Without one, photos queue and nothing more happens.</p></li>
+<li><p>It creates a Secret <code class="docutils literal notranslate"><span class="pre">scrap-secrets</span></code> holding the key, a generated <code class="docutils literal notranslate"><span class="pre">/mcp</span></code> bearer token and a
+generated upload token for your public pages.</p></li>
+<li><p>It installs the latest scrap release with Helm, with Ingresses for <code class="docutils literal notranslate"><span class="pre">scrap-&lt;fedid&gt;</span></code> and
+<code class="docutils literal notranslate"><span class="pre">pages-&lt;fedid&gt;</span></code> on argus’s <code class="docutils literal notranslate"><span class="pre">nginx</span></code> ingress, served over HTTPS by its <code class="docutils literal notranslate"><span class="pre">*.diamond.ac.uk</span></code>
+certificate.</p></li>
+<li><p>It puts the web app behind the DLS login (Keycloak), letting in only your fedid, which is
+your namespace’s name (in lower case). Pods in the cluster can reach scrap’s Service directly,
+but scrap checks the login’s token itself, so without your login they get <code class="docutils literal notranslate"><span class="pre">401</span></code>. You stay
+logged in as long as your DLS Keycloak session lasts; when it ends, the web app and the phone
+app take you to the DLS login again.</p></li>
+<li><p>It makes <code class="docutils literal notranslate"><span class="pre">/dls/science/users/&lt;fedid&gt;/scrap</span></code> (mode 700, if it is new) for the nightly backups.
+scrap’s pods run as you, so the backups are your files.</p></li>
+<li><p>It puts scrap’s database on the pod’s own disk, not on your NFS volume, where SQLite is not
+safe, with Litestream copying each change to that volume (<a class="reference internal" href="../how-to/deploy-kubernetes.html#k8s-litestream"><span class="std std-ref">The database on an emptyDir, with Litestream</span></a>).</p></li>
+<li><p>It connects Claude Code (below).</p></li>
+<li><p>It prints the Service IP, your bearer token (once), and what to do next.</p></li>
+</ol>
+<p><strong>What can be lost.</strong> While it is working, the copy follows each write by about a second, so if the
+node dies, the last moments of writes are lost. A normal restart or upgrade loses nothing: the new
+pod restores the database first. If the copy stops working (scrap notices by itself within about
+20 minutes), scrap leaves the network until it works again, so the app shows it as unreachable;
+writes in those minutes are at risk, and a later restart refuses to start without someone looking.
+An install from before this moves over by itself when you re-run the installer, leaving the old
+<code class="docutils literal notranslate"><span class="pre">/data/scrap.db</span></code> in place. If a pod ever stays in <code class="docutils literal notranslate"><span class="pre">Init</span></code>, it is refusing to start without your
+data rather than starting empty: <code class="docutils literal notranslate"><span class="pre">kubectl</span> <span class="pre">logs</span> <span class="pre">deploy/scrap</span> <span class="pre">-c</span> <span class="pre">db-init</span></code> says why.</p>
+</section>
+<section id="re-running-and-settings">
+<h3>Re-running and settings<a class="headerlink" href="#re-running-and-settings" title="Link to this heading">#</a></h3>
+<p>It is safe to re-run: a re-run upgrades to the latest release and never overwrites the Secret. A
+Secret made by an older installer gets only the upload token added. Settings go in the
+environment, after the pipe (<code class="docutils literal notranslate"><span class="pre">curl</span> <span class="pre">...</span> <span class="pre">|</span> <span class="pre">SCRAP_VERSION=1.7.0</span> <span class="pre">sh</span></code>):</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">SCRAP_VERSION</span></code> installs a particular release. The script and chart go together, so an older
+release needs that version’s script.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">SCRAP_BACKUP_DIR</span></code> moves the backups (empty keeps them on a volume in the cluster).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">SCRAP_USER</span></code> is your fedid, for a namespace not named after it.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">SCRAP_CLAUDE=off</span></code> leaves Claude Code alone.</p></li>
+</ul>
+<p>The header of the script lists every setting. To see your bearer token again:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">kubectl</span> <span class="n">get</span> <span class="n">secret</span> <span class="n">scrap</span><span class="o">-</span><span class="n">secrets</span> <span class="o">-</span><span class="n">o</span> <span class="n">jsonpath</span><span class="o">=</span><span class="s1">'{.data.SCRAP_MCP_TOKEN}'</span> <span class="o">|</span> <span class="n">base64</span> <span class="o">-</span><span class="n">d</span><span class="p">;</span> <span class="n">echo</span>
+</pre></div>
+</div>
+</section>
+<section id="claude-code">
+<span id="install-dls-claude"></span><h3>Claude Code<a class="headerlink" href="#claude-code" title="Link to this heading">#</a></h3>
+<p>Claude Code reaches scrap at <code class="docutils literal notranslate"><span class="pre">/mcp</span></code> with your bearer token. It runs a small helper script each
+time it connects, and the helper reads the token from a private file. The installer:</p>
+<ol class="arabic">
+<li><p>puts the token in <code class="docutils literal notranslate"><span class="pre">~/.config/terminal-config/.env</span></code> (mode 600, private before the token goes
+in), as <code class="docutils literal notranslate"><span class="pre">SCRAP_DLS_MCP_TOKEN=...</span></code>, replacing a line already there and keeping the others
+(a token you set by hand must be only letters, digits and <code class="docutils literal notranslate"><span class="pre">._+/=-</span></code>, as other tools may read
+the file as shell);</p></li>
+<li><p>writes the helper <code class="docutils literal notranslate"><span class="pre">~/.claude/scrap-dls-headers.sh</span></code> (mode 700):</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span><span class="ch">#!/bin/sh</span>
+<span class="c1"># Headers for scrap's /mcp at DLS: the bearer token, from the .env on the host, or where</span>
+<span class="c1"># claude-sandbox mounts it. Only the token's line is read: the .env is never run as shell.</span>
+<span class="c1"># It may start with `export `, end in a CR, or have its value in "" or ''.</span>
+<span class="nv">token</span><span class="o">=</span>
+<span class="k">for</span><span class="w"> </span>f<span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="s2">"</span><span class="nv">$HOME</span><span class="s2">/.config/terminal-config/.env"</span><span class="w"> </span>/user-terminal-config/.env<span class="p">;</span><span class="w"> </span><span class="k">do</span>
+<span class="w">    </span><span class="o">[</span><span class="w"> </span>-r<span class="w"> </span><span class="s2">"</span><span class="nv">$f</span><span class="s2">"</span><span class="w"> </span><span class="o">]</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nv">token</span><span class="o">=</span><span class="k">$(</span>tr<span class="w"> </span>-d<span class="w"> </span><span class="s1">'\r'</span><span class="w"> </span>&lt;<span class="s2">"</span><span class="nv">$f</span><span class="s2">"</span><span class="w"> </span><span class="p">|</span>
+<span class="w">        </span>sed<span class="w"> </span>-n<span class="w"> </span><span class="s1">'s/^export  *//; s/^SCRAP_DLS_MCP_TOKEN=//p'</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>tail<span class="w"> </span>-n<span class="w"> </span><span class="m">1</span><span class="k">)</span>
+<span class="w">    </span><span class="k">case</span><span class="w"> </span><span class="nv">$token</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="se">\"</span>*<span class="se">\"</span><span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="se">\'</span>*<span class="se">\'</span><span class="o">)</span><span class="w"> </span><span class="nv">token</span><span class="o">=</span><span class="si">${</span><span class="nv">token</span><span class="p">#?</span><span class="si">}</span><span class="p">;</span><span class="w"> </span><span class="nv">token</span><span class="o">=</span><span class="si">${</span><span class="nv">token</span><span class="p">%?</span><span class="si">}</span><span class="w"> </span><span class="p">;;</span><span class="w"> </span><span class="k">esac</span>
+<span class="w">    </span><span class="o">[</span><span class="w"> </span>-z<span class="w"> </span><span class="s2">"</span><span class="nv">$token</span><span class="s2">"</span><span class="w"> </span><span class="o">]</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="k">break</span>
+<span class="k">done</span>
+<span class="k">if</span><span class="w"> </span><span class="o">[</span><span class="w"> </span>-z<span class="w"> </span><span class="s2">"</span><span class="nv">$token</span><span class="s2">"</span><span class="w"> </span><span class="o">]</span><span class="p">;</span><span class="w"> </span><span class="k">then</span>
+<span class="w">    </span><span class="nb">echo</span><span class="w"> </span><span class="s2">"SCRAP_DLS_MCP_TOKEN not found in ~/.config/terminal-config/.env or /user-terminal-config/.env"</span><span class="w"> </span>&gt;<span class="p">&amp;</span><span class="m">2</span>
+<span class="w">    </span><span class="nb">exit</span><span class="w"> </span><span class="m">1</span>
+<span class="k">fi</span>
+<span class="nb">printf</span><span class="w"> </span><span class="s1">'{"Authorization":"Bearer %s"}\n'</span><span class="w"> </span><span class="s2">"</span><span class="nv">$token</span><span class="s2">"</span>
+</pre></div>
+</div>
+</li>
+<li><p>adds the server <code class="docutils literal notranslate"><span class="pre">scrap-dls</span></code> to Claude Code for all your projects, replacing a <code class="docutils literal notranslate"><span class="pre">scrap-dls</span></code>
+already there (with your <code class="docutils literal notranslate"><span class="pre">SCRAP_HOST</span></code> in the URL, if you set one):</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>claude<span class="w"> </span>mcp<span class="w"> </span>add-json<span class="w"> </span>--scope<span class="w"> </span>user<span class="w"> </span>scrap-dls<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span><span class="s2">"{\"type\":\"http\",\"url\":\"https://scrap-</span><span class="nv">$USER</span><span class="s2">.diamond.ac.uk/mcp\",\"headersHelper\":\"</span><span class="nv">$HOME</span><span class="s2">/.claude/scrap-dls-headers.sh\"}"</span>
+</pre></div>
+</div>
+</li>
+</ol>
+<p>A server named <code class="docutils literal notranslate"><span class="pre">scrap</span></code> for another scrap, with its <code class="docutils literal notranslate"><span class="pre">scrap-headers.sh</span></code> and <code class="docutils literal notranslate"><span class="pre">SCRAP_MCP_TOKEN</span></code>, is
+left alone. The <code class="docutils literal notranslate"><span class="pre">sc</span></code> commands use <code class="docutils literal notranslate"><span class="pre">scrap</span></code> if it is there, else <code class="docutils literal notranslate"><span class="pre">scrap-dls</span></code>. If you followed the
+earlier tutorial and have a <code class="docutils literal notranslate"><span class="pre">scrap</span></code> server pointing at your DLS scrap, remove it (<code class="docutils literal notranslate"><span class="pre">claude</span> <span class="pre">mcp</span> <span class="pre">remove</span> <span class="pre">--scope</span> <span class="pre">user</span> <span class="pre">scrap</span></code>, and delete <code class="docutils literal notranslate"><span class="pre">~/.claude/scrap-headers.sh</span></code>), or every tool appears twice.</p>
+<p>If <code class="docutils literal notranslate"><span class="pre">claude</span></code> is not on your path, or this step fails, the installer still succeeds and prints the
+command to run. <code class="docutils literal notranslate"><span class="pre">SCRAP_CLAUDE=off</span></code> skips all three.</p>
+<p>claude-sandbox has its own <code class="docutils literal notranslate"><span class="pre">~/.claude</span></code> and <code class="docutils literal notranslate"><span class="pre">~/.claude.json</span></code>, so the installer does not reach it.
+Run the installer on the host (or a DLS machine), so the token is in the .env that claude-sandbox
+mounts at <code class="docutils literal notranslate"><span class="pre">/user-terminal-config/.env</span></code>. Then, inside the container, save the same helper as
+<code class="docutils literal notranslate"><span class="pre">~/.claude/scrap-dls-headers.sh</span></code> (mode 700; it finds that .env by itself), and add the server,
+with your fedid (or your <code class="docutils literal notranslate"><span class="pre">SCRAP_HOST</span></code>, if you set one; and the container’s home, if it is
+not <code class="docutils literal notranslate"><span class="pre">/root</span></code>):</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>claude<span class="w"> </span>mcp<span class="w"> </span>add-json<span class="w"> </span>--scope<span class="w"> </span>user<span class="w"> </span>scrap-dls<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span><span class="s1">'{"type":"http","url":"https://scrap-&lt;fedid&gt;.diamond.ac.uk/mcp","headersHelper":"/root/.claude/scrap-dls-headers.sh"}'</span>
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Only Claude Code on the DLS network can reach scrap’s <code class="docutils literal notranslate"><span class="pre">/mcp</span></code>. Claude.ai’s hosted connectors and
+cloud sessions cannot reach a DLS-internal address.</p>
+</div>
+</section>
+<section id="before-the-dns-names-exist">
+<h3>Before the DNS names exist<a class="headerlink" href="#before-the-dns-names-exist" title="Link to this heading">#</a></h3>
+<p>Check scrap is up with a port-forward:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">kubectl</span> <span class="n">port</span><span class="o">-</span><span class="n">forward</span> <span class="n">svc</span><span class="o">/</span><span class="n">scrap</span> <span class="mi">8000</span><span class="p">:</span><span class="mi">80</span>
+</pre></div>
+</div>
+<p>and open <a class="reference external" href="http://127.0.0.1:8000/healthz">http://127.0.0.1:8000/healthz</a>. The web app answers only with your login’s token, which
+comes through the Ingress, so it and the phone app need the DNS names.</p>
+</section>
+<section id="if-logging-in-fails">
+<h3>If logging in fails<a class="headerlink" href="#if-logging-in-fails" title="Link to this heading">#</a></h3>
+<p>If logging in fails with an invalid redirect error, ask a scrap admin to add
+<code class="docutils literal notranslate"><span class="pre">https://scrap-&lt;fedid&gt;.diamond.ac.uk/oauth2/callback</span></code> to the Keycloak client. <code class="docutils literal notranslate"><span class="pre">/mcp</span></code> does not need
+it. Admins: see <a class="reference internal" href="../how-to/run-the-dls-login-proxy.html"><span class="std std-doc">Run the DLS login proxy</span></a>.</p>
+</section>
+<section id="without-a-login-for-testing">
+<span id="install-dls-no-login"></span><h3>Without a login, for testing<a class="headerlink" href="#without-a-login-for-testing" title="Link to this heading">#</a></h3>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>This is for trying scrap out, with test data only. With the login off, the web app has <strong>no login
+at all</strong>: <strong>anyone on the DLS network can read and change every page</strong>, and any pod in the cluster
+can too. Your bearer token still guards <code class="docutils literal notranslate"><span class="pre">/mcp</span></code>, but that does not protect the web app or its API.</p>
+</div>
+<p>To try scrap without the login, with test data only, set <code class="docutils literal notranslate"><span class="pre">SCRAP_LOGIN=off</span></code>:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">curl</span> <span class="o">-</span><span class="n">fsSL</span> <span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">raw</span><span class="o">.</span><span class="n">githubusercontent</span><span class="o">.</span><span class="n">com</span><span class="o">/</span><span class="n">gilesknap</span><span class="o">/</span><span class="n">scrap</span><span class="o">/</span><span class="n">main</span><span class="o">/</span><span class="n">deploy</span><span class="o">/</span><span class="n">install</span><span class="o">-</span><span class="n">dls</span><span class="o">.</span><span class="n">sh</span> <span class="o">|</span> <span class="n">SCRAP_LOGIN</span><span class="o">=</span><span class="n">off</span> <span class="n">sh</span>
+</pre></div>
+</div>
+<p>It checks no fedid (<code class="docutils literal notranslate"><span class="pre">SCRAP_USER</span></code> is not used), and everything else is as normal: the bearer token
+on <code class="docutils literal notranslate"><span class="pre">/mcp</span></code>, Claude Code, backups, public pages and the database. The installer warns you up front
+and again in its summary. Only exactly <code class="docutils literal notranslate"><span class="pre">off</span></code> does this: anything but <code class="docutils literal notranslate"><span class="pre">on</span></code> or <code class="docutils literal notranslate"><span class="pre">off</span></code> stops the
+installer before it touches anything.</p>
+<p><strong>To turn the login on</strong>, re-run the installer without it. Your Secret and your data are kept. If
+that run fails, nothing has been turned on: the web app still has no login until it succeeds.</p>
+</section>
+<section id="your-backups">
+<h3>Your backups<a class="headerlink" href="#your-backups" title="Link to this heading">#</a></h3>
+<p>scrap backs up every night at 03:30 (UTC) to <code class="docutils literal notranslate"><span class="pre">/dls/science/users/&lt;fedid&gt;/scrap</span></code> on the DLS
+filesystem, one folder per run, named for its time (like <code class="docutils literal notranslate"><span class="pre">20261104T033000Z</span></code>). It keeps the last 7
+daily runs, and on the 1st of each month a copy in the <code class="docutils literal notranslate"><span class="pre">monthly/</span></code> folder, keeping the last 12 of
+those. The folder is yours (mode 700 when the installer makes it) and the backup pods run as you, so
+the backups are your files. To put them elsewhere, set <code class="docutils literal notranslate"><span class="pre">SCRAP_BACKUP_DIR</span></code> before you run the
+installer. Backups work from Litestream’s copy of the database, not the live one, but still
+run on the same node as the scrap pod. To restore from them, see <a class="reference internal" href="#install-dls-restore">below</a>.</p>
+</section>
+<section id="publish-pages">
+<h3>Publish pages<a class="headerlink" href="#publish-pages" title="Link to this heading">#</a></h3>
+<p>A page you make public is copied to your own static site, <code class="docutils literal notranslate"><span class="pre">https://pages-&lt;fedid&gt;.diamond.ac.uk/</span></code>,
+where anyone on the DLS network can read it without logging in. scrap itself stays private. In the
+app, open a page’s <strong>Share</strong> menu and choose <strong>Make public…</strong>. To take a page down, make it private
+again (<strong>Make private</strong> in the Share menu). What goes public with a page is in <a class="reference internal" href="../how-to/publish-pages.html"><span class="std std-doc">Publish pages</span></a>.</p>
+</section>
+<section id="restore">
+<span id="install-dls-restore"></span><h3>Restore<a class="headerlink" href="#restore" title="Link to this heading">#</a></h3>
+<p>To restore from the backups in your directory, follow the restore steps in
+<a class="reference internal" href="../how-to/deploy-kubernetes.html"><span class="std std-doc">Deploy on Kubernetes</span></a> with the changes in
+<a class="reference internal" href="../how-to/deploy-kubernetes.html#k8s-restore-litestream"><span class="std std-ref">with Litestream</span></a> and <a class="reference internal" href="../how-to/deploy-kubernetes.html#k8s-restore-hostpath"><span class="std std-ref">backups in a hostPath</span></a>,
+and your namespace in place of <code class="docutils literal notranslate"><span class="pre">-n</span> <span class="pre">scrap</span></code>.</p>
+</section>
+<section id="more">
+<h3>More<a class="headerlink" href="#more" title="Link to this heading">#</a></h3>
+<p>For everything the chart can do (backups, restore, upgrades), see <a class="reference internal" href="../how-to/deploy-kubernetes.html"><span class="std std-doc">Deploy on Kubernetes</span></a>.</p>
+</section>
+</section>
+</section>
+
+
+                </article>
+              
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+    <a class="left-prev"
+       href="install-kubernetes.html"
+       title="previous page">
+      <i class="fa-solid fa-angle-left"></i>
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">previous</p>
+        <p class="prev-next-title">Install scrap on Kubernetes</p>
+      </div>
+    </a>
+    <a class="right-next"
+       href="ingest-with-claude-seat.html"
+       title="next page">
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">next</p>
+        <p class="prev-next-title">Ingest on a Claude seat instead of an API key</p>
+      </div>
+      <i class="fa-solid fa-angle-right"></i>
+    </a>
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+                <dialog id="pst-secondary-sidebar-modal"></dialog>
+                <div id="pst-secondary-sidebar" class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
+
+
+  <div class="sidebar-secondary-item">
+<div
+    id="pst-page-navigation-heading-2"
+    class="page-toc tocsection onthispage">
+    <i class="fa-solid fa-list"></i> On this page
+  </div>
+  <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
+    <ul class="pst-show_toc_level nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#load-argus">1. Load argus</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#run-the-installer">2. Run the installer</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#ask-for-the-dns-names">3. Ask for the DNS names</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#open-it">4. Open it</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#details">Details</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#what-the-installer-does">What the installer does</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#re-running-and-settings">Re-running and settings</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#claude-code">Claude Code</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#before-the-dns-names-exist">Before the DNS names exist</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#if-logging-in-fails">If logging in fails</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#without-a-login-for-testing">Without a login, for testing</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#your-backups">Your backups</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#publish-pages">Publish pages</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#restore">Restore</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#more">More</a></li>
+</ul>
+</li>
+</ul>
+  </nav></div>
+
+  <div class="sidebar-secondary-item">
+
+  
+  <div class="tocsection editthispage">
+    <a href="https://github.com/gilesknap/scrap/edit/1.8.2/docs/tutorials/install-dls.md">
+      <i class="fa-solid fa-pencil"></i>
+      
+      
+        
+          Edit on GitHub
+        
+      
+    </a>
+  </div>
+</div>
+
+  <div class="sidebar-secondary-item">
+
+  <div class="tocsection sourcelink">
+    <a href="../_sources/tutorials/install-dls.md.txt">
+      <i class="fa-solid fa-file-lines"></i> Show Source
+    </a>
+  </div>
+</div>
+
+</div></div>
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+          </footer>
+        
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script defer src="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be"></script>
+<script defer src="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be"></script>
+
+  <footer class="bd-footer">
+<div class="bd-footer__inner bd-page-width">
+  
+  
+  
+    <div class="footer-items__end">
+      
+        <div class="footer-item">
+<p class="theme-version">
+  <!-- # L10n: Setting the PST URL as an argument as this does not need to be localized -->
+  Built with the <a href="https://pydata-sphinx-theme.readthedocs.io/en/stable/index.html">PyData Sphinx Theme</a> 0.23.0.
+</p></div>
+      
+    </div>
+  
+</div>
+
+  </footer>
+  </body>
+</html>
