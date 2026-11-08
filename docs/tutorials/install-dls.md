@@ -175,9 +175,12 @@ In the app, a page's **Share** menu, **Make public…** copies it to
 ### Restore
 
 Follow the restore steps in [](../how-to/deploy-kubernetes.md) (they restore with
-`--stage --force`), with the changes for {ref}`backups in a hostPath <k8s-restore-hostpath>`: your
-uid and gid from `id`, and the path `/dls/science/users/<fedid>/scrap` (or your
-`SCRAP_BACKUP_DIR`). Leave out `-n scrap`: argus selects your namespace. argus accepts that pod as
-it is: it fills in the container's `privileged: false`, user and resources itself.
+`--stage --force`), with your uid and gid from `id` in the pod's `securityContext`, and leave out
+`-n scrap` (argus selects your namespace). Your backups are in a hostPath, so also make the
+changes for {ref}`backups in a hostPath <k8s-restore-hostpath>`, with the path
+`/dls/science/users/<fedid>/scrap` (or your `SCRAP_BACKUP_DIR`). If you set `SCRAP_BACKUP_DIR`
+empty, the backups are on a claim in the cluster instead: keep the how-to's `scrap-backups`
+claim. argus accepts the pod as it is: it fills in the container's `privileged: false`, user and
+resources itself.
 
 For everything else the chart can do, see [](../how-to/deploy-kubernetes.md).

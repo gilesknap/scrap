@@ -597,20 +597,30 @@ old mode, see {ref}`k8s-upgrade-old-mode`.
 
 1. Follow the restore steps under {ref}`k8s-backup-restore` with the pre-upgrade backup and the
    old image, up to and including `kubectl -n scrap delete pod scrap-restore`. Leave scrap at 0.
-2. Roll the release back (`helm -n scrap history scrap` lists the revisions; with none given it
-   goes back one):
+2. Choose the revision to go back to. List them, then check that revision's images (its APP
+   VERSION can mislead when `image.tag` is pinned):
 
    ```
-   helm -n scrap rollback scrap [REVISION]
+   helm -n scrap history scrap
+   helm -n scrap get manifest scrap --revision <N> | grep image:
    ```
 
-3. Check that the Deployment now names the old image, for scrap, `jobs` and `db-init`:
+   Every scrap image must be the old one. Then roll back to that revision:
+
+   ```
+   helm -n scrap rollback scrap <N>
+   ```
+
+3. Confirm that the Deployment names the old image, for scrap, `jobs` and `db-init`:
 
    ```
    kubectl -n scrap get deploy/scrap -o jsonpath='{range .spec.template.spec.initContainers[*]}{.name}={.image}{"\n"}{end}{range .spec.template.spec.containers[*]}{.name}={.image}{"\n"}{end}'
    ```
 
-   scrap must start on the old image, or it migrates the staged backup forward again.
+   scrap must start on the old image, or it migrates the staged backup forward again. If this
+   shows the new image and a pod has started, scale to 0 at once
+   (`kubectl -n scrap scale deploy/scrap --replicas=0`), stage the restore again (step 1) and
+   pick the revision again.
 4. Start it, and resume the backups:
 
    ```
@@ -620,9 +630,14 @@ old mode, see {ref}`k8s-upgrade-old-mode`.
 
    The rollback may already have set one replica; the `scale` is then harmless.
 
-With Argo CD, set `targetRevision` back to the old chart version and sync in place of step 2,
-then do steps 3 and 4. Anything captured since the upgrade is then lost from the database; its
-files stay. Never roll back to a chart before 1.7.0 ({ref}`k8s-litestream`).
+With Argo CD, the sync starts the pod, so check the image before you sync. In place of step 2,
+set `targetRevision` back to the old chart version, keeping `litestream.enabled: true` in the
+values, and confirm the image that version runs: its `appVersion`
+(`helm show chart oci://ghcr.io/gilesknap/charts/scrap --version <old>`), or your `image.tag` if
+you pin one. Then sync, do steps 3 and 4 at once, and turn automatic sync back on.
+
+Anything captured since the upgrade is then lost from the database; its files stay. Never roll
+back to a chart before 1.7.0 ({ref}`k8s-litestream`).
 
 (k8s-upgrade-old-mode)=
 ### Upgrading from the old mode
@@ -805,8 +820,11 @@ run, so an export there is kept). To restore into a fresh volume instead, create
 restore into it without `--stage` or `--force`, and point `persistence.existingClaim` at it. The
 new pod brings the database across on its first start and leaves `/data/scrap.db` in place:
 delete it later, as in step 8 of {ref}`k8s-upgrade-old-mode`. A backup with no pages is not
-brought across, and with backup runs on the backup claim the pod then refuses to start empty:
-set `litestream.init.override: true` for one start if that is what you want.
+brought across, and if any backups or stored files exist (runs in the backup folder or its
+`monthly/`, or files in `/data/files`) the pod then refuses to start empty. Set
+`litestream.init.override: true` for one start if that is what you want, and set it back. gc then
+only counts until you run `kubectl -n scrap exec deploy/scrap -c jobs -- scrap db-hold --clear`:
+do that once things look right.
 
 (k8s-restore-litestream)=
 **What `--stage` does.** A plain restore over the database would be undone, because the next
