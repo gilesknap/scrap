@@ -6,10 +6,11 @@
 // write-up, and its Sources a fold (topic.ts); a source names its topics first. Claude's tags
 // are marked in the tag line (page.ts). A chunk of its own: the page view loads it when the
 // page has any of it.
-import { ApiError, api, kept, type Page } from "./api";
+import { api, kept, type Page } from "./api";
 import { icon, kindIcon } from "./icons";
 import { sourcesFold, topicsList } from "./topic";
 import { h, pageHref, toast } from "./ui";
+import { why } from "./why";
 import type { writeupParts } from "./writeup";
 
 /** A board's write-up, as parts of this card (writeup.ts, a chunk of its own). */
@@ -44,8 +45,6 @@ export const relatedOf = (p: Page) => {
   const sources = new Set(p.topic?.sources.map((s) => s.id));
   return (p.related ?? []).filter((r) => !sources.has(r.id)).slice(0, 8);
 };
-
-const why = (err: unknown) => (err instanceof ApiError ? err.message : "can't reach the server");
 
 /** A fold of the card, as a photo's Description is, but open until closed (then remembered
  * closed): what Claude found is short, and what the card is for. */

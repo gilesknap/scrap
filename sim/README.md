@@ -32,6 +32,10 @@ repo's linters, type checks and tests leave `sim/` alone.
   theme) to the artifact's shared database, collection `feedback`, when the artifact has
   the `db` capability. Read them with the ArtifactData tool (`list`, collection
   `feedback`, the sim's url). Screenshot scripts hide the tab (`.sim-fb`).
+- **Expire login.** A tab under Feedback makes every later request meet an expired login,
+  as behind a login proxy (a redirect to its sign-in): the app's "Your login has expired"
+  states. Tap it again, or Log in again (which reloads the sim), to log back in. For
+  screenshots, `--store sim.login=expired` (from the first load) or `__sim.expire()`.
 
 ## Files
 
@@ -54,7 +58,7 @@ Needs Node 22 with `npm --prefix web ci` done, and `python3`. Works from any che
 a git worktree included.
 
 ```sh
-sim/build.sh        # about 9.5 MB, 260 files, into sim/out/
+sim/build.sh        # about 11 MB, 320 files, into sim/out/
 sim/serve.sh        # http://127.0.0.1:9100/art/x1/index.html (PORT=... to change)
 ```
 
@@ -106,11 +110,17 @@ chunks, because a chunk file's name stayed the same while its contents and impor
    `files`: the map. Leave out `capabilities`, so the artifact keeps its `db`
    capability (for Feedback); the Artifact tool's description has the rules.
 
+   One publish takes at most 255 files, and the map is now about 285, so publish it in
+   two halves, one straight after the other, to the same url. Give both the same previous
+   map, so they slice the same whole:
+   `python3 sim/files.py --part 1/2 previous.json > part1.json` and
+   `python3 sim/files.py --part 2/2 previous.json > part2.json`. The previous map for next
+   time is the whole one (no `--part`).
+
 The map leaves out `index.html` (it is the `file_path`) and `blobs/` and `excalidraw/`
 (the drawing fonts). Those two folders do not change between builds (unless the
 fixtures or the Excalidraw version do), are already on the artifact, and a publish keeps
-the files it leaves out. They also keep one publish under the tool's limit of 255 files:
-the whole build is about 260. For a new artifact, or after a fixture or Excalidraw
+the files it leaves out, which keeps each publish smaller. For a new artifact, or after a fixture or Excalidraw
 change, publish them as well, as a second publish to the same url:
 
 ```sh

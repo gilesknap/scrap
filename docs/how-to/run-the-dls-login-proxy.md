@@ -26,7 +26,9 @@ sets it up and keeps it running.
   Service directly, but without a valid Keycloak token for that user it gets `401`; `/mcp` needs
   its bearer token. The proxy refreshes the session every minute, inside the access token's
   5 minutes. Without `offline_access`, a user stays logged in only as long as their DLS
-  Keycloak session; when it ends, the next refresh fails and they log in again.
+  Keycloak session; when it ends, the next refresh fails and they log in again. The app then
+  says "Your login has expired" with **Log in again**, which goes through the login and back
+  to the same screen; an unsaved edit is kept on the phone as a draft.
 - The sessions are kept in a small Redis beside the proxy (`oauth2-proxy-redis`, one pod, part
   of the same release); the browser's cookie only names its session. DLS Keycloak's tokens make
   a session too big for one cookie, and a session split across cookies broke when requests

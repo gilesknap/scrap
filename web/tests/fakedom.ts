@@ -15,6 +15,12 @@ export class FakeNode {
   get tagName() {
     return this.nodeName;
   }
+  /** Its class names, as className holds them (add only: what ui.ts's problem states use). */
+  get classList() {
+    return {
+      add: (...names: string[]) => (this.className = [this.className, ...names].join(" ").trim()),
+    };
+  }
   get textContent(): string {
     return this.nodeType === 3 ? this.data : this.childNodes.map((k) => k.textContent).join("");
   }

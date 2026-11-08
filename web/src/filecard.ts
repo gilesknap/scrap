@@ -3,10 +3,11 @@
 // failed), and once read the fold, "Claude's reading" as a photo's is (#521: one label for
 // both, though scrap reads a file itself, for search, #234), with what was found (pages,
 // whether search can find it), a PDF's text and Regenerate. Part of the figure chunk.
-import { ApiError, api, type FileIngest, type FileRef } from "./api";
+import { api, type FileIngest, type FileRef } from "./api";
 import { fileFacts } from "./filerow";
 import { readingFold, readingState } from "./reading";
 import { h, toast } from "./ui";
+import { why } from "./why";
 
 /** The state line's words while a file's reading isn't done. */
 export function fileStateText(i: FileIngest): string {
@@ -30,7 +31,6 @@ export function fileSays(i: FileIngest | null): string | null {
 }
 
 const isPdf = (f: FileRef) => f.mime.split(";")[0].trim().toLowerCase() === "application/pdf";
-const why = (err: unknown) => (err instanceof ApiError ? err.message : "can't reach the server");
 
 /** A PDF's text as scrap read it, fetched the first time the fold opens. Its capture and file
  * are on it, so publishing (publicpages.ts) can fetch the text the fold would show. */

@@ -4,12 +4,13 @@
 // phone's Back closes it. View and edit are one Excalidraw scene, so zoom, scroll and unsaved
 // edits are kept when switching. Edits are kept as a draft as they change, so a Back, a
 // failed save or a killed app loses nothing.
-import { ApiError, api } from "../api";
+import { ApiError, api, LoginExpired } from "../api";
 import { drafts } from "../db";
 import type { Target } from "../drawing";
 import { icon } from "../icons";
 import { canShareFile, saveBlob, shareMade } from "../sharing";
-import { h, toast, when } from "../ui";
+import { h, relogin, toast, when } from "../ui";
+import { why } from "../why";
 import { elementsOf, board as mount } from "./board";
 import { type Drawing, madeBy, scenePayload, type Version } from "./frame";
 
@@ -233,9 +234,15 @@ export function openDrawing(t: Target, onSaved: () => void) {
       onSaved();
     } catch (err) {
       if (err instanceof ApiError && err.status === 409) return conflict(err.body.version);
-      const why =
-        err instanceof ApiError ? err.message : "can't reach the server. It is kept as a draft";
-      toast(`Not saved: ${why}`, "", undefined, 8000);
+      if (err instanceof LoginExpired)
+        return toast(
+          "Your login has expired: log in again to save. It is kept as a draft",
+          "Log in",
+          relogin,
+          0,
+        );
+      const kept = err instanceof ApiError ? "" : ". It is kept as a draft";
+      toast(`Not saved: ${why(err)}${kept}`, "", undefined, 8000);
     } finally {
       save.removeAttribute("aria-busy");
     }
@@ -288,7 +295,7 @@ export function openDrawing(t: Target, onSaved: () => void) {
       );
       note("history", h("strong", {}, "History"), " ", tool("Hide", clearNote), list);
     } catch (err) {
-      toast(`Can't load the history: ${err instanceof ApiError ? err.message : "offline?"}`);
+      toast(`Can't load the history: ${why(err, "offline?")}`);
     }
   }
 
@@ -309,7 +316,7 @@ export function openDrawing(t: Target, onSaved: () => void) {
         await reload(await api<Drawing>(path(t))).catch(() => {});
         return void showHistory();
       }
-      toast(`Not restored: ${err instanceof ApiError ? err.message : "can't reach the server"}`);
+      toast(`Not restored: ${why(err)}`);
     }
   }
 

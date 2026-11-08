@@ -8,6 +8,7 @@ import { named, remember } from "./crumbs";
 import { KEY } from "./debug";
 import { KIND_ROW } from "./kindrow";
 import { pageRow } from "./lists";
+import { unmark } from "./login";
 import { holdScroll, restoreScroll, watchScroll } from "./scroll";
 import { whenSlow } from "./slow";
 import { today } from "./status";
@@ -337,8 +338,9 @@ watchScroll();
 // need a build line, which a phone without the service worker's cache doesn't show
 const query = new URLSearchParams(location.search);
 const asked = query.get("debug");
-if (asked === "1" || asked === "0") {
-  kept(KEY, asked);
+const relogged = unmark(query); // a load to log in again (login.ts), done now
+if (asked === "1" || asked === "0") kept(KEY, asked);
+if (asked === "1" || asked === "0" || relogged) {
   query.delete("debug"); // the other parameters, a saved search's q, stay
   const rest = query.toString();
   history.replaceState(

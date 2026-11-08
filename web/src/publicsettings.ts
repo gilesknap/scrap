@@ -2,7 +2,7 @@
 // page again and publishes it (publicpages.ts, loaded on the tap), for what the PWA did not
 // see: edits over MCP, a new write-up, a new scrap. It says how far it has got, then when it
 // was done. None where publishing is off on the server.
-import type { PublicPage } from "./api";
+import { LoginExpired, type PublicPage } from "./api";
 import { publicPages, publishOn, whyNot } from "./publicapi";
 import { h } from "./ui";
 
@@ -16,16 +16,23 @@ export async function publicSection(): Promise<HTMLElement[]> {
   if (!(await publishOn())) return [];
   const button = h("button", { type: "button", className: "button", hidden: true }, "Refresh");
   const hint = h("p", { className: "hint" });
-  const say = (list: PublicPage[] | null, done = "") => {
+  const say = (list: PublicPage[] | null, done = "", err?: unknown) => {
     const n = list?.length ?? 0;
     button.hidden = !n;
     button.textContent = `Refresh ${pagesWord(n)}`;
-    hint.textContent = list === null ? "Can't reach the server." : n ? `${done}${WHAT}` : NONE;
+    hint.textContent =
+      list === null
+        ? err instanceof LoginExpired
+          ? "Your login has expired."
+          : "Can't reach the server."
+        : n
+          ? `${done}${WHAT}`
+          : NONE;
   };
   const load = (done = "") =>
     publicPages().then(
       (l) => say(l, done),
-      () => say(null),
+      (err) => say(null, "", err),
     );
   void load();
   button.onclick = async () => {

@@ -2,10 +2,11 @@
 // topic, its Sources (each with a ✕ that takes it out, and Put back for one taken out); on a
 // source, the line naming its topics. The synthesis itself is the topic's write-up
 // (writeup.ts). Loaded with the enrich chunk.
-import { ApiError, api, kept, type Page, type Source } from "./api";
+import { api, kept, type Page, type Source } from "./api";
 import { icon } from "./icons";
 import { KINDS } from "./kinds";
 import { h, pageHref, toast } from "./ui";
+import { why } from "./why";
 import "./topic.css";
 
 const OFFLINE = "Offline: changing a topic's sources needs the server";
@@ -19,8 +20,6 @@ function online() {
 }
 globalThis.addEventListener?.("online", online); // (none in the unit tests)
 globalThis.addEventListener?.("offline", online);
-
-const why = (err: unknown) => (err instanceof ApiError ? err.message : "can't reach the server");
 
 /** A source's kind in a word, as the kind chips say it: "Note", "Later", "Board". */
 export function kindWord(kind: string): string {

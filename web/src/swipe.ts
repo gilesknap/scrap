@@ -1,9 +1,10 @@
 // What lists and pages share for swipes: the trail (a list marks its links with it, so a page
 // opened from it can step through it: pager.ts), the screen edges left to the phone, and
 // delete with Undo. The row gestures themselves are rows.ts, loaded with a list.
-import { ApiError, api, type Summary } from "./api";
+import { api, type Summary } from "./api";
 import type { Trail } from "./gesture";
 import { toast } from "./ui";
+import { why } from "./why";
 
 export const EDGE = 24; // the phone's own Back gesture starts at the screen's edges: leave them to it
 
@@ -40,8 +41,7 @@ export function swipeRows(rows: [Element, RowPage][]) {
   );
 }
 
-export const why = (err: unknown) =>
-  err instanceof ApiError ? err.message : "can't reach the server";
+export { why };
 
 /** Delete a page (from its row or its page), with Undo: gone() runs once it is deleted,
  * back() once Undo has brought it back. */
