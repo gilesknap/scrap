@@ -144,7 +144,7 @@ check "ingest enabled" sh -c "grep -A1 '^ingest:' '$tmp/values.yaml' | grep -q '
 check "token shown" grep -q "bearer token (shown once" "$tmp/out"
 check "service ip shown" grep -q "10.1.2.3" "$tmp/out"
 check "clusterip by default" grep -q "type: ClusterIP" "$tmp/values.yaml"
-check "ticket advice" grep -q "jira.diamond.ac.uk/servicedesk/customer/portal/2/create/156" "$tmp/out"
+check "ticket advice" grep -q "jira.diamond.ac.uk/servicedesk/customer/portal/2/create/91" "$tmp/out"
 check "backup dir made, mode 700" sh -c "[ \"\$(stat -c %a '$tmp/science/scrap')\" = 700 ]"
 check "backups on the host path" grep -q "hostPath: $tmp/science/scrap" "$tmp/values.yaml"
 check "job cpu limits fit argus" [ "$(grep -c 'limits: {cpu: 500m' "$tmp/values.yaml")" = 4 ]
@@ -188,11 +188,11 @@ check "the Keycloak redirect, as a hint" grep -q "^     https://scrap-abc12345.d
 helper=$tmp/home/.claude/scrap-dls-headers.sh
 tok=$(cat "$tmp/created-SCRAP_MCP_TOKEN")
 json='{"type":"http","url":"https://scrap-abc12345.diamond.ac.uk/mcp","headersHelper":"'$helper'"}'
-# The helper exactly as the tutorial shows it (its indented block after "writes the helper").
+# The helper exactly as the DLS explanation shows it (its indented block after "writes the helper").
 awk '/writes the helper/ { f = 1; next }
      f && /^   ```sh$/ { b = 1; next }
      b && /^   ```$/ { exit }
-     b { sub(/^   /, ""); print }' "$here/../docs/tutorials/install-dls.md" >"$tmp/want-helper"
+     b { sub(/^   /, ""); print }' "$here/../docs/explanations/scrap-at-dls.md" >"$tmp/want-helper"
 check "claude: the tutorial's helper found" grep -q '^#!/bin/sh$' "$tmp/want-helper"
 check "claude: .env is mode 600" sh -c "[ \"\$(stat -c %a '$envf')\" = 600 ]"
 check "claude: the token in .env" grep -qx "SCRAP_DLS_MCP_TOKEN=$tok" "$envf"
@@ -405,7 +405,7 @@ mv "$tmp/claude.off" "$tmp/bin/claude"
 check "no claude: the install succeeds" [ "$nc_rc" = 0 ]
 check "no claude: says so" grep -q "Claude Code was not found" "$tmp/out"
 check "no claude: prints the command" grep -qxF "  claude mcp add-json --scope user scrap-dls '$json'" "$tmp/out"
-check "no claude: links the tutorial" grep -q "install-dls.html#install-dls-claude" "$tmp/out"
+check "no claude: links the DLS explanation" grep -q "scrap-at-dls.html#install-dls-claude" "$tmp/out"
 
 # claude fails: warned, and the install still succeeds.
 if (STUB_CLAUDE_FAIL=1 run); then cf_rc=0; else cf_rc=1; fi

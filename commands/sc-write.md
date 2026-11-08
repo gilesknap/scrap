@@ -9,7 +9,7 @@ or the whole conversation), this picks out only the requested material. If the a
 empty, ask what to capture and stop.
 
 Use ONLY `mcp__scrap__tags`, `search`, `read` and `write`. The scrap tools are the `scrap` server's if there is one, else `scrap-dls`'s (`mcp__scrap-dls__*`). If they are missing, say so: a DLS install sets up `scrap-dls` itself (re-run the installer, or see
-<https://gilesknap.github.io/scrap/main/tutorials/install-dls.html#install-dls-claude>);
+<https://gilesknap.github.io/scrap/main/explanations/scrap-at-dls.html#install-dls-claude>);
 otherwise see <https://gilesknap.github.io/scrap/main/how-to/connect-claude-code.html>.
 
 1. **Source**: use only what is in this conversation. Do not fill gaps from general knowledge or

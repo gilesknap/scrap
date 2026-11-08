@@ -8,7 +8,7 @@ slug, id or page URL), the rest is the change to make. If either is missing, ask
 to `/sc-write`, which only creates pages.
 
 Use ONLY `mcp__scrap__search`, `read` and `edit_page` (from the `scrap` server if there is one, else `scrap-dls`: `mcp__scrap-dls__*`). If they are missing, say so: a DLS install sets up `scrap-dls` itself (re-run the installer, or see
-<https://gilesknap.github.io/scrap/main/tutorials/install-dls.html#install-dls-claude>);
+<https://gilesknap.github.io/scrap/main/explanations/scrap-at-dls.html#install-dls-claude>);
 otherwise see <https://gilesknap.github.io/scrap/main/how-to/connect-claude-code.html>. If `edit_page`
 is missing or refuses with `text editing is off`, content editing is switched off on the server
 (`SCRAP_MCP_CONTENT_EDIT=0`): say so and stop.
