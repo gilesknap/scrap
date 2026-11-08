@@ -1,9 +1,11 @@
 """scrap backup --from-replica: a backup that never opens the live database (ADR 46)."""
 
+import hashlib
 import sqlite3
 import stat
 import time
 from contextlib import closing
+from pathlib import Path
 
 import pytest
 
@@ -58,6 +60,21 @@ def test_a_backup_from_the_replica_is_complete_and_restorable(
     with closing(sqlite3.connect(target.db)) as conn:
         assert conn.execute("SELECT title FROM page").fetchone()[0] == "replicated"
     assert (target.files / "ab" / "abcd").is_file()
+
+
+def test_a_second_run_from_the_replica_links_the_first_runs_files(setup, tmp_path):
+    data, replica = setup
+    first = tmp_path / "bak" / "20261101T033000Z"
+    second = tmp_path / "bak" / "20261102T033000Z"
+    sha = hashlib.sha256(b"a blob").hexdigest()
+    blob = Path("files", sha[:2], sha)  # only a file named by its hash is linked
+    (data / blob).parent.mkdir(exist_ok=True)
+    (data / blob).write_bytes(b"a blob")
+    backup_from_replica(data, replica, first)
+    counts = backup_from_replica(data, replica, second)
+    assert (counts.base, counts.linked, counts.copied) == (first, 1, 1)
+    assert (second / blob).stat().st_nlink == 2
+    assert (data / blob).stat().st_nlink == 1
 
 
 def test_the_cli_does_the_same(setup, tmp_path, monkeypatch):
