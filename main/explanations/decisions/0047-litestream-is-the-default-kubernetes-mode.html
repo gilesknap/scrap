@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>47. Litestream is the default Kubernetes mode &#8212; scrap 1.9.1.dev5+gd36437c84 documentation</title>
+    <title>47. Litestream is the default Kubernetes mode &#8212; scrap 1.9.1.dev8+g6282cb087 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../../_static/documentation_options.js?v=fc59c8bb"></script>
+    <script src="../../_static/documentation_options.js?v=080f9875"></script>
     <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -581,6 +581,7 @@ CronJob would keep its old image and spec. From a chart of 1.6.0 or older its gc
 against the old file, so it would <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">gc</span> <span class="pre">--delete</span></code> on <code class="docutils literal notranslate"><span class="pre">/data/scrap.db</span></code> and delete the files only
 the new database uses. Rendered under the same names, helm and Argo CD update them to the suspended
 stubs instead. They are for upgrades from the old mode and go in a later release, with it.</p>
+<p><em>Update, 2026-11-09: chart 1.9.1 removed the stubs; an upgrade from the old mode goes through 1.9.0 first, or deletes the old CronJobs by hand (<a class="reference internal" href="../../how-to/deploy-kubernetes.html"><span class="std std-doc">Deploy on Kubernetes</span></a>).</em></p>
 <p><strong><code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">enrich</span></code> refuses the old file</strong> as <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">gc</span></code> and <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">serve</span></code> already did
 (<code class="docutils literal notranslate"><span class="pre">refuse_old_database</span></code>): run without <code class="docutils literal notranslate"><span class="pre">SCRAP_DB_PATH</span></code> on a data folder with Litestream’s state file,
 it stops before writing anything.</p>
@@ -607,8 +608,8 @@ same way; but a namespace under the baseline or restricted Pod Security Standard
 pod, not only the backup jobs, if the backups are a <code class="docutils literal notranslate"><span class="pre">hostPath</span></code>.</p></li>
 <li><p>Failures of gc and the Claude passes are in the <code class="docutils literal notranslate"><span class="pre">jobs</span></code> container’s log and <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">schedule</span> <span class="pre">status</span></code>,
 not failed Jobs (ADR 46).</p></li>
-<li><p>When the old mode is removed, the chart loses the gc and Claude-pass CronJob templates and their
-suspended stubs, the
+<li><p>When the old mode is removed, the chart loses the gc and Claude-pass CronJob templates (their
+suspended stubs went in 1.9.1, 2026-11-09), the
 <code class="docutils literal notranslate"><span class="pre">gc.resources</span></code> and <code class="docutils literal notranslate"><span class="pre">enrich*.resources</span></code> values, and the backup jobs’ direct-from-the-database path.
 <code class="docutils literal notranslate"><span class="pre">scrap</span> <span class="pre">db-init</span></code>’s rule 4 (bringing <code class="docutils literal notranslate"><span class="pre">/data/scrap.db</span></code> across) stays for as long as installs may still
 upgrade from it.</p></li>
@@ -616,7 +617,9 @@ upgrade from it.</p></li>
 <section id="upgrading-from-the-old-mode">
 <h3>Upgrading from the old mode<a class="headerlink" href="#upgrading-from-the-old-mode" title="Link to this heading">#</a></h3>
 <p>What happens, for a release that never set <code class="docutils literal notranslate"><span class="pre">litestream.enabled</span></code>, on the first <code class="docutils literal notranslate"><span class="pre">helm</span> <span class="pre">upgrade</span></code> to a
-chart with this default:</p>
+chart with this default. <em>(Written for 1.9.0. Since 1.9.1, 2026-11-09, there are no stubs, so steps 1
+and 6 hold only through 1.9.0: a direct upgrade to 1.9.1 or later deletes the old CronJobs by hand
+first, as <a class="reference internal" href="../../how-to/deploy-kubernetes.html"><span class="std std-doc">the how-to</span></a> says.)</em></p>
 <ol class="arabic simple">
 <li><p>The CronJobs <code class="docutils literal notranslate"><span class="pre">&lt;fullname&gt;-gc</span></code>, <code class="docutils literal notranslate"><span class="pre">&lt;fullname&gt;-enrich-related</span></code> and <code class="docutils literal notranslate"><span class="pre">&lt;fullname&gt;-enrich-topics</span></code> (the
 last two exist only with ingest on) are replaced by suspended stubs of the same names, by helm

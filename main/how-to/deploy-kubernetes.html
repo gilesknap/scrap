@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Deploy on Kubernetes &#8212; scrap 1.9.1.dev5+gd36437c84 documentation</title>
+    <title>Deploy on Kubernetes &#8212; scrap 1.9.1.dev8+g6282cb087 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=fc59c8bb"></script>
+    <script src="../_static/documentation_options.js?v=080f9875"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -918,13 +918,10 @@ on the NetworkPolicy (below) if other workloads share the cluster.</p>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">jobs</span></code> container</p></td>
 <td><p>gc and, with ingest, the related-pages and topics passes, run on their schedules inside the scrap pod: <a class="reference internal" href="#k8s-gc"><span class="std std-ref">Scheduled gc, related pages and topics</span></a> and <a class="reference internal" href="../reference/scheduled-jobs.html"><span class="std std-doc">Scheduled jobs</span></a>.</p></td>
 </tr>
-<tr class="row-odd"><td><p>Suspended CronJobs <code class="docutils literal notranslate"><span class="pre">scrap-gc</span></code>, <code class="docutils literal notranslate"><span class="pre">scrap-enrich-related</span></code>, <code class="docutils literal notranslate"><span class="pre">scrap-enrich-topics</span></code></p></td>
-<td><p>Stubs that never run, on every install for now: they replace the old mode’s CronJobs on an upgrade (<a class="reference internal" href="#k8s-upgrade-old-mode"><span class="std std-ref">Upgrading from the old mode</span></a>), and go in a later release.</p></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">litestream</span></code> sidecar</p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">litestream</span></code> sidecar</p></td>
 <td><p>Copies each change to the database to the data volume: <a class="reference internal" href="#k8s-litestream"><span class="std std-ref">The database on an emptyDir, with Litestream</span></a>.</p></td>
 </tr>
-<tr class="row-odd"><td><p>Ingress, NetworkPolicy (off by default)</p></td>
+<tr class="row-even"><td><p>Ingress, NetworkPolicy (off by default)</p></td>
 <td><p>See below.</p></td>
 </tr>
 </tbody>
@@ -1541,9 +1538,15 @@ back to a chart before 1.7.0 (<a class="reference internal" href="#k8s-litestrea
 passes as CronJobs. The first <code class="docutils literal notranslate"><span class="pre">helm</span> <span class="pre">upgrade</span></code> to 1.9.0 or later moves it across (why:
 <a class="reference internal" href="../explanations/decisions/0047-litestream-is-the-default-kubernetes-mode.html"><span class="std std-doc">ADR 47</span></a>):</p>
 <ul class="simple">
-<li><p>The CronJobs <code class="docutils literal notranslate"><span class="pre">scrap-gc</span></code>, <code class="docutils literal notranslate"><span class="pre">scrap-enrich-related</span></code> and <code class="docutils literal notranslate"><span class="pre">scrap-enrich-topics</span></code> become suspended
-stubs of the same names, which run nothing, with helm or Argo CD (pruning or not). Their work
-moves to the pod’s <code class="docutils literal notranslate"><span class="pre">jobs</span></code> container. Suspending stops new runs, not a Job already running.</p></li>
+<li><p>The old CronJobs <code class="docutils literal notranslate"><span class="pre">&lt;fullname&gt;-gc</span></code>, <code class="docutils literal notranslate"><span class="pre">&lt;fullname&gt;-enrich-related</span></code> and <code class="docutils literal notranslate"><span class="pre">&lt;fullname&gt;-enrich-topics</span></code>
+(<code class="docutils literal notranslate"><span class="pre">scrap-gc</span></code> and so on for a release named <code class="docutils literal notranslate"><span class="pre">scrap</span></code>; a long fullname is shortened and hashed, so
+list them with <code class="docutils literal notranslate"><span class="pre">kubectl</span> <span class="pre">-n</span> <span class="pre">scrap</span> <span class="pre">get</span> <span class="pre">cronjob</span></code>) must not keep running. Chart 1.9.0
+replaced each with a suspended stub of the same name, so a sync without pruning could not leave
+the old one behind; chart 1.9.1 and later render no stubs. <strong>So go through 1.9.0 first</strong>
+(upgrade to 1.9.0, do the steps below, then go on to 1.9.1 or later), or, to go straight to
+1.9.1 or later, delete the three old CronJobs by hand before the upgrade (step 5). An old one
+left running keeps its old image, and from a chart of 1.6.0 or older its gc deletes the files
+only the new database uses. Their work moves to the pod’s <code class="docutils literal notranslate"><span class="pre">jobs</span></code> container.</p></li>
 <li><p>In the new pod, <code class="docutils literal notranslate"><span class="pre">db-init</span></code> copies <code class="docutils literal notranslate"><span class="pre">/data/scrap.db</span></code> (with its WAL) to <code class="docutils literal notranslate"><span class="pre">/db/scrap.db</span></code>, checks it,
 and writes a state file. It refuses, starting nothing, if the database and its WAL are over half
 of <code class="docutils literal notranslate"><span class="pre">litestream.sizeLimit</span></code>.</p></li>
@@ -1569,17 +1572,22 @@ disk.</p></li>
 </div>
 </li>
 <li><p><strong>Pick a quiet moment</strong>: make sure no gc or enrich Job is still running before you upgrade
-(suspending stops new runs, not a running one): <code class="docutils literal notranslate"><span class="pre">kubectl</span> <span class="pre">-n</span> <span class="pre">scrap</span> <span class="pre">get</span> <span class="pre">jobs</span></code> shows none
-running. By default they start between 03:30 and 04:30, and the related pass can run for
-hours. A Job still writing <code class="docutils literal notranslate"><span class="pre">/data/scrap.db</span></code> after the copy stops the next start.</p></li>
-<li><p><strong>Upgrade</strong>: <code class="docutils literal notranslate"><span class="pre">helm</span> <span class="pre">upgrade</span></code> as above, or an Argo CD sync. Then check that the three old
-CronJobs are suspended:</p>
+(deleting a CronJob also deletes its Jobs, and stops a running one): <code class="docutils literal notranslate"><span class="pre">kubectl</span> <span class="pre">-n</span> <span class="pre">scrap</span> <span class="pre">get</span> <span class="pre">jobs</span></code> shows none running. By default they start between 03:30 and 04:30, and the related pass
+can run for hours. A Job still writing <code class="docutils literal notranslate"><span class="pre">/data/scrap.db</span></code> after the copy stops the next start.
+If you go straight to 1.9.1 or later, now delete the old CronJobs. Take their names from the
+cluster, since your fullname may differ or be hashed (<code class="docutils literal notranslate"><span class="pre">kubectl</span> <span class="pre">-n</span> <span class="pre">scrap</span> <span class="pre">get</span> <span class="pre">cronjob</span></code> lists
+them: those ending <code class="docutils literal notranslate"><span class="pre">-gc</span></code>, <code class="docutils literal notranslate"><span class="pre">-enrich-related</span></code> and <code class="docutils literal notranslate"><span class="pre">-enrich-topics</span></code>; not the backups), then
+<code class="docutils literal notranslate"><span class="pre">kubectl</span> <span class="pre">-n</span> <span class="pre">scrap</span> <span class="pre">delete</span> <span class="pre">cronjob</span> <span class="pre">scrap-gc</span> <span class="pre">scrap-enrich-related</span> <span class="pre">scrap-enrich-topics</span></code> with
+those names.</p></li>
+<li><p><strong>Upgrade</strong>: <code class="docutils literal notranslate"><span class="pre">helm</span> <span class="pre">upgrade</span></code> as above, or an Argo CD sync. Then check that none of the three old
+CronJobs is left:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">kubectl</span> <span class="o">-</span><span class="n">n</span> <span class="n">scrap</span> <span class="n">get</span> <span class="n">cronjob</span> <span class="n">scrap</span><span class="o">-</span><span class="n">gc</span> <span class="n">scrap</span><span class="o">-</span><span class="n">enrich</span><span class="o">-</span><span class="n">related</span> <span class="n">scrap</span><span class="o">-</span><span class="n">enrich</span><span class="o">-</span><span class="n">topics</span>
 </pre></div>
 </div>
-<p>Each shows <code class="docutils literal notranslate"><span class="pre">SUSPEND</span></code> <code class="docutils literal notranslate"><span class="pre">True</span></code>. Delete any that does not (a later sync recreates it suspended):
-an old one left running keeps its old image, and from a chart of 1.6.0 or older its gc deletes
-the files only the new database uses.</p>
+<p>On 1.9.0 each shows <code class="docutils literal notranslate"><span class="pre">SUSPEND</span></code> <code class="docutils literal notranslate"><span class="pre">True</span></code> (a stub): delete any that does not. A sync without
+pruning also leaves these stubs behind on a later upgrade to 1.9.1 or later: delete them by
+hand with <code class="docutils literal notranslate"><span class="pre">kubectl</span> <span class="pre">-n</span> <span class="pre">scrap</span> <span class="pre">delete</span> <span class="pre">cronjob</span> <span class="pre">scrap-gc</span> <span class="pre">scrap-enrich-related</span> <span class="pre">scrap-enrich-topics</span></code>.
+On 1.9.1 or later, once step 5 is done, the check finds none.</p>
 </li>
 <li><p><strong>Check.</strong> <code class="docutils literal notranslate"><span class="pre">kubectl</span> <span class="pre">-n</span> <span class="pre">scrap</span> <span class="pre">logs</span> <span class="pre">deploy/scrap</span> <span class="pre">-c</span> <span class="pre">db-init</span></code> says it brought <code class="docutils literal notranslate"><span class="pre">/data/scrap.db</span></code>
 across to <code class="docutils literal notranslate"><span class="pre">/db/scrap.db</span></code>; <code class="docutils literal notranslate"><span class="pre">kubectl</span> <span class="pre">-n</span> <span class="pre">scrap</span> <span class="pre">exec</span> <span class="pre">deploy/scrap</span> <span class="pre">-c</span> <span class="pre">jobs</span> <span class="pre">--</span> <span class="pre">scrap</span> <span class="pre">schedule</span> <span class="pre">status</span></code>

@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Scheduled jobs &#8212; scrap 1.9.1.dev5+gd36437c84 documentation</title>
+    <title>Scheduled jobs &#8212; scrap 1.9.1.dev8+g6282cb087 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=fc59c8bb"></script>
+    <script src="../_static/documentation_options.js?v=080f9875"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -906,9 +906,9 @@ random delay). Gc looks for the backup before it deletes:</p>
 <p>On Kubernetes the chart runs the database with Litestream by default
 (<a class="reference internal" href="../explanations/decisions/0047-litestream-is-the-default-kubernetes-mode.html"><span class="std std-doc">ADR 47</span></a>), so gc,
 related pages and topics, which need the live database, run in the scrap pod’s <code class="docutils literal notranslate"><span class="pre">jobs</span></code> container,
-not as CronJobs. For now the chart also renders CronJobs named <code class="docutils literal notranslate"><span class="pre">&lt;fullname&gt;-gc</span></code>,
-<code class="docutils literal notranslate"><span class="pre">&lt;fullname&gt;-enrich-related</span></code> and <code class="docutils literal notranslate"><span class="pre">&lt;fullname&gt;-enrich-topics</span></code>, suspended stubs that never run: they
-replace the old mode’s CronJobs on an upgrade (<a class="reference internal" href="../how-to/deploy-kubernetes.html#k8s-upgrade-old-mode"><span class="std std-ref">Upgrading from the old mode</span></a>).</p>
+not as CronJobs. Chart 1.9.0 rendered suspended stub CronJobs named <code class="docutils literal notranslate"><span class="pre">&lt;fullname&gt;-gc</span></code>,
+<code class="docutils literal notranslate"><span class="pre">&lt;fullname&gt;-enrich-related</span></code> and <code class="docutils literal notranslate"><span class="pre">&lt;fullname&gt;-enrich-topics</span></code> for upgrades; 1.9.1 does not, so an
+upgrade from the old mode needs care (<a class="reference internal" href="../how-to/deploy-kubernetes.html#k8s-upgrade-old-mode"><span class="std std-ref">Upgrading from the old mode</span></a>).</p>
 <p>On Kubernetes the <code class="docutils literal notranslate"><span class="pre">jobs</span></code> container also does this, on fixed times that no value changes:</p>
 <div class="pst-scrollable-table-container"><table class="table">
 <thead>
