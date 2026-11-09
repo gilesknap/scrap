@@ -48,6 +48,8 @@ against the old file, so it would `scrap gc --delete` on `/data/scrap.db` and de
 the new database uses. Rendered under the same names, helm and Argo CD update them to the suspended
 stubs instead. They are for upgrades from the old mode and go in a later release, with it.
 
+*Update, 2026-11-09: chart 1.9.1 removed the stubs; an upgrade from the old mode goes through 1.9.0 first, or deletes the old CronJobs by hand ([](../../how-to/deploy-kubernetes.md)).*
+
 **`scrap enrich` refuses the old file** as `scrap gc` and `scrap serve` already did
 (`refuse_old_database`): run without `SCRAP_DB_PATH` on a data folder with Litestream's state file,
 it stops before writing anything.
@@ -73,8 +75,8 @@ it stops before writing anything.
   pod, not only the backup jobs, if the backups are a `hostPath`.
 - Failures of gc and the Claude passes are in the `jobs` container's log and `scrap schedule status`,
   not failed Jobs (ADR 46).
-- When the old mode is removed, the chart loses the gc and Claude-pass CronJob templates and their
-  suspended stubs, the
+- When the old mode is removed, the chart loses the gc and Claude-pass CronJob templates (their
+  suspended stubs went in 1.9.1, 2026-11-09), the
   `gc.resources` and `enrich*.resources` values, and the backup jobs' direct-from-the-database path.
   `scrap db-init`'s rule 4 (bringing `/data/scrap.db` across) stays for as long as installs may still
   upgrade from it.

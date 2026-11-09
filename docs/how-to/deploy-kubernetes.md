@@ -58,7 +58,6 @@ on the NetworkPolicy (below) if other workloads share the cluster.
 | ServiceAccount | No API token mounted; scrap never talks to the Kubernetes API. |
 | CronJobs + PVC (on by default) | Nightly `scrap backup` to a second claim, keeping the newest 7 runs, and a monthly copy in its `monthly/` folder, keeping 12. |
 | `jobs` container | gc and, with ingest, the related-pages and topics passes, run on their schedules inside the scrap pod: {ref}`k8s-gc` and [](../reference/scheduled-jobs.md). |
-| Suspended CronJobs `scrap-gc`, `scrap-enrich-related`, `scrap-enrich-topics` | Stubs that never run, on every install for now: they replace the old mode's CronJobs on an upgrade ({ref}`k8s-upgrade-old-mode`), and go in a later release. |
 | `litestream` sidecar | Copies each change to the database to the data volume: {ref}`k8s-litestream`. |
 | Ingress, NetworkPolicy (off by default) | See below. |
 
@@ -648,9 +647,15 @@ This applies when you upgrade to chart 1.9.0 or later from an install that never
 passes as CronJobs. The first `helm upgrade` to 1.9.0 or later moves it across (why:
 [ADR 47](../explanations/decisions/0047-litestream-is-the-default-kubernetes-mode.md)):
 
-- The CronJobs `scrap-gc`, `scrap-enrich-related` and `scrap-enrich-topics` become suspended
-  stubs of the same names, which run nothing, with helm or Argo CD (pruning or not). Their work
-  moves to the pod's `jobs` container. Suspending stops new runs, not a Job already running.
+- The old CronJobs `<fullname>-gc`, `<fullname>-enrich-related` and `<fullname>-enrich-topics`
+  (`scrap-gc` and so on for a release named `scrap`; a long fullname is shortened and hashed, so
+  use the command in the upgrade notes `helm upgrade` prints) must not keep running. Chart 1.9.0
+  replaced each with a suspended stub of the same name, so a sync without pruning could not leave
+  the old one behind; chart 1.9.1 and later render no stubs. **So go through 1.9.0 first**
+  (upgrade to 1.9.0, do the steps below, then go on to 1.9.1 or later), or, to go straight to
+  1.9.1 or later, delete the three old CronJobs by hand before the upgrade (step 5). An old one
+  left running keeps its old image, and from a chart of 1.6.0 or older its gc deletes the files
+  only the new database uses. Their work moves to the pod's `jobs` container.
 - In the new pod, `db-init` copies `/data/scrap.db` (with its WAL) to `/db/scrap.db`, checks it,
   and writes a state file. It refuses, starting nothing, if the database and its WAL are over half
   of `litestream.sizeLimit`.
@@ -677,19 +682,22 @@ The steps:
    ```
 
 5. **Pick a quiet moment**: make sure no gc or enrich Job is still running before you upgrade
-   (suspending stops new runs, not a running one): `kubectl -n scrap get jobs` shows none
-   running. By default they start between 03:30 and 04:30, and the related pass can run for
-   hours. A Job still writing `/data/scrap.db` after the copy stops the next start.
-6. **Upgrade**: `helm upgrade` as above, or an Argo CD sync. Then check that the three old
-   CronJobs are suspended:
+   (deleting a CronJob also deletes its Jobs, and stops a running one): `kubectl -n scrap get
+   jobs` shows none running. By default they start between 03:30 and 04:30, and the related pass
+   can run for hours. A Job still writing `/data/scrap.db` after the copy stops the next start.
+   If you go straight to 1.9.1 or later, now delete the old CronJobs:
+   `kubectl -n scrap delete cronjob scrap-gc scrap-enrich-related scrap-enrich-topics`.
+6. **Upgrade**: `helm upgrade` as above, or an Argo CD sync. Then check that none of the three old
+   CronJobs is left:
 
    ```
    kubectl -n scrap get cronjob scrap-gc scrap-enrich-related scrap-enrich-topics
    ```
 
-   Each shows `SUSPEND` `True`. Delete any that does not (a later sync recreates it suspended):
-   an old one left running keeps its old image, and from a chart of 1.6.0 or older its gc deletes
-   the files only the new database uses.
+   On 1.9.0 each shows `SUSPEND` `True` (a stub): delete any that does not. A sync without
+   pruning also leaves these stubs behind on a later upgrade to 1.9.1 or later: delete them by
+   hand with `kubectl -n scrap delete cronjob scrap-gc scrap-enrich-related scrap-enrich-topics`.
+   On 1.9.1 or later, once step 5 is done, the check finds none.
 7. **Check.** `kubectl -n scrap logs deploy/scrap -c db-init` says it brought `/data/scrap.db`
    across to `/db/scrap.db`; `kubectl -n scrap exec deploy/scrap -c jobs -- scrap schedule status`
    lists the jobs; and a backup completes:
