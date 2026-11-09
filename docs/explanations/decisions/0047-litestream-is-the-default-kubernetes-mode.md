@@ -84,7 +84,9 @@ it stops before writing anything.
 ### Upgrading from the old mode
 
 What happens, for a release that never set `litestream.enabled`, on the first `helm upgrade` to a
-chart with this default:
+chart with this default. *(Written for 1.9.0. Since 1.9.1, 2026-11-09, there are no stubs, so steps 1
+and 6 hold only through 1.9.0: a direct upgrade to 1.9.1 or later deletes the old CronJobs by hand
+first, as [the how-to](../../how-to/deploy-kubernetes.md) says.)*
 
 1. The CronJobs `<fullname>-gc`, `<fullname>-enrich-related` and `<fullname>-enrich-topics` (the
    last two exist only with ingest on) are replaced by suspended stubs of the same names, by helm

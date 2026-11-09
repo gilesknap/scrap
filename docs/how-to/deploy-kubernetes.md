@@ -649,7 +649,7 @@ passes as CronJobs. The first `helm upgrade` to 1.9.0 or later moves it across (
 
 - The old CronJobs `<fullname>-gc`, `<fullname>-enrich-related` and `<fullname>-enrich-topics`
   (`scrap-gc` and so on for a release named `scrap`; a long fullname is shortened and hashed, so
-  use the command in the upgrade notes `helm upgrade` prints) must not keep running. Chart 1.9.0
+  list them with `kubectl -n scrap get cronjob`) must not keep running. Chart 1.9.0
   replaced each with a suspended stub of the same name, so a sync without pruning could not leave
   the old one behind; chart 1.9.1 and later render no stubs. **So go through 1.9.0 first**
   (upgrade to 1.9.0, do the steps below, then go on to 1.9.1 or later), or, to go straight to
@@ -685,8 +685,11 @@ The steps:
    (deleting a CronJob also deletes its Jobs, and stops a running one): `kubectl -n scrap get
    jobs` shows none running. By default they start between 03:30 and 04:30, and the related pass
    can run for hours. A Job still writing `/data/scrap.db` after the copy stops the next start.
-   If you go straight to 1.9.1 or later, now delete the old CronJobs:
-   `kubectl -n scrap delete cronjob scrap-gc scrap-enrich-related scrap-enrich-topics`.
+   If you go straight to 1.9.1 or later, now delete the old CronJobs. Take their names from the
+   cluster, since your fullname may differ or be hashed (`kubectl -n scrap get cronjob` lists
+   them: those ending `-gc`, `-enrich-related` and `-enrich-topics`; not the backups), then
+   `kubectl -n scrap delete cronjob scrap-gc scrap-enrich-related scrap-enrich-topics` with
+   those names.
 6. **Upgrade**: `helm upgrade` as above, or an Argo CD sync. Then check that none of the three old
    CronJobs is left:
 
