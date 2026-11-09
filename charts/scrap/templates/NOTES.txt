@@ -38,9 +38,13 @@ gc and the Claude passes run in the pod's jobs container, not as CronJobs.
 
 Upgrading from the old mode (database at /data/scrap.db)? Follow the steps in
 https://gilesknap.github.io/scrap/main/how-to/deploy-kubernetes.html#k8s-upgrade-old-mode (ADR 47).
-The old gc and Claude-pass CronJobs are kept under their names, suspended and running nothing, until a
-later release removes them. Check each shows SUSPEND True, and delete any that does not:
+Since 1.9.1 the chart no longer renders the suspended stubs that 1.9.0 put in place of the old gc and
+Claude-pass CronJobs. Going straight from the old mode to here, delete the old CronJobs by hand,
+or an old one keeps its old image and, from chart 1.6.0 or older, its
+gc deletes files only the new database uses; better, go through 1.9.0 first. A sync without pruning
+leaves any 1.9.0 stubs behind: delete them. Check what is left, then delete it:
   kubectl -n {{ .Release.Namespace }} get cronjob {{ include "scrap.cronName" (dict "ctx" . "suffix" "-gc") }} {{ include "scrap.cronName" (dict "ctx" . "suffix" "-enrich-related") }} {{ include "scrap.cronName" (dict "ctx" . "suffix" "-enrich-topics") }}
+  kubectl -n {{ .Release.Namespace }} delete cronjob {{ include "scrap.cronName" (dict "ctx" . "suffix" "-gc") }} {{ include "scrap.cronName" (dict "ctx" . "suffix" "-enrich-related") }} {{ include "scrap.cronName" (dict "ctx" . "suffix" "-enrich-topics") }}
 {{- end }}
 {{- if .Values.litestream.init.override }}
 

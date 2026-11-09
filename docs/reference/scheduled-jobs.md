@@ -34,9 +34,9 @@ flowchart LR
 On Kubernetes the chart runs the database with Litestream by default
 ([ADR 47](../explanations/decisions/0047-litestream-is-the-default-kubernetes-mode.md)), so gc,
 related pages and topics, which need the live database, run in the scrap pod's `jobs` container,
-not as CronJobs. For now the chart also renders CronJobs named `<fullname>-gc`,
-`<fullname>-enrich-related` and `<fullname>-enrich-topics`, suspended stubs that never run: they
-replace the old mode's CronJobs on an upgrade ({ref}`k8s-upgrade-old-mode`).
+not as CronJobs. Chart 1.9.0 rendered suspended stub CronJobs named `<fullname>-gc`,
+`<fullname>-enrich-related` and `<fullname>-enrich-topics` for upgrades; 1.9.1 does not, so an
+upgrade from the old mode needs care ({ref}`k8s-upgrade-old-mode`).
 
 On Kubernetes the `jobs` container also does this, on fixed times that no value changes:
 
