@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Public site &#8212; scrap 1.9.1.dev8+g6282cb087 documentation</title>
+    <title>Public site &#8212; scrap 1.9.2.dev6+gce1d6b18a documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=080f9875"></script>
+    <script src="../_static/documentation_options.js?v=20d9a29d"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -1027,7 +1027,11 @@ shows it and writes one HTML file, which scrap then checks (<a class="reference 
 <ul class="simple">
 <li><p>The body as shown, Claude’s write-up and Claude’s summary.</p></li>
 <li><p>The tags, as chips: <code class="docutils literal notranslate"><span class="pre">&lt;a</span> <span class="pre">href=&quot;scrap-tag:&lt;tag,</span> <span class="pre">URL-encoded&gt;&quot;&gt;</span></code>, which scrap turns into
-<code class="docutils literal notranslate"><span class="pre">/t/&lt;key&gt;</span></code> (<a class="reference internal" href="#tag-keys"><span class="std std-ref">Tag keys</span></a>).</p></li>
+<code class="docutils literal notranslate"><span class="pre">/t/&lt;key&gt;</span></code> (<a class="reference internal" href="#tag-keys"><span class="std std-ref">Tag keys</span></a>). Never a tag under <code class="docutils literal notranslate"><span class="pre">project/</span></code>, which names the folder
+Claude wrote the page from (a local path): it is left out of the chips, the home page, the tag
+list and the <code class="docutils literal notranslate"><span class="pre">/t/</span></code> pages, and scrap takes such a chip out of the HTML (as an app from before
+#585 still writes it) before it checks the page. A page published before then keeps its chip
+until it is published again: Settings &gt; Refresh all public pages does them all.</p></li>
 <li><p><strong>Linked from</strong> and <strong>Related</strong> (the links scrap adds itself): an entry is kept only if the
 other page is public. Otherwise the whole entry is left out of those lists (a private page’s
 title can still show in the page’s own text, as a link’s words: <a class="reference internal" href="#private-titles"><span class="std std-ref">#private-titles</span></a>).</p></li>
@@ -1554,7 +1558,8 @@ of an <code class="docutils literal notranslate"><span class="pre">img</span></c
 the page’s text, which includes another page’s file the owner embedded. Anything else refuses
 the publish.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">scrap-tag:&lt;tag,</span> <span class="pre">URL-encoded&gt;</span></code> is allowed only as an <code class="docutils literal notranslate"><span class="pre">a</span></code>’s <code class="docutils literal notranslate"><span class="pre">href</span></code>, and must name one of the
-page’s current tags (else <code class="docutils literal notranslate"><span class="pre">422</span> <span class="pre">stale_tags</span></code>). scrap replaces it with <code class="docutils literal notranslate"><span class="pre">/t/&lt;key&gt;</span></code> (<a class="reference internal" href="#tag-keys"><span class="std std-ref">Tag keys</span></a>).</p></li>
+page’s current tags (else <code class="docutils literal notranslate"><span class="pre">422</span> <span class="pre">stale_tags</span></code>); a <code class="docutils literal notranslate"><span class="pre">project/</span></code> one’s chip is taken out first, and
+one elsewhere is <code class="docutils literal notranslate"><span class="pre">422</span> <span class="pre">bad_html</span></code>. scrap replaces it with <code class="docutils literal notranslate"><span class="pre">/t/&lt;key&gt;</span></code> (<a class="reference internal" href="#tag-keys"><span class="std std-ref">Tag keys</span></a>).</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">scrap-drawing:&lt;id&gt;</span></code> (an <code class="docutils literal notranslate"><span class="pre">img</span></code>’s <code class="docutils literal notranslate"><span class="pre">src</span></code>, or a download <code class="docutils literal notranslate"><span class="pre">a</span></code>’s <code class="docutils literal notranslate"><span class="pre">href</span></code>) names a drawing the page
 shows, and <code class="docutils literal notranslate"><span class="pre">scrap-excalidraw:&lt;id&gt;</span></code> (an <code class="docutils literal notranslate"><span class="pre">a</span></code>’s <code class="docutils literal notranslate"><span class="pre">href</span></code>) its Open in Excalidraw link
 (<a class="reference internal" href="#drawings"><span class="std std-ref">Drawings</span></a>).</p></li>

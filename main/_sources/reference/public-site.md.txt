@@ -342,7 +342,11 @@ Marked *default* below: a choice the owner may still change, kept in one place s
 
 - The body as shown, Claude's write-up and Claude's summary.
 - The tags, as chips: `<a href="scrap-tag:<tag, URL-encoded>">`, which scrap turns into
-  `/t/<key>` ([](#tag-keys)).
+  `/t/<key>` ([](#tag-keys)). Never a tag under `project/`, which names the folder
+  Claude wrote the page from (a local path): it is left out of the chips, the home page, the tag
+  list and the `/t/` pages, and scrap takes such a chip out of the HTML (as an app from before
+  #585 still writes it) before it checks the page. A page published before then keeps its chip
+  until it is published again: Settings > Refresh all public pages does them all.
 - **Linked from** and **Related** (the links scrap adds itself): an entry is kept only if the
   other page is public. Otherwise the whole entry is left out of those lists (a private page's
   title can still show in the page's own text, as a link's words: [](#private-titles)).
@@ -731,7 +735,8 @@ reachable only from the owner's PWA session.
   the page's text, which includes another page's file the owner embedded. Anything else refuses
   the publish.
 - `scrap-tag:<tag, URL-encoded>` is allowed only as an `a`'s `href`, and must name one of the
-  page's current tags (else `422 stale_tags`). scrap replaces it with `/t/<key>` ([](#tag-keys)).
+  page's current tags (else `422 stale_tags`); a `project/` one's chip is taken out first, and
+  one elsewhere is `422 bad_html`. scrap replaces it with `/t/<key>` ([](#tag-keys)).
 - `scrap-drawing:<id>` (an `img`'s `src`, or a download `a`'s `href`) names a drawing the page
   shows, and `scrap-excalidraw:<id>` (an `a`'s `href`) its Open in Excalidraw link
   ([](#drawings)).
