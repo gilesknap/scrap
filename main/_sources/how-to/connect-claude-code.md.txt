@@ -30,7 +30,7 @@ flowchart LR
   [ADR 0023](../explanations/decisions/0023-bearer-token-on-mcp-and-an-identity-header-setting.md)).
 - DLS ([](../tutorials/install-dls.md)): the installer does steps 1 and 2 for you and adds its
   server as `scrap-dls`, so it sits beside a `scrap` you already have. Its tools are
-  `mcp__scrap-dls__*`. Do step 3.
+  `mcp__scrap-dls__*`; the `sc` commands use whichever scrap tools are connected. Do step 3.
 - Claude Code in claude-sandbox: see [](connect-claude-sandbox.md) as well.
 - On your own machine, run scrap as in "Try it" in the README and add
   `http://localhost:8000/mcp` in step 2; step 1 is not needed on loopback.
@@ -315,9 +315,11 @@ given; a PDF or text file is listed below the text and read for search.
 
 `commands/` in this repository holds Claude Code slash commands that give you short scrap
 commands. Each is one Markdown file with a one-line description, and each is its own command, so
-typing `/sc` in Claude Code autocompletes the whole set with that description. They use the server added in step 2 (the `mcp__scrap__*` tools, or
-`mcp__scrap-dls__*` when there is no `scrap` server) and
-do nothing useful without it; if the tools are missing they say so and point to the setup.
+typing `/sc` in Claude Code autocompletes the whole set with that description. They use whichever scrap tools are connected (the server added in step 2,
+`mcp__scrap__*` or, with the DLS install, `mcp__scrap-dls__*`; the commands name the tools
+plainly, as `search`, `write` and so on) and do nothing useful without them. If the tools are
+missing they say so and point to `/sc`, which links this page (for a DLS install, re-run the
+installer: {ref}`install-dls-claude`).
 
 | Command | What it does |
 | --- | --- |
@@ -367,8 +369,7 @@ too ([ADR 43](../explanations/decisions/0043-public-pages-a-static-site-scrap-pu
 public pages take its place, see [](publish-pages.md)); the installer leaves an
 installed copy alone, so delete `~/.claude/skills/scrap-to-gist` when you no longer want it.
 Only the scrap tools are used. `<SCRAP_URL>` in the
-commands is a placeholder (the hint they give when the tools are missing, and the shape of the
-page URL they report); the real URL comes from the `write` tool, built from `SCRAP_PUBLIC_URL`.
+commands is a placeholder (the shape of the page URL they report); the real URL comes from the `write` tool, built from `SCRAP_PUBLIC_URL`.
 
 `/sc-summarise` makes Claude summarise the useful findings of the current topic into one page (`/sc-summarise all` for the whole
 conversation, `/sc-summarise day` for the whole day), reusing existing tags and linking related pages, and show you the title and tags before it
