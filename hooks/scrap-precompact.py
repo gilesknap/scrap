@@ -41,6 +41,7 @@ SLUG_RE = re.compile(
     r"^\W*SLUG\W*:\W*([A-Za-z0-9][A-Za-z0-9_-]{0,200})\W*$", re.MULTILINE
 )
 TITLE_RE = re.compile(r"^\W*TITLE\W*:\s*(.{1,200}?)\s*$", re.MULTILINE)
+MAX_TAG = 64  # scrap's limit on a tag's length
 
 PROMPT = """\
 You are posting an automatic summary of a Claude Code session to scrap, using only the scrap
@@ -59,7 +60,7 @@ Rules:
 - Never include secrets, tokens, API keys, passwords, credentials, private data of others, or
   raw tool output. When in doubt leave it out.
 - Call tags first and reuse existing tags (nested too). Tags for a new page: `scrap`,
-  `auto-compact` and 1-3 topic tags. Link related pages as [[slug|title]], never a full URL.
+  `auto-compact`, `{project}` and 1-3 topic tags. Link related pages as [[slug|title]], never a full URL.
 - kind `note`. origin: "{cwd} {today} (auto-compact)". key: "{key}".
 - Call write exactly once. Your last two lines of output must be `SLUG: <slug of the page>` and `TITLE: <its title>`.
 """
@@ -149,6 +150,13 @@ def dialogue(lines: list[str], start: int = 0) -> str:
     return text
 
 
+def project_tag(cwd: str) -> str:
+    """project/<slug>: Claude Code's project folder name for cwd (every character but an
+    ASCII letter or digit made "-"), cut from the front to fit scrap's tag limit."""
+    slug = re.sub(r"[^a-zA-Z0-9]", "-", cwd)
+    return "project/" + slug[-(MAX_TAG - len("project/")) :]
+
+
 def build_prompt(
     session_id: str,
     cwd: str,
@@ -167,7 +175,13 @@ def build_prompt(
     else:
         mode = NEW_MODE
     return PROMPT.format(
-        session_id=session_id, cwd=cwd, today=today, mode=mode, key=key, mark=mark
+        session_id=session_id,
+        cwd=cwd,
+        today=today,
+        mode=mode,
+        key=key,
+        mark=mark,
+        project=project_tag(cwd),
     )
 
 

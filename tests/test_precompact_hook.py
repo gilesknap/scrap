@@ -80,6 +80,15 @@ def test_build_prompt_new_and_append() -> None:
     prev = {"slug": "my-page", "title": "[auto-compact] T", "count": 1}
     app = hook.build_prompt("s1", "/w", "2026-10-26", prev, "k2")
     assert "append_to `my-page`" in app and "Compaction 2" in app
+    assert "`project/-w`" in new
+
+
+def test_project_tag_is_claude_code_s_folder_name_cut_to_fit() -> None:
+    assert hook.project_tag("/scratch/a_b/v1.2") == "project/-scratch-a-b-v1-2"
+    long = "/scratch/hgv27681/work/scrap/.claude/worktrees/project-tag"
+    assert hook.project_tag(long) == (
+        "project/cratch-hgv27681-work-scrap--claude-worktrees-project-tag"
+    )  # 64 characters: the slug's first two cut off
 
 
 def test_parse_slug_and_title() -> None:

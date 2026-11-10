@@ -27,7 +27,8 @@ not worth it, skip the hook, or see [](#turn-it-off).
   it has no scrap tools and cannot write; the `sc` commands are not affected (they fall back to
   `scrap-dls`).
 - Writes **one page per Claude session**. The first compaction creates it, titled
-  `[auto-compact] <topic>`, tagged `scrap` and `auto-compact` plus topic tags, with the working
+  `[auto-compact] <topic>`, tagged `scrap`, `auto-compact` and `project/<slug>` (see "Project tag"
+  in [](../reference/mcp.md)) plus topic tags, with the working
   directory and date as origin. Later compactions of the same session append a section,
   `## Compaction N (date)`, covering only what happened since the last one.
 - Keeps a small map of session id to page slug (and how far into the transcript it has

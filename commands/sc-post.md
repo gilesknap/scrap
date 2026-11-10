@@ -27,7 +27,8 @@ otherwise see <https://gilesknap.github.io/scrap/main/how-to/connect-claude-code
 5. **Write**: `kind` `note` unless the user asked otherwise (`doc` for a long reference
    write-up, `todo`, `read`, `board`; `due` and `priority` only on a todo,
    `status` only on a todo or read). `origin`: the repo or working directory and today's date,
-   e.g. `myproject (~/code/myproject) 2026-10-20`. `key`: a random value made once per post
+   e.g. `myproject (~/code/myproject) 2026-10-20`. Add the `project/<slug>` tag for the working
+   directory, as `write`'s description says. `key`: a random value made once per post
    (e.g. 16 hex characters), reused only to retry that same call; never derive it from the title
    or date. Limits: title 200 characters, body 200 kB, origin 200 characters, up to 20 tags of 1
    to 64 characters. If the body is too large, say so and ask what to do; do not shorten it.
