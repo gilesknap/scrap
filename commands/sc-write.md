@@ -8,7 +8,7 @@ been discussing and why". Unlike `/sc-post` (verbatim) and `/sc-summarise` (a di
 or the whole conversation), this picks out only the requested material. If the arguments are
 empty, ask what to capture and stop.
 
-Use ONLY the scrap MCP tools (server `scrap`, else `scrap-dls`): `tags`, `search`, `read` and
+Use ONLY the scrap MCP tools: `tags`, `search`, `read` and
 `write`. If there are none, say so and point to `/sc`.
 
 1. **Source**: use only what is in this conversation. Do not fill gaps from general knowledge or

@@ -9,7 +9,7 @@ a todo whose boxes are all ticked becomes `done` by itself. A todo with no boxes
 `edit_meta`. If the arguments are empty, run the
 `/sc-todos` search (`kind:todo -is:done -is:cancelled sort:due`, `limit` 10) and ask which.
 
-Use ONLY the scrap MCP tools (server `scrap`, else `scrap-dls`): `search`, `read`, `edit_page` and
+Use ONLY the scrap MCP tools: `search`, `read`, `edit_page` and
 `edit_meta`. If there are none, say so and point to `/sc`.
 
 1. `search` for the todo (`kind:todo -is:done -is:cancelled` plus the words). If more than one

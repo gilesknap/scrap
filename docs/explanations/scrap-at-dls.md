@@ -78,7 +78,7 @@ command to run. Only Claude Code on the DLS network can reach `/mcp`; claude.ai'
 cloud sessions cannot.
 
 **An old `scrap` server.** A server named `scrap` for another scrap is left alone, and the `sc`
-commands use `scrap` if it is there, else `scrap-dls`. If your `scrap` server points at this DLS
+commands use whichever scrap tools are connected. If your `scrap` server points at this DLS
 scrap (from an earlier version of the DLS install), remove it, or every tool appears twice:
 `claude mcp remove --scope user scrap`, and delete `~/.claude/scrap-headers.sh`.
 

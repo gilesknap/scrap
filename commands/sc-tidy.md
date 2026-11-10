@@ -3,8 +3,8 @@ description: Bulk-fix scrap kinds and tags (dry run first)
 argument-hint: <what to change>
 ---
 
-Bulk kind and tag changes in scrap, using only the scrap MCP tools (server `scrap`, else
-`scrap-dls`): `search`, `tags` and `edit_meta`. If there are none, say so and point to `/sc`.
+Bulk kind and tag changes in scrap, using only the scrap MCP tools: `search`, `tags` and
+`edit_meta`. If there are none, say so and point to `/sc`.
 
 1. Find the pages (`search`, or `edit_meta` with a `query`; `pages` and `query` cannot be
    combined). Reuse existing tags (`tags`).

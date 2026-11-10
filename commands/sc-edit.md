@@ -7,7 +7,7 @@ Change the text of one existing page with `edit_page`: the first argument names 
 slug, id or page URL), the rest is the change to make. If either is missing, ask and stop. Counterpart
 to `/sc-write`, which only creates pages.
 
-Use ONLY the scrap MCP tools (server `scrap`, else `scrap-dls`): `search`, `read` and `edit_page`.
+Use ONLY the scrap MCP tools: `search`, `read` and `edit_page`.
 If there are none, say so and point to `/sc`. If `edit_page`
 is missing or refuses with `text editing is off`, content editing is switched off on the server
 (`SCRAP_MCP_CONTENT_EDIT=0`): say so and stop.

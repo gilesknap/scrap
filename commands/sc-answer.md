@@ -6,7 +6,7 @@ argument-hint: <question>
 Answer the question in the arguments from scrap's content alone. If the arguments are empty, ask
 for the question and stop. Read-only: do not write, edit or tag anything.
 
-Use ONLY the scrap MCP tools (server `scrap`, else `scrap-dls`): `search`, `read` and `tags`. If there are none, say so and point to `/sc`.
+Use ONLY the scrap MCP tools: `search`, `read` and `tags`. If there are none, say so and point to `/sc`.
 
 1. `search` with 2-4 short queries built from the question's key words (try synonyms; tags from
    `tags` can narrow it, `tag:x`). Use `limit` 10-20.
