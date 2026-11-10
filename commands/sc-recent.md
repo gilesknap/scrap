@@ -6,7 +6,7 @@ argument-hint: [period, e.g. 1d, 1w]
 Show what changed in scrap recently. The argument is a period such as `1d`, `3d`, `2w` or `1m`
 (1m is 30 days); the default is `1d`. Read-only: write and edit nothing.
 
-Use ONLY the scrap MCP tools (server `scrap`, or `scrap-dls`): `search` and `revisions`. If there are none, say so and point to `/sc`.
+Use ONLY the scrap MCP tools (server `scrap`, else `scrap-dls`): `search` and `revisions`. If there are none, say so and point to `/sc`.
 
 1. `revisions` with no `page` or `batch` and `limit` 100: the recent-changes feed, newest first.
    `text` rows are text revisions (`author` is `claude` or the user; `source` `mcp` or `web`;

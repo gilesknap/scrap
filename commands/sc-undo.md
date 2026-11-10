@@ -3,7 +3,7 @@ description: Revert a recent scrap change
 argument-hint: [page or batch]
 ---
 
-Use only the scrap MCP tools (server `scrap`, or `scrap-dls`): `revisions`, `revert`, `read`,
+Use only the scrap MCP tools (server `scrap`, else `scrap-dls`): `revisions`, `revert`, `read`,
 `trash` and `undelete`. If there are none, say so and point to `/sc`.
 
 1. `revisions` (with no `page` or `batch` it lists what changed recently across all pages; or give the page or batch named) and show the latest few.

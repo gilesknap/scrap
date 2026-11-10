@@ -8,7 +8,7 @@ Save your previous response (the last thing you wrote before this command) to sc
 sections. The body is exactly that response's text, character for character. If there is no
 previous response, say so and stop. Bare `/sc-post` with no arguments is the normal use.
 
-Use ONLY the scrap MCP tools (server `scrap`, or `scrap-dls`): `tags` and `write`. If there are none, say so and point to `/sc`.
+Use ONLY the scrap MCP tools (server `scrap`, else `scrap-dls`): `tags` and `write`. If there are none, say so and point to `/sc`.
 
 1. **Tags**: `tags` (with a `prefix` if the topic is obvious); reuse existing tags,
    nested ones too (`tech/python`), and invent one only when nothing fits. 2-5 tags.

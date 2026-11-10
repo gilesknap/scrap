@@ -18,7 +18,7 @@ the arguments:
 
 The rest of the arguments, if any, are the title.
 
-Use ONLY the scrap MCP tools (server `scrap`, or `scrap-dls`): `tags`, `search`, `read` and
+Use ONLY the scrap MCP tools (server `scrap`, else `scrap-dls`): `tags`, `search`, `read` and
 `write`, except for `day`, which also uses the scrap tools `revisions` and `topics`, and
 `ListAgents`, `SendMessage`, `gh` and `jq`. If there are no scrap tools, say so and point to `/sc`.
 
