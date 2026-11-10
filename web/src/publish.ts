@@ -315,9 +315,12 @@ export function publishHtml(root: N, ctx: Context, swaps: Swaps = new Map()): st
     return `<details class="reading"><summary>${READING}</summary><div class="claude">${parts}</div></details>`;
   };
 
+  // Never a project/ tag (#585: PROJECT_TAG in store/constants.py): it names the folder
+  // Claude wrote the page from
+  const visibleTags = ctx.tags.filter((t) => !t.startsWith("project/"));
   const chips = () =>
-    ctx.tags.length
-      ? `<p class="tags">${ctx.tags
+    visibleTags.length
+      ? `<p class="tags">${visibleTags
           .map((t) => `<a href="${tagHref(t)}">#${words(t)}</a>`)
           .join("")}</p>`
       : "";

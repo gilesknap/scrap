@@ -6,6 +6,7 @@ import hashlib
 import io
 import threading
 import time
+from urllib.parse import quote
 
 import anyio
 import pytest
@@ -397,6 +398,45 @@ def test_stale_tags_and_a_failed_check(client):
     p = made(client, tags=("work",))
     refusal(put(client, p, chip("gone")), "stale_tags")
     assert "script" in refusal(put(client, p, "<script>x</script>"), "bad_html")
+
+
+def test_project_tags_are_never_published(client, site):
+    # they name the folder Claude wrote the page from: a local path (#585). An app
+    # from before still sends their chips: scrap takes them out and publishes
+    p = made(client, tags=("work", "project/-home-me-code-x"))
+    mine = '<a href="scrap-tag:project%2F-home-me-code-x">#project/-home-me-code-x</a>'
+    chips = f'<p class="tags"><a href="scrap-tag:work">#work</a>{mine}</p>'
+    assert put(client, p, chips + "<p>Body</p>").status_code == 200
+    index = site.file(f"p/{p['slug']}", "index.html").decode()
+    assert "-home-me" not in index
+    assert f'<p class="tags"><a href="/t/{tag_key("work")}">#work</a></p>' in index
+    assert f"t/{tag_key('project/-home-me-code-x')}" not in site.units()
+    for name in ("index.html", "tags.html"):
+        assert "-home-me" not in site.file("home", name).decode()
+    # a row of only project chips goes as a whole
+    alone = made(client, tags=("project/-home-me-code-x",))
+    assert (
+        put(client, alone, f'<p class="tags">{mine}</p><p>Body</p>').status_code == 200
+    )
+    index = site.file(f"p/{alone['slug']}", "index.html").decode()
+    assert '<p class="tags">' not in index and "-home-me" not in index
+    # one outside the row of chips is refused, not published
+    assert "project tag" in refusal(put(client, alone, f"<p>{mine}</p>"), "bad_html")
+
+
+def test_tags_merely_like_a_project_tag_are_published(client, site):
+    others = ("project", "work/project/x", "projects")
+    p = made(client, tags=("project/-home-me", *others))
+    chips = "".join(
+        f'<a href="scrap-tag:{quote(t, safe="")}">#{t}</a>'
+        for t in ("project/-home-me", *others)
+    )
+    assert put(client, p, f'<p class="tags">{chips}</p>').status_code == 200
+    index = site.file(f"p/{p['slug']}", "index.html").decode()
+    assert "-home-me" not in index
+    for tag in others:
+        assert f'<a href="/t/{tag_key(tag)}">#{tag}</a>' in index
+        assert f"t/{tag_key(tag)}" in site.units()
 
 
 def test_the_caps(client, monkeypatch):

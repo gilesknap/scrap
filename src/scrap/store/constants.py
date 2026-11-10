@@ -100,6 +100,9 @@ CLAUDE = "claude"
 MAX_FIELDS = 32  # a page's fields are listed with every page: keep them small
 MAX_TAGS = 64  # a page's, as the PWA sets them (MCP's write takes fewer)
 MAX_TAG = 64  # characters, as the tag table's CHECK has it
+# The tags naming the folder Claude wrote a page from (#585): the client's, never
+# spread by enrichment or published (they name local paths)
+PROJECT_TAG = "project/"  # a prefix: project/<slug>
 MAX_PAGE = 1_000_000  # bytes of UTF-8: a page's text, however it is written (#62)
 KINDS_SHOWN = ("ocr", "description", "excalidraw")
 META_SOURCES = ("web", "mcp")  # who changed a page's kind or tags: the PWA, or Claude

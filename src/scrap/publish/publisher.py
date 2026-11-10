@@ -23,7 +23,7 @@ import threading
 from pathlib import Path
 from typing import Any
 
-from ..store import Store, body_refs, now
+from ..store import Store, body_refs, now, project_tag
 from . import derived, pages
 from .checker import check
 from .client import Receiver
@@ -41,7 +41,7 @@ from .errors import (
 from .files import MAX_UNIT, page_files
 from .kept import Kept
 from .push import push_derived, reconcile, stale_copies
-from .rewrite import swap
+from .rewrite import swap, without_project_tags
 from .settings import enabled, page_url, publish_site, publish_to, static_dir, token
 
 __all__ = ["RECONCILE_EVERY", "RETRY_FIRST", "Publisher", "backoff"]
@@ -109,7 +109,13 @@ class Publisher:
             if base_rev != page.rev:
                 raise Stale(page.rev)
             is_public = pages.public_slugs(self.store).__contains__
+            html = without_project_tags(html)  # as an older app still sends (#585)
             checked = check(html, is_public)
+            if mine := [t for t in checked.tags if project_tag(t)]:  # not as a chip
+                raise CheckError(
+                    f"Not published: {mine[0]!r} is a project tag, never published.",
+                    "bad_html",
+                )
             if gone := [t for t in checked.tags if t not in page.tags]:
                 raise CheckError(
                     f"Not published: the page no longer has the tag {gone[0]!r}.",
@@ -133,8 +139,9 @@ class Publisher:
                     f" {MAX_UNIT // 2**20} MiB.",
                     "unit_too_large",
                 )
+            shown = [t for t in page.tags if not project_tag(t)]  # #585
             meta = {
-                "id": page.id, "title": page.title, "tags": list(page.tags),
+                "id": page.id, "title": page.title, "tags": shown,
                 "published_at": now(),
             }  # fmt: skip
             with self._receiver() as receiver:

@@ -14,6 +14,7 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Any
 
+from ..store import project_tag
 from .kept import Kept
 from .search import UI_CSS, SearchError, build_index, cached_css, index_text
 from .tagkey import tag_key
@@ -63,8 +64,9 @@ def build(kept: Kept, static: Path) -> dict[str, dict[str, bytes]]:
     pages = []
     for slug in kept.slugs():
         meta = kept.meta(slug)
-        if meta is not None:
-            pages.append((slug, meta))
+        if meta is not None:  # no project tag (#585), as in a copy kept before
+            shown = [t for t in meta.get("tags") or [] if not project_tag(str(t))]
+            pages.append((slug, {**meta, "tags": shown}))
     pages = _newest_first(pages)
     tags: dict[str, list[tuple[str, dict[str, Any]]]] = defaultdict(list)
     for slug, meta in pages:

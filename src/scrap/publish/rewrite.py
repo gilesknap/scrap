@@ -10,14 +10,36 @@ RAW_PLACEHOLDER finds it; nothing else in the page changes."""
 import re
 from urllib.parse import quote, unquote
 
+from ..store import project_tag
 from .checker import DIAGRAM_PREFIX, DRAWING_PREFIX, RAW_PLACEHOLDER
 from .errors import CheckError
 from .links import BLOB, DIAGRAM, DRAWING, EXCALIDRAW, TAG
 from .tagkey import tag_key
 
-__all__ = ["EXCALIDRAW_APP", "excalidraw_url", "swap"]
+__all__ = ["EXCALIDRAW_APP", "excalidraw_url", "swap", "without_project_tags"]
 
 EXCALIDRAW_APP = "https://excalidraw.com/#url="
+# A tag's chip as the publish mode writes it, in its row of them
+CHIP = re.compile(r'<a\b[^>]*?\shref="scrap-tag:([^"]*)"[^>]*>[^<]*</a>')
+CHIPS = re.compile(r'<p class="tags">((?:<a\b[^>]*>[^<]*</a>)+)</p>')
+
+
+def without_project_tags(html: str) -> str:
+    """html without the chips of tags under project/ (#585: they name a local folder),
+    which an app from before they were left out still writes, and without the row
+    of chips if that empties it; a scrap-tag: link anywhere else is left as it is.
+
+    >>> without_project_tags('<p class="tags"><a href="scrap-tag:project%2F">x</a></p>')
+    ''
+    >>> without_project_tags('<a href="scrap-tag:project%2F">x</a>')
+    '<a href="scrap-tag:project%2F">x</a>'
+    """
+
+    def row(m: re.Match[str]) -> str:
+        kept = CHIP.sub(lambda c: "" if project_tag(unquote(c[1])) else c[0], m[1])
+        return f'<p class="tags">{kept}</p>' if kept else ""
+
+    return CHIPS.sub(row, html)
 
 
 def excalidraw_url(site: str, slug: str, name: str) -> str:

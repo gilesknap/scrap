@@ -165,7 +165,9 @@ def pick(title):
 
 
 def test_tags_and_summary_are_added_apart_from_the_text_then_related(store):
-    larch = capture(store, "Larch prices at the timber yard", tags=["diy"])
+    larch = capture(
+        store, "Larch prices at the timber yard", tags=["diy", "project/-home-me"]
+    )
     ref = capture(store, LONG, tags=["home"])
     fake = Fake(pick("Larch prices"))
     run_all(worker(store, fake))
@@ -183,6 +185,7 @@ def test_tags_and_summary_are_added_apart_from_the_text_then_related(store):
     assert "## Other pages" not in call["system"]
     assert call["model"] == claude.TEXT_MODEL and call["effort"] == "low"
     assert "diy (1)" in call["system"] and "home (1)" in call["system"]
+    assert "project/" not in call["system"]  # the other page's (#585)
     # the summary is searchable
     hits = store.search("planned", 10)
     assert [h["id"] for h in hits] == [ref["page_id"]]
@@ -926,6 +929,11 @@ def test_checked_bounds_the_output():
     assert out["title"] == ""  # only a link gets a title
     with pytest.raises(ValueError):
         enrich.checked({"tags": []}, set(), True, False)
+    # a project tag is the client's alone (#585), even one in use
+    used = {"project/-home-me", "project"}
+    tags = ["project/-home-me", "/Project//x", "Project", "projects", "work"]
+    out = enrich.checked({"tags": tags, "summary": "", "title": ""}, used, True, False)
+    assert out["tags"] == ["project", "projects", "work"]
     assert enrich.checked_related({"related": [True, 0, 2, 2, 3, 9]}, 3) == [2, 3]
     with pytest.raises(ValueError):
         enrich.checked_related({}, 3)

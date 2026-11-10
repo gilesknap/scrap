@@ -381,7 +381,8 @@ post twice. The command tells Claude to leave out secrets, credentials and priva
 appends to an earlier page only if that page was written by Claude (`written_by_claude` in
 `read`); otherwise it links to your page.
 
-Pages written this way carry a *Written by Claude* badge and the origin the session gave;
+Pages written this way carry a *Written by Claude* badge, the origin the session gave and a
+`project/<slug>` tag naming its working directory (see "Project tag" in [](../reference/mcp.md));
 `is:claude` lists them. Claude never deletes a page for good: it can move pages you name to the trash
 (`trash_pages`, undone with `undelete`), and the nightly gc purges them after `SCRAP_TRASH_DAYS` days. It can change any page's kind and tags
 ("make these 15 notes whiteboards", with `edit_meta`); each such change is a revision you can

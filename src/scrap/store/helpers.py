@@ -32,6 +32,7 @@ from .constants import (
     MAX_TAGS,
     MD_LINK,
     PRIORITY_NAMES,
+    PROJECT_TAG,
     SURROGATE,
     TODO,
     UPLOAD_TOKEN,
@@ -196,6 +197,16 @@ def tag_path(tag: str) -> str:
     """A tag without empty path segments: /lead, trail/ and a//b become lead, trail and
     a/b (#87), so no blank tag or parent reaches the tag tree, and tag:/ finds none."""
     return "/".join(part for part in tag.split("/") if part.strip())
+
+
+def project_tag(tag: str) -> bool:
+    """Whether tag is under project/ (a Claude page's folder, #585); not project
+    itself, which may be the user's own.
+
+    >>> [project_tag(t) for t in ("project/-home-me", "project", "projects", "work")]
+    [True, False, False, False]
+    """
+    return tag.startswith(PROJECT_TAG)
 
 
 def clean_tags(tags: list[str], most: int = MAX_TAGS) -> list[str]:

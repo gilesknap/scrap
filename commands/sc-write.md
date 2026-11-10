@@ -23,9 +23,11 @@ otherwise see <https://gilesknap.github.io/scrap/main/how-to/connect-claude-code
    repeat the title as a heading); then just the requested content, as short bullets, a table or a
    list as fits. `kind` `note` unless the user asked otherwise (`doc` for a long reference,
    `todo` with `- [ ]` boxes, `read`, `board`; `due`, `priority` only on a todo).
-   `origin`: the repo or working directory and today's date. `key`: a random value made once
-   per page, reused only to retry that same call, never derived from the title or date. Limits:
-   title 200 characters, body 200 kB, origin 200, up to 20 tags.
+   `origin`: the repo or working directory and today's date. Add the tag `project/<slug>`
+   (`<slug>`: the working directory's absolute path with every character but an ASCII letter
+   or digit made `-`, cut from the front so the tag fits 64 characters). `key`: a random value
+   made once per page, reused only to retry that same call, never derived from the title or
+   date. Limits: title 200 characters, body 200 kB, origin 200, up to 20 tags.
 4. **Never include** secrets, tokens, API keys, passwords, credentials or their file contents,
    private data of others, or raw tool output dumps. When in doubt leave it out and say so.
 5. **Confirm**, unless the user said "just post": ONE short message:

@@ -9,7 +9,7 @@ from .. import claude, fetch
 from ..ingest import svgread
 from ..markdown import plain
 from ..query import CONTROL
-from ..store import unlink
+from ..store import PROJECT_TAG, unlink
 from .constants import (
     DELIMITER,
     FILES,
@@ -99,14 +99,15 @@ def file_lines(files: Sequence[File], most: int) -> list[str]:
 
 
 def vocabulary(conn: sqlite3.Connection) -> list[tuple[str, int]]:
-    """The tags in use (on pages not in the trash), most used first."""
+    """The tags in use (on pages not in the trash), most used first; not project
+    ones (#585), which only the client gives."""
     return [
         (r[0], r[1])
         for r in conn.execute(
             "SELECT t.tag, count(*) FROM tag t JOIN page p ON p.id = t.page_id"
-            " WHERE p.deleted_at IS NULL GROUP BY t.tag"
-            " ORDER BY count(*) DESC, t.tag LIMIT ?",
-            (MAX_VOCAB,),
+            " WHERE p.deleted_at IS NULL AND substr(t.tag, 1, ?) != ?"
+            " GROUP BY t.tag ORDER BY count(*) DESC, t.tag LIMIT ?",
+            (len(PROJECT_TAG), PROJECT_TAG, MAX_VOCAB),
         )
     ]
 
