@@ -20,3 +20,6 @@ argument-hint: <search words>
 If the arguments are non-empty, behave as `/sc-find` with them as the query (a page URL is
 read, not searched for). Otherwise list the
 commands above in one short message.
+
+Whatever the arguments, if there are no scrap MCP tools, say so first and link
+<https://gilesknap.github.io/scrap/main/how-to/connect-claude-code.html>.

@@ -8,11 +8,9 @@ Save your previous response (the last thing you wrote before this command) to sc
 sections. The body is exactly that response's text, character for character. If there is no
 previous response, say so and stop. Bare `/sc-post` with no arguments is the normal use.
 
-Use ONLY the scrap MCP tools (`mcp__scrap__tags`, `mcp__scrap__write`). The scrap tools are the `scrap` server's if there is one, else `scrap-dls`'s (`mcp__scrap-dls__*`). If they are missing, say so: a DLS install sets up `scrap-dls` itself (re-run the installer, or see
-<https://gilesknap.github.io/scrap/main/explanations/scrap-at-dls.html#install-dls-claude>);
-otherwise see <https://gilesknap.github.io/scrap/main/how-to/connect-claude-code.html>.
+Use ONLY the scrap MCP tools: `tags` and `write`. If there are none, say so and point to `/sc`.
 
-1. **Tags**: `mcp__scrap__tags` (with a `prefix` if the topic is obvious); reuse existing tags,
+1. **Tags**: `tags` (with a `prefix` if the topic is obvious); reuse existing tags,
    nested ones too (`tech/python`), and invent one only when nothing fits. 2-5 tags.
 2. **Title**: the arguments if given; otherwise a specific title under ~80 characters taken from
    the response's own first line or heading.
@@ -22,7 +20,7 @@ otherwise see <https://gilesknap.github.io/scrap/main/how-to/connect-claude-code
 
    > Post to scrap? **<title>** · note · #tag1 #tag2 · ~<n> lines
 
-   then call `mcp__scrap__write` once they agree (apply any change they ask for to title, tags
+   then call `write` once they agree (apply any change they ask for to title, tags
    or kind).
 5. **Write**: `kind` `note` unless the user asked otherwise (`doc` for a long reference
    write-up, `todo`, `read`, `board`; `due` and `priority` only on a todo,

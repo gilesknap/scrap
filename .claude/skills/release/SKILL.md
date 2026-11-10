@@ -126,7 +126,7 @@ are merged.
   `.spec.containers[0].image`).
 - `pragma user_version`, read-only, matches the expected migration:
   ```
-  kubectl -n scrap exec <pod-name> -- python -c "import sqlite3; print(sqlite3.connect('file:/data/scrap.db?mode=ro', uri=True).execute('pragma user_version').fetchone()[0])"
+  kubectl -n scrap exec <pod-name> -- python -c "import os, sqlite3; p=os.environ.get('SCRAP_DB_PATH', '/data/scrap.db'); print(sqlite3.connect(f'file:{p}?mode=ro', uri=True).execute('pragma user_version').fetchone()[0])"
   ```
 - `/api/health` responds (port-forward `svc/scrap`, or the exec above with
   `urllib`).
