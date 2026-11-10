@@ -6,6 +6,7 @@ import hashlib
 import io
 import threading
 import time
+from urllib.parse import quote
 
 import anyio
 import pytest
@@ -419,6 +420,23 @@ def test_project_tags_are_never_published(client, site):
     )
     index = site.file(f"p/{alone['slug']}", "index.html").decode()
     assert '<p class="tags">' not in index and "-home-me" not in index
+    # one outside the row of chips is refused, not published
+    assert "project tag" in refusal(put(client, alone, f"<p>{mine}</p>"), "bad_html")
+
+
+def test_tags_merely_like_a_project_tag_are_published(client, site):
+    others = ("project", "work/project/x", "projects")
+    p = made(client, tags=("project/-home-me", *others))
+    chips = "".join(
+        f'<a href="scrap-tag:{quote(t, safe="")}">#{t}</a>'
+        for t in ("project/-home-me", *others)
+    )
+    assert put(client, p, f'<p class="tags">{chips}</p>').status_code == 200
+    index = site.file(f"p/{p['slug']}", "index.html").decode()
+    assert "-home-me" not in index
+    for tag in others:
+        assert f'<a href="/t/{tag_key(tag)}">#{tag}</a>' in index
+        assert f"t/{tag_key(tag)}" in site.units()
 
 
 def test_the_caps(client, monkeypatch):

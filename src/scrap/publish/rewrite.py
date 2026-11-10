@@ -19,23 +19,27 @@ from .tagkey import tag_key
 __all__ = ["EXCALIDRAW_APP", "excalidraw_url", "swap", "without_project_tags"]
 
 EXCALIDRAW_APP = "https://excalidraw.com/#url="
-# A tag's chip as the publish mode writes it, and the row of them once emptied
+# A tag's chip as the publish mode writes it, in its row of them
 CHIP = re.compile(r'<a\b[^>]*?\shref="scrap-tag:([^"]*)"[^>]*>[^<]*</a>')
-NO_CHIPS = re.compile(r'<p class="tags">\s*</p>')
+CHIPS = re.compile(r'<p class="tags">((?:<a\b[^>]*>[^<]*</a>)+)</p>')
 
 
 def without_project_tags(html: str) -> str:
     """html without the chips of tags under project/ (#585: they name a local folder),
     which an app from before they were left out still writes, and without the row
-    of chips if that empties it.
+    of chips if that empties it; a scrap-tag: link anywhere else is left as it is.
 
     >>> without_project_tags('<p class="tags"><a href="scrap-tag:project%2F">x</a></p>')
     ''
-    >>> without_project_tags('<a href="scrap-tag:work">#work</a>')
-    '<a href="scrap-tag:work">#work</a>'
+    >>> without_project_tags('<a href="scrap-tag:project%2F">x</a>')
+    '<a href="scrap-tag:project%2F">x</a>'
     """
-    out = CHIP.sub(lambda m: "" if project_tag(unquote(m[1])) else m[0], html)
-    return NO_CHIPS.sub("", out) if out != html else html
+
+    def row(m: re.Match[str]) -> str:
+        kept = CHIP.sub(lambda c: "" if project_tag(unquote(c[1])) else c[0], m[1])
+        return f'<p class="tags">{kept}</p>' if kept else ""
+
+    return CHIPS.sub(row, html)
 
 
 def excalidraw_url(site: str, slug: str, name: str) -> str:
