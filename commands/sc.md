@@ -20,3 +20,10 @@ argument-hint: <search words>
 If the arguments are non-empty, behave as `/sc-find` with them as the query (a page URL is
 read, not searched for). Otherwise list the
 commands above in one short message.
+
+The `sc` commands use only the scrap MCP tools, named plainly in them (`search`, `read`, `write`,
+`tags`, ...). They come from the `scrap` server if there is one, else from `scrap-dls`
+(`mcp__scrap__search`, or `mcp__scrap-dls__search`). If there are none, say so, and say where to
+look: a DLS install sets up `scrap-dls` itself (re-run the installer, or see
+<https://gilesknap.github.io/scrap/main/explanations/scrap-at-dls.html#install-dls-claude>);
+otherwise see <https://gilesknap.github.io/scrap/main/how-to/connect-claude-code.html>.

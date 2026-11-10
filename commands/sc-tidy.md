@@ -3,10 +3,8 @@ description: Bulk-fix scrap kinds and tags (dry run first)
 argument-hint: <what to change>
 ---
 
-Bulk kind and tag changes in scrap, using only `mcp__scrap__search`, `tags` and `edit_meta` (from the `scrap` server if there is one, else `scrap-dls`: `mcp__scrap-dls__*`). If
-the tools are missing, say so: a DLS install sets up `scrap-dls` itself (re-run the installer, or see
-<https://gilesknap.github.io/scrap/main/explanations/scrap-at-dls.html#install-dls-claude>);
-otherwise see <https://gilesknap.github.io/scrap/main/how-to/connect-claude-code.html>.
+Bulk kind and tag changes in scrap, using only the scrap MCP tools (server `scrap`, or
+`scrap-dls`): `search`, `tags` and `edit_meta`. If there are none, say so and point to `/sc`.
 
 1. Find the pages (`search`, or `edit_meta` with a `query`; `pages` and `query` cannot be
    combined). Reuse existing tags (`tags`).

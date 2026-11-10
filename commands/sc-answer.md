@@ -6,10 +6,7 @@ argument-hint: <question>
 Answer the question in the arguments from scrap's content alone. If the arguments are empty, ask
 for the question and stop. Read-only: do not write, edit or tag anything.
 
-Use ONLY `mcp__scrap__search`, `mcp__scrap__read` and `mcp__scrap__tags` (from the `scrap` server if there is one, else `scrap-dls`: `mcp__scrap-dls__*`). If they are missing,
-say so: a DLS install sets up `scrap-dls` itself (re-run the installer, or see
-<https://gilesknap.github.io/scrap/main/explanations/scrap-at-dls.html#install-dls-claude>);
-otherwise see <https://gilesknap.github.io/scrap/main/how-to/connect-claude-code.html>.
+Use ONLY the scrap MCP tools (server `scrap`, or `scrap-dls`): `search`, `read` and `tags`. If there are none, say so and point to `/sc`.
 
 1. `search` with 2-4 short queries built from the question's key words (try synonyms; tags from
    `tags` can narrow it, `tag:x`). Use `limit` 10-20.
