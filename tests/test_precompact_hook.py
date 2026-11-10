@@ -89,6 +89,15 @@ def test_project_tag_is_claude_code_s_folder_name_cut_to_fit() -> None:
     assert hook.project_tag(long) == (
         "project/cratch-hgv27681-work-scrap--claude-worktrees-project-tag"
     )  # 64 characters: the slug's first two cut off
+    # the transcript's own folder under projects/ wins, cut the same way
+    home = "/root/.claude/projects"
+    assert hook.project_tag("/x", f"{home}/-real_Folder/s.jsonl") == (
+        "project/-real_Folder"
+    )
+    assert hook.project_tag("/x", f"{home}/{'-a' * 40}/s.jsonl") == (
+        "project/" + "-a" * 28
+    )
+    assert hook.project_tag("/x", "/tmp/t.jsonl") == "project/-x"  # not in projects/
 
 
 def test_parse_slug_and_title() -> None:

@@ -23,7 +23,7 @@ import threading
 from pathlib import Path
 from typing import Any
 
-from ..store import Store, body_refs, now
+from ..store import Store, body_refs, now, project_tag
 from . import derived, pages
 from .checker import check
 from .client import Receiver
@@ -110,6 +110,11 @@ class Publisher:
                 raise Stale(page.rev)
             is_public = pages.public_slugs(self.store).__contains__
             checked = check(html, is_public)
+            if mine := [t for t in checked.tags if project_tag(t)]:  # #585
+                raise CheckError(
+                    f"Not published: {mine[0]!r} is a project tag, never published.",
+                    "bad_placeholder",
+                )
             if gone := [t for t in checked.tags if t not in page.tags]:
                 raise CheckError(
                     f"Not published: the page no longer has the tag {gone[0]!r}.",
@@ -133,8 +138,9 @@ class Publisher:
                     f" {MAX_UNIT // 2**20} MiB.",
                     "unit_too_large",
                 )
+            shown = [t for t in page.tags if not project_tag(t)]  # #585
             meta = {
-                "id": page.id, "title": page.title, "tags": list(page.tags),
+                "id": page.id, "title": page.title, "tags": shown,
                 "published_at": now(),
             }  # fmt: skip
             with self._receiver() as receiver:

@@ -152,6 +152,14 @@ def test_append_to_a_claude_page(store):
     assert p["title"] == "Log"
 
 
+def writing_description(store) -> str:
+    async def main():
+        async with Client(mcp_server.server(store)) as client:
+            return (await client.list_tools()).tools
+
+    return next(t.description or "" for t in anyio.run(main) if t.name == "write")
+
+
 def test_a_project_tag_is_kept_and_repeating_it_on_append_is_harmless(store):
     # project/ and the end of a long cwd's slug: 64 characters, as clients cut it
     tag = (
@@ -169,14 +177,6 @@ def test_a_project_tag_is_kept_and_repeating_it_on_append_is_harmless(store):
     assert "only if the page has no project/ tag" in described
     instructions = " ".join((mcp_server.server(store).instructions or "").split())
     assert "project/<slug> for your working directory" in instructions
-
-
-def writing_description(store) -> str:
-    async def main():
-        async with Client(mcp_server.server(store)) as client:
-            return (await client.list_tools()).tools
-
-    return next(t.description or "" for t in anyio.run(main) if t.name == "write")
 
 
 def public_page(store, body="first"):

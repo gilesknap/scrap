@@ -367,9 +367,12 @@ text, where a photo's JPEG would go.
   `/home/me/.claude` gives `-home-me--claude`), lower-cased as every tag is. When
   `project/<slug>` would be over 64 characters, the slug is cut from the front, keeping its end
   (the most specific folders). On an append the client adds it only if the page has no
-  `project/` tag; repeating one the page has changes nothing. The server cannot see the
-  client's folder, so it adds nothing itself: the `sc` commands and the PreCompact hook
-  ([](../how-to/auto-summary-on-compact.md)) send it.
+  `project/` tag; repeating one the page has changes nothing. A longer tag is refused. The
+  server cannot see the client's folder, so it adds nothing itself: the `sc` commands and the
+  PreCompact hook ([](../how-to/auto-summary-on-compact.md), which takes the slug from its
+  transcript's folder) send it. scrap's own Claude enrichment never adds a `project/` tag, nor
+  sees one in the tags in use, and the public site never shows one, since it names a local path
+  ([](public-site.md)).
 - **Idempotency.** With `key` (at most 128 characters), a retry with the same key adds nothing
   and returns the same page with `created: false` (`add_svg` is stricter: the same key with
   another SVG is refused). Without it, every call adds. Keys are

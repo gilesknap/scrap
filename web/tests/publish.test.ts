@@ -256,6 +256,16 @@ describe("what a public page holds", () => {
       expect(h).not.toMatch(/Public<|pubchip|morechips|Published 1 Nov, 11/);
   });
 
+  it("leaves out project/ tags, which name a local folder (#585)", () => {
+    const page = view(article(head("Log", "Note", ["work", "project/-home-me"]), ""));
+    const tags = ["project", "work", "project/-home-me", "projects"];
+    const h = publishHtml(page.root, ctx({ title: "Log", tags }), page.swaps);
+    expect(h).toContain(
+      '<p class="tags"><a href="scrap-tag:project">#project</a><a href="scrap-tag:work">#work</a><a href="scrap-tag:projects">#projects</a></p>',
+    );
+    expect(h).not.toContain("-home-me");
+  });
+
   it("writes a task's box as an empty span, ticked or not, with no input or [ ] (#539)", () => {
     expect(out.plain).toContain(
       '<li class="task"><span class="taskbox" role="img" aria-label="To do"></span> buy milk</li>',

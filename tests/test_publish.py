@@ -399,6 +399,18 @@ def test_stale_tags_and_a_failed_check(client):
     assert "script" in refusal(put(client, p, "<script>x</script>"), "bad_html")
 
 
+def test_project_tags_are_never_published(client, site):
+    # they name the folder Claude wrote the page from: a local path (#585)
+    p = made(client, tags=("work", "project/-home-me-code-x"))
+    assert "project tag" in refusal(
+        put(client, p, chip("project/-home-me-code-x")), "bad_placeholder"
+    )
+    assert put(client, p, chip("work")).status_code == 200
+    assert f"t/{tag_key('project/-home-me-code-x')}" not in site.units()
+    for name in ("index.html", "tags.html"):
+        assert "-home-me" not in site.file("home", name).decode()
+
+
 def test_the_caps(client, monkeypatch):
     many = [
         (f"{n}.jpg", photo((n * 9, 0, 0), (40, 30)), "image/jpeg") for n in range(21)

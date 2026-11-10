@@ -150,10 +150,15 @@ def dialogue(lines: list[str], start: int = 0) -> str:
     return text
 
 
-def project_tag(cwd: str) -> str:
-    """project/<slug>: Claude Code's project folder name for cwd (every character but an
-    ASCII letter or digit made "-"), cut from the front to fit scrap's tag limit."""
-    slug = re.sub(r"[^a-zA-Z0-9]", "-", cwd)
+def project_tag(cwd: str, transcript: str = "") -> str:
+    """project/<slug>: the session's folder under ~/.claude/projects/ (the transcript's,
+    when it is in one), else Claude Code's name for cwd (every character but an ASCII
+    letter or digit made "-"), cut from the front to fit scrap's tag limit."""
+    folder = Path(transcript).parent if transcript else None
+    if folder and folder.parent.name == "projects" and folder.name:
+        slug = folder.name
+    else:
+        slug = re.sub(r"[^a-zA-Z0-9]", "-", cwd)
     return "project/" + slug[-(MAX_TAG - len("project/")) :]
 
 
@@ -164,6 +169,7 @@ def build_prompt(
     prev: dict[str, Any] | None,
     key: str,
     mark: str = "DIALOGUE",
+    transcript: str = "",
 ) -> str:
     if prev and prev.get("slug"):
         mode = APPEND_MODE.format(
@@ -181,7 +187,7 @@ def build_prompt(
         mode=mode,
         key=key,
         mark=mark,
-        project=project_tag(cwd),
+        project=project_tag(cwd, transcript),
     )
 
 
@@ -238,7 +244,13 @@ def summarise(
     mark = "DIALOGUE-" + os.urandom(6).hex()  # transcript text cannot guess it
     text = text.replace(mark, "")
     prompt = build_prompt(
-        session_id, cwd, date.today().isoformat(), prev, os.urandom(8).hex(), mark
+        session_id,
+        cwd,
+        date.today().isoformat(),
+        prev,
+        os.urandom(8).hex(),
+        mark,
+        str(transcript),
     )
     cmd = [
         "claude",
