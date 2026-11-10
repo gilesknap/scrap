@@ -344,7 +344,9 @@ Marked *default* below: a choice the owner may still change, kept in one place s
 - The tags, as chips: `<a href="scrap-tag:<tag, URL-encoded>">`, which scrap turns into
   `/t/<key>` ([](#tag-keys)). Never a tag under `project/`, which names the folder
   Claude wrote the page from (a local path): it is left out of the chips, the home page, the tag
-  list and the `/t/` pages, and scrap refuses a page whose HTML has one (`422 bad_placeholder`).
+  list and the `/t/` pages, and scrap takes such a chip out of the HTML (as an app from before
+  #585 still writes it) before it checks the page. A page published before then keeps its chip
+  until it is published again: Settings > Refresh all public pages does them all.
 - **Linked from** and **Related** (the links scrap adds itself): an entry is kept only if the
   other page is public. Otherwise the whole entry is left out of those lists (a private page's
   title can still show in the page's own text, as a link's words: [](#private-titles)).
@@ -535,7 +537,7 @@ page's unit is pushed (Pagefind failing or timing out, say): it is logged, never
 | `409` | `stale` | `base_rev` is not the page's current revision (the answer has `rev`, the current one) |
 | `413` | `too_large` | The body is over 25 MiB |
 | `422` | `bad_request` | The body is not JSON `{"html", "base_rev", "defer", "confirmed", "drawings", "diagrams"}`, or a drawing or diagram is sent twice |
-| `422` | `bad_html`, `bad_placeholder` | The HTML fails a rule, or a placeholder names a file that is not on the page (or an `img` a file that is not an image), a drawing that is not one of the page's, an SVG or image on the page that cannot be made safe or has no preview, an Open in Excalidraw link for a drawing the page does not show, Open in Excalidraw without an `https` `SCRAP_PUBLISH_SITE`, or a `project/` tag's chip; `detail` says which |
+| `422` | `bad_html`, `bad_placeholder` | The HTML fails a rule, or a placeholder names a file that is not on the page (or an `img` a file that is not an image), a drawing that is not one of the page's, an SVG or image on the page that cannot be made safe or has no preview, an Open in Excalidraw link for a drawing the page does not show, or Open in Excalidraw without an `https` `SCRAP_PUBLISH_SITE`; `detail` says which |
 | `422` | `bad_drawing` | A drawing the page shows was not sent, one was sent that it does not show, or one's SVG has no single Excalidraw scene, one that cannot be read, or cannot be made safe ([](#drawings)) |
 | `422` | `bad_diagram` | A diagram the page shows was not sent, or not shown in both themes, one was sent that it does not show, or one's SVG cannot be made safe or names scrap in its style ([](#diagrams)) |
 | `422` | `too_many_files`, `file_too_large`, `unit_too_large` | Over a cap ([](#placeholders-and-files)); `file_too_large` also for a drawing's SVG over 20 MiB or a diagram's over 2 MiB |
@@ -733,8 +735,8 @@ reachable only from the owner's PWA session.
   the page's text, which includes another page's file the owner embedded. Anything else refuses
   the publish.
 - `scrap-tag:<tag, URL-encoded>` is allowed only as an `a`'s `href`, and must name one of the
-  page's current tags (else `422 stale_tags`), and not a `project/` one (else `422
-  bad_placeholder`). scrap replaces it with `/t/<key>` ([](#tag-keys)).
+  page's current tags (else `422 stale_tags`); a `project/` one's chip is taken out first, and
+  one elsewhere is `422 bad_html`. scrap replaces it with `/t/<key>` ([](#tag-keys)).
 - `scrap-drawing:<id>` (an `img`'s `src`, or a download `a`'s `href`) names a drawing the page
   shows, and `scrap-excalidraw:<id>` (an `a`'s `href`) its Open in Excalidraw link
   ([](#drawings)).

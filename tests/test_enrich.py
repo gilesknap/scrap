@@ -931,7 +931,7 @@ def test_checked_bounds_the_output():
         enrich.checked({"tags": []}, set(), True, False)
     # a project tag is the client's alone (#585), even one in use
     used = {"project/-home-me", "project"}
-    tags = ["project/-home-me", "Project", "projects", "work"]
+    tags = ["project/-home-me", "/Project//x", "Project", "projects", "work"]
     out = enrich.checked({"tags": tags, "summary": "", "title": ""}, used, True, False)
     assert out["tags"] == ["project", "projects", "work"]
     assert enrich.checked_related({"related": [True, 0, 2, 2, 3, 9]}, 3) == [2, 3]

@@ -41,7 +41,7 @@ from .errors import (
 from .files import MAX_UNIT, page_files
 from .kept import Kept
 from .push import push_derived, reconcile, stale_copies
-from .rewrite import swap
+from .rewrite import swap, without_project_tags
 from .settings import enabled, page_url, publish_site, publish_to, static_dir, token
 
 __all__ = ["RECONCILE_EVERY", "RETRY_FIRST", "Publisher", "backoff"]
@@ -109,11 +109,12 @@ class Publisher:
             if base_rev != page.rev:
                 raise Stale(page.rev)
             is_public = pages.public_slugs(self.store).__contains__
+            html = without_project_tags(html)  # as an older app still sends (#585)
             checked = check(html, is_public)
-            if mine := [t for t in checked.tags if project_tag(t)]:  # #585
+            if mine := [t for t in checked.tags if project_tag(t)]:  # not as a chip
                 raise CheckError(
                     f"Not published: {mine[0]!r} is a project tag, never published.",
-                    "bad_placeholder",
+                    "bad_html",
                 )
             if gone := [t for t in checked.tags if t not in page.tags]:
                 raise CheckError(

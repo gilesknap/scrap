@@ -9,6 +9,7 @@ from .. import actions
 from ..query import CONTROL, MEDIA
 from ..store import MAX_TAG, WIKI_LINK, project_tag, topics
 from ..store.constants import MD_LINK
+from ..store.helpers import tag_path
 from .constants import (
     MAX_INVENTED,
     MAX_NEW_TAGS,
@@ -47,7 +48,7 @@ def clean_tag(tag: Any) -> str | None:
         return None
     new = " ".join(CONTROL.sub(" ", tag).split()).lstrip("#").lower().strip()
     new = unicodedata.normalize("NFC", new)
-    if project_tag(new):  # the client's alone: a folder Claude wrote a page from
+    if project_tag(tag_path(new)):  # the client's alone: the folder Claude wrote from
         return None
     return new if 0 < len(new) <= min(MAX_TAG, 40) else None
 

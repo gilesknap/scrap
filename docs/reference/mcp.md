@@ -372,7 +372,8 @@ text, where a photo's JPEG would go.
   PreCompact hook ([](../how-to/auto-summary-on-compact.md), which takes the slug from its
   transcript's folder) send it. scrap's own Claude enrichment never adds a `project/` tag, nor
   sees one in the tags in use, and the public site never shows one, since it names a local path
-  ([](public-site.md)).
+  ([](public-site.md)); a page already public keeps its chip until it is published again
+  (Settings > Refresh all public pages).
 - **Idempotency.** With `key` (at most 128 characters), a retry with the same key adds nothing
   and returns the same page with `created: false` (`add_svg` is stricter: the same key with
   another SVG is refused). Without it, every call adds. Keys are

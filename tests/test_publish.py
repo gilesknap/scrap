@@ -400,15 +400,25 @@ def test_stale_tags_and_a_failed_check(client):
 
 
 def test_project_tags_are_never_published(client, site):
-    # they name the folder Claude wrote the page from: a local path (#585)
+    # they name the folder Claude wrote the page from: a local path (#585). An app
+    # from before still sends their chips: scrap takes them out and publishes
     p = made(client, tags=("work", "project/-home-me-code-x"))
-    assert "project tag" in refusal(
-        put(client, p, chip("project/-home-me-code-x")), "bad_placeholder"
-    )
-    assert put(client, p, chip("work")).status_code == 200
+    mine = '<a href="scrap-tag:project%2F-home-me-code-x">#project/-home-me-code-x</a>'
+    chips = f'<p class="tags"><a href="scrap-tag:work">#work</a>{mine}</p>'
+    assert put(client, p, chips + "<p>Body</p>").status_code == 200
+    index = site.file(f"p/{p['slug']}", "index.html").decode()
+    assert "-home-me" not in index
+    assert f'<p class="tags"><a href="/t/{tag_key("work")}">#work</a></p>' in index
     assert f"t/{tag_key('project/-home-me-code-x')}" not in site.units()
     for name in ("index.html", "tags.html"):
         assert "-home-me" not in site.file("home", name).decode()
+    # a row of only project chips goes as a whole
+    alone = made(client, tags=("project/-home-me-code-x",))
+    assert (
+        put(client, alone, f'<p class="tags">{mine}</p><p>Body</p>').status_code == 200
+    )
+    index = site.file(f"p/{alone['slug']}", "index.html").decode()
+    assert '<p class="tags">' not in index and "-home-me" not in index
 
 
 def test_the_caps(client, monkeypatch):
