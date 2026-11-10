@@ -81,10 +81,10 @@ def register_writing(mcp: MCPServer, ctx: Ctx) -> None:
         titles: [[slug|label]] only for other words), marked
         as written by Claude with its origin; a todo may have a due date and
         priority. If you have a working directory, tag a new page project/<slug>:
-        <slug> is its absolute path with every character but a letter or digit made
-        "-" (its folder under ~/.claude/projects/), cut from the front so the tag fits
-        64 characters (a longer tag is refused); on an append, only if the page has no
-        project/ tag.
+        <slug> is its absolute path with every character but an ASCII letter or digit
+        made "-" (its folder under ~/.claude/projects/), cut from the front so the tag
+        fits 64 characters (a longer tag is refused); on an append, only if the page has
+        no project/ tag.
         With append_to, add body as a new section at the end of a page written over
         MCP instead (the user's own pages cannot be changed), and set its due date or
         priority if given (a todo's; body may then be empty). Returns the page's id,

@@ -28,8 +28,8 @@ otherwise see <https://gilesknap.github.io/scrap/main/how-to/connect-claude-code
    write-up, `todo`, `read`, `board`; `due` and `priority` only on a todo,
    `status` only on a todo or read). `origin`: the repo or working directory and today's date,
    e.g. `myproject (~/code/myproject) 2026-10-20`. Add the tag `project/<slug>` (`<slug>`: the
-   working directory's absolute path with every character but a letter or digit made `-`, cut
-   from the front so the tag fits 64 characters). `key`: a random value made once per post
+   working directory's absolute path with every character but an ASCII letter or digit made
+   `-`, cut from the front so the tag fits 64 characters). `key`: a random value made once per post
    (e.g. 16 hex characters), reused only to retry that same call; never derive it from the title
    or date. Limits: title 200 characters, body 200 kB, origin 200 characters, up to 20 tags of 1
    to 64 characters. If the body is too large, say so and ask what to do; do not shorten it.
