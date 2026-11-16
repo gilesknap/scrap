@@ -28,9 +28,11 @@ flowchart LR
   a bearer token. Step 1 is done by the tutorial; do step 2 as in {ref}`mcp-secrets`, then step 3
   (see also
   [ADR 0023](../explanations/decisions/0023-bearer-token-on-mcp-and-an-identity-header-setting.md)).
-- DLS ([](../tutorials/install-dls.md)): the installer does steps 1 and 2 for you and adds its
-  server as `scrap-dls`, so it sits beside a `scrap` you already have. Its tools are
-  `mcp__scrap-dls__*`; the `sc` commands use whichever scrap tools are connected. Do step 3.
+- DLS ([](../tutorials/install-dls.md)), in claude-sandbox: the installer does step 1 and writes
+  a script for step 2, which you run once in any container (`sh ~/.claude/scrap-dls-connect.sh`,
+  {ref}`install-dls-claude`). It adds the server as `scrap-dls`, so it sits beside a `scrap` you
+  already have. Its tools are `mcp__scrap-dls__*`; the `sc` commands use whichever scrap tools
+  are connected. Do step 3.
 - Claude Code in claude-sandbox: see [](connect-claude-sandbox.md) as well.
 - On your own machine, run scrap as in "Try it" in the README and add
   `http://localhost:8000/mcp` in step 2; step 1 is not needed on loopback.
