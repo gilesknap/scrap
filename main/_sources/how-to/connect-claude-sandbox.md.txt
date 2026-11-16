@@ -11,10 +11,10 @@ For scrap installed as in [](../tutorials/install-kubernetes.md) or
 `headersHelper` and an env file under `~/.config/terminal-config`, which the jail already sees
 (see {ref}`mcp-secrets`).
 
-The DLS installer, run on the host, puts the token in that env file (`SCRAP_DLS_MCP_TOKEN`), but
-cannot reach the container's own `~/.claude`: inside the container, save the helper as
-`~/.claude/scrap-dls-headers.sh` and add the server as `scrap-dls`, as in
-{ref}`install-dls-claude`.
+The DLS installer, run on the host, puts the token in that env file (`SCRAP_DLS_MCP_TOKEN`), and
+the helper and a connect script in `~/.config/terminal-config/.claude`, the containers'
+`~/.claude`. In any container, run `sh /user-terminal-config/.claude/scrap-dls-connect.sh` once
+to add the server as `scrap-dls`, as in {ref}`install-dls-claude`.
 
 Then install the `sc` commands and the skills as in [](connect-claude-code.md).
 

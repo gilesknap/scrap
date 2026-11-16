@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>scrap at DLS &#8212; scrap 1.9.3.dev5+g9eac48a25 documentation</title>
+    <title>scrap at DLS &#8212; scrap 1.9.3.dev9+ge8b375d5e documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="../_static/documentation_options.js?v=919ad559"></script>
+    <script src="../_static/documentation_options.js?v=18dd2d4c"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -564,7 +564,7 @@ go after the pipe (<code class="docutils literal notranslate"><span class="pre">
 <li><p><code class="docutils literal notranslate"><span class="pre">SCRAP_VERSION</span></code>: a particular release (with that version’s script).</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">SCRAP_BACKUP_DIR</span></code>: where the backups go (empty keeps them on a volume in the cluster).</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">SCRAP_USER</span></code>: your fedid, for a namespace not named after it.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">SCRAP_CLAUDE=off</span></code>: leave Claude Code alone.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">SCRAP_CLAUDE=off</span></code>: leave the .env and the Claude Code files alone.</p></li>
 </ul>
 <p>The header of the script lists every setting. To see your bearer token again:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">kubectl</span> <span class="n">get</span> <span class="n">secret</span> <span class="n">scrap</span><span class="o">-</span><span class="n">secrets</span> <span class="o">-</span><span class="n">o</span> <span class="n">jsonpath</span><span class="o">=</span><span class="s1">'{.data.SCRAP_MCP_TOKEN}'</span> <span class="o">|</span> <span class="n">base64</span> <span class="o">-</span><span class="n">d</span><span class="p">;</span> <span class="n">echo</span>
@@ -573,56 +573,69 @@ go after the pipe (<code class="docutils literal notranslate"><span class="pre">
 </section>
 <section id="claude-code">
 <span id="install-dls-claude"></span><h2>Claude Code<a class="headerlink" href="#claude-code" title="Link to this heading">#</a></h2>
-<p>The installer:</p>
+<p>The installer sets Claude Code up for claude-sandbox containers. It never runs <code class="docutils literal notranslate"><span class="pre">claude</span></code> on the
+host, and writes only under <code class="docutils literal notranslate"><span class="pre">~/.config/terminal-config</span></code>. claude-sandbox mounts the host’s
+<code class="docutils literal notranslate"><span class="pre">~/.config/terminal-config</span></code> at <code class="docutils literal notranslate"><span class="pre">/user-terminal-config</span></code> and links a container’s <code class="docutils literal notranslate"><span class="pre">~/.claude</span></code> and
+<code class="docutils literal notranslate"><span class="pre">~/.claude.json</span></code> there, so every container shares them. The installer:</p>
 <ol class="arabic">
 <li><p>puts the token in <code class="docutils literal notranslate"><span class="pre">~/.config/terminal-config/.env</span></code> (mode 600) as <code class="docutils literal notranslate"><span class="pre">SCRAP_DLS_MCP_TOKEN=...</span></code>,
 replacing that line and keeping the others (a token set by hand must be only letters, digits
 and <code class="docutils literal notranslate"><span class="pre">._+/=-</span></code>);</p></li>
-<li><p>writes the helper <code class="docutils literal notranslate"><span class="pre">~/.claude/scrap-dls-headers.sh</span></code> (mode 700):</p>
+<li><p>writes the helper <code class="docutils literal notranslate"><span class="pre">~/.config/terminal-config/.claude/scrap-dls-headers.sh</span></code> (mode 700), which a
+container sees as <code class="docutils literal notranslate"><span class="pre">~/.claude/scrap-dls-headers.sh</span></code>:</p>
 <div class="highlight-sh notranslate"><div class="highlight"><pre><span></span><span class="ch">#!/bin/sh</span>
-<span class="c1"># Headers for scrap's /mcp at DLS: the bearer token, from the .env on the host, or where</span>
-<span class="c1"># claude-sandbox mounts it. Only the token's line is read: the .env is never run as shell.</span>
-<span class="c1"># It may start with `export `, end in a CR, or have its value in "" or ''.</span>
+<span class="c1"># Headers for scrap's /mcp at DLS: the bearer token, from the .env where claude-sandbox</span>
+<span class="c1"># mounts it, or the one on the host. Only the token's line is read: the .env is never run</span>
+<span class="c1"># as shell. It may start with `export `, end in a CR, or have its value in "" or ''.</span>
 <span class="nv">token</span><span class="o">=</span>
-<span class="k">for</span><span class="w"> </span>f<span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="s2">"</span><span class="nv">$HOME</span><span class="s2">/.config/terminal-config/.env"</span><span class="w"> </span>/user-terminal-config/.env<span class="p">;</span><span class="w"> </span><span class="k">do</span>
+<span class="k">for</span><span class="w"> </span>f<span class="w"> </span><span class="k">in</span><span class="w"> </span>/user-terminal-config/.env<span class="w"> </span><span class="s2">"</span><span class="nv">$HOME</span><span class="s2">/.config/terminal-config/.env"</span><span class="p">;</span><span class="w"> </span><span class="k">do</span>
 <span class="w">    </span><span class="o">[</span><span class="w"> </span>-r<span class="w"> </span><span class="s2">"</span><span class="nv">$f</span><span class="s2">"</span><span class="w"> </span><span class="o">]</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nv">token</span><span class="o">=</span><span class="k">$(</span>tr<span class="w"> </span>-d<span class="w"> </span><span class="s1">'\r'</span><span class="w"> </span>&lt;<span class="s2">"</span><span class="nv">$f</span><span class="s2">"</span><span class="w"> </span><span class="p">|</span>
 <span class="w">        </span>sed<span class="w"> </span>-n<span class="w"> </span><span class="s1">'s/^export  *//; s/^SCRAP_DLS_MCP_TOKEN=//p'</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>tail<span class="w"> </span>-n<span class="w"> </span><span class="m">1</span><span class="k">)</span>
 <span class="w">    </span><span class="k">case</span><span class="w"> </span><span class="nv">$token</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="se">\"</span>*<span class="se">\"</span><span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="se">\'</span>*<span class="se">\'</span><span class="o">)</span><span class="w"> </span><span class="nv">token</span><span class="o">=</span><span class="si">${</span><span class="nv">token</span><span class="p">#?</span><span class="si">}</span><span class="p">;</span><span class="w"> </span><span class="nv">token</span><span class="o">=</span><span class="si">${</span><span class="nv">token</span><span class="p">%?</span><span class="si">}</span><span class="w"> </span><span class="p">;;</span><span class="w"> </span><span class="k">esac</span>
 <span class="w">    </span><span class="o">[</span><span class="w"> </span>-z<span class="w"> </span><span class="s2">"</span><span class="nv">$token</span><span class="s2">"</span><span class="w"> </span><span class="o">]</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="k">break</span>
 <span class="k">done</span>
 <span class="k">if</span><span class="w"> </span><span class="o">[</span><span class="w"> </span>-z<span class="w"> </span><span class="s2">"</span><span class="nv">$token</span><span class="s2">"</span><span class="w"> </span><span class="o">]</span><span class="p">;</span><span class="w"> </span><span class="k">then</span>
-<span class="w">    </span><span class="nb">echo</span><span class="w"> </span><span class="s2">"SCRAP_DLS_MCP_TOKEN not found in ~/.config/terminal-config/.env or /user-terminal-config/.env"</span><span class="w"> </span>&gt;<span class="p">&amp;</span><span class="m">2</span>
+<span class="w">    </span><span class="nb">echo</span><span class="w"> </span><span class="s2">"SCRAP_DLS_MCP_TOKEN not found in /user-terminal-config/.env or ~/.config/terminal-config/.env"</span><span class="w"> </span>&gt;<span class="p">&amp;</span><span class="m">2</span>
 <span class="w">    </span><span class="nb">exit</span><span class="w"> </span><span class="m">1</span>
 <span class="k">fi</span>
 <span class="nb">printf</span><span class="w"> </span><span class="s1">'{"Authorization":"Bearer %s"}\n'</span><span class="w"> </span><span class="s2">"</span><span class="nv">$token</span><span class="s2">"</span>
 </pre></div>
 </div>
 </li>
-<li><p>adds the server <code class="docutils literal notranslate"><span class="pre">scrap-dls</span></code> for all your projects (with your <code class="docutils literal notranslate"><span class="pre">SCRAP_HOST</span></code>, if you set one):</p>
-<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>claude<span class="w"> </span>mcp<span class="w"> </span>add-json<span class="w"> </span>--scope<span class="w"> </span>user<span class="w"> </span>scrap-dls<span class="w"> </span><span class="se">\</span>
-<span class="w">  </span><span class="s2">"{\"type\":\"http\",\"url\":\"https://scrap-</span><span class="nv">$USER</span><span class="s2">.diamond.ac.uk/mcp\",\"headersHelper\":\"</span><span class="nv">$HOME</span><span class="s2">/.claude/scrap-dls-headers.sh\"}"</span>
+<li><p>writes <code class="docutils literal notranslate"><span class="pre">~/.config/terminal-config/.claude/scrap-dls-connect.sh</span></code> (mode 700), which adds the
+server <code class="docutils literal notranslate"><span class="pre">scrap-dls</span></code> for all your projects (with your <code class="docutils literal notranslate"><span class="pre">SCRAP_HOST</span></code>, if you set one).</p></li>
+</ol>
+<p>Then, in any claude-sandbox container, run once:</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>sh<span class="w"> </span>/user-terminal-config/.claude/scrap-dls-connect.sh
 </pre></div>
 </div>
-</li>
-</ol>
-<p>If <code class="docutils literal notranslate"><span class="pre">claude</span></code> is not on your path, or this fails, the installer still succeeds and prints the
-command to run. Only Claude Code on the DLS network can reach <code class="docutils literal notranslate"><span class="pre">/mcp</span></code>; claude.ai’s connectors and
-cloud sessions cannot.</p>
+<p>One run covers every container, as they share <code class="docutils literal notranslate"><span class="pre">~/.claude.json</span></code>. Check: <code class="docutils literal notranslate"><span class="pre">claude</span> <span class="pre">mcp</span> <span class="pre">list</span></code> shows
+<code class="docutils literal notranslate"><span class="pre">scrap-dls</span></code> as connected. After re-running the installer, run it again only if your host
+(<code class="docutils literal notranslate"><span class="pre">SCRAP_HOST</span></code>) changed, or <code class="docutils literal notranslate"><span class="pre">scrap-dls</span></code> is missing. The script runs:</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>claude<span class="w"> </span>mcp<span class="w"> </span>remove<span class="w"> </span>--scope<span class="w"> </span>user<span class="w"> </span>scrap-dls
+claude<span class="w"> </span>mcp<span class="w"> </span>add-json<span class="w"> </span>--scope<span class="w"> </span>user<span class="w"> </span>scrap-dls<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span><span class="s1">'{"type":"http","url":"https://scrap-&lt;fedid&gt;.diamond.ac.uk/mcp","headersHelper":"/user-terminal-config/.claude/scrap-dls-headers.sh"}'</span>
+</pre></div>
+</div>
+<p>It names the helper by the mount, so the one entry works in every container, whatever its home.</p>
+<p>If a step fails, the installer still succeeds, and says what to fix. Only Claude Code on the DLS
+network can reach <code class="docutils literal notranslate"><span class="pre">/mcp</span></code>; claude.ai’s connectors and cloud sessions cannot.</p>
 <p><strong>An old <code class="docutils literal notranslate"><span class="pre">scrap</span></code> server.</strong> A server named <code class="docutils literal notranslate"><span class="pre">scrap</span></code> for another scrap is left alone, and the <code class="docutils literal notranslate"><span class="pre">sc</span></code>
 commands use whichever scrap tools are connected. If your <code class="docutils literal notranslate"><span class="pre">scrap</span></code> server points at this DLS
-scrap (from an earlier version of the DLS install), remove it, or every tool appears twice:
-<code class="docutils literal notranslate"><span class="pre">claude</span> <span class="pre">mcp</span> <span class="pre">remove</span> <span class="pre">--scope</span> <span class="pre">user</span> <span class="pre">scrap</span></code>, and delete <code class="docutils literal notranslate"><span class="pre">~/.claude/scrap-headers.sh</span></code>.</p>
-</section>
-<section id="claude-code-in-claude-sandbox">
-<span id="install-dls-sandbox"></span><h2>Claude Code in claude-sandbox<a class="headerlink" href="#claude-code-in-claude-sandbox" title="Link to this heading">#</a></h2>
-<p>The installer does not reach claude-sandbox’s own <code class="docutils literal notranslate"><span class="pre">~/.claude</span></code>. Run the installer on the host, so
-the token is in the .env that claude-sandbox mounts at <code class="docutils literal notranslate"><span class="pre">/user-terminal-config/.env</span></code>. Inside the
-container, save the same helper as <code class="docutils literal notranslate"><span class="pre">~/.claude/scrap-dls-headers.sh</span></code> (mode 700), then add the
-server with your fedid (or <code class="docutils literal notranslate"><span class="pre">SCRAP_HOST</span></code>; and the container’s home, if not <code class="docutils literal notranslate"><span class="pre">/root</span></code>):</p>
-<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>claude<span class="w"> </span>mcp<span class="w"> </span>add-json<span class="w"> </span>--scope<span class="w"> </span>user<span class="w"> </span>scrap-dls<span class="w"> </span><span class="se">\</span>
-<span class="w">  </span><span class="s1">'{"type":"http","url":"https://scrap-&lt;fedid&gt;.diamond.ac.uk/mcp","headersHelper":"/root/.claude/scrap-dls-headers.sh"}'</span>
+scrap (from an earlier version of the DLS install), remove it in a container, or every tool
+appears twice: <code class="docutils literal notranslate"><span class="pre">claude</span> <span class="pre">mcp</span> <span class="pre">remove</span> <span class="pre">--scope</span> <span class="pre">user</span> <span class="pre">scrap</span></code>, and delete <code class="docutils literal notranslate"><span class="pre">~/.claude/scrap-headers.sh</span></code>.</p>
+<p><strong>Left on the host.</strong> An earlier version of the installer added <code class="docutils literal notranslate"><span class="pre">scrap-dls</span></code> with the host’s
+<code class="docutils literal notranslate"><span class="pre">claude</span></code> and wrote <code class="docutils literal notranslate"><span class="pre">~/.claude/scrap-dls-headers.sh</span></code> there. The installer leaves both alone. If
+you do not use Claude Code on the host itself, you can remove them, on the host:
+<code class="docutils literal notranslate"><span class="pre">claude</span> <span class="pre">mcp</span> <span class="pre">remove</span> <span class="pre">--scope</span> <span class="pre">user</span> <span class="pre">scrap-dls</span></code> and <code class="docutils literal notranslate"><span class="pre">rm</span> <span class="pre">~/.claude/scrap-dls-headers.sh</span></code>. But if this
+prints <code class="docutils literal notranslate"><span class="pre">shared</span></code>, they are the containers’ own, so leave them:</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span><span class="o">[</span><span class="w"> </span>~/.claude<span class="w"> </span>-ef<span class="w"> </span>~/.config/terminal-config/.claude<span class="w"> </span><span class="o">]</span><span class="w"> </span><span class="o">||</span>
+<span class="w">  </span><span class="o">[</span><span class="w"> </span>~/.claude.json<span class="w"> </span>-ef<span class="w"> </span>~/.config/terminal-config/.claude.json<span class="w"> </span><span class="o">]</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nb">echo</span><span class="w"> </span>shared
 </pre></div>
 </div>
+<p>Where the host shares <code class="docutils literal notranslate"><span class="pre">~/.claude.json</span></code> with the containers like this, running the connect
+script in a container replaces the host’s old <code class="docutils literal notranslate"><span class="pre">scrap-dls</span></code> (which named a host path), so it then
+works only in the containers, by design.</p>
 </section>
 <section id="before-the-dns-names-exist">
 <h2>Before the DNS names exist<a class="headerlink" href="#before-the-dns-names-exist" title="Link to this heading">#</a></h2>
@@ -735,7 +748,6 @@ resources itself.</p>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#what-the-installer-does">What the installer does</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#re-running-and-settings">Re-running and settings</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#claude-code">Claude Code</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#claude-code-in-claude-sandbox">Claude Code in claude-sandbox</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#before-the-dns-names-exist">Before the DNS names exist</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#logging-in">Logging in</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#without-a-login-for-testing">Without a login, for testing</a></li>
