@@ -12,14 +12,18 @@
 # keeps its bearer token. Public pages are on: the pages you make public are served on
 # pages-$USER.diamond.ac.uk to anyone on the DLS network.
 #
-# It also connects Claude Code to /mcp, for all your projects: the token goes in
-# ~/.config/terminal-config/.env (mode 600) as SCRAP_DLS_MCP_TOKEN, a helper
-# ~/.claude/scrap-dls-headers.sh reads it, and `claude mcp add-json --scope user scrap-dls`
-# adds the server (replacing a scrap-dls already there). A server named scrap, its helper
-# and SCRAP_MCP_TOKEN, for another scrap, are left alone. If you followed the earlier
-# tutorial and have a server scrap pointing at this DLS scrap, remove it (`claude mcp
-# remove --scope user scrap`, and delete ~/.claude/scrap-headers.sh), or every tool
-# appears twice.
+# It also sets up Claude Code's connection to /mcp, for claude-sandbox containers (it never
+# runs claude here, and writes only under ~/.config/terminal-config): the token goes in
+# ~/.config/terminal-config/.env (mode 600) as SCRAP_DLS_MCP_TOKEN, and in
+# ~/.config/terminal-config/.claude, which a container sees as its ~/.claude, a helper
+# scrap-dls-headers.sh reads it and scrap-dls-connect.sh adds the server scrap-dls. Run that
+# once in any container, where the host's terminal-config is mounted at /user-terminal-config
+# (sh /user-terminal-config/.claude/scrap-dls-connect.sh): they share ~/.claude.json. A
+# server named scrap, its helper and SCRAP_MCP_TOKEN, for another scrap, are left alone. If
+# you followed the earlier tutorial and have a server scrap pointing at this DLS scrap,
+# remove it in a container (`claude mcp remove --scope user scrap`, and delete
+# ~/.claude/scrap-headers.sh), or every tool appears twice. Files an earlier version of
+# this script left in this host's ~/.claude, and its registration here, are left alone.
 #
 # scrap's database is on the pod's own disk, replicated continuously by Litestream to its
 # volume, which is NFS here (ADR 46). An install from before that moves over by itself on
@@ -34,8 +38,8 @@
 #                          anyone on the DLS network, and any pod in the cluster, can read and
 #                          change your pages. /mcp keeps its bearer token. Test data only.
 #                          Re-run without it to turn the login on. Anything else is refused.
-#   SCRAP_CLAUDE           on (default), or off: leave Claude Code, its helper and your .env
-#                          alone. Anything else is refused.
+#   SCRAP_CLAUDE           on (default), or off: leave your .env and the Claude Code files
+#                          in ~/.config/terminal-config alone. Anything else is refused.
 #   SCRAP_VERSION          chart version to install (default: the latest release)
 #   SCRAP_CHART            chart to install (default: scrap's chart on ghcr.io)
 #   SCRAP_NAMESPACE        namespace (default: the one `module load argus` selects, else $USER)
@@ -98,39 +102,78 @@ login_unchanged() {
 headers_helper() {
     cat <<'EOF'
 #!/bin/sh
-# Headers for scrap's /mcp at DLS: the bearer token, from the .env on the host, or where
-# claude-sandbox mounts it. Only the token's line is read: the .env is never run as shell.
-# It may start with `export `, end in a CR, or have its value in "" or ''.
+# Headers for scrap's /mcp at DLS: the bearer token, from the .env where claude-sandbox
+# mounts it, or the one on the host. Only the token's line is read: the .env is never run
+# as shell. It may start with `export `, end in a CR, or have its value in "" or ''.
 token=
-for f in "$HOME/.config/terminal-config/.env" /user-terminal-config/.env; do
+for f in /user-terminal-config/.env "$HOME/.config/terminal-config/.env"; do
     [ -r "$f" ] && token=$(tr -d '\r' <"$f" |
         sed -n 's/^export  *//; s/^SCRAP_DLS_MCP_TOKEN=//p' | tail -n 1)
     case $token in \"*\" | \'*\') token=${token#?}; token=${token%?} ;; esac
     [ -z "$token" ] || break
 done
 if [ -z "$token" ]; then
-    echo "SCRAP_DLS_MCP_TOKEN not found in ~/.config/terminal-config/.env or /user-terminal-config/.env" >&2
+    echo "SCRAP_DLS_MCP_TOKEN not found in /user-terminal-config/.env or ~/.config/terminal-config/.env" >&2
     exit 1
 fi
 printf '{"Authorization":"Bearer %s"}\n' "$token"
 EOF
 }
 
-# Connects Claude Code to /mcp, as the server scrap-dls. Sets claude_done to yes
-# (connected), missing (no claude), failed (claude mcp add-json failed) or no (a step
-# before it failed, with a warning).
+# The script you run once in a claude-sandbox container to add the server scrap-dls. The
+# helper is named by the mount, /user-terminal-config/.claude: the same in every container
+# (and inside the jail) whatever its home, as all of them share the one ~/.claude.json.
+connect_script() {
+    cat <<EOF
+#!/bin/sh
+# Adds scrap at DLS (https://$host/mcp) to Claude Code as the server scrap-dls, for all
+# your projects. Run it once in any claude-sandbox container:
+#   sh /user-terminal-config/.claude/scrap-dls-connect.sh
+# The containers share ~/.claude.json, so one run covers them all. Safe to re-run: it
+# replaces a scrap-dls already there. install-dls.sh writes it.
+helper=/user-terminal-config/.claude/scrap-dls-headers.sh
+if [ ! -x "\$helper" ]; then
+    echo "\$helper is missing or not executable: run this in a claude-sandbox container," >&2
+    echo "after install-dls.sh has run on the host." >&2
+    exit 1
+fi
+if ! command -v claude >/dev/null 2>&1; then
+    echo "claude not found: run this in a claude-sandbox container." >&2
+    exit 1
+fi
+claude mcp remove --scope user scrap-dls >/dev/null 2>&1 || true
+claude mcp add-json --scope user scrap-dls \\
+    '{"type":"http","url":"https://$host/mcp","headersHelper":"/user-terminal-config/.claude/scrap-dls-headers.sh"}' || exit 1
+echo "Added scrap-dls: 'claude mcp list' should show it as connected."
+EOF
+}
+
+# Sets up Claude Code's connection to /mcp for claude-sandbox containers: the token in the
+# .env, and the helper and connect script in ~/.config/terminal-config/.claude, which a
+# container sees as its ~/.claude. It never runs claude, and writes only under
+# ~/.config/terminal-config.
+# Sets claude_done to ready (all written: run the connect script in a container) or no (a
+# step failed, with a warning).
 # Never fails the install: it runs as `connect_claude || true`, so set -e is off in it,
 # and each step checks itself.
 connect_claude() {
     claude_done=no
     env_file=$HOME/.config/terminal-config/.env
-    helper=$HOME/.claude/scrap-dls-headers.sh
-    mcp_json='{"type":"http","url":"https://'$host'/mcp","headersHelper":"'$helper'"}'
+    claude_dir=$HOME/.config/terminal-config/.claude
+    helper=$claude_dir/scrap-dls-headers.sh
+    connect=$claude_dir/scrap-dls-connect.sh
+    # The host goes into the connect script, inside '' and JSON: only a plain name.
+    case $host in
+    "" | *[!A-Za-z0-9.:-]*)
+        echo "WARNING: the host '$host' has characters other than letters, digits and .:-: Claude Code is not set up." >&2
+        return 0
+        ;;
+    esac
     # The token, from kubectl's output: never on a command line.
     token=$(kubectl -n "$ns" get secret "$secret" -o jsonpath='{.data.SCRAP_MCP_TOKEN}' \
         </dev/null 2>/dev/null | base64 -d 2>/dev/null) || token=
     if [ -z "$token" ]; then
-        echo "WARNING: could not read the token from $secret: Claude Code is not connected." >&2
+        echo "WARNING: could not read the token from $secret: Claude Code is not set up." >&2
         return 0
     fi
     # Only a plain token goes in, as other tools may source the .env as shell (this script
@@ -138,7 +181,7 @@ connect_claude() {
     case $token in
         *[!A-Za-z0-9._+/=-]*)
             token=
-            echo "WARNING: the token in $secret has characters other than letters, digits and ._+/=-: Claude Code is not connected." >&2
+            echo "WARNING: the token in $secret has characters other than letters, digits and ._+/=-: Claude Code is not set up." >&2
             return 0 ;;
     esac
     # Private before the token goes in. The new file is made beside the .env first (same
@@ -170,27 +213,16 @@ connect_claude() {
     fi
     token=
     if [ "$ok" != 0 ]; then
-        echo "WARNING: could not write the token to $env_file: Claude Code is not connected." >&2
+        echo "WARNING: could not write the token to $env_file: Claude Code is not set up." >&2
         return 0
     fi
-    if ! { mkdir -p "${helper%/*}" && (umask 077 && headers_helper >"$helper") &&
-        chmod 700 "$helper"; }; then
-        echo "WARNING: could not write $helper: Claude Code is not connected." >&2
+    if ! { (umask 077 && mkdir -p "$claude_dir") &&
+        (umask 077 && headers_helper >"$helper") && chmod 700 "$helper" &&
+        (umask 077 && connect_script >"$connect") && chmod 700 "$connect"; }; then
+        echo "WARNING: could not write $helper and $connect: Claude Code is not set up." >&2
         return 0
     fi
-    if ! command -v claude >/dev/null 2>&1; then
-        claude_done=missing
-        return 0
-    fi
-    # Replace a scrap-dls already there, so a re-run is safe.
-    claude mcp remove --scope user scrap-dls </dev/null >/dev/null 2>&1 || true
-    if out=$(claude mcp add-json --scope user scrap-dls "$mcp_json" </dev/null 2>&1); then
-        claude_done=yes
-    else
-        claude_done=failed
-        printf '%s\n' "$out" >&2
-        echo "WARNING: claude mcp add-json failed: Claude Code is not connected." >&2
-    fi
+    claude_done=ready
 }
 
 # All in a function that the last line runs: a download cut short runs nothing.
@@ -559,19 +591,19 @@ EOF
     fi
     echo
     case $claude_done in
-    yes) echo "Claude Code is connected to scrap for all your projects, as scrap-dls: see 'claude mcp list'." ;;
-    off) echo "Claude Code left alone (SCRAP_CLAUDE=off)." ;;
-    no) echo "Claude Code is not connected: fix the cause above, then re-run this script." ;;
-    *)
-        if [ "$claude_done" = missing ]; then
-            echo "Claude Code was not found. Once it is installed, run:"
-        else
-            echo "Claude Code is not connected: fix the cause above, then run:"
-        fi
-        echo "  claude mcp add-json --scope user scrap-dls '$mcp_json'"
+    ready)
+        cat <<EOF
+Claude Code: in a claude-sandbox container, run once:
+  sh /user-terminal-config/.claude/scrap-dls-connect.sh
+One run covers every container (they share ~/.claude.json). Then 'claude mcp list' shows
+scrap-dls as connected, for all your projects. After a re-run, run it again only if the
+host (SCRAP_HOST) changed, or scrap-dls is missing from 'claude mcp list'.
+EOF
         ;;
+    off) echo "Claude Code left alone (SCRAP_CLAUDE=off)." ;;
+    *) echo "Claude Code is not set up: fix the cause above, then re-run this script." ;;
     esac
-    if [ "$claude_done" != yes ] && [ "$claude_done" != off ]; then
+    if [ "$claude_done" != off ]; then
         cat <<EOF
 More in "Claude Code" in "scrap at DLS":
   https://gilesknap.github.io/scrap/main/explanations/scrap-at-dls.html#install-dls-claude

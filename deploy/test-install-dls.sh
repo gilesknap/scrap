@@ -1,6 +1,7 @@
 #!/bin/sh
 # Tests for install-dls.sh with stub kubectl, helm and claude (no cluster needed), and
-# HOME in a temp dir, so your own Claude Code and .env are never touched.
+# HOME in a temp dir, so your own Claude Code and .env are never touched. The installer
+# must never run claude; the connect script it writes runs the stub.
 # Run: ./deploy/test-install-dls.sh
 set -eu
 here=$(cd "$(dirname "$0")" && pwd)
@@ -63,10 +64,10 @@ cat >"$tmp/bin/claude" <<STUB
 #!/bin/sh
 echo "\$*" >>"$tmp/claude.calls"
 case "\$*" in
-  "mcp remove --scope user "*) rm "$tmp/claude-\$4" 2>/dev/null; exit \$? ;;
+  "mcp remove --scope user "*) rm "$tmp/claude-\$5" 2>/dev/null; exit \$? ;;
   "mcp add-json --scope user "*)
     [ -z "\${STUB_CLAUDE_FAIL:-}" ] || { echo "stub claude: no" >&2; exit 1; }
-    printf '%s\\n' "\$5" >"$tmp/claude-\$4"; exit 0 ;;
+    printf '%s\\n' "\$6" >"$tmp/claude-\$5"; exit 0 ;;
 esac
 exit 1
 STUB
@@ -119,13 +120,21 @@ run() {
 }
 
 # Another scrap already set up for Claude Code: a server named scrap, its helper and its
-# token in the .env. The installer must leave all three alone.
+# token in the .env. The installer must leave all three alone. And the host's own Claude
+# Code, with what an earlier version of the installer left there: never touched now.
 envf=$tmp/home/.config/terminal-config/.env
 mkdir -p "$tmp/home/.claude" "${envf%/*}"
 printf '#!/bin/sh\n# the home scrap\n' >"$tmp/home/.claude/scrap-headers.sh"
 cp "$tmp/home/.claude/scrap-headers.sh" "$tmp/home-helper"
+printf '#!/bin/sh\n# an earlier install-dls.sh\n' >"$tmp/home/.claude/scrap-dls-headers.sh"
+echo '{"mcpServers":{}}' >"$tmp/home/.claude.json"
 printf 'SCRAP_MCP_TOKEN=home\n' >"$envf"; chmod 600 "$envf"
 echo home >"$tmp/claude-scrap"
+# The host's ~/.claude and ~/.claude.json, as a listing with contents, to compare after.
+cat >"$tmp/host-claude.sh" <<STUB
+cd "$tmp/home" && find .claude .claude.json -exec ls -ld {} + && cat .claude/* .claude.json
+STUB
+sh "$tmp/host-claude.sh" >"$tmp/host-claude"
 
 # First run: key from the environment, token generated and shown once.
 : >"$tmp/kubectl.calls"; : >"$tmp/claude.calls"; touch "$tmp/key"
@@ -184,10 +193,12 @@ check "no patch for a new Secret" sh -c "! grep -q 'patch secret' '$tmp/kubectl.
 check "asks for both names" sh -c "grep -q '^         scrap-abc12345.diamond.ac.uk$' '$tmp/out' &&
     grep -q '^         pages-abc12345.diamond.ac.uk$' '$tmp/out'"
 check "the Keycloak redirect, as a hint" grep -q "^     https://scrap-abc12345.diamond.ac.uk/oauth2/callback to the Keycloak client.$" "$tmp/out"
-# Claude Code: the token in a private .env, the helper, and scrap-dls added for all projects.
-helper=$tmp/home/.claude/scrap-dls-headers.sh
+# Claude Code: the token in a private .env; the helper and the connect script in
+# terminal-config/.claude, which claude-sandbox containers see as ~/.claude; no claude run.
+cdir=$tmp/home/.config/terminal-config/.claude
+helper=$cdir/scrap-dls-headers.sh
+connect=$cdir/scrap-dls-connect.sh
 tok=$(cat "$tmp/created-SCRAP_MCP_TOKEN")
-json='{"type":"http","url":"https://scrap-abc12345.diamond.ac.uk/mcp","headersHelper":"'$helper'"}'
 # The helper exactly as the DLS explanation shows it (its indented block after "writes the helper").
 awk '/writes the helper/ { f = 1; next }
      f && /^   ```sh$/ { b = 1; next }
@@ -196,22 +207,38 @@ awk '/writes the helper/ { f = 1; next }
 check "claude: the tutorial's helper found" grep -q '^#!/bin/sh$' "$tmp/want-helper"
 check "claude: .env is mode 600" sh -c "[ \"\$(stat -c %a '$envf')\" = 600 ]"
 check "claude: the token in .env" grep -qx "SCRAP_DLS_MCP_TOKEN=$tok" "$envf"
+check "claude: terminal-config/.claude made, mode 700" sh -c "[ \"\$(stat -c %a '$cdir')\" = 700 ]"
 check "claude: helper is mode 700" sh -c "[ \"\$(stat -c %a '$helper')\" = 700 ]"
 check "claude: helper as in the tutorial" cmp -s "$helper" "$tmp/want-helper"
-check "claude: the helper reads the host's .env" sh -c "HOME='$tmp/home' '$helper' |
-    grep -qxF '{\"Authorization\":\"Bearer $tok\"}'"
-# In claude-sandbox the .env is at /user-terminal-config/.env: the same helper, with that
-# path moved into $tmp, and a HOME with no .env.
+check "claude: connect script is mode 700" sh -c "[ \"\$(stat -c %a '$connect')\" = 700 ]"
+check "claude: connect script is sound shell" sh -n "$connect"
+check "claude: the installer never runs claude" sh -c "[ ! -s '$tmp/claude.calls' ]"
+check "claude: the host's ~/.claude and ~/.claude.json untouched" sh -c "sh '$tmp/host-claude.sh' | cmp -s - '$tmp/host-claude'"
+check "claude: says to run the connect script in a container" sh -c "
+    grep -qx 'Claude Code: in a claude-sandbox container, run once:' '$tmp/out' &&
+    grep -qx '  sh /user-terminal-config/.claude/scrap-dls-connect.sh' '$tmp/out' &&
+    grep -q 'One run covers every container' '$tmp/out' &&
+    grep -q 'run it again only if the' '$tmp/out' && grep -q 'host (SCRAP_HOST) changed' '$tmp/out'"
+check "claude: links the DLS explanation" grep -q "scrap-at-dls.html#install-dls-claude" "$tmp/out"
+# The helper, with /user-terminal-config/.env moved into $tmp (the real one may exist
+# where the tests run). On the host, with no claude-sandbox .env: the host's.
 mkdir -p "$tmp/sandbox-env" "$tmp/sandbox-home"
-printf 'SCRAP_DLS_MCP_TOKEN=sandbox\n' >"$tmp/sandbox-env/.env"
 sed "s|/user-terminal-config/.env|$tmp/sandbox-env/.env|" "$helper" >"$tmp/sandbox-helper"
+check "claude: the helper reads the host's .env" sh -c "HOME='$tmp/home' sh '$tmp/sandbox-helper' |
+    grep -qxF '{\"Authorization\":\"Bearer $tok\"}'"
+# In claude-sandbox the .env is at /user-terminal-config/.env, and a HOME with no .env.
+printf 'SCRAP_DLS_MCP_TOKEN=sandbox\n' >"$tmp/sandbox-env/.env"
 check "claude: the helper reads claude-sandbox's .env" sh -c "HOME='$tmp/sandbox-home' sh '$tmp/sandbox-helper' |
     grep -qxF '{\"Authorization\":\"Bearer sandbox\"}'"
-# A home .env without the token (as a container's might be): it goes on to the next.
-mkdir -p "$tmp/sandbox-home/.config/terminal-config"
-echo OTHER=1 >"$tmp/sandbox-home/.config/terminal-config/.env"
-check "claude: the helper goes past an .env without the token" sh -c "HOME='$tmp/sandbox-home' sh '$tmp/sandbox-helper' |
+check "claude: the helper reads claude-sandbox's .env first" sh -c "HOME='$tmp/home' sh '$tmp/sandbox-helper' |
     grep -qxF '{\"Authorization\":\"Bearer sandbox\"}'"
+# A claude-sandbox .env without the token: it goes on to the home one.
+mkdir -p "$tmp/sandbox-home/.config/terminal-config"
+echo SCRAP_DLS_MCP_TOKEN=home >"$tmp/sandbox-home/.config/terminal-config/.env"
+echo OTHER=1 >"$tmp/sandbox-env/.env"
+check "claude: the helper goes past an .env without the token" sh -c "HOME='$tmp/sandbox-home' sh '$tmp/sandbox-helper' |
+    grep -qxF '{\"Authorization\":\"Bearer home\"}'"
+rm -r "$tmp/sandbox-home/.config"
 # An .env that is not valid shell: the helper reads only the token's line, runs nothing.
 printf '%s\n' "A='unclosed" "\$(touch $tmp/ran-env)" SCRAP_DLS_MCP_TOKEN=old SCRAP_DLS_MCP_TOKEN=messy \
     >"$tmp/sandbox-env/.env"
@@ -229,10 +256,46 @@ done
 if HOME="$tmp/sandbox-home" sh "$tmp/sandbox-helper" >"$tmp/helper.out" 2>"$tmp/helper.err"; then hn_rc=0; else hn_rc=1; fi
 check "claude: the helper fails with no token" [ "$hn_rc" = 1 ]
 check "claude: the helper says why, and sends nothing" sh -c "[ ! -s '$tmp/helper.out' ] &&
-    grep -q '^SCRAP_DLS_MCP_TOKEN not found in ~/.config/terminal-config/.env or ' '$tmp/helper.err'"
-check "claude: scrap-dls added with the JSON" grep -qxF "mcp add-json --scope user scrap-dls $json" "$tmp/claude.calls"
-check "claude: says it is connected" grep -q "Claude Code is connected to scrap for all your projects, as scrap-dls" "$tmp/out"
-check "claude: no tutorial link when connected" sh -c "! grep -q 'install-dls-claude' '$tmp/out'"
+    grep -q '^SCRAP_DLS_MCP_TOKEN not found in .* or ~/.config/terminal-config/.env$' '$tmp/helper.err'"
+# The connect script, in a container: it names the helper by the mount, which claude-sandbox
+# makes at /user-terminal-config. As written, it registers that path, whatever HOME is.
+check "connect script: registers the helper by the mount" grep -qF \
+    '"headersHelper":"/user-terminal-config/.claude/scrap-dls-headers.sh"}' "$connect"
+# Run it with that mount moved into $tmp (a link to terminal-config, as the mount is) and a
+# home other than /root.
+ln -s "$tmp/home/.config/terminal-config" "$tmp/utc"; mkdir -p "$tmp/ctr"
+sed "s|/user-terminal-config/|$tmp/utc/|g" "$connect" >"$tmp/ctr-connect"
+json='{"type":"http","url":"https://scrap-abc12345.diamond.ac.uk/mcp","headersHelper":"'$tmp/utc/.claude/scrap-dls-headers.sh'"}'
+connect_in() { # connect_in SCRIPT PATH: run a connect script as a container would
+    HOME="$tmp/ctr" PATH="$2" sh "$1" </dev/null >"$tmp/connect.out" 2>&1
+}
+: >"$tmp/claude.calls"
+if connect_in "$tmp/ctr-connect" "$tmp/bin:$sys_path"; then cn_rc=0; else cn_rc=1; fi
+check "connect script: succeeds" [ "$cn_rc" = 0 ]
+check "connect script: removes scrap-dls, then adds it with the JSON" sh -c "
+    [ \"\$(sed -n 1p '$tmp/claude.calls')\" = 'mcp remove --scope user scrap-dls' ] &&
+    [ \"\$(sed -n 2p '$tmp/claude.calls')\" = 'mcp add-json --scope user scrap-dls $json' ] &&
+    [ \"\$(wc -l <'$tmp/claude.calls')\" = 2 ]"
+check "connect script: says so" grep -q "Added scrap-dls: 'claude mcp list' should show it as connected" "$tmp/connect.out"
+if connect_in "$tmp/ctr-connect" "$tmp/bin:$sys_path"; then cn_rc=0; else cn_rc=1; fi
+check "connect script: a re-run replaces it" sh -c "[ '$cn_rc' = 0 ] && grep -qxF '$json' '$tmp/claude-scrap-dls'"
+check "connect script: the other scrap left alone" sh -c "[ \"\$(cat '$tmp/claude-scrap')\" = home ] &&
+    ! grep -Eq ' scrap( |\$)' '$tmp/claude.calls'"
+if connect_in "$tmp/ctr-connect" "$sys_path"; then cn_rc=0; else cn_rc=1; fi
+check "connect script: no claude, fails and says so" sh -c "[ '$cn_rc' = 1 ] && grep -q '^claude not found' '$tmp/connect.out'"
+if STUB_CLAUDE_FAIL=1 connect_in "$tmp/ctr-connect" "$tmp/bin:$sys_path"; then cn_rc=0; else cn_rc=1; fi
+check "connect script: claude fails, so does it" sh -c "[ '$cn_rc' = 1 ] && grep -q 'stub claude: no' '$tmp/connect.out'"
+# Where the mount has no helper (not a container, or the installer has not run): it stops.
+sed "s|/user-terminal-config/|$tmp/no-mount/|g" "$connect" >"$tmp/bare-connect"; : >"$tmp/claude.calls"
+if connect_in "$tmp/bare-connect" "$tmp/bin:$sys_path"; then cn_rc=0; else cn_rc=1; fi
+check "connect script: no helper at the mount, stops before claude and says why" sh -c "[ '$cn_rc' = 1 ] &&
+    grep -qF '$tmp/no-mount/.claude/scrap-dls-headers.sh is missing or not executable: run this in a claude-sandbox container,' '$tmp/connect.out' &&
+    grep -qx 'after install-dls.sh has run on the host.' '$tmp/connect.out' && [ ! -s '$tmp/claude.calls' ]"
+# A helper there but not executable: the same.
+cp "$helper" "$tmp/plain-helper"; chmod 600 "$tmp/plain-helper"; sed "s|/user-terminal-config/.claude/scrap-dls-headers.sh|$tmp/plain-helper|g" "$connect" >"$tmp/plain-connect"
+if connect_in "$tmp/plain-connect" "$tmp/bin:$sys_path"; then cn_rc=0; else cn_rc=1; fi
+check "connect script: a helper that is not executable, stops before claude" sh -c "[ '$cn_rc' = 1 ] &&
+    grep -q 'is missing or not executable' '$tmp/connect.out' && [ ! -s '$tmp/claude.calls' ]"
 check "mcp token never on a command line" sh -c "! grep -qF '$tok' '$tmp/kubectl.calls' '$tmp/helm.calls' '$tmp/claude.calls'"
 cp "$tmp/values.yaml" "$tmp/first-values.yaml"
 
@@ -246,10 +309,10 @@ check "says which version" sh -c "head -n1 '$tmp/out' | grep -q 'Installing scra
 : >"$tmp/kubectl.calls"; : >"$tmp/claude.calls"
 run
 check "claude: the token once in .env after re-runs" [ "$(grep -c '^SCRAP_DLS_MCP_TOKEN=' "$envf")" = 1 ]
-check "claude: re-run removes scrap-dls, then adds it" sh -c "[ \"\$(sed -n 1p '$tmp/claude.calls')\" = 'mcp remove --scope user scrap-dls' ] &&
-    grep -qxF 'mcp add-json --scope user scrap-dls $json' '$tmp/claude.calls' && [ \"\$(wc -l <'$tmp/claude.calls')\" = 2 ]"
-check "the other scrap: its server left alone" sh -c "[ \"\$(cat '$tmp/claude-scrap')\" = home ] &&
-    ! grep -Eq ' scrap( |\$)' '$tmp/claude.calls'"
+check "claude: re-run writes the same helper and connect script, and runs no claude" sh -c "
+    cmp -s '$helper' '$tmp/want-helper' && sh -n '$connect' && [ ! -s '$tmp/claude.calls' ]"
+check "claude: re-run leaves the host's ~/.claude alone" sh -c "sh '$tmp/host-claude.sh' | cmp -s - '$tmp/host-claude'"
+check "the other scrap: its server left alone" sh -c "[ \"\$(cat '$tmp/claude-scrap')\" = home ]"
 check "the other scrap: its helper left alone" cmp -s "$tmp/home/.claude/scrap-headers.sh" "$tmp/home-helper"
 check "the other scrap: its token left alone" sh -c "[ \"\$(grep -c '^SCRAP_MCP_TOKEN=' '$envf')\" = 1 ] &&
     grep -qx SCRAP_MCP_TOKEN=home '$envf'"
@@ -318,7 +381,7 @@ check "helm failure fails the script" [ "$helm_rc" = 1 ]
 check "token shown when helm fails" grep -q "bearer token (shown once" "$tmp/out"
 check "helm failure: says the login is as it was" grep -q "if it had no login (SCRAP_LOGIN=off), it still has none" "$tmp/out"
 check "helm failure: where to look if stuck in Init" grep -q "logs deploy/scrap -c db-init" "$tmp/out"
-check "helm failure: claude left alone" sh -c "! grep -q 'add-json' '$tmp/claude.calls'"
+check "helm failure: claude left alone" sh -c "[ ! -s '$tmp/claude.calls' ]"
 check "helm failure: an older chart explained" grep -q "additional properties 'litestream' not allowed" "$tmp/out"
 
 # An existing backup directory keeps its mode.
@@ -398,21 +461,60 @@ check "claude: the old token line replaced" sh -c "[ \"\$(grep -c '^SCRAP_DLS_MC
     ! grep -q '^SCRAP_DLS_MCP_TOKEN=old' '$envf'"
 check "claude: an open .env made private" sh -c "[ \"\$(stat -c %a '$envf')\" = 600 ]"
 
-# No claude on the PATH: the install succeeds and says what to run.
-mv "$tmp/bin/claude" "$tmp/claude.off"; : >"$tmp/claude.calls"
+# No claude on this host (most DLS users'): the same files, the same advice.
+mv "$tmp/bin/claude" "$tmp/claude.off"; rm -f "$helper" "$connect"
 if run; then nc_rc=0; else nc_rc=1; fi
 mv "$tmp/claude.off" "$tmp/bin/claude"
 check "no claude: the install succeeds" [ "$nc_rc" = 0 ]
-check "no claude: says so" grep -q "Claude Code was not found" "$tmp/out"
-check "no claude: prints the command" grep -qxF "  claude mcp add-json --scope user scrap-dls '$json'" "$tmp/out"
-check "no claude: links the DLS explanation" grep -q "scrap-at-dls.html#install-dls-claude" "$tmp/out"
+check "no claude: the helper and connect script written" sh -c "cmp -s '$helper' '$tmp/want-helper' && [ -x '$connect' ]"
+check "no claude: says to run the connect script" grep -qx '  sh /user-terminal-config/.claude/scrap-dls-connect.sh' "$tmp/out"
 
-# claude fails: warned, and the install still succeeds.
-if (STUB_CLAUDE_FAIL=1 run); then cf_rc=0; else cf_rc=1; fi
-check "claude fails: the install succeeds" [ "$cf_rc" = 0 ]
-check "claude fails: warns" grep -q "WARNING: claude mcp add-json failed" "$tmp/out"
-check "claude fails: says what to run" grep -q "fix the cause above, then run:" "$tmp/out"
-check "claude fails: prints the command" grep -qxF "  claude mcp add-json --scope user scrap-dls '$json'" "$tmp/out"
+# A host that cannot go in the connect script as it is: warned, nothing written for Claude.
+rm -f "$helper" "$connect"; cp "$envf" "$tmp/want-env"
+if (SCRAP_HOST="scrap'x.diamond.ac.uk" run); then bh_rc=0; else bh_rc=1; fi
+check "odd host: the install succeeds" [ "$bh_rc" = 0 ]
+check "odd host: warns" grep -q "WARNING: the host 'scrap'x.diamond.ac.uk' has characters other than" "$tmp/out"
+check "odd host: says what to do" grep -q "Claude Code is not set up: fix the cause above, then re-run this script" "$tmp/out"
+check "odd host: .env untouched, no helper or connect script" sh -c "cmp -s '$envf' '$tmp/want-env' &&
+    [ ! -e '$helper' ] && [ ! -e '$connect' ]"
+
+# terminal-config/.claude already there (claude-sandbox's, mode 755, with its settings):
+# its files and its mode kept, the two scripts added.
+rm -rf "$cdir"; mkdir -p "$cdir"; chmod 755 "$cdir"; echo '{"theme":"dark"}' >"$cdir/settings.json"
+run
+check "existing .claude: its files and its mode kept" sh -c "[ \"\$(stat -c %a '$cdir')\" = 755 ] &&
+    grep -qx '{\"theme\":\"dark\"}' '$cdir/settings.json'"
+check "existing .claude: the helper and connect script added" sh -c "cmp -s '$helper' '$tmp/want-helper' && [ -x '$connect' ]"
+
+# terminal-config/.claude cannot be made (it is a file): warned, the install succeeds.
+rm -rf "$cdir"; echo x >"$cdir"
+if run; then cf_rc=0; else cf_rc=1; fi
+check "no .claude: the install succeeds" [ "$cf_rc" = 0 ]
+check "no .claude: warns" grep -qF "WARNING: could not write $helper and $connect: Claude Code is not set up." "$tmp/out"
+check "no .claude: says what to do" grep -q "Claude Code is not set up: fix the cause above, then re-run this script" "$tmp/out"
+check "no .claude: the token still in .env" grep -q '^SCRAP_DLS_MCP_TOKEN=' "$envf"
+rm -f "$cdir"
+
+# A host whose ~/.claude and ~/.claude.json are links into terminal-config, as the
+# containers' are: .claude.json untouched, only the two scripts change, claude never run.
+rm -rf "${tmp:?}/home"; mkdir -p "$cdir"
+tcj=$tmp/home/.config/terminal-config/.claude.json
+echo '{"mcpServers":{"scrap-dls":{"headersHelper":"/old/host/path"}}}' >"$tcj"
+echo '{"theme":"dark"}' >"$cdir/settings.json"
+printf '#!/bin/sh\n# an earlier install-dls.sh\n' >"$helper"
+ln -s .config/terminal-config/.claude "$tmp/home/.claude"
+ln -s .config/terminal-config/.claude.json "$tmp/home/.claude.json"
+cp "$tcj" "$tmp/want-claude-json"; : >"$tmp/claude.calls"
+(cd "$cdir" && find . -type f ! -name 'scrap-dls-*' -exec ls -l {} + && cat settings.json) >"$tmp/want-shared"
+if run; then ll_rc=0; else ll_rc=1; fi
+check "linked host: the install succeeds" [ "$ll_rc" = 0 ]
+check "linked host: .claude.json untouched, still the links" sh -c "cmp -s '$tcj' '$tmp/want-claude-json' &&
+    [ -L '$tmp/home/.claude' ] && [ -L '$tmp/home/.claude.json' ]"
+check "linked host: only the two scripts change in the shared .claude" sh -c "
+    (cd '$cdir' && find . -type f ! -name 'scrap-dls-*' -exec ls -l {} + && cat settings.json) | cmp -s - '$tmp/want-shared' &&
+    [ \"\$(cd '$cdir' && find . -name 'scrap-dls-*' | sort | tr '\n' ' ')\" = './scrap-dls-connect.sh ./scrap-dls-headers.sh ' ] &&
+    cmp -s '$helper' '$tmp/want-helper'"
+check "linked host: claude never run" sh -c "[ ! -s '$tmp/claude.calls' ]"
 
 # A fresh HOME, with no ~/.config at all: the directory and an empty .env are made,
 # private even under a loose umask.
@@ -424,8 +526,12 @@ check "fresh home: ~/.config and its terminal-config made mode 700" sh -c "
 check "fresh home: .env holds only the token, mode 600" sh -c "[ \"\$(stat -c %a '$envf')\" = 600 ] &&
     [ \"\$(cat '$envf')\" = \"SCRAP_DLS_MCP_TOKEN=\$(cat '$tmp/created-SCRAP_MCP_TOKEN')\" ]"
 check "fresh home: the helper made" cmp -s "$helper" "$tmp/want-helper"
-check "fresh home: no copy of the .env left beside it" [ "$(ls -A "${envf%/*}")" = .env ]
-check "fresh home: connected" grep -q "Claude Code is connected" "$tmp/out"
+check "fresh home: terminal-config/.claude, the helper and connect script private" sh -c "
+    [ \"\$(stat -c %a '$cdir')\" = 700 ] && [ \"\$(stat -c %a '$helper')\" = 700 ] &&
+    [ \"\$(stat -c %a '$connect')\" = 700 ]"
+check "fresh home: no copy of the .env left beside it" [ "$(find "${envf%/*}" -mindepth 1 -maxdepth 1 | sort | tr '\n' ' ')" = "${envf%/*}/.claude $envf " ]
+check "fresh home: no ~/.claude or ~/.claude.json made" sh -c "[ ! -e '$tmp/home/.claude' ] && [ ! -e '$tmp/home/.claude.json' ]"
+check "fresh home: says to run the connect script" grep -qx '  sh /user-terminal-config/.claude/scrap-dls-connect.sh' "$tmp/out"
 
 # The .env cannot be written (its directory is a file): warned, and the install succeeds.
 rm -rf "${tmp:?}/home"; mkdir -p "$tmp/home/.config"; echo x >"$tmp/home/.config/terminal-config"
@@ -433,7 +539,7 @@ rm -rf "${tmp:?}/home"; mkdir -p "$tmp/home/.config"; echo x >"$tmp/home/.config
 if run; then nw_rc=0; else nw_rc=1; fi
 check "no .env: the install succeeds" [ "$nw_rc" = 0 ]
 check "no .env: warns" grep -q "WARNING: could not write the token to $envf" "$tmp/out"
-check "no .env: says what to do" grep -q "fix the cause above, then re-run this script" "$tmp/out"
+check "no .env: says what to do" grep -q "Claude Code is not set up: fix the cause above, then re-run this script" "$tmp/out"
 check "no .env: claude left alone" sh -c "[ ! -s '$tmp/claude.calls' ]"
 
 # A token set by hand with characters the helper's shell would act on ($( ), or a
@@ -448,7 +554,8 @@ for odd in 'a$(touch '"$tmp"'/ran)b' '~/x'; do
     check "odd token '$odd': warns" grep -q "WARNING: the token in .* has characters other than" "$tmp/out"
     check "odd token '$odd': says what to do" grep -q "fix the cause above, then re-run this script" "$tmp/out"
     check "odd token '$odd': no token line in .env" sh -c "! grep -qs SCRAP_DLS_MCP_TOKEN '$envf'"
-    check "odd token '$odd': claude left alone" sh -c "[ ! -s '$tmp/claude.calls' ] && [ ! -e '$tmp/ran' ]"
+    check "odd token '$odd': claude left alone" sh -c "[ ! -s '$tmp/claude.calls' ] && [ ! -e '$tmp/ran' ] &&
+        [ ! -e '$helper' ] && [ ! -e '$connect' ]"
 done
 
 # Writing the new .env fails (a full disk or quota): the .env is left as it was.
@@ -460,7 +567,7 @@ rm -f "$tmp/fullenv"
 check "write fails: the install succeeds" [ "$fw_rc" = 0 ]
 check "write fails: warns" grep -q "WARNING: could not write the token to $envf" "$tmp/out"
 check "write fails: the .env untouched" cmp -s "$envf" "$tmp/want-env"
-check "write fails: claude left alone" sh -c "[ ! -s '$tmp/claude.calls' ]"
+check "write fails: claude left alone" sh -c "[ ! -s '$tmp/claude.calls' ] && [ ! -e '$helper' ]"
 
 # The copy over the .env stops part way: the full new contents are kept in .env.bak.
 rm -f "$envf.bak"; cp "$tmp/want-env" "$envf"; touch "$tmp/cutenv"; : >"$tmp/claude.calls"
@@ -473,7 +580,7 @@ check "cut short: .env.bak, mode 600, holds the other lines and the new token" s
     [ \"\$(stat -c %a '$envf.bak')\" = 600 ] && grep -qx 'SCRAP_MCP_TOKEN=home' '$envf.bak' &&
     [ \"\$(grep '^SCRAP_DLS_MCP_TOKEN=' '$envf.bak')\" = \"SCRAP_DLS_MCP_TOKEN=\$(cat '$tmp/created-SCRAP_MCP_TOKEN')\" ]"
 check "cut short: no other copy left beside it" sh -c "[ \"\$(ls -A '${envf%/*}' | sort | tr '\n' ' ')\" = '.env .env.bak ' ]"
-check "cut short: claude left alone" sh -c "[ ! -s '$tmp/claude.calls' ]"
+check "cut short: claude left alone" sh -c "[ ! -s '$tmp/claude.calls' ] && [ ! -e '$helper' ]"
 
 # Cut short again, with that .env.bak still there: it is kept, and the new copy stays
 # beside the .env under its temporary name, which the warning gives.
@@ -488,11 +595,12 @@ check "cut short, .bak there: the new copy kept, mode 600, with the token" sh -c
     grep -q '^SCRAP_DLS_MCP_TOKEN=' '$cb_new'"
 check "cut short, .bak there: says to restore that copy" grep -qF "restore it first (mv '$cb_new' '$envf')" "$tmp/out"
 
-# SCRAP_CLAUDE=off: no .env, no helper, no claude.
+# SCRAP_CLAUDE=off: no .env, no helper, no connect script, no claude.
 rm -rf "${tmp:?}/home"; : >"$tmp/claude.calls"
 (SCRAP_CLAUDE=off run)
 check "SCRAP_CLAUDE=off: nothing touched" sh -c "[ ! -e '$tmp/home/.config' ] && [ ! -e '$tmp/home/.claude' ] &&
-    [ ! -s '$tmp/claude.calls' ]"
+    [ ! -e '$tmp/home/.claude.json' ] && [ ! -s '$tmp/claude.calls' ]"
+check "SCRAP_CLAUDE=off: no link to the explanation" sh -c "! grep -q 'install-dls-claude' '$tmp/out'"
 check "SCRAP_CLAUDE=off: says so" grep -q "Claude Code left alone (SCRAP_CLAUDE=off)" "$tmp/out"
 for bad in OFF no 0 'on '; do
     : >"$tmp/kubectl.calls"; : >"$tmp/helm.calls"; : >"$tmp/claude.calls"; rm -rf "${tmp:?}/home"
