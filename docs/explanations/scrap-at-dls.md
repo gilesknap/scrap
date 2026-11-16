@@ -41,7 +41,7 @@ kubectl get secret scrap-secrets -o jsonpath='{.data.SCRAP_MCP_TOKEN}' | base64 
 ## Claude Code
 
 The installer sets Claude Code up for claude-sandbox containers. It never runs `claude` on the
-host, nor touches the host's `~/.claude` or `~/.claude.json`. claude-sandbox mounts the host's
+host, and writes only under `~/.config/terminal-config`. claude-sandbox mounts the host's
 `~/.config/terminal-config` at `/user-terminal-config` and links a container's `~/.claude` and
 `~/.claude.json` there, so every container shares them. The installer:
 
@@ -80,13 +80,16 @@ sh ~/.claude/scrap-dls-connect.sh
 ```
 
 One run covers every container, as they share `~/.claude.json`. Check: `claude mcp list` shows
-`scrap-dls` as connected. The script runs, with the container's own home:
+`scrap-dls` as connected. After re-running the installer, run it again only if your host
+(`SCRAP_HOST`) changed, or `scrap-dls` is missing. The script runs:
 
 ```sh
 claude mcp remove --scope user scrap-dls
 claude mcp add-json --scope user scrap-dls \
-  '{"type":"http","url":"https://scrap-<fedid>.diamond.ac.uk/mcp","headersHelper":"/root/.claude/scrap-dls-headers.sh"}'
+  '{"type":"http","url":"https://scrap-<fedid>.diamond.ac.uk/mcp","headersHelper":"/user-terminal-config/.claude/scrap-dls-headers.sh"}'
 ```
+
+It names the helper by the mount, so the one entry works in every container, whatever its home.
 
 If a step fails, the installer still succeeds, and says what to fix. Only Claude Code on the DLS
 network can reach `/mcp`; claude.ai's connectors and cloud sessions cannot.
@@ -97,9 +100,11 @@ scrap (from an earlier version of the DLS install), remove it in a container, or
 appears twice: `claude mcp remove --scope user scrap`, and delete `~/.claude/scrap-headers.sh`.
 
 **Left on the host.** An earlier version of the installer added `scrap-dls` with the host's
-`claude` and wrote `~/.claude/scrap-dls-headers.sh` there. The installer leaves both alone; if
-you do not use Claude Code on the host itself, you can remove them (`claude mcp remove --scope
-user scrap-dls` and `rm ~/.claude/scrap-dls-headers.sh`, on the host).
+`claude` and wrote `~/.claude/scrap-dls-headers.sh` there. The installer leaves both alone. If
+you do not use Claude Code on the host itself, you can remove them there, but first check
+`ls -ld ~/.claude ~/.claude.json`: if either is a link into `~/.config/terminal-config`, they
+are the containers' own, so leave them. Otherwise, on the host: `claude mcp remove --scope user
+scrap-dls` and `rm ~/.claude/scrap-dls-headers.sh`.
 
 ## Before the DNS names exist
 

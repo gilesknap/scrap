@@ -13,7 +13,7 @@
 # pages-$USER.diamond.ac.uk to anyone on the DLS network.
 #
 # It also sets up Claude Code's connection to /mcp, for claude-sandbox containers (it never
-# runs claude here, nor touches ~/.claude or ~/.claude.json on this host): the token goes in
+# runs claude here, and writes only under ~/.config/terminal-config): the token goes in
 # ~/.config/terminal-config/.env (mode 600) as SCRAP_DLS_MCP_TOKEN, and in
 # ~/.config/terminal-config/.claude, which a container sees as its ~/.claude, a helper
 # scrap-dls-headers.sh reads it and scrap-dls-connect.sh adds the server scrap-dls. Run that
@@ -120,7 +120,8 @@ EOF
 }
 
 # The script you run once in a claude-sandbox container to add the server scrap-dls. The
-# helper's path is the container's $HOME/.claude, found when it runs, not this host's.
+# helper is named by the mount, /user-terminal-config/.claude: the same in every container
+# (and inside the jail) whatever its home, as all of them share the one ~/.claude.json.
 connect_script() {
     cat <<EOF
 #!/bin/sh
@@ -128,9 +129,10 @@ connect_script() {
 # your projects. Run it once in any claude-sandbox container: sh ~/.claude/scrap-dls-connect.sh
 # The containers share ~/.claude.json, so one run covers them all. Safe to re-run: it
 # replaces a scrap-dls already there. install-dls.sh writes it.
-helper=\$HOME/.claude/scrap-dls-headers.sh
+helper=/user-terminal-config/.claude/scrap-dls-headers.sh
 if [ ! -x "\$helper" ]; then
-    echo "\$helper not found: run this in a claude-sandbox container." >&2
+    echo "\$helper is missing or not executable: run this in a claude-sandbox container," >&2
+    echo "after install-dls.sh has run on the host." >&2
     exit 1
 fi
 if ! command -v claude >/dev/null 2>&1; then
@@ -139,14 +141,15 @@ if ! command -v claude >/dev/null 2>&1; then
 fi
 claude mcp remove --scope user scrap-dls >/dev/null 2>&1 || true
 claude mcp add-json --scope user scrap-dls \\
-    '{"type":"http","url":"https://$host/mcp","headersHelper":"'"\$helper"'"}' || exit 1
+    '{"type":"http","url":"https://$host/mcp","headersHelper":"/user-terminal-config/.claude/scrap-dls-headers.sh"}' || exit 1
 echo "Added scrap-dls: 'claude mcp list' should show it as connected."
 EOF
 }
 
 # Sets up Claude Code's connection to /mcp for claude-sandbox containers: the token in the
 # .env, and the helper and connect script in ~/.config/terminal-config/.claude, which a
-# container sees as its ~/.claude. It never runs claude, nor touches this host's ~/.claude.
+# container sees as its ~/.claude. It never runs claude, and writes only under
+# ~/.config/terminal-config.
 # Sets claude_done to ready (all written: run the connect script in a container) or no (a
 # step failed, with a warning).
 # Never fails the install: it runs as `connect_claude || true`, so set -e is off in it,
@@ -591,7 +594,8 @@ EOF
 Claude Code: in a claude-sandbox container, run once:
   sh ~/.claude/scrap-dls-connect.sh
 One run covers every container (they share ~/.claude.json). Then 'claude mcp list' shows
-scrap-dls as connected, for all your projects.
+scrap-dls as connected, for all your projects. After a re-run, run it again only if the
+host (SCRAP_HOST) changed, or scrap-dls is missing from 'claude mcp list'.
 EOF
         ;;
     off) echo "Claude Code left alone (SCRAP_CLAUDE=off)." ;;

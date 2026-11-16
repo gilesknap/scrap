@@ -217,7 +217,8 @@ check "claude: the host's ~/.claude and ~/.claude.json untouched" sh -c "sh '$tm
 check "claude: says to run the connect script in a container" sh -c "
     grep -qx 'Claude Code: in a claude-sandbox container, run once:' '$tmp/out' &&
     grep -qx '  sh ~/.claude/scrap-dls-connect.sh' '$tmp/out' &&
-    grep -q 'One run covers every container' '$tmp/out'"
+    grep -q 'One run covers every container' '$tmp/out' &&
+    grep -q 'run it again only if the' '$tmp/out' && grep -q 'host (SCRAP_HOST) changed' '$tmp/out'"
 check "claude: links the DLS explanation" grep -q "scrap-at-dls.html#install-dls-claude" "$tmp/out"
 # The helper, with /user-terminal-config/.env moved into $tmp (the real one may exist
 # where the tests run). On the host, with no claude-sandbox .env: the host's.
@@ -256,35 +257,45 @@ if HOME="$tmp/sandbox-home" sh "$tmp/sandbox-helper" >"$tmp/helper.out" 2>"$tmp/
 check "claude: the helper fails with no token" [ "$hn_rc" = 1 ]
 check "claude: the helper says why, and sends nothing" sh -c "[ ! -s '$tmp/helper.out' ] &&
     grep -q '^SCRAP_DLS_MCP_TOKEN not found in .* or ~/.config/terminal-config/.env$' '$tmp/helper.err'"
-# The connect script, in a container: its ~/.claude is terminal-config/.claude, as
-# claude-sandbox links it. It adds scrap-dls with the container's path to the helper.
-mkdir -p "$tmp/ctr"; ln -s "$cdir" "$tmp/ctr/.claude"
-json='{"type":"http","url":"https://scrap-abc12345.diamond.ac.uk/mcp","headersHelper":"'$tmp/ctr/.claude/scrap-dls-headers.sh'"}'
-connect_in() { # connect_in HOME PATH: run the connect script as a container would
-    HOME="$1" PATH="$2" sh "$tmp/ctr/.claude/scrap-dls-connect.sh" </dev/null >"$tmp/connect.out" 2>&1
+# The connect script, in a container: it names the helper by the mount, which claude-sandbox
+# makes at /user-terminal-config. As written, it registers that path, whatever HOME is.
+check "connect script: registers the helper by the mount" grep -qF \
+    '"headersHelper":"/user-terminal-config/.claude/scrap-dls-headers.sh"}' "$connect"
+# Run it with that mount moved into $tmp (a link to terminal-config, as the mount is) and a
+# home other than /root.
+ln -s "$tmp/home/.config/terminal-config" "$tmp/utc"; mkdir -p "$tmp/ctr"
+sed "s|/user-terminal-config/|$tmp/utc/|g" "$connect" >"$tmp/ctr-connect"
+json='{"type":"http","url":"https://scrap-abc12345.diamond.ac.uk/mcp","headersHelper":"'$tmp/utc/.claude/scrap-dls-headers.sh'"}'
+connect_in() { # connect_in SCRIPT PATH: run a connect script as a container would
+    HOME="$tmp/ctr" PATH="$2" sh "$1" </dev/null >"$tmp/connect.out" 2>&1
 }
 : >"$tmp/claude.calls"
-if connect_in "$tmp/ctr" "$tmp/bin:$sys_path"; then cn_rc=0; else cn_rc=1; fi
+if connect_in "$tmp/ctr-connect" "$tmp/bin:$sys_path"; then cn_rc=0; else cn_rc=1; fi
 check "connect script: succeeds" [ "$cn_rc" = 0 ]
 check "connect script: removes scrap-dls, then adds it with the JSON" sh -c "
     [ \"\$(sed -n 1p '$tmp/claude.calls')\" = 'mcp remove --scope user scrap-dls' ] &&
     [ \"\$(sed -n 2p '$tmp/claude.calls')\" = 'mcp add-json --scope user scrap-dls $json' ] &&
     [ \"\$(wc -l <'$tmp/claude.calls')\" = 2 ]"
 check "connect script: says so" grep -q "Added scrap-dls: 'claude mcp list' should show it as connected" "$tmp/connect.out"
-if connect_in "$tmp/ctr" "$tmp/bin:$sys_path"; then cn_rc=0; else cn_rc=1; fi
+if connect_in "$tmp/ctr-connect" "$tmp/bin:$sys_path"; then cn_rc=0; else cn_rc=1; fi
 check "connect script: a re-run replaces it" sh -c "[ '$cn_rc' = 0 ] && grep -qxF '$json' '$tmp/claude-scrap-dls'"
 check "connect script: the other scrap left alone" sh -c "[ \"\$(cat '$tmp/claude-scrap')\" = home ] &&
     ! grep -Eq ' scrap( |\$)' '$tmp/claude.calls'"
-if connect_in "$tmp/ctr" "$sys_path"; then cn_rc=0; else cn_rc=1; fi
+if connect_in "$tmp/ctr-connect" "$sys_path"; then cn_rc=0; else cn_rc=1; fi
 check "connect script: no claude, fails and says so" sh -c "[ '$cn_rc' = 1 ] && grep -q '^claude not found' '$tmp/connect.out'"
-if STUB_CLAUDE_FAIL=1 connect_in "$tmp/ctr" "$tmp/bin:$sys_path"; then cn_rc=0; else cn_rc=1; fi
+if STUB_CLAUDE_FAIL=1 connect_in "$tmp/ctr-connect" "$tmp/bin:$sys_path"; then cn_rc=0; else cn_rc=1; fi
 check "connect script: claude fails, so does it" sh -c "[ '$cn_rc' = 1 ] && grep -q 'stub claude: no' '$tmp/connect.out'"
-# On a host whose ~/.claude is not terminal-config/.claude: no helper there, so it stops.
-mkdir -p "$tmp/bare"; : >"$tmp/claude.calls"
-if connect_in "$tmp/bare" "$tmp/bin:$sys_path"; then cn_rc=0; else cn_rc=1; fi
-check "connect script: no helper in ~/.claude, stops before claude" sh -c "[ '$cn_rc' = 1 ] &&
-    grep -q 'scrap-dls-headers.sh not found: run this in a claude-sandbox container' '$tmp/connect.out' &&
-    [ ! -s '$tmp/claude.calls' ]"
+# Where the mount has no helper (not a container, or the installer has not run): it stops.
+sed "s|/user-terminal-config/|$tmp/no-mount/|g" "$connect" >"$tmp/bare-connect"; : >"$tmp/claude.calls"
+if connect_in "$tmp/bare-connect" "$tmp/bin:$sys_path"; then cn_rc=0; else cn_rc=1; fi
+check "connect script: no helper at the mount, stops before claude and says why" sh -c "[ '$cn_rc' = 1 ] &&
+    grep -qF '$tmp/no-mount/.claude/scrap-dls-headers.sh is missing or not executable: run this in a claude-sandbox container,' '$tmp/connect.out' &&
+    grep -qx 'after install-dls.sh has run on the host.' '$tmp/connect.out' && [ ! -s '$tmp/claude.calls' ]"
+# A helper there but not executable: the same.
+cp "$helper" "$tmp/plain-helper"; chmod 600 "$tmp/plain-helper"; sed "s|/user-terminal-config/.claude/scrap-dls-headers.sh|$tmp/plain-helper|g" "$connect" >"$tmp/plain-connect"
+if connect_in "$tmp/plain-connect" "$tmp/bin:$sys_path"; then cn_rc=0; else cn_rc=1; fi
+check "connect script: a helper that is not executable, stops before claude" sh -c "[ '$cn_rc' = 1 ] &&
+    grep -q 'is missing or not executable' '$tmp/connect.out' && [ ! -s '$tmp/claude.calls' ]"
 check "mcp token never on a command line" sh -c "! grep -qF '$tok' '$tmp/kubectl.calls' '$tmp/helm.calls' '$tmp/claude.calls'"
 cp "$tmp/values.yaml" "$tmp/first-values.yaml"
 
@@ -466,6 +477,23 @@ check "odd host: warns" grep -q "WARNING: the host 'scrap'x.diamond.ac.uk' has c
 check "odd host: says what to do" grep -q "Claude Code is not set up: fix the cause above, then re-run this script" "$tmp/out"
 check "odd host: .env untouched, no helper or connect script" sh -c "cmp -s '$envf' '$tmp/want-env' &&
     [ ! -e '$helper' ] && [ ! -e '$connect' ]"
+
+# terminal-config/.claude already there (claude-sandbox's, mode 755, with its settings):
+# its files and its mode kept, the two scripts added.
+rm -rf "$cdir"; mkdir -p "$cdir"; chmod 755 "$cdir"; echo '{"theme":"dark"}' >"$cdir/settings.json"
+run
+check "existing .claude: its files and its mode kept" sh -c "[ \"\$(stat -c %a '$cdir')\" = 755 ] &&
+    grep -qx '{\"theme\":\"dark\"}' '$cdir/settings.json'"
+check "existing .claude: the helper and connect script added" sh -c "cmp -s '$helper' '$tmp/want-helper' && [ -x '$connect' ]"
+
+# terminal-config/.claude cannot be made (it is a file): warned, the install succeeds.
+rm -rf "$cdir"; echo x >"$cdir"
+if run; then cf_rc=0; else cf_rc=1; fi
+check "no .claude: the install succeeds" [ "$cf_rc" = 0 ]
+check "no .claude: warns" grep -qF "WARNING: could not write $helper and $connect: Claude Code is not set up." "$tmp/out"
+check "no .claude: says what to do" grep -q "Claude Code is not set up: fix the cause above, then re-run this script" "$tmp/out"
+check "no .claude: the token still in .env" grep -q '^SCRAP_DLS_MCP_TOKEN=' "$envf"
+rm -f "$cdir"
 
 # A fresh HOME, with no ~/.config at all: the directory and an empty .env are made,
 # private even under a loose umask.
