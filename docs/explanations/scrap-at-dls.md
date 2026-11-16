@@ -76,7 +76,7 @@ host, and writes only under `~/.config/terminal-config`. claude-sandbox mounts t
 Then, in any claude-sandbox container, run once:
 
 ```sh
-sh ~/.claude/scrap-dls-connect.sh
+sh /user-terminal-config/.claude/scrap-dls-connect.sh
 ```
 
 One run covers every container, as they share `~/.claude.json`. Check: `claude mcp list` shows
@@ -101,10 +101,18 @@ appears twice: `claude mcp remove --scope user scrap`, and delete `~/.claude/scr
 
 **Left on the host.** An earlier version of the installer added `scrap-dls` with the host's
 `claude` and wrote `~/.claude/scrap-dls-headers.sh` there. The installer leaves both alone. If
-you do not use Claude Code on the host itself, you can remove them there, but first check
-`ls -ld ~/.claude ~/.claude.json`: if either is a link into `~/.config/terminal-config`, they
-are the containers' own, so leave them. Otherwise, on the host: `claude mcp remove --scope user
-scrap-dls` and `rm ~/.claude/scrap-dls-headers.sh`.
+you do not use Claude Code on the host itself, you can remove them, on the host:
+`claude mcp remove --scope user scrap-dls` and `rm ~/.claude/scrap-dls-headers.sh`. But if this
+prints `shared`, they are the containers' own, so leave them:
+
+```sh
+[ ~/.claude -ef ~/.config/terminal-config/.claude ] ||
+  [ ~/.claude.json -ef ~/.config/terminal-config/.claude.json ] && echo shared
+```
+
+Where the host shares `~/.claude.json` with the containers like this, running the connect
+script in a container replaces the host's old `scrap-dls` (which named a host path), so it then
+works only in the containers, by design.
 
 ## Before the DNS names exist
 

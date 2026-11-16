@@ -13,8 +13,8 @@ For scrap installed as in [](../tutorials/install-kubernetes.md) or
 
 The DLS installer, run on the host, puts the token in that env file (`SCRAP_DLS_MCP_TOKEN`), and
 the helper and a connect script in `~/.config/terminal-config/.claude`, the containers'
-`~/.claude`. In any container, run `sh ~/.claude/scrap-dls-connect.sh` once to add the server as
-`scrap-dls`, as in {ref}`install-dls-claude`.
+`~/.claude`. In any container, run `sh /user-terminal-config/.claude/scrap-dls-connect.sh` once
+to add the server as `scrap-dls`, as in {ref}`install-dls-claude`.
 
 Then install the `sc` commands and the skills as in [](connect-claude-code.md).
 

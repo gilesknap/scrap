@@ -17,7 +17,8 @@
 # ~/.config/terminal-config/.env (mode 600) as SCRAP_DLS_MCP_TOKEN, and in
 # ~/.config/terminal-config/.claude, which a container sees as its ~/.claude, a helper
 # scrap-dls-headers.sh reads it and scrap-dls-connect.sh adds the server scrap-dls. Run that
-# once in any container (sh ~/.claude/scrap-dls-connect.sh): they share ~/.claude.json. A
+# once in any container, where the host's terminal-config is mounted at /user-terminal-config
+# (sh /user-terminal-config/.claude/scrap-dls-connect.sh): they share ~/.claude.json. A
 # server named scrap, its helper and SCRAP_MCP_TOKEN, for another scrap, are left alone. If
 # you followed the earlier tutorial and have a server scrap pointing at this DLS scrap,
 # remove it in a container (`claude mcp remove --scope user scrap`, and delete
@@ -126,7 +127,8 @@ connect_script() {
     cat <<EOF
 #!/bin/sh
 # Adds scrap at DLS (https://$host/mcp) to Claude Code as the server scrap-dls, for all
-# your projects. Run it once in any claude-sandbox container: sh ~/.claude/scrap-dls-connect.sh
+# your projects. Run it once in any claude-sandbox container:
+#   sh /user-terminal-config/.claude/scrap-dls-connect.sh
 # The containers share ~/.claude.json, so one run covers them all. Safe to re-run: it
 # replaces a scrap-dls already there. install-dls.sh writes it.
 helper=/user-terminal-config/.claude/scrap-dls-headers.sh
@@ -592,7 +594,7 @@ EOF
     ready)
         cat <<EOF
 Claude Code: in a claude-sandbox container, run once:
-  sh ~/.claude/scrap-dls-connect.sh
+  sh /user-terminal-config/.claude/scrap-dls-connect.sh
 One run covers every container (they share ~/.claude.json). Then 'claude mcp list' shows
 scrap-dls as connected, for all your projects. After a re-run, run it again only if the
 host (SCRAP_HOST) changed, or scrap-dls is missing from 'claude mcp list'.

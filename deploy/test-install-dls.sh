@@ -216,7 +216,7 @@ check "claude: the installer never runs claude" sh -c "[ ! -s '$tmp/claude.calls
 check "claude: the host's ~/.claude and ~/.claude.json untouched" sh -c "sh '$tmp/host-claude.sh' | cmp -s - '$tmp/host-claude'"
 check "claude: says to run the connect script in a container" sh -c "
     grep -qx 'Claude Code: in a claude-sandbox container, run once:' '$tmp/out' &&
-    grep -qx '  sh ~/.claude/scrap-dls-connect.sh' '$tmp/out' &&
+    grep -qx '  sh /user-terminal-config/.claude/scrap-dls-connect.sh' '$tmp/out' &&
     grep -q 'One run covers every container' '$tmp/out' &&
     grep -q 'run it again only if the' '$tmp/out' && grep -q 'host (SCRAP_HOST) changed' '$tmp/out'"
 check "claude: links the DLS explanation" grep -q "scrap-at-dls.html#install-dls-claude" "$tmp/out"
@@ -467,7 +467,7 @@ if run; then nc_rc=0; else nc_rc=1; fi
 mv "$tmp/claude.off" "$tmp/bin/claude"
 check "no claude: the install succeeds" [ "$nc_rc" = 0 ]
 check "no claude: the helper and connect script written" sh -c "cmp -s '$helper' '$tmp/want-helper' && [ -x '$connect' ]"
-check "no claude: says to run the connect script" grep -qx '  sh ~/.claude/scrap-dls-connect.sh' "$tmp/out"
+check "no claude: says to run the connect script" grep -qx '  sh /user-terminal-config/.claude/scrap-dls-connect.sh' "$tmp/out"
 
 # A host that cannot go in the connect script as it is: warned, nothing written for Claude.
 rm -f "$helper" "$connect"; cp "$envf" "$tmp/want-env"
@@ -495,6 +495,27 @@ check "no .claude: says what to do" grep -q "Claude Code is not set up: fix the 
 check "no .claude: the token still in .env" grep -q '^SCRAP_DLS_MCP_TOKEN=' "$envf"
 rm -f "$cdir"
 
+# A host whose ~/.claude and ~/.claude.json are links into terminal-config, as the
+# containers' are: .claude.json untouched, only the two scripts change, claude never run.
+rm -rf "${tmp:?}/home"; mkdir -p "$cdir"
+tcj=$tmp/home/.config/terminal-config/.claude.json
+echo '{"mcpServers":{"scrap-dls":{"headersHelper":"/old/host/path"}}}' >"$tcj"
+echo '{"theme":"dark"}' >"$cdir/settings.json"
+printf '#!/bin/sh\n# an earlier install-dls.sh\n' >"$helper"
+ln -s .config/terminal-config/.claude "$tmp/home/.claude"
+ln -s .config/terminal-config/.claude.json "$tmp/home/.claude.json"
+cp "$tcj" "$tmp/want-claude-json"; : >"$tmp/claude.calls"
+(cd "$cdir" && find . -type f ! -name 'scrap-dls-*' -exec ls -l {} + && cat settings.json) >"$tmp/want-shared"
+if run; then ll_rc=0; else ll_rc=1; fi
+check "linked host: the install succeeds" [ "$ll_rc" = 0 ]
+check "linked host: .claude.json untouched, still the links" sh -c "cmp -s '$tcj' '$tmp/want-claude-json' &&
+    [ -L '$tmp/home/.claude' ] && [ -L '$tmp/home/.claude.json' ]"
+check "linked host: only the two scripts change in the shared .claude" sh -c "
+    (cd '$cdir' && find . -type f ! -name 'scrap-dls-*' -exec ls -l {} + && cat settings.json) | cmp -s - '$tmp/want-shared' &&
+    [ \"\$(cd '$cdir' && find . -name 'scrap-dls-*' | sort | tr '\n' ' ')\" = './scrap-dls-connect.sh ./scrap-dls-headers.sh ' ] &&
+    cmp -s '$helper' '$tmp/want-helper'"
+check "linked host: claude never run" sh -c "[ ! -s '$tmp/claude.calls' ]"
+
 # A fresh HOME, with no ~/.config at all: the directory and an empty .env are made,
 # private even under a loose umask.
 rm -rf "${tmp:?}/home"
@@ -510,7 +531,7 @@ check "fresh home: terminal-config/.claude, the helper and connect script privat
     [ \"\$(stat -c %a '$connect')\" = 700 ]"
 check "fresh home: no copy of the .env left beside it" [ "$(find "${envf%/*}" -mindepth 1 -maxdepth 1 | sort | tr '\n' ' ')" = "${envf%/*}/.claude $envf " ]
 check "fresh home: no ~/.claude or ~/.claude.json made" sh -c "[ ! -e '$tmp/home/.claude' ] && [ ! -e '$tmp/home/.claude.json' ]"
-check "fresh home: says to run the connect script" grep -qx '  sh ~/.claude/scrap-dls-connect.sh' "$tmp/out"
+check "fresh home: says to run the connect script" grep -qx '  sh /user-terminal-config/.claude/scrap-dls-connect.sh' "$tmp/out"
 
 # The .env cannot be written (its directory is a file): warned, and the install succeeds.
 rm -rf "${tmp:?}/home"; mkdir -p "$tmp/home/.config"; echo x >"$tmp/home/.config/terminal-config"

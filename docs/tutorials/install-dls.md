@@ -34,7 +34,7 @@ Check: `getent hosts scrap-<fedid>.diamond.ac.uk` prints an address.
 On a DLS machine, open `https://scrap-<fedid>.diamond.ac.uk/` and log in with your DLS account.
 
 Then connect Claude Code: in any claude-sandbox container, run once
-`sh ~/.claude/scrap-dls-connect.sh` ({ref}`install-dls-claude`).
+`sh /user-terminal-config/.claude/scrap-dls-connect.sh` ({ref}`install-dls-claude`).
 
 Check: in a container, `claude mcp list` shows `scrap-dls` as connected.
 
