@@ -4,6 +4,17 @@ html_theme.sidebar_secondary.remove: true
 
 ```{include} ../README.md
 :start-after: <!-- docs include start: everything from here to the end marker is also the docs front page -->
+:end-before: <!-- docs include pause
+```
+
+## Demo
+
+A video highlighting some of the main features.
+
+<video controls preload="metadata" width="100%" src="https://github.com/user-attachments/assets/9750e6f6-f15c-4891-bbce-40fa90968a18"></video>
+
+```{include} ../README.md
+:start-after: <!-- docs include resume -->
 :end-before: <!-- docs include end
 ```
 
