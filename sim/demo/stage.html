@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>scrap demo stage</title>
+<!-- The demo video's 1920x1080 stage (#549): the sim in a phone frame on the left, the
+     terminal replay on the right, a caption per beat, and title and end cards. record.mjs
+     loads it as stage.html?sim=<sim url> and drives it through window.stage. -->
+<style>
+  :root { --bg: #0e0f12; --fg: #f2f2f2; --dim: #9aa0aa; --accent: #e8955c; --phone: #1c1d22; }
+  html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; background: var(--bg);
+    color: var(--fg); font-family: "Inter", "DejaVu Sans", "Liberation Sans", system-ui, sans-serif; }
+  body { background: radial-gradient(1200px 800px at 20% 50%, #1b1d24 0%, var(--bg) 70%); }
+  /* The phone: a 390x844 CSS px screen, scaled up so its text reads at 1080p */
+  #phone { position: absolute; left: 90px; top: 50%; width: 390px; height: 844px;
+    padding: 14px; border-radius: 56px; background: var(--phone);
+    box-shadow: 0 0 0 2px #34363d, 0 30px 80px rgba(0,0,0,.6);
+    transform-origin: left center; translate: 0 -50%; scale: 1.12; }
+  #phone iframe { width: 390px; height: 844px; border: 0; border-radius: 42px; display: block;
+    background: #f6f3ec; }
+  #right { position: absolute; left: 640px; right: 70px; top: 60px; bottom: 60px;
+    display: flex; flex-direction: column; }
+  #cap { height: 150px; flex: none; }
+  #cap h1 { margin: 0; font-size: 46px; font-weight: 700; letter-spacing: -0.5px; }
+  #cap h1 .n { color: var(--accent); margin-right: 14px; }
+  #cap p { margin: 10px 0 0; font-size: 28px; color: var(--dim); }
+  #cap.swap { animation: capin .45s ease-out; }
+  @keyframes capin { from { opacity: 0; translate: 0 10px; } }
+  #termwrap { flex: 1; border-radius: 14px; overflow: hidden; background: #15161a;
+    box-shadow: 0 0 0 1.5px #2c2e35, 0 24px 70px rgba(0,0,0,.5); display: flex; flex-direction: column; }
+  #termbar { height: 40px; flex: none; display: flex; align-items: center; gap: 9px; padding: 0 16px;
+    background: #202228; color: var(--dim); font: 17px "DejaVu Sans Mono", monospace; }
+  #termbar i { width: 13px; height: 13px; border-radius: 50%; background: #3b3e46; }
+  #termbar span { margin-left: 14px; }
+  #term { flex: 1; border: 0; width: 100%; }
+  /* What the beat is about: the other side dims */
+  #phone, #termwrap { transition: opacity .6s, filter .6s; }
+  body.on-phone #termwrap, body.on-term #phone { opacity: .35; filter: saturate(.4); }
+  /* A phone camera of our own, over the app's screen: live view, shutter, then a confirm */
+  #cam { position: absolute; inset: 14px; border-radius: 42px; overflow: hidden; background: #000;
+    display: none; z-index: 2; font-family: "Inter", "DejaVu Sans", system-ui, sans-serif; }
+  #cam.on { display: block; }
+  #cam .view { position: absolute; left: 0; right: 0; top: 70px; bottom: 170px; overflow: hidden; }
+  #cam img { width: 100%; height: 100%; object-fit: cover; transform-origin: 55% 45%;
+    animation: live 3s ease-in-out infinite alternate; }
+  #cam.shot img { animation-play-state: paused; }
+  @keyframes live { from { transform: scale(1.18) translate(-6px, 4px); } to { transform: scale(1.26) translate(8px, -6px); } }
+  #cam .top { position: absolute; top: 0; left: 0; right: 0; height: 70px; display: flex; align-items: center;
+    justify-content: center; gap: 26px; color: #ddd; font-size: 15px; letter-spacing: .5px; }
+  #cam .top b { color: #ffd35c; font-weight: 600; }
+  #cam .focus { position: absolute; left: 50%; top: 47%; width: 92px; height: 92px; margin: -46px 0 0 -46px;
+    border: 1.5px solid #ffd35c; border-radius: 4px; opacity: 0; }
+  #cam.on .focus { animation: focus 1.1s ease-out .4s forwards; }
+  @keyframes focus { 0% { opacity: 0; scale: 1.6; } 60% { opacity: 1; scale: .92; } 100% { opacity: .8; scale: 1; } }
+  #cam .bar { position: absolute; left: 0; right: 0; bottom: 0; height: 170px; display: flex;
+    align-items: center; justify-content: center; }
+  #cam .shutter { width: 76px; height: 76px; border-radius: 50%; border: 5px solid #fff; background: none;
+    padding: 0; display: grid; place-items: center; cursor: pointer; }
+  #cam .shutter::after { content: ""; width: 58px; height: 58px; border-radius: 50%; background: #fff; }
+  #cam .modes { position: absolute; bottom: 132px; left: 0; right: 0; text-align: center; color: #aaa;
+    font-size: 14px; letter-spacing: 1px; }
+  #cam .modes b { color: #ffd35c; font-weight: 600; margin: 0 14px; }
+  #cam .flash { position: absolute; inset: 0; background: #fff; opacity: 0; pointer-events: none; }
+  #cam .flash.go { animation: flash .6s ease-out; }
+  @keyframes flash { 0% { opacity: .95; } 100% { opacity: 0; } }
+  #cam .ok { position: absolute; left: 0; right: 0; bottom: 0; height: 170px; display: none;
+    align-items: center; justify-content: space-around; background: #000; }
+  #cam.ask .ok { display: flex; }
+  #cam.shot .bar, #cam.shot .modes, #cam.shot .focus { display: none; }
+  #cam .ok button { font: 600 19px "Inter", "DejaVu Sans", sans-serif; color: #fff; background: none; border: 0;
+    padding: 14px 22px; border-radius: 30px; }
+  #cam .ok .use { background: #ffd35c; color: #111; }
+  /* A desktop browser of our own: a link from the terminal opens the page in it */
+  #browser { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; z-index: 8;
+    display: flex; flex-direction: column; background: #f6f3ec; visibility: hidden; transform-origin: 0 0;
+    border-radius: 0; overflow: hidden; box-shadow: 0 30px 90px rgba(0,0,0,.6);
+    transition: transform .75s cubic-bezier(.2,.8,.2,1), border-radius .75s; }
+  #browser.on { visibility: visible; }
+  #browser .tabs { height: 44px; flex: none; background: #2a2c33; display: flex; align-items: flex-end;
+    padding: 0 12px; gap: 6px; font: 15px "Inter", "DejaVu Sans", sans-serif; color: #ddd; }
+  #browser .tab { background: #3a3d45; border-radius: 10px 10px 0 0; padding: 10px 18px; min-width: 260px;
+    display: flex; gap: 10px; align-items: center; }
+  #browser .tab::before { content: ""; width: 14px; height: 14px; border-radius: 3px; background: #e8955c; }
+  #browser .tabs i { font-style: normal; color: #999; padding: 8px 10px; }
+  #browser .addr { height: 50px; flex: none; background: #3a3d45; display: flex; align-items: center; gap: 18px;
+    padding: 0 18px; color: #bbb; font: 18px "Inter", "DejaVu Sans", sans-serif; }
+  #browser .url { flex: 1; background: #24262c; border-radius: 22px; padding: 8px 20px; color: #eee;
+    font: 18px "DejaVu Sans Mono", monospace; }
+  #browser .url span { color: #8b8f98; }
+  #browser iframe { flex: 1; border: 0; width: 100%; background: #f6f3ec; }
+  #bcap { position: absolute; right: 48px; bottom: 44px; background: rgba(20,21,26,.9);
+    color: #fff; font: 600 34px "Inter", "DejaVu Sans", sans-serif; padding: 16px 30px; border-radius: 16px;
+    box-shadow: 0 10px 40px rgba(0,0,0,.4); }
+  /* Title and end cards, over everything */
+  #card { position: absolute; inset: 0; z-index: 10; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; text-align: center; background: var(--bg);
+    transition: opacity .6s; }
+  #card.off { opacity: 0; pointer-events: none; }
+  #card h1 { margin: 0; font-size: 92px; letter-spacing: -2px; }
+  #card h1 b { color: var(--accent); }
+  #card p { margin: 26px 0 0; font-size: 40px; color: var(--dim); }
+  #card code { font: 600 38px "DejaVu Sans Mono", monospace; color: var(--fg); background: #1d1f25;
+    padding: 14px 26px; border-radius: 12px; display: inline-block; margin-top: 18px; }
+  /* The tap dot: where the next tap lands, a ring when it does */
+  #dot { position: absolute; z-index: 9; width: 34px; height: 34px; margin: -17px 0 0 -17px;
+    border-radius: 50%; background: rgba(232,149,92,.45); box-shadow: 0 0 0 2px rgba(232,149,92,.9);
+    pointer-events: none; opacity: 0; transition: left .5s ease-in-out, top .5s ease-in-out, opacity .3s; }
+  #dot.on { opacity: 1; }
+  #dot.tap { animation: tap .35s ease-out; }
+  @keyframes tap { 50% { scale: .7; background: rgba(232,149,92,.85); } }
+</style>
+</head>
+<body>
+<div id="phone"><iframe id="sim" title="scrap"></iframe>
+  <div id="cam">
+    <div class="top"><span>⚡ off</span><span><b>1×</b></span><span>HDR</span></div>
+    <div class="view"><img alt="" /><div class="focus"></div></div>
+    <div class="modes">VIDEO<b>PHOTO</b>PORTRAIT</div>
+    <div class="bar"><button class="shutter" aria-label="Take photo"></button></div>
+    <div class="ok"><button class="retake">Retake</button><button class="use">✓ Use photo</button></div>
+    <div class="flash"></div>
+  </div>
+</div>
+<div id="right">
+  <div id="cap"><h1></h1><p></p></div>
+  <div id="termwrap">
+    <div id="termbar"><i></i><i></i><i></i><span id="cwd">~/demo · claude</span></div>
+    <iframe id="term" src="terminal.html" title="terminal"></iframe>
+  </div>
+</div>
+<div id="browser">
+  <div class="tabs"><div class="tab" id="btitle">scrap</div><i>+</i></div>
+  <div class="addr"><span>‹ &nbsp;› &nbsp;↻</span><div class="url" id="burl"></div></div>
+  <iframe id="web" title="browser"></iframe>
+  <div id="bcap"></div>
+</div>
+<div id="dot"></div>
+<div id="card"></div>
+<script>
+(() => {
+  const q = new URLSearchParams(location.search);
+  document.getElementById("sim").src = q.get("sim") || "";
+  const cap = document.getElementById("cap");
+  const card = document.getElementById("card");
+  const dot = document.getElementById("dot");
+  window.stage = {
+    caption(n, title, sub = "") {
+      cap.classList.remove("swap");
+      void cap.offsetWidth;
+      cap.querySelector("h1").innerHTML = n ? `<span class="n">${n}</span>${title}` : title;
+      cap.querySelector("p").textContent = sub;
+      cap.classList.add("swap");
+    },
+    // The camera over the phone's screen: open(src) live, shoot() flash and freeze, close()
+    camera: {
+      open(src) {
+        const c = document.getElementById("cam");
+        c.querySelector("img").src = src;
+        c.className = "on";
+      },
+      shoot() {
+        const c = document.getElementById("cam");
+        const f = c.querySelector(".flash");
+        f.classList.remove("go");
+        void f.offsetWidth;
+        f.classList.add("go");
+        c.classList.add("shot");
+      },
+      confirm() {
+        document.getElementById("cam").classList.add("ask");
+      },
+      close() {
+        document.getElementById("cam").className = "";
+      },
+    },
+    // The browser: load(src) ahead of time; open(url, title, caption, from) grows it out of
+    // the box from (the terminal's); close() shrinks it back there
+    browser: {
+      from: null,
+      load(src) {
+        document.getElementById("web").src = src;
+      },
+      box(r) {
+        return `translate(${r.x}px, ${r.y}px) scale(${r.width / 1920}, ${r.height / 1080})`;
+      },
+      open(url, title, caption, from) {
+        const b = document.getElementById("browser");
+        const u = new URL(url);
+        document.getElementById("burl").innerHTML = `<span>${u.protocol}//</span>${u.host}${u.pathname}`;
+        document.getElementById("btitle").textContent = title;
+        document.getElementById("bcap").textContent = caption;
+        this.from = from;
+        b.style.transition = "none";
+        b.style.transform = this.box(from);
+        b.style.borderRadius = "40px";
+        b.classList.add("on");
+        void b.offsetWidth;
+        b.style.transition = "";
+        b.style.transform = "none";
+        b.style.borderRadius = "0";
+      },
+      close() {
+        const b = document.getElementById("browser");
+        b.style.transform = this.box(this.from);
+        b.style.borderRadius = "40px";
+        setTimeout(() => b.classList.remove("on"), 760);
+      },
+    },
+    focus(side) {
+      document.body.classList.toggle("on-phone", side === "phone");
+      document.body.classList.toggle("on-term", side === "term");
+    },
+    card(html) {
+      if (html === null) return card.classList.add("off");
+      card.innerHTML = html;
+      card.classList.remove("off");
+    },
+    // The tap dot to (x, y) in page px; show false hides it
+    dot(x, y) {
+      // Hidden, it jumps there first: it never slides in from where it was last
+      if (!dot.classList.contains("on")) {
+        dot.style.transition = "none";
+        dot.style.left = `${x}px`;
+        dot.style.top = `${y}px`;
+        void dot.offsetWidth;
+        dot.style.transition = "";
+      }
+      dot.style.left = `${x}px`;
+      dot.style.top = `${y}px`;
+      dot.classList.add("on");
+    },
+    hideDot() {
+      dot.classList.remove("on");
+    },
+    // The terminal's title: the session's directory
+    cwd(dir) {
+      document.getElementById("cwd").textContent = `${dir} · claude`;
+    },
+    tap() {
+      dot.classList.remove("tap");
+      void dot.offsetWidth;
+      dot.classList.add("tap");
+    },
+  };
+})();
+</script>
+</body>
+</html>

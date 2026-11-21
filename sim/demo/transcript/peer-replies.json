@@ -1,0 +1,12 @@
+[
+ {
+  "after_tool_use_id": "toolu_01PReX8sqTvnrvCbhNzoknTP",
+  "from": "camping",
+  "text": "Summary for 2026-11-21: posted 1 new scrap page, no code, PR or issue changes.\n- Created scrap note \"Camping trip: still to pack, and buy gas on Saturday\" (slug camping-trip-still-to-pack-and-buy-gas-on-saturday). It lists what's left to pack (stove and gas, head torches, first aid kit) and buying gas canisters at the outdoor shop on Saturday morning.\n- It links to the existing camping-kit-for-the-weekend page and is tagged #home and #project/-root-demo.\n- Decided to record \"which Saturday\" in an Unsure section instead of picking one, because today is a Saturday."
+ },
+ {
+  "after_tool_use_id": "toolu_016pZBP74j3WnN5QJDoLmdfC",
+  "from": "tidy-readme",
+  "text": "Summary for 2026-11-21 (tidy-readme session, branch readme-usage):\n- Asked: add a short Usage section to README.md showing a dry run first, then a real run, and commit it on readme-usage. The --dry-run bug itself was out of scope because it's being fixed on fix-dry-run.\n- Changed: README.md now has a Usage section (`uv run tidy.py ~/Downloads --dry-run` (or -n) to preview, then without the flag to rename) and a separate Tests heading. No code changes.\n- Committed e81adaa \"README: add Usage section showing dry run first\" on readme-usage.\n- Not pushed because the repo has no remote. No PR, issue or scrap page.\n- Note: the README says --dry-run changes nothing. That's only true once fix-dry-run merges, so merge it before or together with readme-usage."
+ }
+]

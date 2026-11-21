@@ -51,6 +51,7 @@ repo's linters, type checks and tests leave `sim/` alone.
 | `seed.py`, `dump.py` | How the fixtures were made, to make them again. |
 | `files.py` | Writes the files map for publishing `sim/out` to the artifact. |
 | `shots/` | Playwright helpers against the served sim: screenshots, a type-size audit and a measuring tool. |
+| `demo/` | The demo video (see [The demo video](#the-demo-video)). |
 
 ## Build, serve and look
 
@@ -151,6 +152,42 @@ scrap. Each copy is its own folder on the `gh-pages` branch, beside the docs (wh
 other files), so several can exist at once; delete each when done. The cloud session can't
 fetch the page to check it: test it locally first (serve a `gh-pages` checkout with
 `python3 -m http.server` and use the `shots` helpers), then ask the owner.
+
+## The demo video
+
+The README's demo (#549) is recorded from the sim: a 1920x1080 stage with the demo cut
+of the sim as a phone on the left, driven by real taps and typing, and a real Claude Code
+session replayed in a terminal on the right.
+
+```sh
+sim/demo/record.sh            # build the sim if sim/out is missing, then record (about 5 min)
+sim/demo/record.sh --rebuild  # build the sim first even if sim/out is there
+sim/demo/record.sh --fast     # short waits: checks the script, the video is too quick to use
+sim/demo/record.sh --pace 1.2 # every wait (taps and typing too) times 1.2
+```
+
+It writes to `_claude/demo-video/` (`DEMO_OUT=` to change): `demo.webm`, `demo.mp4`,
+`demo-web.mp4` (under 10 MB, for a GitHub attachment), `capture.gif` (the photo capture),
+`frames/` (a screenshot at each beat), `video-frames/` and `beats.json`. It needs
+Playwright's Chromium and its OS libraries (as for `shots/`), and a system `ffmpeg` with
+libx264 for the MP4s and the GIF: Playwright's own ffmpeg only writes VP8 WebM.
+
+| File | What it is |
+| --- | --- |
+| `demo/record.sh` | The whole run: `sim/build.sh`, `demo/build.sh`, `record.mjs`, then ffmpeg. |
+| `demo/build.sh` | The demo cut, into `_claude/demo-video/site`: `mock.py` with `SIM_DEMO=1` (no pure test pages) and `sim-demo.js`. |
+| `demo/record.mjs` | Drives `stage.html` with Playwright and records it; options in its header. |
+| `demo/stage.html`, `demo/terminal.html` | The stage (phone, terminal, title cards) and the terminal replay. |
+| `demo/sim-demo.js`, `demo/serve.mjs` | The sim's hooks for the pages Claude writes; a static server for the run. |
+| `demo/transcript/` | The real capture the recorder replays: the transcript, the pages it wrote, the peer sessions' replies. |
+| `demo/capture/` | How that capture was made. |
+
+`capture/` is a record of how the Claude Code capture was made, not a portable tool:
+`rerun.sh` runs `claude -p` steps against a throwaway scrap seeded with the sim's demo pages
+(`seed/`), under an isolated `CLAUDE_CONFIG_DIR` (with `claudeMdExcludes`, so no CLAUDE.md
+reaches it) and `--strict-mcp-config` (only that scrap), with two staged peer sessions for
+`/sc-summarise day`. It assumes this sandbox's `/root` paths. It writes the raw runs to
+`_claude/demo-video/` and, through `build_transcript.py`, the files in `transcript/`.
 
 ## Mock data for a new design
 

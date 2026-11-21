@@ -1,10 +1,13 @@
 // The scrap sim's build: the real app, with its routes in the URL's hash (sim.js), the fake
 // server's scripts ahead of the app, relative paths and stable file names (so a republish
 // replaces files rather than piling up hashed ones). No service worker.
+import { execSync } from "node:child_process";
 import { mergeConfig, type Plugin, type UserConfig } from "vite";
 import base from "../../vite.config.ts";
 
 const SIM = process.env.SIM_DIR as string;
+// The header shows the latest release tag, as the real server does
+const VER = execSync("git describe --tags --abbrev=0", { cwd: SIM }).toString().trim();
 
 const sim: Plugin = {
   name: "scrap-sim",
@@ -17,7 +20,7 @@ const sim: Plugin = {
     return html
       .replace(/<meta http-equiv="Content-Security-Policy"[^>]*>\s*/, "")
       .replace(/<link rel="manifest"[^>]*>\s*/, "")
-      .replace('<small id="ver" aria-hidden="true"></small>', '<small id="ver" aria-hidden="true">v0.4.0</small>')
+      .replace('<small id="ver" aria-hidden="true"></small>', `<small id="ver" aria-hidden="true">v${VER}</small>`)
       .replace(/<title>[^<]*<\/title>/, "<title>scrap sim</title>")
       .replace(
         /(<script type="module")/,

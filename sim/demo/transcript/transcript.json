@@ -1,0 +1,726 @@
+{
+ "note": "Real claude -p run (Claude Code, resumed session) against a throwaway scrap seeded with the sim's demo pages. Events marked internal are Claude Code's deferred-tool loading (ToolSearch); a terminal replay may hide them.",
+ "steps": [
+  {
+   "prompt": "/sc-find whiteboard",
+   "raw": "01-find.jsonl",
+   "cwd": "~/demo",
+   "segment": 1,
+   "events": [
+    {
+     "type": "tool_call",
+     "name": "ToolSearch",
+     "args_summary": "select:mcp__scrap__search",
+     "internal": true
+    },
+    {
+     "type": "tool_result",
+     "name": "ToolSearch",
+     "summary": "loaded mcp__scrap__search",
+     "internal": true
+    },
+    {
+     "type": "tool_call",
+     "name": "mcp__scrap__search",
+     "args_summary": "query: 'whiteboard'"
+    },
+    {
+     "type": "tool_result",
+     "name": "mcp__scrap__search",
+     "summary": "2 results: Architecture whiteboard (whiteboard); scrap's design (document)"
+    },
+    {
+     "type": "text",
+     "text": "I found 2 pages matching \"whiteboard\":\n\n- [Architecture whiteboard](https://scrap.example.com/p/2026-10-21-13-52) (whiteboard; tagged `scrap`, `scrap/design`): a sketch of scrap's architecture. The PWA talks to FastAPI, FastAPI stores pages in SQLite, and an ingest worker sits under FastAPI. A note on the board says Claude reads, summarises and redraws.\n- [scrap's design](https://scrap.example.com/p/scraps-design) (document, no tags)\n\nThe first one looks like what you're after. I can open it and show the drawing if you'd like."
+    }
+   ]
+  },
+  {
+   "prompt": "/sc-answer what's on my plate at home this week?",
+   "raw": "02-answer.jsonl",
+   "cwd": "~/demo",
+   "segment": 1,
+   "events": [
+    {
+     "type": "tool_call",
+     "name": "ToolSearch",
+     "args_summary": "select:mcp__scrap__read,mcp__scrap__tags",
+     "internal": true
+    },
+    {
+     "type": "tool_result",
+     "name": "ToolSearch",
+     "summary": "loaded mcp__scrap__read, mcp__scrap__tags",
+     "internal": true
+    },
+    {
+     "type": "tool_call",
+     "name": "mcp__scrap__search",
+     "args_summary": "query: 'kind:todo -is:done -is:cancelled is:personal sort:due', limit: 20"
+    },
+    {
+     "type": "tool_result",
+     "name": "mcp__scrap__search",
+     "summary": "0 results"
+    },
+    {
+     "type": "tool_call",
+     "name": "mcp__scrap__search",
+     "args_summary": "query: 'home', limit: 15"
+    },
+    {
+     "type": "tool_result",
+     "name": "mcp__scrap__search",
+     "summary": "12 results: Hardware receipt — fence (document); Buy dog food (todo, low); Clear the gutters (todo, due 2026-11-21, medium); Renew the passport (todo, due 2026-12-05, medium); Renew car insurance (todo, due 2026-11-19, high); Submit the tax return (todo, due 2026-12-31, high) …"
+    },
+    {
+     "type": "tool_call",
+     "name": "mcp__scrap__tags",
+     "args_summary": "limit: 100"
+    },
+    {
+     "type": "tool_result",
+     "name": "mcp__scrap__tags",
+     "summary": "28 tags: #home (12 pages), #person (10 pages), #person/work (5 pages), #work (5 pages), #person/family (4 pages), #scrap (4 pages), #ai (3 pages), #books (3 pages), #epics (3 pages), #garden (3 pages) …"
+    },
+    {
+     "type": "tool_call",
+     "name": "mcp__scrap__read",
+     "args_summary": "page: 'camping-kit-for-the-weekend'"
+    },
+    {
+     "type": "tool_result",
+     "name": "mcp__scrap__read",
+     "summary": "Camping kit for the weekend · todo, 2/5 ticked · tags #home"
+    },
+    {
+     "type": "text",
+     "text": "Here's what scrap has on your plate at home (today is Sat 21 Nov):\n\n**Overdue**\n- [Renew car insurance](https://scrap.example.com/p/renew-car-insurance): high priority, was due Thu 19 Nov\n\n**Due today**\n- [Call the plumber about the boiler](https://scrap.example.com/p/call-the-plumber-about-the-boiler): high priority\n- [Clear the gutters](https://scrap.example.com/p/clear-the-gutters): medium priority\n\n**Later this week**\n- [Fix the broken fence panel](https://scrap.example.com/p/fix-the-broken-fence-panel): medium priority, due Mon 24 Nov. You've saved a [fence receipt](https://scrap.example.com/p/2026-10-21-08-52) for the materials.\n\n**No due date**\n- [Camping kit for the weekend](https://scrap.example.com/p/camping-kit-for-the-weekend): 3 of 5 items still to pack: the stove and gas, head torches and first aid kit\n- [Buy dog food](https://scrap.example.com/p/buy-dog-food): low priority\n- [Garden note](https://scrap.example.com/p/plant-the-tulip-bulbs-before-the-first-frost-move-the-rosema): plant the tulip bulbs before the first frost and move the rosemary somewhere sunnier\n\n**Further out:** [Renew the passport](https://scrap.example.com/p/renew-the-passport) is due 5 Dec and [Submit the tax return](https://scrap.example.com/p/submit-the-tax-return) is due 31 Dec."
+    }
+   ]
+  },
+  {
+   "prompt": "/sc-write this weekend's house jobs as one todo checklist, most urgent first. Just post.",
+   "raw": "03-write.jsonl",
+   "cwd": "~/demo",
+   "segment": 1,
+   "events": [
+    {
+     "type": "tool_call",
+     "name": "ToolSearch",
+     "args_summary": "select:mcp__scrap__write",
+     "internal": true
+    },
+    {
+     "type": "tool_result",
+     "name": "ToolSearch",
+     "summary": "loaded mcp__scrap__write",
+     "internal": true
+    },
+    {
+     "type": "tool_call",
+     "name": "mcp__scrap__write",
+     "args_summary": "title: 'House jobs this weekend (21–22 Nov 2026)', kind: 'todo', due: '2026-11-22', priority: 'high', tags: [\"home\", \"garden\", \"project/-root-demo\"], body: \"This weekend's house jobs from my open home todos, most urgent first.\\n\\n- [ ] Cal…\""
+    },
+    {
+     "type": "tool_result",
+     "name": "mcp__scrap__write",
+     "summary": "created: https://scrap.example.com/p/house-jobs-this-weekend-2122-nov-2026"
+    },
+    {
+     "type": "text",
+     "text": "I posted the checklist: [House jobs this weekend (21–22 Nov 2026)](https://scrap.example.com/p/house-jobs-this-weekend-2122-nov-2026). It's a todo due Sun 22 Nov at high priority, tagged `home`, `garden` and `project/-root-demo`.\n\n**On the list, most urgent first:**\n1. Call the plumber about the boiler\n2. Clear the gutters\n3. Fix the fence panel\n4. Plant the tulip bulbs\n5. Move the rosemary\n\nEach item links back to its original todo.\n\n**Left off, under \"Unsure\":** these are due this weekend but aren't house jobs, so they're listed there instead:\n- [Renew car insurance](https://scrap.example.com/p/renew-car-insurance) is the most urgent thing you have. It's high priority and overdue since Thu 19 Nov.\n- [Camping kit for the weekend](https://scrap.example.com/p/camping-kit-for-the-weekend)\n- [Buy dog food](https://scrap.example.com/p/buy-dog-food)"
+    }
+   ]
+  },
+  {
+   "prompt": "Fix the issue in ISSUE.md on a branch, run the tests, and commit.",
+   "raw": "05-fix.jsonl",
+   "cwd": "~/demo/tidy",
+   "segment": 2,
+   "events": [
+    {
+     "type": "tool_call",
+     "name": "Bash",
+     "args_summary": "command: 'cat ISSUE.md && git ls-files', description: 'Read issue and list files'",
+     "display": "Bash(cat ISSUE.md && git ls-files)"
+    },
+    {
+     "type": "tool_result",
+     "name": "Bash",
+     "summary": "# --dry-run renames files anyway",
+     "display": "# --dry-run renames files anyway\n\n`tidy --dry-run ~/Downloads` printed the changes it would make, then made them:\nevery file in the folder was renamed. A dry run should only print.\n… +10 lines"
+    },
+    {
+     "type": "tool_call",
+     "name": "Bash",
+     "args_summary": "command: 'cat tidy.py test_tidy.py pyproject.toml', description: 'Show source, tests, config'",
+     "display": "Bash(cat tidy.py test_tidy.py pyproject.toml)"
+    },
+    {
+     "type": "tool_result",
+     "name": "Bash",
+     "summary": "\"\"\"tidy: give the files in a folder clean, consistent names.\"\"\"",
+     "display": "\"\"\"tidy: give the files in a folder clean, consistent names.\"\"\"\n\nimport argparse\nimport re\n… +66 lines"
+    },
+    {
+     "type": "tool_call",
+     "name": "Bash",
+     "args_summary": "command: \"git checkout -b fix-dry-run && python3 - <<'EOF'\\nfrom pathlib import Path\\np=Path…\", description: 'Branch, apply fix and test, run tests'",
+     "display": "Bash(git checkout -b fix-dry-run && python3 - <<'EOF' …)"
+    },
+    {
+     "type": "tool_result",
+     "name": "Bash",
+     "summary": "Error: Permission to use Bash has been denied because Claude Code is running in don't ask mode.",
+     "display": "Error: Permission to use Bash has been denied because Claude Code is running in don't ask mode.",
+     "denied": true
+    },
+    {
+     "type": "tool_call",
+     "name": "Bash",
+     "args_summary": "command: 'git checkout -b fix-dry-run', description: 'Create fix branch'",
+     "display": "Bash(git checkout -b fix-dry-run)"
+    },
+    {
+     "type": "tool_result",
+     "name": "Bash",
+     "summary": "Switched to a new branch 'fix-dry-run'",
+     "display": "Switched to a new branch 'fix-dry-run'"
+    },
+    {
+     "type": "tool_call",
+     "name": "Read",
+     "args_summary": "file_path: '/root/demo/tidy/tidy.py', offset: 24, limit: 4",
+     "display": "Read(tidy.py)"
+    },
+    {
+     "type": "tool_result",
+     "name": "Read",
+     "summary": "Read 4 lines",
+     "display": "Read 4 lines"
+    },
+    {
+     "type": "tool_call",
+     "name": "Read",
+     "args_summary": "file_path: '/root/demo/tidy/test_tidy.py'",
+     "display": "Read(test_tidy.py)"
+    },
+    {
+     "type": "tool_result",
+     "name": "Read",
+     "summary": "Read 16 lines",
+     "display": "Read 16 lines"
+    },
+    {
+     "type": "text",
+     "text": "I'm on branch `fix-dry-run` and am now applying the fix and adding the test."
+    },
+    {
+     "type": "tool_call",
+     "name": "Edit",
+     "args_summary": "replace_all: false, file_path: '/root/demo/tidy/tidy.py', old_string: '            path.rename(path.with_name(new))', new_string: '            if not dry_run:\\n                path.rename(path.with_name(new))'",
+     "display": "Update(tidy.py)"
+    },
+    {
+     "type": "tool_result",
+     "name": "Edit",
+     "summary": "Updated tidy.py with 2 additions and 1 removal",
+     "display": "Updated tidy.py with 2 additions and 1 removal\n-             path.rename(path.with_name(new))\n+             if not dry_run:\n+                 path.rename(path.with_name(new))"
+    },
+    {
+     "type": "tool_call",
+     "name": "Edit",
+     "args_summary": "replace_all: false, file_path: '/root/demo/tidy/test_tidy.py', old_string: '    assert (tmp_path / \"tax-return-2025.pdf\").exists()\\n', new_string: '    assert (tmp_path / \"tax-return-2025.pdf\").exists()\\n\\n\\ndef test_tidy_folder_dr…'",
+     "display": "Update(test_tidy.py)"
+    },
+    {
+     "type": "tool_result",
+     "name": "Edit",
+     "summary": "Updated test_tidy.py with 8 additions",
+     "display": "Updated test_tidy.py with 8 additions\n+ \n+ \n+ def test_tidy_folder_dry_run_renames_nothing(tmp_path):\n+     (tmp_path / \"Tax Return 2025.PDF\").write_text(\"x\")\n+     assert tidy_folder(tmp_path, dry_run=True) == [\n+         (\"Tax Return 2025.PDF\", \"tax-return-2025.pdf\")\n+     ]\n+     assert [p.name for p in tmp_path.iterdir()] == [\"Tax Return 2025.PDF\"]"
+    },
+    {
+     "type": "tool_call",
+     "name": "Bash",
+     "args_summary": "command: 'uv run pytest -q', description: 'Run the test suite'",
+     "display": "Bash(uv run pytest -q)"
+    },
+    {
+     "type": "tool_result",
+     "name": "Bash",
+     "summary": "....                                                                     [100%]",
+     "display": "....                                                                     [100%]\n4 passed in 0.01s"
+    },
+    {
+     "type": "tool_call",
+     "name": "Bash",
+     "args_summary": "command: 'git add tidy.py test_tidy.py && git commit -q -m \"Make --dry-run print changes w…', description: 'Commit the fix'",
+     "display": "Bash(git add tidy.py test_tidy.py && git commit -q -m \"Make --dry-run print changes without renaming …)"
+    },
+    {
+     "type": "tool_result",
+     "name": "Bash",
+     "summary": "cde80ec Make --dry-run print changes without renaming",
+     "display": "cde80ec Make --dry-run print changes without renaming"
+    },
+    {
+     "type": "text",
+     "text": "I fixed the dry-run bug on a new branch, `fix-dry-run`, and committed it as `cde80ec`. All 4 tests pass.\n\n- **Cause:** `tidy_folder` accepted the `dry_run` flag but never checked it, so it renamed files on every run.\n- **Fix:** in `tidy.py`, it now renames only when `dry_run` is false. The `old -> new` lines are printed either way.\n- **Test:** I added `test_tidy_folder_dry_run_renames_nothing` in `test_tidy.py`. It checks that a dry run reports the change it would make and that the folder still holds only the original file name afterwards.\n\nI haven't pushed the branch or opened a PR."
+    }
+   ]
+  },
+  {
+   "prompt": "Different thing: what's left on this weekend's house jobs?",
+   "raw": "06-housejobs.jsonl",
+   "cwd": "~/demo/tidy",
+   "segment": 2,
+   "events": [
+    {
+     "type": "tool_call",
+     "name": "Skill",
+     "args_summary": "skill: 'scrap-links'",
+     "display": "Skill(skill: 'scrap-links')"
+    },
+    {
+     "type": "tool_result",
+     "name": "Skill",
+     "summary": "Launching skill: scrap-links",
+     "display": "Launching skill: scrap-links"
+    },
+    {
+     "type": "tool_call",
+     "name": "ToolSearch",
+     "args_summary": "select:mcp__scrap__search,mcp__scrap__tags",
+     "display": "ToolSearch(select:mcp__scrap__search,mcp__scrap__tags)",
+     "internal": true
+    },
+    {
+     "type": "tool_result",
+     "name": "ToolSearch",
+     "summary": "loaded mcp__scrap__search, mcp__scrap__tags",
+     "internal": true
+    },
+    {
+     "type": "tool_call",
+     "name": "mcp__scrap__search",
+     "args_summary": "query: 'house kind:todo -is:done -is:cancelled sort:due', limit: 50",
+     "display": "scrap - search (MCP)(query: 'house kind:todo -is:done -is:cancelled sort:due', limit: 50)"
+    },
+    {
+     "type": "tool_result",
+     "name": "mcp__scrap__search",
+     "summary": "1 results: House jobs this weekend (21–22 Nov 2026) (todo, due 2026-11-22, high)"
+    },
+    {
+     "type": "tool_call",
+     "name": "mcp__scrap__tags",
+     "args_summary": "limit: 100",
+     "display": "scrap - tags (MCP)(limit: 100)"
+    },
+    {
+     "type": "tool_result",
+     "name": "mcp__scrap__tags",
+     "summary": "30 tags: #home (13 pages), #person (10 pages), #person/work (5 pages), #work (5 pages), #garden (4 pages), #person/family (4 pages), #scrap (4 pages), #ai (3 pages), #books (3 pages), #epics (3 pages) …"
+    },
+    {
+     "type": "tool_call",
+     "name": "ToolSearch",
+     "args_summary": "select:mcp__scrap__read",
+     "display": "ToolSearch(select:mcp__scrap__read)",
+     "internal": true
+    },
+    {
+     "type": "tool_result",
+     "name": "ToolSearch",
+     "summary": "loaded mcp__scrap__read",
+     "internal": true
+    },
+    {
+     "type": "tool_call",
+     "name": "mcp__scrap__read",
+     "args_summary": "page: 'house-jobs-this-weekend-2122-nov-2026'",
+     "display": "scrap - read (MCP)(page: 'house-jobs-this-weekend-2122-nov-2026')"
+    },
+    {
+     "type": "tool_result",
+     "name": "mcp__scrap__read",
+     "summary": "House jobs this weekend (21–22 Nov 2026) · todo, due 2026-11-22, high, 0/5 ticked · tags #home #garden #project/-root-demo"
+    },
+    {
+     "type": "tool_call",
+     "name": "mcp__scrap__search",
+     "args_summary": "query: 'tag:home kind:todo sort:due', limit: 30",
+     "display": "scrap - search (MCP)(query: 'tag:home kind:todo sort:due', limit: 30)"
+    },
+    {
+     "type": "tool_result",
+     "name": "mcp__scrap__search",
+     "summary": "11 results: Send the gas safety certificate to the tenants (todo, due 2026-11-15); Renew car insurance (todo, due 2026-11-19, high); Call the plumber about the boiler (todo, due 2026-11-21, high); Clear the gutters (todo, due 2026-11-21, medium); House jobs this weekend (21–22 Nov 2026) (todo, due 2026-11-22, high); Fix the broken fence panel (todo, due 2026-11-24, medium) …"
+    },
+    {
+     "type": "text",
+     "text": "I've checked your home todos. Now I'm checking the garden one (tulips/rosemary)."
+    },
+    {
+     "type": "tool_call",
+     "name": "mcp__scrap__read",
+     "args_summary": "page: 'plant-the-tulip-bulbs-before-the-first-frost-move-the-rosema'",
+     "display": "scrap - read (MCP)(page: 'plant-the-tulip-bulbs-before-the-first-frost-move-the-rosema')"
+    },
+    {
+     "type": "tool_result",
+     "name": "mcp__scrap__read",
+     "summary": "Plant the tulip bulbs before the first frost. Move the rosemary somewhere sunnier. · note · tags #home #garden"
+    },
+    {
+     "type": "text",
+     "text": "All five jobs on this weekend's house list are still to do. Your list page, [House jobs this weekend (21–22 Nov 2026)](https://scrap.example.com/p/house-jobs-this-weekend-2122-nov-2026), has 0 of 5 ticked. The todos it links to are all still open as well, so none was done without being ticked.\n\n**Due today (Sat 21 Nov)**\n- [Call the plumber about the boiler](https://scrap.example.com/p/call-the-plumber-about-the-boiler): high priority\n- [Clear the gutters](https://scrap.example.com/p/clear-the-gutters): medium priority\n\n**Due soon**\n- [Fix the broken fence panel](https://scrap.example.com/p/fix-the-broken-fence-panel): medium priority, due Mon 24 Nov. The receipt for the materials is in [this note](https://scrap.example.com/p/2026-10-21-08-52).\n\n**No due date**\n- [Plant the tulip bulbs and move the rosemary somewhere sunnier](https://scrap.example.com/p/plant-the-tulip-bulbs-before-the-first-frost-move-the-rosema): this is a note rather than a todo. The tulips need to go in before the first frost.\n\n**Open this weekend but not house jobs**\n- [Renew car insurance](https://scrap.example.com/p/renew-car-insurance): high priority, **overdue since 19 Nov**\n- [Camping kit for the weekend](https://scrap.example.com/p/camping-kit-for-the-weekend): 2 of 5 packed. The stove and gas, head torches and first aid kit are still to pack.\n- [Buy dog food](https://scrap.example.com/p/buy-dog-food): low priority"
+    }
+   ]
+  },
+  {
+   "prompt": "/sc-summarise",
+   "raw": "07-summarise.jsonl",
+   "cwd": "~/demo/tidy",
+   "segment": 2,
+   "events": [
+    {
+     "type": "tool_call",
+     "name": "ToolSearch",
+     "args_summary": "select:mcp__scrap__write",
+     "display": "ToolSearch(select:mcp__scrap__write)",
+     "internal": true
+    },
+    {
+     "type": "tool_result",
+     "name": "ToolSearch",
+     "summary": "loaded mcp__scrap__write",
+     "internal": true
+    },
+    {
+     "type": "tool_call",
+     "name": "mcp__scrap__search",
+     "args_summary": "query: 'is:claude house jobs weekend', limit: 10",
+     "display": "scrap - search (MCP)(query: 'is:claude house jobs weekend', limit: 10)"
+    },
+    {
+     "type": "tool_result",
+     "name": "mcp__scrap__search",
+     "summary": "1 results: House jobs this weekend (21–22 Nov 2026) (todo, due 2026-11-22, high)"
+    },
+    {
+     "type": "text",
+     "text": "Your weekend list page, [House jobs this weekend (21–22 Nov 2026)](https://scrap.example.com/p/house-jobs-this-weekend-2122-nov-2026), was written by Claude earlier today, so I'd add this status check to the end of it rather than make a new page.\n\n> Append to **House jobs this weekend (21–22 Nov 2026)** · #home · ~14 lines\n\nIt would add this section:\n\n```markdown\n## Status check, Sat 21 Nov\n\nNothing ticked off yet: all five jobs are still open, here and in their own todos.\n\n### Findings\n- Due today: [[call-the-plumber-about-the-boiler]] (high), [[clear-the-gutters]] (medium)\n- Due Mon 24 Nov: [[fix-the-broken-fence-panel]] (medium; receipt in [[2026-10-21-08-52]])\n- No due date: tulips and rosemary, [[plant-the-tulip-bulbs-before-the-first-frost-move-the-rosema]]; it's a note, not a todo, and the tulips need to go in before the first frost\n- Not house jobs: [[renew-car-insurance]] is overdue since 19 Nov (high); [[camping-kit-for-the-weekend]] is 2/5 packed (stove and gas, head torches, first aid kit to go)\n\n### Open questions\n- [ ] Tulips/rosemary has no todo of its own, so it won't show up in todo searches. Make it one?\n```\n\nShall I post it?"
+    }
+   ]
+  },
+  {
+   "prompt": "yes",
+   "raw": "08-post.jsonl",
+   "cwd": "~/demo/tidy",
+   "segment": 2,
+   "events": [
+    {
+     "type": "tool_call",
+     "name": "mcp__scrap__write",
+     "args_summary": "append_to: 'house-jobs-this-weekend-2122-nov-2026', title: 'House jobs this weekend (21–22 Nov 2026)', tags: [\"home\"], body: '## Status check, Sat 21 Nov\\n\\nNothing ticked off yet: all five jobs are still ope…'",
+     "display": "scrap - write (MCP)(append_to: 'house-jobs-this-weekend-2122-nov-2026', title: 'House jobs this weekend (21–22 Nov 2026)', tags: [\"home\"], body: '## Status check, Sat 21 Nov\\n\\nNothing ticked off yet: all five jobs are still ope…')"
+    },
+    {
+     "type": "tool_result",
+     "name": "mcp__scrap__write",
+     "summary": "created: https://scrap.example.com/p/house-jobs-this-weekend-2122-nov-2026"
+    },
+    {
+     "type": "text",
+     "text": "I've added the status check to the end of [House jobs this weekend (21–22 Nov 2026)](https://scrap.example.com/p/house-jobs-this-weekend-2122-nov-2026). It says all five jobs are still open, with the plumber and gutters due today and the fence due Monday. It also lists the overdue car insurance, the camping kit still to pack, and a question about turning the tulips/rosemary note into a todo."
+    }
+   ]
+  },
+  {
+   "prompt": "/sc-summarise day",
+   "raw": "09-summarise-day.jsonl",
+   "cwd": "~/demo/tidy",
+   "segment": 2,
+   "events": [
+    {
+     "type": "tool_call",
+     "name": "ListAgents",
+     "args_summary": "",
+     "display": "ListAgents()"
+    },
+    {
+     "type": "tool_result",
+     "name": "ListAgents",
+     "summary": "This session is tidy-9a [cbd3ba] — the name other sessions use to message it (it is not listed below; a message to it would be a message to yourself).",
+     "display": "This session is tidy-9a [cbd3ba] — the name other sessions use to message it (it is not listed below; a message to it would be a message to yourself).\n\nPeer sessions (2):\n  camping [ec7ad5]  ·  bg  ·  idle  ·  started 33s ago\n  tidy-readme [3ce028]  ·  bg  ·  idle  ·  started 36s ago"
+    },
+    {
+     "type": "tool_call",
+     "name": "ToolSearch",
+     "args_summary": "select:mcp__scrap__revisions,mcp__scrap__topics,SendMessage",
+     "display": "ToolSearch(select:mcp__scrap__revisions,mcp__scrap__topics,SendMessage)",
+     "internal": true
+    },
+    {
+     "type": "tool_result",
+     "name": "ToolSearch",
+     "summary": "loaded mcp__scrap__revisions, mcp__scrap__topics, SendMessage",
+     "internal": true
+    },
+    {
+     "type": "tool_call",
+     "name": "Bash",
+     "args_summary": "command: 'gh api user --jq .login', description: 'Get GitHub login'",
+     "display": "Bash(gh api user --jq .login)"
+    },
+    {
+     "type": "tool_result",
+     "name": "Bash",
+     "summary": "gilesknap",
+     "display": "gilesknap"
+    },
+    {
+     "type": "tool_call",
+     "name": "SendMessage",
+     "args_summary": "to: 'camping', message: 'Summary request for 2026-11-21: reply with at most 10 bullets on what you did to…'",
+     "display": "SendMessage(to: 'camping', message: 'Summary request for 2026-11-21: reply with at most 10 bullets on what you did to…')"
+    },
+    {
+     "type": "tool_result",
+     "name": "SendMessage",
+     "summary": "“Ask camping for today's summary” → camping",
+     "display": "“Ask camping for today's summary” → camping"
+    },
+    {
+     "type": "tool_call",
+     "name": "SendMessage",
+     "args_summary": "to: 'tidy-readme', message: 'Summary request for 2026-11-21: reply with at most 10 bullets on what you did to…'",
+     "display": "SendMessage(to: 'tidy-readme', message: 'Summary request for 2026-11-21: reply with at most 10 bullets on what you did to…')"
+    },
+    {
+     "type": "tool_result",
+     "name": "SendMessage",
+     "summary": "“Ask tidy-readme for today's summary” → tidy-readme",
+     "display": "“Ask tidy-readme for today's summary” → tidy-readme"
+    },
+    {
+     "type": "tool_call",
+     "name": "Bash",
+     "args_summary": "command: 'gh api --paginate \"users/gilesknap/events?per_page=100\" --jq \\'.[]\\n  | select(.cr…', description: \"List today's GitHub events for the user\"",
+     "display": "Bash(gh api --paginate \"users/gilesknap/events?per_page=100\" --jq '.[] …)"
+    },
+    {
+     "type": "tool_call",
+     "name": "mcp__scrap__revisions",
+     "args_summary": "",
+     "display": "scrap - revisions (MCP)()"
+    },
+    {
+     "type": "tool_call",
+     "name": "mcp__scrap__topics",
+     "args_summary": "",
+     "display": "scrap - topics (MCP)()"
+    },
+    {
+     "type": "tool_result",
+     "name": "Bash",
+     "summary": "2026-11-21T16:18:13Z\tIssuesEvent\tgilesknap/scrap\topened\t593\t",
+     "display": "2026-11-21T16:18:13Z\tIssuesEvent\tgilesknap/scrap\topened\t593\t\n2026-11-21T15:04:13Z\tPullRequestReviewCommentEvent\tgilesknap/mcwb\tcreated\t1\t\n2026-11-21T15:04:10Z\tPullRequestReviewCommentEvent\tgilesknap/mcwb\tcreated\t1\t\n2026-11-21T15:04:02Z\tPullRequestReviewCommentEvent\tgilesknap/mcwb\tcreated\t1\t\n… +39 lines"
+    },
+    {
+     "type": "tool_result",
+     "name": "mcp__scrap__revisions",
+     "summary": "20 text, 0 meta, 0 trash revisions: Camping trip: still to pack, and buy gas on Saturday (claude); House jobs this weekend (21–22 Nov 2026) (claude); House jobs this weekend (21–22 Nov 2026) (claude); Minds and machines (claude) …"
+    },
+    {
+     "type": "tool_result",
+     "name": "mcp__scrap__topics",
+     "summary": "8 results: scrap's design (); Search and storage (); Minds and machines (); Keeping the car on the road (); IOC upkeep (); The garden through the year () …"
+    },
+    {
+     "type": "peer_message",
+     "from": "camping",
+     "text": "Summary for 2026-11-21: posted 1 new scrap page, no code, PR or issue changes.\n- Created scrap note \"Camping trip: still to pack, and buy gas on Saturday\" (slug camping-trip-still-to-pack-and-buy-gas-on-saturday). It lists what's left to pack (stove and gas, head torches, first aid kit) and buying gas canisters at the outdoor shop on Saturday morning.\n- It links to the existing camping-kit-for-the-weekend page and is tagged #home and #project/-root-demo.\n- Decided to record \"which Saturday\" in an Unsure section instead of picking one, because today is a Saturday.",
+     "display": "← message from camping"
+    },
+    {
+     "type": "tool_call",
+     "name": "Bash",
+     "args_summary": "command: 'for r in gilesknap/scrap gilesknap/mcwb gilesknap/tpi-k3s-ansible DiamondLightSo…', description: \"List today's PRs and issues on each repo\"",
+     "display": "Bash(for r in gilesknap/scrap gilesknap/mcwb gilesknap/tpi-k3s-ansible DiamondLightSource/dls-tiled; do echo \"== $r PRs\"; gh pr list --repo $r --state all --limit 100 --search \"updated:>=2026-11-21\" --json number,title,state,createdAt,mergedAt,closedAt,url --jq '.[] | [.number,.state,.createdAt,.mergedAt,.closedAt,.title] | @tsv'; echo \"== $r issues\"; gh issue list --repo $r --state all --limit 100 --search \"updated:>=2026-11-21\" --json number,title,state,createdAt,closedAt,url --jq '.[] | [.number,.state,.createdAt,.closedAt,.title] | @tsv'; done)"
+    },
+    {
+     "type": "tool_result",
+     "name": "Bash",
+     "summary": "Error: Permission to use Bash has been denied because Claude Code is running in don't ask mode.",
+     "display": "Error: Permission to use Bash has been denied because Claude Code is running in don't ask mode.",
+     "denied": true
+    },
+    {
+     "type": "tool_call",
+     "name": "mcp__scrap__revisions",
+     "args_summary": "limit: 60",
+     "display": "scrap - revisions (MCP)(limit: 60)"
+    },
+    {
+     "type": "tool_result",
+     "name": "mcp__scrap__revisions",
+     "summary": "60 text, 0 meta, 0 trash revisions: Camping trip: still to pack, and buy gas on Saturday (claude); House jobs this weekend (21–22 Nov 2026) (claude); House jobs this weekend (21–22 Nov 2026) (claude); Minds and machines (claude) …"
+    },
+    {
+     "type": "peer_message",
+     "from": "tidy-readme",
+     "text": "Summary for 2026-11-21 (tidy-readme session, branch readme-usage):\n- Asked: add a short Usage section to README.md showing a dry run first, then a real run, and commit it on readme-usage. The --dry-run bug itself was out of scope because it's being fixed on fix-dry-run.\n- Changed: README.md now has a Usage section (`uv run tidy.py ~/Downloads --dry-run` (or -n) to preview, then without the flag to rename) and a separate Tests heading. No code changes.\n- Committed e81adaa \"README: add Usage section showing dry run first\" on readme-usage.\n- Not pushed because the repo has no remote. No PR, issue or scrap page.\n- Note: the README says --dry-run changes nothing. That's only true once fix-dry-run merges, so merge it before or together with readme-usage.",
+     "display": "← message from tidy-readme"
+    },
+    {
+     "type": "tool_call",
+     "name": "Bash",
+     "args_summary": "command: 'gh pr list --repo gilesknap/tpi-k3s-ansible --state all --limit 100 --search \"up…', description: \"List today's PRs in tpi-k3s-ansible\"",
+     "display": "Bash(gh pr list --repo gilesknap/tpi-k3s-ansible --state all --limit 100 --search \"updated:>=2026-11-21\" --json number,title,state,createdAt,mergedAt,closedAt,url)"
+    },
+    {
+     "type": "tool_call",
+     "name": "mcp__scrap__revisions",
+     "args_summary": "limit: 200",
+     "display": "scrap - revisions (MCP)(limit: 200)"
+    },
+    {
+     "type": "tool_result",
+     "name": "Bash",
+     "summary": "[{\"closedAt\":\"2026-11-21T15:52:31Z\",\"createdAt\":\"2026-11-21T15:49:26Z\",\"mergedAt\":\"2026-11-21T15:52:31Z\",\"number\":776,\"state\":\"MERGED\",\"title\":\"Split the backup canmount line on whitespace, not a literal backslash-t\",\"url\":\"https://github.com/gilesknap/tpi-k3s-ansible/pull/776\"},{\"closedAt\":\"2026-11-21T08:56:04Z\",\"createdAt\":\"2026-11-21T08:50:18Z\",\"mergedAt\":\"2026-11-21T08:56:04Z\",\"number\":775,\"state\":\"MERGED\",\"title\":\"Retry failed off-site uploads, and log diagnostics on listing errors\",\"url\":\"https://github.com/gilesknap/tpi-k3s-ansible/pull/775\"},{\"closedAt\":\"2026-11-21T04:59:41Z\",\"createdAt\":\"2026-11-21T03:31:50Z\",\"mergedAt\":\"2026-11-21T04:59:41Z\",\"number\":774,\"state\":\"MERGED\",\"title\":\"Update Helm release kube-prometheus-stack to v93.6.1\",\"url\":\"https://github.com/gilesknap/tpi-k3s-ansible/pull/774\"}]",
+     "display": "[{\"closedAt\":\"2026-11-21T15:52:31Z\",\"createdAt\":\"2026-11-21T15:49:26Z\",\"mergedAt\":\"2026-11-21T15:52:31Z\",\"number\":776,\"state\":\"MERGED\",\"title\":\"Split the backup canmount line on whitespace, not a literal backslash-t\",\"url\":\"https://github.com/gilesknap/tpi-k3s-ansible/pull/776\"},{\"closedAt\":\"2026-11-21T08:56:04Z\",\"createdAt\":\"2026-11-21T08:50:18Z\",\"mergedAt\":\"2026-11-21T08:56:04Z\",\"number\":775,\"state\":\"MERGED\",\"title\":\"Retry failed off-site uploads, and log diagnostics on listing errors\",\"url\":\"https://github.com/gilesknap/tpi-k3s-ansible/pull/775\"},{\"closedAt\":\"2026-11-21T04:59:41Z\",\"createdAt\":\"2026-11-21T03:31:50Z\",\"mergedAt\":\"2026-11-21T04:59:41Z\",\"number\":774,\"state\":\"MERGED\",\"title\":\"Update Helm release kube-prometheus-stack to v93.6.1\",\"url\":\"https://github.com/gilesknap/tpi-k3s-ansible/pull/774\"}]"
+    },
+    {
+     "type": "tool_result",
+     "name": "mcp__scrap__revisions",
+     "summary": "93 text, 0 meta, 0 trash revisions: Camping trip: still to pack, and buy gas on Saturday (claude); House jobs this weekend (21–22 Nov 2026) (claude); House jobs this weekend (21–22 Nov 2026) (claude); Minds and machines (claude) …"
+    },
+    {
+     "type": "tool_call",
+     "name": "Bash",
+     "args_summary": "command: 'gh issue list --repo gilesknap/scrap --state all --limit 100 --search \"updated:>…', description: \"List today's issues in scrap\"",
+     "display": "Bash(gh issue list --repo gilesknap/scrap --state all --limit 100 --search \"updated:>=2026-11-21\" --json number,title,state,createdAt,closedAt,url)"
+    },
+    {
+     "type": "tool_call",
+     "name": "Bash",
+     "args_summary": "command: 'gh pr list --repo gilesknap/scrap --state all --limit 100 --search \"updated:>=20…', description: \"List today's PRs in scrap\"",
+     "display": "Bash(gh pr list --repo gilesknap/scrap --state all --limit 100 --search \"updated:>=2026-11-21\" --json number,title,state,createdAt,mergedAt,closedAt,url)"
+    },
+    {
+     "type": "tool_result",
+     "name": "Bash",
+     "summary": "[{\"closedAt\":null,\"createdAt\":\"2026-11-21T16:18:12Z\",\"number\":593,\"state\":\"OPEN\",\"title\":\"MCP write: say what `created` means on an append\",\"url\":\"https://github.com/gilesknap/scrap/issues/593\"},{\"closedAt\":null,\"createdAt\":\"2026-11-02T17:49:49Z\",\"number\":549,\"state\":\"OPEN\",\"title\":\"Demo video\",\"url\":\"https://github.com/gilesknap/scrap/issues/549\"}]",
+     "display": "[{\"closedAt\":null,\"createdAt\":\"2026-11-21T16:18:12Z\",\"number\":593,\"state\":\"OPEN\",\"title\":\"MCP write: say what `created` means on an append\",\"url\":\"https://github.com/gilesknap/scrap/issues/593\"},{\"closedAt\":null,\"createdAt\":\"2026-11-02T17:49:49Z\",\"number\":549,\"state\":\"OPEN\",\"title\":\"Demo video\",\"url\":\"https://github.com/gilesknap/scrap/issues/549\"}]"
+    },
+    {
+     "type": "tool_call",
+     "name": "Bash",
+     "args_summary": "command: 'gh pr list --repo gilesknap/mcwb --state all --limit 100 --search \"updated:>=202…', description: \"List today's PRs in mcwb\"",
+     "display": "Bash(gh pr list --repo gilesknap/mcwb --state all --limit 100 --search \"updated:>=2026-11-21\" --json number,title,state,createdAt,mergedAt,closedAt,url)"
+    },
+    {
+     "type": "tool_result",
+     "name": "Bash",
+     "summary": "[]",
+     "display": "[]"
+    },
+    {
+     "type": "tool_result",
+     "name": "Bash",
+     "summary": "[{\"closedAt\":null,\"createdAt\":\"2026-10-12T17:11:36Z\",\"mergedAt\":null,\"number\":1,\"state\":\"OPEN\",\"title\":\"Refresh to copier template 5.4.0, Python 3.11-3.14 and Minecraft 26.3 items\",\"url\":\"https://github.com/gilesknap/mcwb/pull/1\"}]",
+     "display": "[{\"closedAt\":null,\"createdAt\":\"2026-10-12T17:11:36Z\",\"mergedAt\":null,\"number\":1,\"state\":\"OPEN\",\"title\":\"Refresh to copier template 5.4.0, Python 3.11-3.14 and Minecraft 26.3 items\",\"url\":\"https://github.com/gilesknap/mcwb/pull/1\"}]"
+    },
+    {
+     "type": "tool_call",
+     "name": "Bash",
+     "args_summary": "command: 'gh pr list --repo DiamondLightSource/dls-tiled --state all --limit 100 --search …', description: \"List today's PRs in dls-tiled\"",
+     "display": "Bash(gh pr list --repo DiamondLightSource/dls-tiled --state all --limit 100 --search \"updated:>=2026-11-21\" --json number,title,state,createdAt,mergedAt,closedAt,url)"
+    },
+    {
+     "type": "tool_result",
+     "name": "Bash",
+     "summary": "[{\"closedAt\":null,\"createdAt\":\"2026-10-31T22:31:21Z\",\"mergedAt\":null,\"number\":36,\"state\":\"OPEN\",\"title\":\"Add Trivy container image scan\",\"url\":\"https://github.com/DiamondLightSource/dls-tiled/pull/36\"}]",
+     "display": "[{\"closedAt\":null,\"createdAt\":\"2026-10-31T22:31:21Z\",\"mergedAt\":null,\"number\":36,\"state\":\"OPEN\",\"title\":\"Add Trivy container image scan\",\"url\":\"https://github.com/DiamondLightSource/dls-tiled/pull/36\"}]"
+    },
+    {
+     "type": "tool_call",
+     "name": "Bash",
+     "args_summary": "command: 'gh issue list --repo gilesknap/tpi-k3s-ansible --state all --limit 100 --search …', description: \"List today's issues in tpi-k3s-ansible\"",
+     "display": "Bash(gh issue list --repo gilesknap/tpi-k3s-ansible --state all --limit 100 --search \"updated:>=2026-11-21\" --json number,title,state,createdAt,closedAt,url)"
+    },
+    {
+     "type": "tool_result",
+     "name": "Bash",
+     "summary": "[{\"closedAt\":null,\"createdAt\":\"2025-02-20T11:32:55Z\",\"number\":42,\"state\":\"OPEN\",\"title\":\"Dependency Dashboard\",\"url\":\"https://github.com/gilesknap/tpi-k3s-ansible/issues/42\"}]",
+     "display": "[{\"closedAt\":null,\"createdAt\":\"2025-02-20T11:32:55Z\",\"number\":42,\"state\":\"OPEN\",\"title\":\"Dependency Dashboard\",\"url\":\"https://github.com/gilesknap/tpi-k3s-ansible/issues/42\"}]"
+    },
+    {
+     "type": "tool_call",
+     "name": "Bash",
+     "args_summary": "command: 'gh issue list --repo gilesknap/mcwb --state all --limit 100 --search \"updated:>=…', description: \"List today's issues in mcwb\"",
+     "display": "Bash(gh issue list --repo gilesknap/mcwb --state all --limit 100 --search \"updated:>=2026-11-21\" --json number,title,state,createdAt,closedAt,url)"
+    },
+    {
+     "type": "tool_result",
+     "name": "Bash",
+     "summary": "Error: Exit code 1",
+     "display": "Error: Exit code 1\nthe 'gilesknap/mcwb' repository has disabled issues."
+    },
+    {
+     "type": "tool_call",
+     "name": "Bash",
+     "args_summary": "command: 'gh issue list --repo DiamondLightSource/dls-tiled --state all --limit 100 --sear…', description: \"List today's issues in dls-tiled\"",
+     "display": "Bash(gh issue list --repo DiamondLightSource/dls-tiled --state all --limit 100 --search \"updated:>=2026-11-21\" --json number,title,state,createdAt,closedAt,url)"
+    },
+    {
+     "type": "tool_result",
+     "name": "Bash",
+     "summary": "[]",
+     "display": "[]"
+    },
+    {
+     "type": "tool_call",
+     "name": "mcp__scrap__search",
+     "args_summary": "query: 'is:claude after:1d summary', limit: 10",
+     "display": "scrap - search (MCP)(query: 'is:claude after:1d summary', limit: 10)"
+    },
+    {
+     "type": "tool_result",
+     "name": "mcp__scrap__search",
+     "summary": "0 results"
+    },
+    {
+     "type": "text",
+     "text": "Here's the draft for today's page. Nothing has been posted yet.\n\n> Post to scrap? **Day summary, Sat 21 Nov 2026: tidy dry-run fix, weekend jobs, k3s backups** · note · #home #scrap #tech #project/-root-demo-tidy · links: 7 related · ~45 lines\n\n```markdown\nA Saturday of small fixes: tidy's --dry-run bug was fixed and its README gained a Usage section (both on local branches), two tpi-k3s-ansible backup PRs were merged, mcwb PR #1 was reviewed, and Claude sessions in scrap took stock of the weekend's house jobs and camping packing.\n\n## Timeline\n- **tidy: --dry-run renamed files anyway** (this session). Fixed in `tidy_folder` (it ignored `dry_run`), added a test, 4/4 tests pass. Commit `cde80ec` on local branch `fix-dry-run`.\n- **Weekend house jobs** (this session). All 5 jobs on [[house-jobs-this-weekend-2122-nov-2026]] are still open; a status check was appended to it.\n- **Day summary** (this session). Asked the other sessions, read GitHub and scrap, and wrote this page.\n\n## Sessions\n- **tidy-readme** [3ce028]: added a Usage section to tidy's README (dry run first, then a real run) plus a Tests heading. Commit `e81adaa` on local branch `readme-usage`, not pushed (no remote). The README says --dry-run changes nothing, which is only true once `fix-dry-run` is merged.\n- **camping** [ec7ad5]: wrote [[camping-trip-still-to-pack-and-buy-gas-on-saturday]] (stove and gas, head torches and first aid kit still to pack; buy gas canisters on Saturday morning), linked to [[camping-kit-for-the-weekend]]. \"Which Saturday\" was left as an open question.\n\n## Findings\n- **tidy**: `tidy_folder(folder, dry_run)` took the flag but always renamed. It now renames only when `dry_run` is false.\n- **House**: plumber (high) and gutters (medium) were due today, the fence is due Mon 24 Nov, and car insurance has been overdue since 19 Nov.\n\n## Decisions\n- The tidy fix and the README change are on separate branches. Merge `fix-dry-run` before or together with `readme-usage` so the README isn't wrong in between.\n- The status check was appended to the existing weekend-jobs page, which Claude wrote, instead of making a new one.\n\n## Changes made\n### tidy (local, /root/demo/tidy; no remote)\n- `fix-dry-run`: `cde80ec` Make --dry-run print changes without renaming (`tidy.py`, `test_tidy.py`). Not merged.\n- `readme-usage`: `e81adaa` README: add Usage section showing dry run first. Not merged.\n\n### gilesknap/tpi-k3s-ansible\n- Merged #775 Retry failed off-site uploads, and log diagnostics on listing errors (08:56).\n- Merged #776 Split the backup canmount line on whitespace, not a literal backslash-t (15:52).\n- Merged #774 Update Helm release kube-prometheus-stack to v93.6.1 (04:59, Renovate; no event of yours).\n\n### gilesknap/mcwb\n- Reviewed PR #1 Refresh to copier template 5.4.0, Python 3.11-3.14 and Minecraft 26.3 items: about 20 review comments around 15:04. Still open.\n\n### DiamondLightSource/dls-tiled\n- Reviewed PR #36 Add Trivy container image scan. Still open.\n\n### gilesknap/scrap\n- Opened #593 MCP write: say what `created` means on an append.\n- Commented on #549 Demo video.\n\n### scrap\n- 16:22: a bulk load of about 55 pages (todos, notes, reads, contacts, receipts) under your account on the web. Topic pages created at the same moment: [[running-the-house]], [[the-garden-through-the-year]] and 6 others.\n- Claude over MCP: created [[house-jobs-this-weekend-2122-nov-2026]] and appended to it (rev 2); created [[camping-trip-still-to-pack-and-buy-gas-on-saturday]].\n- No tag/kind changes and nothing trashed or restored today. 8 topic pages refreshed today.\n\n## Open questions\n- [ ] Merge `fix-dry-run`, then `readme-usage`, in tidy (and add a remote if it should be pushed).\n- [ ] Call the plumber, clear the gutters, and renew the car insurance (overdue).\n- [ ] Turn the tulips/rosemary note into a todo?\n- [ ] mcwb #1 and dls-tiled #36: follow up on the reviews.\n```\n\nA few things to check before you say yes:\n- **Contacts:** the scrap section counts the contact pages but doesn't name anyone, since names would put other people's personal details on the page.\n- **Unverified commit:** `e81adaa` comes from the tidy-readme session's own reply. I haven't checked it in git.\n- **Incomplete GitHub check:** when I ran all the GitHub checks in one command, it was blocked. I re-ran each check on its own and that worked, except the mcwb issues check, which failed because issues are turned off on that repo.\n\nShall I post it?"
+    }
+   ]
+  },
+  {
+   "prompt": "yes",
+   "raw": "10-post-day.jsonl",
+   "cwd": "~/demo/tidy",
+   "segment": 2,
+   "events": [
+    {
+     "type": "tool_call",
+     "name": "mcp__scrap__write",
+     "args_summary": "title: 'Day summary, Sat 21 Nov 2026: tidy dry-run fix, weekend jobs, k3s backups', kind: 'note', tags: [\"home\", \"scrap\", \"tech\", \"project/-root-demo-tidy\"], body: \"A Saturday of small fixes: tidy's --dry-run bug was fixed and its README gained …\"",
+     "display": "scrap - write (MCP)(title: 'Day summary, Sat 21 Nov 2026: tidy dry-run fix, weekend jobs, k3s backups', kind: 'note', tags: [\"home\", \"scrap\", \"tech\", \"project/-root-demo-tidy\"], body: \"A Saturday of small fixes: tidy's --dry-run bug was fixed and its README gained …\")"
+    },
+    {
+     "type": "tool_result",
+     "name": "mcp__scrap__write",
+     "summary": "created: https://scrap.example.com/p/day-summary-sat-21-nov-2026-tidy-dry-run-fix-weekend-jobs-k3"
+    },
+    {
+     "type": "text",
+     "text": "I posted today's summary as a new page: [Day summary, Sat 21 Nov 2026: tidy dry-run fix, weekend jobs, k3s backups](https://scrap.example.com/p/day-summary-sat-21-nov-2026-tidy-dry-run-fix-weekend-jobs-k3).\n\nIt covers:\n- **This session:** the tidy `--dry-run` fix and the weekend-jobs check.\n- **The other two sessions:** the tidy README change and the camping packing page.\n- **GitHub:** three tpi-k3s-ansible PRs merged, reviews on mcwb #1 and dls-tiled #36, and scrap issue #593 opened.\n- **scrap:** today's changes, and a to-do list at the end.\n\nThe one thing to watch: the tidy README now says `--dry-run` changes nothing, which is only true once the fix is in. Merge `fix-dry-run` before or together with `readme-usage`."
+    }
+   ]
+  }
+ ]
+}
