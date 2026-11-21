@@ -106,6 +106,7 @@ cp "$DC/projects/-root-demo-tidy/$SID2.jsonl" "$OUT/09-session-day.jsonl"
 UV_PYTHON=3.13 uv run --no-project python -I "$CAP/seed/peer_replies.py" "$OUT/09-session-day.jsonl" "$TR/peer-replies.json"
 for id in $("$CL" agents --json | jq -r '.[].id'); do "$CL" stop "$id"; done
 page() { curl -s --noproxy '*' "http://127.0.0.1:8765/api/pages/$(curl -s --noproxy '*' 'http://127.0.0.1:8765/api/pages?limit=10' | jq -r --arg s "$1" '.[] | select(.slug==$s) | .id')"; }
-page house-jobs-this-weekend-2122-nov-2026 > "$OUT/summary-page-api.json"
+# /sc-summarise appended to the page step c wrote
+page "$(jq -r .slug "$OUT/written-page-api.json")" > "$OUT/summary-page-api.json"
 page "$(jq -r 'select(.type=="user") | .message.content[]? | select(.type=="tool_result") | .content | select(type=="string")' "$OUT/10-post-day.jsonl" | jq -r 'select(.created) | .slug')" > "$OUT/summary-day-page-api.json"
 cd "$REPO" && UV_PYTHON=3.13 uv run --no-project python -I "$CAP/build_transcript.py" "$OUT" "$TR"

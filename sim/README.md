@@ -163,7 +163,7 @@ session replayed in a terminal on the right.
 sim/demo/record.sh            # build the sim if sim/out is missing, then record (about 5 min)
 sim/demo/record.sh --rebuild  # build the sim first even if sim/out is there
 sim/demo/record.sh --fast     # short waits: checks the script, the video is too quick to use
-sim/demo/record.sh --pace 1.2 # every wait (taps and typing too) times 1.2
+sim/demo/record.sh --pace 1.2 # every wait, tap and the phone's typing times 1.2
 ```
 
 It writes to `_claude/demo-video/` (`DEMO_OUT=` to change): `demo.webm`, `demo.mp4`,

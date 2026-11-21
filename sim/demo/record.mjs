@@ -12,7 +12,7 @@
 // --page        the page step c writes: {title, slug, body, tags, kind?, due?, priority?}
 //               (default sim/demo/transcript/written-page.json); --summary and --summary-day
 //               likewise for the /sc-summarise pages
-// --pace        every wait times this (default 1.0)
+// --pace        every wait, tap and the phone's typing times this (default 1.0)
 // --fast        shorter waits, for checking the script (the video is then too quick)
 // Writes OUT/demo.webm and OUT/frames/NN-name.png (a screenshot at each beat).
 import { mkdirSync, readFileSync, writeFileSync, renameSync, rmSync } from "node:fs";
@@ -71,7 +71,7 @@ const v0 = Date.now(); // the video's start: beats.json gives each shot's time i
 const beats = {};
 const errors = [];
 page.on("pageerror", (e) => errors.push(e.message));
-const PACE = Number(opt("--pace", "1.0")); // every wait times this (tap and typing too)
+const PACE = Number(opt("--pace", "1.0")); // every wait times this (taps and the phone's typing too)
 const wait = (ms) => page.waitForTimeout(FAST ? Math.min(ms, 300) : ms * PACE);
 
 await page.goto(`${url}/demo/stage.html?sim=${encodeURIComponent(`${url}/art/x1/index.html#/`)}`);
@@ -143,7 +143,7 @@ async function nav(name) {
   await tap(link);
   await page.waitForTimeout(FAST ? 900 : 700); // its screen (a lazy chunk) settles
 }
-const type = async (text) => page.keyboard.type(text, { delay: FAST ? 5 : 80 });
+const type = async (text) => page.keyboard.type(text, { delay: FAST ? 5 : 80 * PACE });
 const dotOff = () => page.evaluate(() => stage.hideDot());
 // Scroll the phone's view smoothly by dy CSS px, over about ms
 async function scroll(dy, ms = 1800) {
@@ -382,6 +382,7 @@ await shot("term-b");
 }
 
 // ---- 4. Claude Code writes a page to scrap
+await page.evaluate(() => stage.focus(null)); // beat 3 left the terminal in focus
 await nav("Capture");
 await caption("4", "Claude Code writes to it too", "Ask it to write something down…");
 await play(2, {}, async (e, i, evs) => {
