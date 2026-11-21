@@ -184,8 +184,9 @@ libx264 for the MP4s and the GIF: Playwright's own ffmpeg only writes VP8 WebM.
 
 `capture/` is a record of how the Claude Code capture was made, not a portable tool:
 `rerun.sh` runs `claude -p` steps against a throwaway scrap seeded with the sim's demo pages
-(`seed/`), under an isolated `CLAUDE_CONFIG_DIR` (with `claudeMdExcludes`, so no CLAUDE.md
-reaches it) and `--strict-mcp-config` (only that scrap), with two staged peer sessions for
+(`seed/`), all with `--strict-mcp-config` (only that scrap). Steps a-c ran under the owner's
+normal Claude config from `/root/demo`; steps d-f under an isolated `CLAUDE_CONFIG_DIR` (with
+`claudeMdExcludes`, so no CLAUDE.md reaches it), with two staged peer sessions for
 `/sc-summarise day`. It assumes this sandbox's `/root` paths. It writes the raw runs to
 `_claude/demo-video/` and, through `build_transcript.py`, the files in `transcript/`.
 

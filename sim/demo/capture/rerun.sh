@@ -41,7 +41,8 @@ claude -p "/sc-answer what's on my plate at home this week?" --resume "$SID" "${
 claude -p "/sc-write this weekend's house jobs as one todo checklist, most urgent first. Just post." \
   --resume "$SID" "${MCP[@]}" > "$OUT/03-write.jsonl"
 
-# take 2 used a retry of step 2: a copy of the session cut after step 1 (see the report)
+# the committed take's step b (/sc-answer) was the second of two tries, run on a copy of the
+# session cut after step a
 cd "$REPO"
 ID=$(curl -s --noproxy '*' 'http://127.0.0.1:8765/api/pages?limit=1' | jq -r '.[0].id')
 curl -s --noproxy '*' "http://127.0.0.1:8765/api/pages/$ID" > "$OUT/written-page-api.json"

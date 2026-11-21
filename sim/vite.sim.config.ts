@@ -6,8 +6,11 @@ import { mergeConfig, type Plugin, type UserConfig } from "vite";
 import base from "../../vite.config.ts";
 
 const SIM = process.env.SIM_DIR as string;
-// The header shows the latest release tag, as the real server does
-const VER = execSync("git describe --tags --abbrev=0", { cwd: SIM }).toString().trim();
+// The header shows the latest release tag, as the real server does ("dev" without tags)
+let VER = "dev";
+try {
+  VER = `v${execSync("git describe --tags --abbrev=0", { cwd: SIM, stdio: ["ignore", "pipe", "ignore"] }).toString().trim()}`;
+} catch {}
 
 const sim: Plugin = {
   name: "scrap-sim",
@@ -20,7 +23,7 @@ const sim: Plugin = {
     return html
       .replace(/<meta http-equiv="Content-Security-Policy"[^>]*>\s*/, "")
       .replace(/<link rel="manifest"[^>]*>\s*/, "")
-      .replace('<small id="ver" aria-hidden="true"></small>', `<small id="ver" aria-hidden="true">v${VER}</small>`)
+      .replace('<small id="ver" aria-hidden="true"></small>', `<small id="ver" aria-hidden="true">${VER}</small>`)
       .replace(/<title>[^<]*<\/title>/, "<title>scrap sim</title>")
       .replace(
         /(<script type="module")/,
