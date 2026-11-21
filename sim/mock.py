@@ -250,6 +250,12 @@ st["captures"][0].update(kind="photo", text=None, author="you", blobs=[
     jpg(BOARD, "whiteboard.jpg", None),
 ])
 d["pages"].append(st)
+# ---- demo cut (sim/demo/, #549): SIM_DEMO=1 drops the pure test pages for the demo video
+import os
+if os.environ.get("SIM_DEMO") == "1":
+    drop = lambda t: (t.startswith("A very long title to check") or t in {x[0] for x in TP}
+                      or t in ("Fence repair: photos and quotes (reading states)", "Beamline 9 rack layout"))
+    d["pages"] = [p for p in d["pages"] if not drop(p["title"])]
 open(f"{out}/sim-seed.js", "w").write(
     "window.__SIM_SEED=" + json.dumps({"pages": d["pages"], "drawings": d["drawings"]}) + ";\n"
     "window.__SIM_INGEST=" + json.dumps(ingest) + ";\n"

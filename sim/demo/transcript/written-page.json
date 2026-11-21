@@ -1,0 +1,20 @@
+{
+ "id": "01M7ZCQNVE0TX1MP8GDBE7APDK",
+ "slug": "house-jobs-this-weekend-2122-nov-2026",
+ "title": "House jobs this weekend (21–22 Nov 2026)",
+ "kind": "todo",
+ "due": "2026-11-22",
+ "priority": "high",
+ "tags": [
+  "home",
+  "garden",
+  "project/-root-demo"
+ ],
+ "fields": {
+  "status": "open",
+  "origin": "/root/demo, 2026-11-21"
+ },
+ "created_at": "2026-11-21T15:48:54.253Z",
+ "body": "This weekend's house jobs from my open home todos, most urgent first.\n\n- [ ] Call the plumber about the boiler (high, due today): [[call-the-plumber-about-the-boiler]]\n- [ ] Clear the gutters (medium, due today): [[clear-the-gutters]]\n- [ ] Fix the broken fence panel (medium, due Mon 24 Nov; materials receipt in [[2026-10-21-08-52]]): [[fix-the-broken-fence-panel]]\n- [ ] Plant the tulip bulbs before the first frost: [[plant-the-tulip-bulbs-before-the-first-frost-move-the-rosema]]\n- [ ] Move the rosemary somewhere sunnier: [[plant-the-tulip-bulbs-before-the-first-frost-move-the-rosema]]\n\n## Unsure\n\n- Not house jobs, so left off the list, but they're open for this weekend: [[renew-car-insurance]] (high, overdue since 19 Nov), [[camping-kit-for-the-weekend]] (stove and gas, head torches, first aid kit still to pack) and [[buy-dog-food]] (low).",
+ "url": "https://scrap.example.com/p/house-jobs-this-weekend-2122-nov-2026"
+}

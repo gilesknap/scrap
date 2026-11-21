@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Terminal replay</title>
+<!-- A replay of a Claude Code session in a dark terminal, for the demo video (#549): plain
+     text in the CLI's style, no logos. Standalone: terminal.html?t=transcript/transcript.json
+     plays every step; the recorder drives it through window.term instead. -->
+<style>
+  :root {
+    --bg: #15161a; --fg: #e6e6e6; --dim: #8b8f98; --faint: #5c6069; --green: #5fd38d;
+    --orange: #e8955c; --blue: #8fb8ff; --box: #3a3d45; --code: #c8a2ff;
+  }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--fg); }
+  body {
+    font: 20px/1.45 "JetBrains Mono", "DejaVu Sans Mono", "Liberation Mono", Menlo, monospace;
+    display: flex; flex-direction: column; overflow: hidden;
+  }
+  #log { flex: 1; overflow: hidden; padding: 20px 28px 8px; display: flex; flex-direction: column;
+    justify-content: flex-end; }
+  #log > div { flex: none; white-space: pre-wrap; word-break: break-word; }
+  .gap { height: 0.7em; }
+  .you { color: var(--dim); }
+  .you::before { content: "> "; }
+  .call { padding-left: 1.4em; text-indent: -1.4em; }
+  .call .dot, .say .dot { color: var(--green); }
+  .call .name { font-weight: 700; }
+  .call .args { color: var(--fg); }
+  .result { color: var(--dim); padding-left: 2.6em; text-indent: -2.6em; }
+  .result .hook { color: var(--faint); }
+  .say { padding-left: 1.4em; text-indent: -1.4em; }
+  .say .dot { color: var(--fg); }
+  .say b { color: #fff; }
+  .say code { color: var(--code); }
+  .say u { color: var(--blue); text-decoration-color: rgba(143,184,255,.5); text-underline-offset: 3px; }
+  .say u.hover { color: #d6e6ff; text-decoration-thickness: 2px; background: rgba(143,184,255,.16); border-radius: 3px; }
+  .say .li { display: block; padding-left: 1.4em; text-indent: -1.4em; }
+  .diff { padding-left: 2.6em; }
+  .diff span { display: block; padding: 0 0.5em; }
+  .diff .add { background: #1d3b27; color: #b8f0c8; }
+  .diff .del { background: #45201f; color: #f3c0bd; }
+  .reply { color: var(--blue); padding-left: 2.6em; text-indent: -2.6em; }
+  .reply b { color: #cfe0ff; }
+  .spin { color: var(--orange); }
+  .spin small { color: var(--faint); font-size: inherit; }
+  #input { margin: 6px 20px 8px; border: 1.5px solid var(--box); border-radius: 10px; padding: 10px 14px;
+    min-height: 1.45em; white-space: pre-wrap; }
+  #input::before { content: "> "; color: var(--fg); }
+  #input .caret { display: inline-block; width: 0.6em; height: 1.15em; vertical-align: -0.18em;
+    background: var(--fg); animation: blink 1s steps(1) infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+  #hint { color: var(--faint); font-size: 17px; padding: 0 34px 14px; }
+  .fade { animation: fade 0.25s ease-out; }
+  @keyframes fade { from { opacity: 0; translate: 0 6px; } }
+</style>
+</head>
+<body>
+<div id="log"></div>
+<div id="input"><span id="typed"></span><span class="caret"></span></div>
+<div id="hint">? for shortcuts</div>
+<script>
+(() => {
+  const log = document.getElementById("log");
+  const typed = document.getElementById("typed");
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  const esc = (s) => s.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[c]);
+  // A tool's name as the CLI shows it: mcp__scrap__search is "scrap - search (MCP)"
+  const toolName = (n) => {
+    const m = /^mcp__([^_]+(?:_[^_]+)*)__(.+)$/.exec(n);
+    return m ? `${m[1]} - ${m[2]} (MCP)` : n;
+  };
+  // Just enough Markdown for an answer: **bold**, `code`, *em* and "- " bullets
+  const inline = (s) => esc(s)
+    .replace(/\[([^\]]+)\]\((?:https?:[^)\s]+)\)/g, '<u>$1</u>')
+    .replace(/\*\*(.+?)\*\*/g, "<b>$1</b>").replace(/`([^`]+)`/g, "<code>$1</code>")
+    .replace(/(^|[\s(])\*([^*\s][^*]*)\*/g, "$1<i>$2</i>");
+  const md = (t) => t.split("\n").map((l) => {
+    const b = /^\s*[-*] (.*)$/.exec(l) || /^\s*(\d+\. .*)$/.exec(l);
+    if (b) return `<span class="li">${/^\d/.test(b[1]) ? "" : "• "}${inline(b[1])}</span>`;
+    return l.trim() ? `${inline(l)}\n` : "\n";
+  }).join("").replace(/\n+$/, "");
+  const add = (cls, html) => {
+    const d = document.createElement("div");
+    d.className = `${cls} fade`;
+    d.innerHTML = html;
+    log.append(d);
+    // Keep the newest lines in sight: drop what scrolled off the top
+    while (log.scrollHeight > log.clientHeight && log.children.length > 1) log.firstElementChild.remove();
+    return d;
+  };
+  const gap = () => add("gap", "");
+  // A call's line as the CLI shows it: Bash(command), Update(file) for an edit, Read(file);
+  // an MCP tool's arguments cut after its tags, and anything past ~140 characters
+  const arg = (s, key) => {
+    const m = new RegExp(`${key}: (?:'((?:[^'\\\\]|\\\\.)*)'|"((?:[^"\\\\]|\\\\.)*)")`).exec(s || "");
+    return m ? (m[1] ?? m[2]) : null;
+  };
+  const cut = (s, n) => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
+  const path = (p) => {
+    if (term.root && p.startsWith(`${term.root}/`)) return p.slice(term.root.length + 1);
+    const parts = p.split("/");
+    return p.startsWith("/") && parts.length > 4 ? parts.slice(-3).join("/") : p;
+  };
+  const VERB = { Edit: "Update", MultiEdit: "Update", Write: "Write", Read: "Read", NotebookEdit: "Update" };
+  const callLine = (e) => {
+    const a = e.args_summary || "";
+    if (e.name === "Bash") return ["Bash", cut((arg(a, "command") ?? a).split("\\n")[0], 110)];
+    if (e.name === "SendMessage") return ["SendMessage", `to: ${arg(a, "to") ?? cut(a, 60)}`];
+    if (VERB[e.name]) return [VERB[e.name], path(arg(a, "file_path") ?? a)];
+    let args = a;
+    const t = /tags: \[[^\]]*\]/.exec(a);
+    if (t && t.index + t[0].length < a.length) args = `${a.slice(0, t.index + t[0].length)}, …`;
+    return [toolName(e.name), cut(args, 180)];
+  };
+  // An edit's change, under its result: e.diff (lines starting + or -), or old/new text
+  const diffOf = (e) => {
+    let lines = [];
+    if (typeof e.diff === "string") lines = e.diff.split("\n").filter((l) => /^[+-]/.test(l));
+    else {
+      const un = (s) => s && s.replace(/\\n/g, "\n").replace(/\\'/g, "'");
+      const o = e.old_string ?? e.old ?? un(arg(e.args_summary, "old_string"));
+      const n = e.new_string ?? e.new ?? un(arg(e.args_summary, "new_string"));
+      if (o != null) lines.push(...String(o).split("\n").map((l) => `-${l}`));
+      if (n != null) lines.push(...String(n).split("\n").map((l) => `+${l}`));
+    }
+    return lines.slice(0, 6);
+  };
+  let lastCall = null;
+  const T = { cps: 22, think: 900, call: 700, result: 900, words: 30, after: 600, hold: 15, holdMax: 3000 };
+  const SPIN = ["✻", "✶", "✳", "✢", "·", "✢", "✳", "✶"];
+  async function spin(ms, label = "Working…") {
+    const d = add("spin", "");
+    const t0 = performance.now();
+    let i = 0;
+    while (performance.now() - t0 < ms) {
+      d.innerHTML = `${SPIN[i++ % SPIN.length]} ${label} <small>(esc to interrupt)</small>`;
+      await sleep(120);
+    }
+    d.remove();
+  }
+  const term = {
+    timing: T,
+    root: null, // the session's directory: file paths are shown relative to it
+    reset() { log.replaceChildren(); typed.textContent = ""; },
+    async type(text) {
+      typed.textContent = "";
+      for (const ch of text) {
+        typed.textContent += ch;
+        await sleep(1000 / T.cps * (ch === " " ? 0.6 : 1) * (0.7 + Math.random() * 0.6));
+      }
+      await sleep(350);
+      typed.textContent = "";
+      if (log.children.length) gap();
+      add("you", esc(text));
+      gap();
+    },
+    // One event: {type: tool_call, name, args_summary} | {type: tool_result, summary} | {type: text, text}
+    async event(e) {
+      if (e.internal) return; // Claude Code's own tool loading (ToolSearch): not shown
+      if (e.type === "think") return spin(T.think, "Thinking…");
+      if (e.type === "tool_call") {
+        await spin(T.call);
+        const [name, args] = callLine(e);
+        lastCall = e;
+        add("call", `<span class="dot">● </span><span class="name">${esc(name)}</span><span class="args">(${esc(args)})</span>`);
+      } else if (e.type === "tool_result") {
+        await sleep(T.result);
+        let lines = String(e.summary || "").split("\n");
+        if (lines.length > 4) lines = [...lines.slice(0, 3), `… +${lines.length - 3} lines`];
+        lines = lines.map((l) => cut(l, 160));
+        add("result", lines.map((l, i) => `${i ? "   " : '<span class="hook">⎿  </span>'}${esc(l)}`).join("\n"));
+        const diff = lastCall ? diffOf(lastCall) : [];
+        if (diff.length)
+          add("diff", diff.map((l) => `<span class="${l[0] === "+" ? "add" : "del"}">${esc(l[0])} ${esc(l.slice(1))}</span>`).join(""));
+        lastCall = null;
+      } else if (/^(reply|message|agent_message|peer_message)$/.test(e.type)) {
+        // Another session's answer arriving (/sc-summarise day asks each live one)
+        await sleep(T.result);
+        const from = e.from || e.name || "a session";
+        add("reply", `<span class="hook">⎿  </span>↩ reply from <b>${esc(from)}</b>: ${esc(cut(String(e.summary || e.text || "").replace(/\s*\n\s*/g, " "), 170))}`);
+        await sleep(T.replyHold ?? 1500); // the point of the beat: let it be seen
+      } else if (e.type === "text") {
+        await spin(T.think, "Thinking…");
+        // The answer's top stays in sight: what came before this step's prompt goes first
+        const you = [...log.querySelectorAll(".you")].pop();
+        while (you && log.firstElementChild !== you) log.firstElementChild.remove();
+        if (log.lastElementChild?.className.startsWith("result") || log.lastElementChild?.className.startsWith("diff")) gap();
+        const d = add("say", "");
+        const words = e.text.split(/(\s+)/);
+        let shown = "";
+        for (let i = 0; i < words.length; i += 2) {
+          shown += words[i] + (words[i + 1] || "");
+          d.innerHTML = `<span class="dot">● </span>${md(shown)}`;
+          while (log.scrollHeight > log.clientHeight && log.children.length > 1) log.firstElementChild.remove();
+          // The first T.slow words at reading speed, the rest of a long answer quicker
+          await sleep(1000 / T.words / (i / 2 < (T.slow ?? Infinity) ? 1 : 4));
+        }
+        await sleep(Math.min(T.hold * words.length / 2, T.holdMax)); // time to read it
+      }
+      await sleep(T.after);
+    },
+    // A step: type the prompt, then its events; onEvent(e, i) runs after each one shows
+    async step(s, onEvent) {
+      await term.type(s.prompt);
+      await spin(T.think, "Thinking…");
+      for (const [i, e] of s.events.entries()) {
+        await term.event(e);
+        if (onEvent) await onEvent(e, i);
+      }
+    },
+  };
+  window.term = term;
+  const t = new URLSearchParams(location.search).get("t");
+  if (t) fetch(t).then((r) => r.json()).then(async (tr) => { for (const s of tr.steps) await term.step(s); });
+})();
+</script>
+</body>
+</html>
