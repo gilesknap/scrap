@@ -12,6 +12,11 @@ Capture from your phone in seconds, never waiting on an LLM, then see it all in 
 
 **Status:** in daily use, and deployed on Kubernetes.
 
+## Demo
+
+A video highlighting a some of the main features.
+https://github.com/user-attachments/assets/9750e6f6-f15c-4891-bbce-40fa90968a18
+
 ## Goals
 
 - Simple: one service, one process, one SQLite file.
