@@ -12,10 +12,15 @@ Capture from your phone in seconds, never waiting on an LLM, then see it all in 
 
 **Status:** in daily use, and deployed on Kubernetes.
 
+<!-- docs include pause: the docs front page has its own Demo section, with a video player -->
+
 ## Demo
 
-A video highlighting a some of the main features.
+A video highlighting some of the main features.
+
 https://github.com/user-attachments/assets/9750e6f6-f15c-4891-bbce-40fa90968a18
+
+<!-- docs include resume -->
 
 ## Goals
 
