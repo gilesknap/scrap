@@ -21,7 +21,6 @@ how-to/make-your-own-lists
 
 how-to/connect-claude-code
 how-to/connect-claude-sandbox
-how-to/auto-summary-on-compact
 how-to/keep-an-index
 ```
 
