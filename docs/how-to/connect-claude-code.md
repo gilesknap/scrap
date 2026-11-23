@@ -414,9 +414,6 @@ A drawing saved this way is a new version, "drawn by claude", in the drawing's H
 nothing is overwritten, and if you edited the drawing in the meantime Claude's save is refused.
 You can restore any earlier version there.
 
-To have a session summary posted automatically before each compaction, install the `PreCompact`
-hook described in [](auto-summary-on-compact.md).
-
 ## Permissions and security
 
 Claude Code asks before using an MCP tool unless you allow it, and the `sc` commands allow none. You

@@ -368,9 +368,7 @@ text, where a photo's JPEG would go.
   `project/<slug>` would be over 64 characters, the slug is cut from the front, keeping its end
   (the most specific folders). On an append the client adds it only if the page has no
   `project/` tag; repeating one the page has changes nothing. A longer tag is refused. The
-  server cannot see the client's folder, so it adds nothing itself: the `sc` commands and the
-  PreCompact hook ([](../how-to/auto-summary-on-compact.md), which takes the slug from its
-  transcript's folder) send it. scrap's own Claude enrichment never adds a `project/` tag, nor
+  server cannot see the client's folder, so it adds nothing itself: the `sc` commands send it. scrap's own Claude enrichment never adds a `project/` tag, nor
   sees one in the tags in use, and the public site never shows one, since it names a local path
   ([](public-site.md)); a page already public keeps its chip until it is published again
   (Settings > Refresh all public pages).
